@@ -1,0 +1,459 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ctr_SQL">
+ 	<select id="getCTRMst_gridList" resultType="java.util.HashMap">
+	 	Select
+	 		<if test="listSize > 0">
+	 			Top (#{listSize})
+	 		</if>
+	 	    Row_Number()OVER(ORDER BY SCT.CTRID DESC ) as RNUM,
+	 	    SCT.CTRID AS ctrID,	SCT.CTRCode AS ctrCode,
+			SCT.SRID AS srID,	TSM.SRCode AS srCode,
+			SCT.SCRID AS scrID, ESCR.SCRCode AS scrCode,
+			SCT.Subject AS subject,
+			SCT.Description,
+			SCT.Status AS status,
+			TD1.Name As statusNM,
+			
+		    SCT.SYSArea1 AS sysArea1, TIA.PlainText As sysArea1NM,
+			SCT.SYSArea2 AS sysArea2, TIA2.PlainText As sysArea2NM,
+			
+			SCT.urgencyYN AS urgencyYN,
+			SCT.CurWorkerID AS curWorkerID,			
+			ISNULL(CONVERT(char(10),SCT.DueDate, 120),'') As dueDate,
+			SCT.RegUserID AS regUserID,
+			TM1.Name As regUserName, 
+			SCT.RegTeamID,
+			TTT1.Name As regTeamName,
+			TM1.Name + '('+ TTT1.Name + ')' AS regTName,
+			ISNULL(CONVERT(char(10),SCT.RegDT, 120),'') As regDT,	
+			ISNULL(CONVERT(char(16),SCT.RegDT, 120),'') As regDTM,
+
+			SCT.ReviewerID AS reviewerID,
+			TM2.Name As reviewerName, 
+			SCT.ReviewerTeamID AS reviewerTeamID,
+			TTT2.Name As reviewerTeamName, 
+			TM2.Name + '('+ TTT2.Name + ')' AS reviewerTName,
+			SCT.RewStatus AS rewStatus,
+			TD2.Name As rewStatusNM,
+			ISNULL(CONVERT(char(10),SCT.ReviewDT, 120),'') As reviewDT,
+			ISNULL(CONVERT(char(16),SCT.ReviewDT, 120),'') As reviewDTM,
+			SCT.RewComment AS rewComment,
+
+			SCT.ApproverID AS approverID,
+			TM3.Name As approverName, 
+			SCT.ApproverTeamID AS approverTeamID,
+			TTT3.Name As approverTeamName, 
+			TM3.Name + '('+ TTT3.Name + ')' AS approverTName,
+			SCT.AprvStatus AS aprvStatus,
+			TD2.Name As aprvStatusNM,
+			ISNULL(CONVERT(char(10),SCT.ApprovalDT, 120),'') As approvalDT,
+			ISNULL(CONVERT(char(16),SCT.ApprovalDT, 120),'') As approvalDTM,
+			SCT.AprvComment AS aprvComment,
+			
+			SCT.CTUserID AS CTUserID,
+			TM4.Name As CTUserNM, 
+			TTT4.Name As CTUserTeamNM, 
+			TM4.Name + '('+ TTT4.Name + ')' AS CTUserNM2,
+			ISNULL(CONVERT(char(10),SCT.CTExeDT, 120), '') As CTExeDT,
+			ISNULL(CONVERT(char(16),SCT.CTExeDT, 120), '') As CTExeDTM,
+			SCT.CTResult AS CTResult,
+			SCT.CTResultTP AS CTResultTP,
+			TD3.Name AS CTResultTPName,
+			SCT.CTRemark AS CTRemark,
+			
+			
+			SCT.IFStatus AS ifStatus,
+			ISNULL(CONVERT(char(10),SCT.LastUpdated, 120),'') As lastUpdated,
+			#{languageID} As languageID
+		From XBOLTAPP.ESM_CTR_MST SCT
+			Left Outer JOIN XBOLTAPP.ESM_SR_MST TSM ON TSM.SRID = SCT.SRID
+			Left Outer JOIN XBOLTAPP.ESM_SCR_MST ESCR ON SCT.SCRID = ESCR.SCRID		 
+			
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD1 ON TD1.TypeCode = SCT.Status And TD1.LanguageID  = #{languageID} And TD1.Category = 'CTSSTS'
+		 	Left Outer Join XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = SCT.AprvStatus And TD2.LanguageID  = #{languageID} And TD2.Category = 'APRVSTS'
+		 	Left Outer Join XBOLTADM.TB_DICTIONARY TD3 ON TD3.TypeCode = SCT.CTResultTP And TD3.LanguageID  = #{languageID} And TD3.Category = 'CTSRLTTP'
+
+			Left Outer Join XBOLTADM.TB_MEMBER TM1 ON TM1.MemberID = SCT.RegUserID 
+			Left Outer Join XBOLTADM.TB_MEMBER TM2 ON TM2.MemberID = SCT.ReviewerID
+			Left Outer Join XBOLTADM.TB_MEMBER TM3 ON TM3.MemberID = SCT.ApproverID
+		 	Left Outer Join XBOLTADM.TB_MEMBER TM4 ON TM4.MemberID = SCT.CTUserID
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT1 ON TTT1.TeamID = SCT.RegTeamID And TTT1.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT2 ON TTT2.TeamID = SCT.ReviewerTeamID And TTT2.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT3 ON TTT3.TeamID = SCT.ApproverTeamID And TTT3.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT4 ON TTT4.TeamID = SCT.CTTeamID And TTT4.LanguageID = #{languageID}
+
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = SCT.SYSArea1 And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID  =  #{languageID} 
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 ON TIA2.ItemID = SCT.SYSArea2 And TIA2.AttrTypeCode = 'AT00001' And TIA2.LanguageID  =  #{languageID}
+		<where> 1=1
+		   <if test="ctrID != null and ctrID != ''">
+				AND	SCT.CTRID = #{ctrID} 
+			</if>		
+			<if test='"Y".equals(myCTR)'>	
+		    	AND	#{loginUserId} IN (SCT.RegUserID, SCT.ReviewerID, SCT.ApproverID, SCT.CTUserID)
+			</if>
+			<if test="ctrMode != null and ctrMode.equals('ING')">
+				And SCT.Status != 'CTSCLS'  
+			</if>	
+			<if test="ctrMode != null and ctrMode.equals('INPRG')">
+				And SCT.Status not in ('CTSREQ','CTSCLS')  
+			</if>	
+			<if test="srID != null and srID != ''">
+				AND SCT.SRID = #{srID} 
+			</if>
+			<if test="ctrCode != null and ctrCode != ''">
+				AND SCT.CTRCode like N'%'+#{ctrCode}+'%'
+			</if>
+			<if test="scrID != null and scrID != ''">
+				AND SCT.SCRID = #{scrID}
+			</if>
+			<if test="regUserName != null and regUserName != ''">
+				AND TM1.Name like '%'+#{regUserName}+'%'
+			</if>			
+			<if test="regTeamID != null and regTeamID != ''">
+				AND SCT.RegTeamID = #{regTeamID}
+			</if>			
+			<if test="reg_STR_DT != null and reg_STR_DT != ''">
+				AND <![CDATA[ CONVERT(varchar(10), SCT.RegDT, 120) BETWEEN #{reg_STR_DT} AND #{reg_END_DT}  ]]>
+			</if>
+			<if test="reviewerName != null and reviewerName != ''">
+				AND TM2.Name like '%'+#{reviewerName}+'%'
+			</if>
+			<if test="reviewerTeamID != null and reviewerTeamID != ''">
+				AND SCT.ReviewerTeamID = #{reviewerTeamID}
+			</if>			
+			<if test="reviewe_STR_DT != null and reviewe_STR_DT != ''">
+				AND <![CDATA[ CONVERT(varchar(10), SCT.ReviewDT, 120) BETWEEN #{reviewe_STR_DT} AND #{reviewe_END_DT}  ]]>
+			</if>
+			<if test="approverName != null and approverName != ''">
+				AND TM3.Name like '%'+#{approverName}+'%'
+			</if>			
+			<if test="approval_STR_DT != null and approval_STR_DT != ''">
+				AND <![CDATA[ CONVERT(varchar(10), SCT.ApprovalDT, 120) BETWEEN #{approval_STR_DT} AND #{approval_END_DT}  ]]>
+			</if>
+			<if test="CTUserNM != null and CTUserNM != ''">
+				AND TM4.Name like '%'+#{CTUserNM}+'%'
+			</if>			
+			<if test="oprAp_STR_DT != null and oprAp_STR_DT != ''">
+				AND <![CDATA[ CONVERT(varchar(10), SCT.CTExeDT, 120) BETWEEN #{oprAp_STR_DT} AND #{oprAp_END_DT}  ]]>
+			</if>
+			<if test="subject != null and subject != ''">
+				AND SCT.Subject like '%'+#{subject}+'%'
+			</if>
+			<if test="sysArea1 != null and sysArea1 != ''">
+				AND SCT.SYSArea1 = #{sysArea1} 
+			</if>
+			<if test="sysArea2 != null and sysArea2 != ''">
+				AND SCT.SYSArea2 = #{sysArea2} 
+			</if>
+			<if test="status != null and status != ''">
+				AND SCT.Status = #{status}
+			</if>
+			<if test="urgencyYN != null and urgencyYN != ''">
+				AND SCT.urgencyYN = #{urgencyYN}
+			</if>
+			<if test="dueDate != null and dueDate != ''">
+				AND <![CDATA[ Convert(varchar(10),SCT.DueDate, 120)  <= #{dueDate}  ]]>
+			</if>		
+			<if test="itemID != null and itemID != ''">
+				AND #{itemID} in (SCT.SYSArea1, SCT.SYSArea2 , SCT.SYSArea3)
+			</if>
+		</where>
+		Order By  SCT.CTRID DESC
+	</select>
+	
+	<select id="getCTRMSTCount" resultType="String">
+		Select Count(*)
+		From XBOLTAPP.ESM_CTR_MST 
+		<where>
+			<if test='"Y".equals(myCTR)'>	
+		    	AND	#{loginUserId} IN (RegUserID, ReviewerID, ApproverID, CTUserID)
+			</if>
+			<if test="ctrMode != null and ctrMode.equals('ING')">
+				And Status != 'CTSCLS'  
+			</if>	
+			<if test="ctrMode != null and ctrMode.equals('INPRG')">
+				And Status NOT IN ('CTSREQ','CTSCLS')  
+			</if>	
+		</where>
+	</select>
+	
+	<select id="getMaxCTRID" resultType="String">
+		SELECT	ISNULL(MAX(CTRID)+1, 1) as CTRID FROM XBOLTAPP.ESM_CTR_MST
+	</select> 
+	
+	<select id="getMaxCTRCode" resultType="String">
+  		SELECT
+      		TOP 1 CTRCode
+  		FROM XBOLTAPP.ESM_CTR_MST
+  		Where subString(CTRCode, 5, 6) = #{thisYmd}  order by CTRID DESC
+	</select>
+	
+	<select id="getCTRCode" resultType="int">
+  		SELECT
+      		COUNT(CTRCode) AS CNT
+  		FROM XBOLTAPP.ESM_CTR_MST
+  		Where CTRCode = #{ctrCode}
+	</select>
+	
+	<insert id="insertCTR" parameterType="java.util.HashMap">
+	Insert Into 
+		XBOLTAPP.ESM_CTR_MST(
+			CTRID
+			,CTRCode
+
+			,SRID
+			,SCRID
+			,Status
+			,CurWorkerID
+			,Subject
+			,Description
+			,SYSArea1
+			,SYSArea2
+			,UrgencyYN
+			,DueDate
+			,RegUserID
+			,RegTeamID
+			,RegDT
+			,ReviewerID
+			,ReviewerTeamID
+			,RewStatus
+			,ApproverID
+			,ApproverTeamID
+			,CTUserID
+			,CTTeamID
+			<if test='urgencyYN == "Y"'>
+			<!-- ,CTResult -->
+			,CTExeDT
+			</if>
+			,IFStatus
+			,LastUpdated
+			,LastUser
+			,ClientID
+
+		)Values(
+			#{ctrID}
+			, #{ctrCode}
+
+			, #{srID}
+			, #{scrID}
+			, #{status}
+			, #{curWorkerID}
+			, #{subject}
+			, #{Description}
+			, #{sysArea1}
+			, #{sysArea2}
+			, #{urgencyYN}
+			, #{dueDate}
+			, #{regUserID}
+			, #{regTeamID}
+			, #{regDT}
+			, #{reviewerID}
+			, #{reviewerTeamID}
+			, '0'
+			, #{approverID}
+			, #{approverTeamID}
+			, #{CTUserID}
+			, #{opApTeamID}
+			<if test='urgencyYN == "Y"'>
+			<!-- , #{CTResult} -->
+			, CONVERT (DATETIME, #{CTExeDT})
+			</if>	
+			, #{ifStatus}
+			, GETDATE()
+			, #{lastUser}
+			, #{clientID}
+			)
+	</insert>
+	
+	<select id="getReceipt" resultType="java.util.HashMap">
+		Select MemberID, Name, TeamID
+		From XBOLTADM.TB_MEMBER 
+		Where MemberID = (Select AuthorID From XBOLTADM.TB_ITEM Where ItemID = #{sysArea2})
+	</select>
+	
+	<select id="getITSMType" resultType="String">
+		Select LovCode As ITSMType From XBOLTADM.TB_ITEM_ATTR Where ItemID = #{sysArea2} And AttrTypeCode = 'AT00035' And LanguageID =  #{languageID}
+	</select>
+	
+	<update id="updateCTR" parameterType="java.util.HashMap">
+		Update XBOLTAPP.ESM_CTR_MST SET
+			Status	=	#{status},
+			CurWorkerID	=	#{curWorkerID},
+	
+<!-- 		
+			<if test="srID != null and srID != ''">
+			SRID	=	#{srID},
+			</if>
+			<if test="scrID != null and scrID != ''">
+			SCRID	=	#{scrID},
+			</if>
+			<if test="subject != null and subject != ''">
+			Subject	=	#{subject},
+			</if>
+			<if test="Description != null and Description != ''">			
+			Description	=	#{Description},
+			</if>
+			<if test="sysArea1 != null and sysArea1 != ''">			
+			SYSArea1	=	#{sysArea1},
+			</if>
+			<if test="sysArea2 != null and sysArea2 != ''">			
+			SYSArea2	=	#{sysArea2},
+			</if>
+			<if test="urgencyYN != null and urgencyYN != ''">			
+			UrgencyYN	=	#{urgencyYN},
+			</if>
+			<if test="dueDate != null and dueDate != ''">	
+			DueDate	=	#{dueDate},
+			</if>
+			<if test="regUserID != null and regUserID != ''">			
+			RegUserID	=	#{regUserID},
+			</if>
+			<if test="regTeamID != null and regTeamID != ''">			
+			RegTeamID	=	#{regTeamID},
+			</if>
+			<if test="regDT == null or regDT == ''">			
+			RegDT	=	GETDATE(),
+			</if>
+			<if test="regDT != null and regDT != ''">			
+			RegDT	=	#{regDT},
+			</if>
+-->
+			<if test="reviewerID != null and reviewerID != ''">			
+			ReviewerID	=	#{reviewerID},
+			</if>
+			<if test="reviewerTeamID != null and reviewerTeamID != ''">			
+			ReviewerTeamID	=	#{reviewerTeamID},
+			</if>
+			<if test="rewStatus != null and rewStatus != ''">
+			RewStatus	=	#{rewStatus},
+			</if>
+			<if test="rewComment != null and rewComment != ''">
+			RewComment	=	#{rewComment},
+			</if>
+			<if test="reviewDT != null and reviewDT != ''">
+			ReviewDT	=	GETDATE(),
+			</if>
+			<if test="approverID != null and approverID != ''">
+			ApproverID	=	#{approverID},
+			</if>
+			<if test="approverTeamID != null and approverTeamID != ''">
+			ApproverTeamID	=	#{approverTeamID},
+			</if>
+			<if test="aprvStatus != null and aprvStatus != ''">
+			AprvStatus	=	#{aprvStatus},
+			</if>
+			<if test="approvalDT != null and approvalDT != ''">
+			ApprovalDT	=	GETDATE(),
+			</if>
+ 			<if test="aprvComment != null and aprvComment != ''">
+			AprvComment	=	#{aprvComment},
+			</if>
+			<if test="CTUserID != null and CTUserID != ''">
+			CTUserID	=	#{CTUserID},
+			</if>
+			<if test="CTExeDT != null and CTExeDT != ''">
+			CTExeDT	=	CONVERT (DATETIME, #{CTExeDT}),
+			</if>
+			
+			<if test="CTResultTP != null and CTResultTP != ''">
+			CTResultTP	=	#{CTResultTP},
+			</if>
+			<if test="CTRemark != null and CTRemark != ''">
+			CTRemark	=	#{CTRemark},
+			</if>
+			
+			<if test="CTResult != null and CTResult != ''">
+			CTResult	=	#{CTResult},
+			</if>
+			<if test="ifStatus != null and ifStatus != ''">
+			IFStatus	=	#{ifStatus},
+			</if>
+			<if test="lastUser != null and lastUser != ''">
+			LastUser	=	#{lastUser},
+			</if>
+			<if test="clientID != null and clientID != ''">
+			ClientID	=	#{clientID},
+			</if>
+			LastUpdated	=	GETDATE()
+		where
+			CTRID = #{ctrID}		 		
+	</update>
+	
+	<select id="getSYSAreaUserInfo" resultType="java.util.HashMap">
+		Select TI.AuthorID, TI.OwnerTeamID, TIA.LovCode As ITSM  
+		From XBOLTADM.TB_ITEM TI
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA 
+			ON TIA.ItemID = TI.ItemID 
+			And TIA.LanguageID = #{languageID} And TIA.AttrTypeCode = 'AT00035'
+		Where TI.ItemID = #{sysArea2}
+	</select>
+	
+	<select id="getCTRID" resultType="String">
+		Select CTRID From XBOLTAPP.ESM_CTR_MST 
+		<where>
+			<if test="srID != null and srID != ''">
+				SRID = #{srID} 
+			</if>
+			<if test="CSRID != null and CSRID != ''">
+				CSRID = #{CSRID}
+			</if>
+		</where>	
+	</select>
+	
+	<select id="getCTRIDList" resultType="java.util.HashMap">
+		Select CTRID From XBOLTAPP.ESM_CTR_MST
+		Where CSRID IN (Select ProjectID From XBOLTADM.TB_WF_INST Where WFInstanceID = #{WFInstanceID} And AprvOption = #{AprvOption})
+	</select>
+	
+	<select id="getCTRAssignedRoleList" resultType="java.util.HashMap">
+		SELECT 
+			TORT.RoleTypeCode As roleType,
+			TM.Name + '(' + TTT.Name + ')' AS memberTName,
+			TM.Name AS memberName,
+			TMI.MemberID AS memberID,	
+			TM.TeamID AS teamID,				
+			TD.SortNum
+		FROM XBOLTADM.TB_OLM_ROLE_TYPE TORT 
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TORT.RoleTypeCode 
+				And TD.LanguageID = #{languageID}  And TD.Category = 'CTSROLETP'
+			Left Join XBOLTADM.TB_MY_ITEM TMI ON TORT.AssignmentType = TMI.AssignmentType and TMI.RoleType = TORT.RoleTypeCode
+			Left Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TMI.MemberID
+			Left Join XBOLTADM.TB_TEAM_TXT TTT ON TM.TeamID = TTT.TeamID
+		WHERE
+			TORT.AssignmentType = 'CTSROLETP'
+			AND TMI.ItemID = #{sysArea2}
+		ORDER BY TD.SortNum
+	</select>
+	
+				
+	<select id="getctrRegTeam" resultType="java.util.HashMap">
+		SELECT 
+			Distinct ESM.RegTeamID AS CODE
+			, TMT.Name AS NAME
+		FROM 
+			XBOLTAPP.ESM_CTR_MST  ESM, XBOLTADM.TB_TEAM TM 
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TM.TeamID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+			Where TM.TeamID = ESM.RegTeamID
+			<if test="parentIDs != null and parentIDs != ''">
+				And TM.ParentID IN (${parentIDs})
+			</if>
+		ORDER BY NAME			
+	</select>
+	
+	<select id="getCTRCNT" resultType="String">	
+		Select COUNT(*) From XBOLTAPP.ESM_CTR_MST
+		Where SCRID = #{scrID}
+		<if test="status != null and status != ''">
+			And Status = #{status}
+		</if>
+	</select>
+	
+	<select id="exeCTRInsertIF" parameterType="java.util.HashMap" statementType="CALLABLE">
+	{ CALL XBOLTADM.APP_CTR_INSERT_IF }
+	</select>
+
+</mapper>

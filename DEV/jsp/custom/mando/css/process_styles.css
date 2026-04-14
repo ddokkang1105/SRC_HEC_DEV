@@ -1,0 +1,351 @@
+@charset "utf-8";
+/* CSS Document */
+
+/* Reset */
+body, div, dl, dt, dd, ul, ol, li, h1, h2, h3, h4, h5, h6, pre, code, form, fieldset, legend, textarea, p, blockquote, th, td, input, select, textarea, button, table {
+	margin: 0;
+	padding: 0;
+}
+fieldset, img {
+	border: 0 none
+}
+dl, ul, ol, menu, li {
+	list-style: none;
+}
+blockquote, q {
+	quotes: none
+}
+blockquote:before, blockquote:after, q:before, q:after {
+	content: '';
+	content: none
+}
+input, select, textarea, button {
+	vertical-align: middle
+}
+button {
+	border: 0 none;
+	background-color: transparent;
+	cursor: pointer
+}
+html, body {
+	-webkit-font-smoothing: antialiased;
+	height: 100%;
+	line-height: 20px;
+	font-family:'NanumSquare', "맑은고딕", "Malgun Gothic", "돋움", Dotum, Shruti, Arial;
+	font-size: 13px;
+	color: #646464;
+	
+}
+
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+	text-align: justify;
+}
+
+body, th, td, input, select, textarea, button {
+	/*font-size: 14px;*/
+	color: #666;
+}
+a {
+	color: #333;
+	text-decoration: none;
+	outline: none;
+select-dummy: expression(this.hideFocus=true);
+}
+a:active, a:hover {
+	text-decoration: none
+}
+address, caption, cite, code, dfn, em, var {
+	font-style: normal;
+	font-weight: normal
+}
+/* Common */
+.clear {
+	display: block;
+	overflow: visible!important;
+	width: auto!important;
+	clear: both;
+	float: none;
+}
+.fL {
+	float: left;
+}
+.fR {
+	float: right;
+}
+
+.mT5{margin-top:5px;}
+.mT10{margin-top:10px;}
+.mT15{margin-top:15px;}
+.mT20{margin-top:20px;}
+.mT30{margin-top:30px;}
+.mL5{margin-left:5px;}
+.mL10{margin-left:10px;}
+.mR10{margin-right:10px;}
+.mB5{margin-bottom:5px;}
+.mB10{margin-bottom:10px;}
+.mB20{margin-bottom:20px;}
+.mB30{margin-bottom:30px;}
+
+
+#header{
+	height:126px;
+	text-align:center;
+	background:url(../images/header_bg.png) repeat-x;
+}
+
+#contents_wrap {
+	position: relative;
+	width:1200px;
+	margin:20px auto 0;
+}
+#contents_wrap .left_area {
+	float:left;
+	width:580px;
+}
+
+#contents_wrap .right_area {
+	float:right;
+	width:590px;
+}
+
+.main_tit {
+	margin-bottom:0;
+}
+
+.operation {
+	position:relative;
+	height:120px;
+	margin-bottom:30px;
+}
+
+.operation li {
+	float:left;
+	font-size:14px;
+	font-weight: 500;
+}
+
+.operation li a span, .operation li a:hover span{
+	display:block;
+	width:110px;
+	text-align:center;
+	line-height:14px;
+}
+
+.operation li.op01 a{
+	width:120px;
+	background:url(../images/operation_01.png) no-repeat;
+	color:#414141;
+	padding-top:85px;
+	height:35px;
+	display:block;
+}
+
+.operation li.op01 a:hover{
+	background:url(../images/operation_01_r.png) no-repeat;
+	color:#FFF;
+}
+
+.operation li.op02 a{
+	width:120px;
+	background:url(../images/operation_02.png) no-repeat;
+	color:#414141;
+	padding-top:85px;
+	height:35px;
+	display:block;
+}
+
+.operation li.op02 a:hover{
+	background:url(../images/operation_02_r.png) no-repeat;
+	color:#FFF;
+}
+
+.operation li.op03 a{
+	width:120px;
+	background:url(../images/operation_03.png) no-repeat;
+	color:#414141;
+	padding-top:85px;
+	height:35px;
+	display:block;
+}
+
+.operation li.op03 a:hover{
+	background:url(../images/operation_03_r.png) no-repeat;
+	color:#FFF;
+}
+
+.operation li.op04 a{
+	width:120px;
+	background:url(../images/operation_04.png) no-repeat;
+	color:#414141;
+	padding-top:85px;
+	height:35px;
+	display:block;
+}
+
+.operation li.op04 a:hover{
+	background:url(../images/operation_04_r.png) no-repeat;
+	color:#FFF;
+}
+
+.operation li.op05 a{
+	background:url(../images/operation_05.png) no-repeat;
+	color:#414141;
+	padding-top:85px;
+	height:35px;
+	display:block;
+}
+
+.operation li.op05 a:hover{
+	background:url(../images/operation_05_r.png) no-repeat;
+	color:#FFF;
+}
+
+.support {
+	position:relative;
+	overflow:hidden;
+	margin-bottom:20px;
+}
+
+.support li{
+	float:left;
+	width:190px;
+	font-size:14px;
+	line-height:40px;
+	margin-bottom:6px;
+	margin-right:10px;
+}
+
+.support li.end{
+	margin-right:0;
+}
+
+.support li a{
+	display:block;
+	height:40px;
+	border:solid 1px #dadada;
+	padding-left:17px;
+	background:url(../images/ico_plus.png) no-repeat 160px 0;
+}
+
+.support li a:hover{
+	border:solid 1px #f58220;
+	color:#f48221;
+	background:url(../images/ico_plus_r.png) no-repeat 160px 0;
+}
+
+.statics{
+	background:#537cb2;
+	height:64px;
+	margin-bottom:29px;
+}
+
+.statics img{
+	padding-left:20px;
+	}
+	
+.btn_search {
+	display:block;
+	float:right;
+	color: #FFF;
+	font-size: 13px;
+	font-weight:700;
+	font-color: #000;
+	width: 102px;
+	padding-left:25px;
+	height: 36px;
+	line-height:36px;
+	background:#425168 url(../images/ico_quick.png) no-repeat 100px 12px;
+	margin-top:14px;
+	margin-right:20px;
+}
+.btn_search:hover {
+	background-color: #263246;
+}
+
+.tab{
+	position:relative;
+	overflow:hidden;
+}
+
+.tab li{
+	border-right:1px solid #dadada;
+	font-size:15px;
+	font-weight:700;
+	float:left;
+	width:146px;
+	text-align:center;
+	color:#b9b9b9;
+	height:49px;
+	line-height:49px;
+}
+
+.tab li.on{
+	color:#f68121;
+	background:#FFF;
+	border-top:2px solid #f6821f;
+	border-left:1px solid #f6821f;
+	border-right:1px solid #f6821f;
+}
+.tab li.end{
+	width:146px;
+	border-left:none;
+	border-right:1px solid #dadada;
+	border-bottom:1px solid #f6821f;
+}
+
+.tab li a{
+	color:#666666;
+	display:block;
+	height: 100%;
+	background:#FFF;
+	border-top:1px solid #dadada;
+	border-bottom:1px solid #f6821f;
+}
+
+.tab li a:hover{
+	color:#f68121;
+	background:#FFF;
+	border-top:2px solid #f6821f;
+	border-left:1px solid #f6821f;
+	border-right:1px solid #f6821f;
+	display:block;
+	height: 100%;
+}
+
+.notice_area{
+	width:587px;
+	height:158px;
+	padding-top:20px;
+	border-left:1px solid #dadada;
+	border-right:1px solid #dadada;
+	border-bottom:1px solid #dadada;
+}
+
+.notice {
+	margin-left:35px;
+	margin-right:35px;
+}
+
+.notice li{
+	color:#101010;
+	font-size:13px;
+	line-height:28px;
+}
+
+.notice li a{
+	color:#101010;
+	font-size:13px;
+	}
+
+.notice li a:hover{
+	color:#101010;
+	text-decoration:underline;
+	font-size:13px;
+	}
+	
+.notice li span {
+	display:inline-block;
+	float:right;
+}	

@@ -1,0 +1,5149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	project Item 관련 관련	-->
+<mapper namespace="project_SQL">
+ 
+ <!-- 2012-XBOLT_SSK Start -->
+ 	 <!-- 프로젝트 : 변경이력관리 조회 -->
+ 
+ 	<delete id="delChangeSetInfo">
+ 		Delete
+ 			XBOLTADM.TB_CHANGE_SET
+ 		WHERE
+ 			ChangeSetID = #{ChangeSetID}
+ 			
+ 		Delete
+ 			XBOLTADM.TB_TASK
+ 		WHERE
+ 			ChangeSetID = #{ChangeSetID}	
+ 	</delete>
+ 	
+ 	<delete id="delTaskINfo">
+ 		Delete
+ 			XBOLTADM.TB_TASK
+ 		WHERE
+ 			ChangeSetID = #{ChangeSetID}	
+ 	</delete>
+ 
+ 	<insert id="addChangeSet">
+ 		INSERT INTO
+ 		XBOLTADM.TB_CHANGE_SET(
+ 			ChangeSetID
+ 			,ProjectID
+ 			,PJTcategory
+ 			,ItemID
+ 			,ItemClassCode
+
+ 			,ItemTypeCode
+ 			,AuthorID
+ 			,AuthorName
+ 			,AuthorTeamID
+ 			,CompanyID
+
+ 			,Description
+ 			
+ 			,ChangeType
+ 			,Reason
+ 			,FromOrg
+ 			,ToOrg
+ 			,Status
+ 			,CreationTime
+ 		)VALUES(
+ 			#{ChangeSetID}
+ 			,#{ProjectID}
+ 			,#{PJTcategory}
+ 			,#{ItemID}
+ 			,(Select ClassCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{ItemID})
+
+ 			,(Select ItemTypeCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{ItemID})
+ 			,#{AuthorID}
+ 			,#{AuthorName}
+ 			,#{TeamID}
+ 			,#{CompanyID}
+
+ 			,#{Description}
+ 			
+ 			,#{ChangeType}
+ 			,#{Reason}
+ 			,#{FromOrg}
+ 			,#{ToOrg}
+ 			,#{Status}
+ 			,getDate()
+		)
+ 	</insert>
+ 
+ <!-- 구-ChangeSet Info 가져오기 -->
+ 	<select id="getChangeSetInfo" resultType="java.util.HashMap">
+		SELECT 
+			ISNULL(
+			XBOLTADM.fn_GetMyAbsPathForList( (SELECT ItemID FROM XBOLTADM.TB_CHANGE_SET WHERE ChangeSetID = #{ItemID}) ,#{languageID} ),'') AS Path 
+			, TCS.ChangeSetID
+			, TI.Identifier
+			, TCS.ProjectID , TIA.Plaintext AS Name
+			, TCS.ItemTypeCode , TTD.Name AS TypeName
+			, TCS.ItemClassCode, TCD.Name AS ClassName
+			, TCS.AuthorTeamID , TTT.Name AS TeamName
+			, TCS.AuthorID , TM.Name AS AuthorName
+			, RTRIM(TCS.ChangeType) AS ChangeType 
+			, TCS.Reason
+			, RTRIM(TCS.Status) AS Status
+			, TCS.Description
+			, Convert(varchar(20), TCS.CreationTime, 111) AS CreationTime
+			, TCTD.Name AS ChgTypeName
+			, TSD.Name AS StatusName
+			, TRD.Name AS ReasonName	
+			, ISNULL(TTTT.Name,'') AS ToOrgName			
+			, ISNULL(TTTF.Name,'') AS FromOrgName	
+			, ISNULL(CONVERT(char(10),TCS.ValidFrom, 120),'') AS ValidFrom						
+		From 
+			XBOLTADM.TB_CHANGE_SET TCS
+			Left Outer Join XBOLTADM.TB_ITEM TI
+				ON TCS.ItemID = TI.ItemID
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+				ON TCS.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TTD
+				ON TCS.ItemTypeCode = TTD.TypeCode	AND TTD.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TCD
+				ON TCS.ItemClassCode = TCD.TypeCode	AND TCD.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT
+				ON TCS.AuthorTeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+				ON TCS.AuthorID = TM.MemberID
+			Left Outer Join XBOLTADM.TB_DICTIONARY TCTD
+				ON TCS.ChangeType = TCTD.TypeCode	AND TCTD.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TRD
+				ON TCS.Reason = TRD.TypeCode	AND TRD.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TSD
+				ON TCS.Status = TSD.TypeCode	AND TSD.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTTT
+				ON TCS.ToOrg = TTTT.TeamID AND TTTT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTTF
+				ON TCS.FromOrg = TTTF.TeamID AND TTTF.LanguageID = #{languageID}				
+		WHERE
+			TCS.ChangeSetID = #{changeSetID}
+ 	</select>  
+
+	<!-- 2014-03-17 ChangeSet Admin View  -->
+	<select id="getAdminChangeSetInfo" resultType="java.util.HashMap">
+		SELECT 
+			TCS.ChangeSetID
+			, TIA.PlainText AS Name
+			, TDS.Name AS StatusName
+			, TDR.Name AS Reason
+			, TDC.Name AS ChangeType
+			, TDCT.Name AS Category
+			, TCS.AuthorName
+			, TTC.Name AS CompanyName
+			, TTT.Name AS TeamName
+			, TCS.Description
+			, CONVERT(varchar(14),TCS.CreationTime,111) as CreationTime
+			, XBOLTADM.fn_GetMyAbsPathForList(TCS.ItemID, #{languageID}) AS Path
+			, TI.Status AS ItemStatus
+			, TCS.ItemID
+			, ISNULL(TCS.FromItemID,'') AS FromItemID
+			, ISNULL(TCS.ToItemID,'') AS ToItemID
+			, TCS.Status 
+			, TCS.AuthorID
+			, TCS.Approver
+			, TI.Identifier
+			, TCS.Reason As ReasonId
+			, TCS.Description
+			, TCS.ProjectID
+		FROM 
+			XBOLTADM.TB_CHANGE_SET TCS
+			
+			Left Outer Join XBOLTADM.TB_ITEM TI
+				on TCS.ItemID = TI.ItemID
+			
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+				on TCS.ItemID = TIA.ItemID
+				AND TIA.AttrTypeCode = 'AT00001'
+				AND TIA.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TDS
+				on TCS.Status = TDS.TypeCode
+				AND TDS.Category = 'CNGSTS'
+				AND TDS.LanguageID = #{languageID}				
+			Left Outer Join XBOLTADM.TB_DICTIONARY TDR
+				on TCS.Reason = TDR.TypeCode
+				AND TDR.Category = 'CR'
+				AND TDR.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TDC
+				on TCS.ChangeType	= TDC.TypeCode
+				AND TDC.Category = 'CNGT1'
+				AND TDC.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TDCT
+				on TCS.PJTCategory	= TDCT.TypeCode
+				AND TDCT.Category = 'PJTCAT'
+				AND TDCT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT	
+				on TCS.AuthorTeamID = TTT.TeamID
+				AND TTT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTC
+				on TCS.CompanyID = TTC.TeamID
+				AND TTC.LanguageID = #{languageID}	
+		WHERE 
+			TCS.ChangeSetID = #{s_itemID}	
+	</select>
+
+
+ 	<select id="setNewChangeSetInfo" resultType="java.util.HashMap">
+		SELECT
+			TP.ProjectID
+			, TPT.Name
+			, #{TypeCode} AS  ItemTypeCode , TTD.Name AS TypeName
+			, #{ClassCode} AS  ItemClassCode , TCD.Name AS ClassName	
+			, Convert(varchar(20), GETDATE() , 111) AS CreationTime
+		FROM
+			XBOLTADM.TB_PROJECT TP
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT
+				On TP.ProjectID = TPT.ProjectID AND TPT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TTD
+				ON #{TypeCode} = TTD.TypeCode	AND TTD.LanguageID = #{languageID} 
+			Left Outer Join XBOLTADM.TB_DICTIONARY TCD
+				ON #{ClassCode} = TCD.TypeCode		AND TCD.LanguageID = #{languageID}
+		WHERE
+			TP.ProjectID = #{ItemID}
+ 	</select>  
+
+ 	<select id="getItemHistory" resultType="java.util.HashMap">
+		SELECT
+		  TCS.ChangeSetID
+		 ,TI.Identifier 
+		 ,TPT.Name AS ProjectName
+		 ,RTRIM(TCS.ChangeType) AS ChangeType
+		 ,TCS.Reason
+		 ,TCS.Description
+		 ,TTT.Name AS TeamName
+		 ,TCS.AuthorName
+		 ,TM.Name 
+		 ,ISNULL(CONVERT(char(10),TCS.CreationTime, 120),'') as CreationTime
+		FROM XBOLTADM.TB_CHANGE_SET TCS
+			Left Outer Join XBOLTADM.TB_ITEM TI
+			on TCS.ItemID = TI.ItemID		
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT 
+			on TCS.ProjectID = TPT.ProjectID
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+			on TCS.AuthorID = TM.MemberID
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT
+			on TCS.AuthorTeamID = TTT.TeamID
+		WHERE TCS.ItemID = #{ItemID}
+		Order by TCS.CreationTime DESC
+	</select>
+
+ 	<select id="getProjectItemSet" resultType="java.util.HashMap">
+		SELECT 
+ 		 TCS.ChangeSetID
+ 		 ,TI.Identifier
+		 ,TIA.PlainText AS ItemName
+		 ,RTRIM(TCS.ChangeType) AS ChangeType
+		 ,TD.Name AS ClassCode
+		 ,TCS.Reason
+		 ,TCS.Description
+		 ,TTT.Name AS TeamName
+		 ,TCS.AuthorName
+		 ,TM.Name 
+		 ,ISNULL(CONVERT(char(10),TCS.CreationTime, 120),'') as CreationTime
+		FROM XBOLTADM.TB_CHANGE_SET TCS
+			Left Outer Join XBOLTADM.TB_ITEM TI
+			on TCS.ItemID = TI.ItemID		
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+			on TCS.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001'
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+			on TCS.AuthorID = TM.MemberID
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT
+			on TCS.AuthorTeamID = TTT.TeamID
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD 
+			on TCS.ItemTypeCode = TD.TypeCode
+		WHERE TCS.ProjectID = #{s_itemID}
+		Order by TCS.CreationTime DESC
+	</select>
+ 
+ 	<select id="getProjectItemCount" resultType="String">
+		SELECT 
+			Count(*)
+		FROM 
+			XBOLTADM.TB_CHANGE_SET TCS
+		<where>
+			<if test="projectID != null and projectID != ''">
+				TCS.ProjectID = #{projectID}
+			</if>
+			<if test="ItemTypeCode != null and ItemTypeCode != ''">
+				AND TCS.ItemTypeCode = #{ItemTypeCode}
+			</if>
+			<if test="changeClassList != null and changeClassList != ''">
+				AND TCS.ChangeType = #{changeClassList}
+			</if>
+			<if test="Status != null and Status != ''">
+				AND TCS.Status = #{Status}
+			</if>
+			<if test="AuthorTeamID != null and AuthorTeamID != ''">
+				AND TCS.AuthorTeamID = #{AuthorTeamID}
+			</if>
+			<if test="category != null and category != ''">
+				AND TCS.PJTCategory = #{category}
+			</if>
+			<if test="AuthorID != null and AuthorID != ''">
+				AND TCS.AuthorID = #{AuthorID}
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+				AND TIA.PlainText Like '%'+#{searchValue}+'%'
+			</if>
+			<if test="SC_STR_DT != null and SC_STR_DT != '' and SC_END_DT != null and SC_END_DT != ''">
+				CONVERT(VARCHAR, TCS.CreationTime, 120) BETWEEN #{SC_STR_DT} AND #{SC_END_DT}
+			</if>  
+		</where>
+	</select>
+ 
+  	<select id="getProjectItemSet_gridList" resultType="java.util.HashMap">
+  	SELECT 
+		*
+	FROM(  	
+		SELECT
+		 Row_Number()OVER(ORDER BY  TCS.ChangeSetID DESC ) as RNUM 
+ 		 ,TCS.ChangeSetID
+ 		 ,TI.Identifier
+		 ,TIA.PlainText AS ItemName
+		 ,RTRIM(TCS.ChangeType) AS ChangeType
+		 ,TD.Name AS ClassCode
+		 ,TCS.Reason
+		 ,TCS.Description
+		 ,TTT.Name AS TeamName
+		 ,TCS.AuthorName
+		 ,TM.Name 
+		 ,ISNULL(CONVERT(char(10),TCS.CreationTime, 120),'') as CreationTime
+		 , TCS.Status as StatusCode
+		 ,TDS.Name AS StatusName		 
+		FROM XBOLTADM.TB_CHANGE_SET TCS
+			Left Outer Join XBOLTADM.TB_ITEM TI
+			on TCS.ItemID = TI.ItemID		
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+			on TCS.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+			on TCS.AuthorID = TM.MemberID
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT
+			on TCS.AuthorTeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD 
+			on TCS.ItemTypeCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_DICTIONARY TDS
+			on TCS.Status = TDS.TypeCode AND TDS.Category = 'CNGSTS'  AND TDS.LanguageID = #{languageID}		
+		<where>
+			<if test="s_itemID != null and s_itemID != ''">
+				TCS.ProjectID = #{s_itemID}
+			</if>
+			<if test="ItemTypeCode != null and ItemTypeCode != ''">
+				AND TCS.ItemTypeCode = #{ItemTypeCode}
+			</if>
+			<if test="changeClassList != null and changeClassList != ''">
+				AND TCS.ChangeType = #{changeClassList}
+			</if>
+			<if test="Status != null and Status != ''">
+				AND TCS.Status = #{Status}
+			</if>
+			<if test="Reason != null and Reason != ''">
+				AND TCS.Reason = #{Reason}
+			</if>
+			<if test="AuthorTeamID != null and AuthorTeamID != ''">
+				AND TCS.AuthorTeamID = #{AuthorTeamID}
+			</if>
+			<if test="category != null and category != ''">
+				AND TCS.PJTCategory = #{category}
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+				AND TIA.PlainText Like '%'+#{searchValue}+'%'
+			</if>
+			<if test="SC_STR_DT != null and SC_STR_DT != '' and SC_END_DT != null and SC_END_DT != ''">
+				CONVERT(VARCHAR,TCS.CreationTime, 120) BETWEEN #{SC_STR_DT} AND #{SC_END_DT}
+			</if>  
+		</where>
+		)TC
+		<where>
+			<if test="pageNo != null and pageNo != ''">
+				TC.RNUM BETWEEN ((#{pageNo}-1)*#{LIST_PAGE_SCALE}  + 1) AND (#{pageNo}*#{LIST_PAGE_SCALE})
+			</if>
+		</where>
+	</select>
+
+  	<select id="getChangeSetList_gridList" resultType="java.util.HashMap">
+  	SELECT 
+		*
+	FROM(	
+		SELECT
+		TOP 1000
+		 Row_Number()OVER(ORDER BY TI.ClassCode, ChangeSetID DESC) as RNUM
+		 , 0 AS CHK  
+ 		 , TCS.ChangeSetID
+ 		 , TCS.ProjectID
+ 		 , TI.Identifier
+		 , TIA.PlainText AS ItemName
+		 , TCS.ItemID
+		 , TCTS.Name AS  ChangeType
+		 , TD.Name AS ClassCode
+		 , TRS.Name AS Reason
+		 , TCS.Description
+		 , ISNULL(TTT.Name,'') AS TeamName
+		 , TCS.AuthorID
+		 , TM.Name As AuthorName  
+		 , ISNULL(CONVERT(char(10),TCS.CreationTime, 120),'') as CreationTime
+		 , ISNULL(CONVERT(char(10),TCS.ApproveDate, 120),'') as ApproveDate
+		 , ISNULL(CONVERT(char(10),TCS.CompletionDT, 120),'') as CompletionDT
+		 , CASE ISNULL(TCS.CompletionDT, '') WHEN '' THEN '' ELSE '~' END CompletionDTYNMark
+		 , TCS.Status as StatusCode
+		 , TDS.Name AS StatusName	
+		 , TI.Status AS ItemStatus
+		 , ISNULL(CONVERT(char(10), TCS.CreationTime, 120),'') as CreationTime2
+		 , ISNULL(CONVERT(char(10), TI.LastUpdated, 120),'') as LastUpdated
+		 , ISNULL(TCLS.ExtFunc, 0) as ExtFunc
+		 , ISNULL(TCS.CurTask,'') as CurTask
+		 , TPJ.Creator
+		 , ISNULL(TPJ.AuthorID,'') as pjtAuthorId
+		 , TPJ.Status As CSRStatusCode
+		 , TM2.Name As CreatorName
+		 , PT1.Name As csrName
+		 , PT2.Name As PjtName
+		 , PT2.Name As parentPjtName
+		 , ISNULL(TIT.Icon, 'img_job.png') ItemTypeImg
+		 , TCS.Version
+		 , ISNULL(CONVERT(char(10),TCS.ValidFrom, 120),'') as ValidFrom
+		 , TCS.ChangeType AS ChangeTypeCode
+		FROM XBOLTADM.TB_CHANGE_SET TCS
+			Left Outer Join XBOLTADM.TB_ITEM TI
+			on TCS.ItemID = TI.ItemID			
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+			on TCS.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+			on TCS.AuthorID = TM.MemberID
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT
+			on TCS.AuthorTeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD 
+			on TCS.ItemClassCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_DICTIONARY TDS
+			on TCS.Status = TDS.TypeCode AND TDS.Category = 'CNGSTS'  AND TDS.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_DICTIONARY TRS
+			on TCS.Reason = TRS.TypeCode AND TRS.Category = 'CR'  AND TRS.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_DICTIONARY TCTS
+			on TCS.ChangeType = TCTS.TypeCode AND TCTS.Category = 'CNGT1'  AND TCTS.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_ITEM_CLASS TCLS on TI.ClassCode = TCLS.ItemClassCode
+			Left outer Join XBOLTADM.TB_PROJECT TPJ on TCS.ProjectID = TPJ.ProjectID
+			Left Outer Join XBOLTADM.TB_MEMBER TM2 on TPJ.Creator = TM2.MemberID
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT PT1 on TCS.ProjectID = PT1.ProjectID AND PT1.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT PT2 on TPJ.RefPjtID = PT2.ProjectID AND PT2.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_TYPE TIT ON TI.ItemTypeCode = TIT.ItemTypeCode
+			<if test="DimTypeID != null and DimTypeID != '' and DimValueID != null and DimValueID != ''">
+			Left Outer JOIN XBOLTADM.TB_ITEM_DIM TID ON TI.ItemID = TID.ItemID 
+			</if>
+		<where>
+			<if test="ItemTypeCode != null and ItemTypeCode != ''">
+				AND TCS.ItemTypeCode = #{ItemTypeCode}
+			</if>
+			<if test="changeClassList != null and changeClassList != '' and !changeClassList.equals('null')">
+				AND TCS.ChangeType = #{changeClassList}
+			</if>
+			<if test="Status != null and Status != ''">
+				AND TCS.Status = #{Status}
+			</if>
+			<if test="Reason != null and Reason != '' and !Reason.equals('null')">
+				AND TCS.Reason = #{Reason}
+			</if>
+			<if test="AuthorTeamID != null and AuthorTeamID != ''">
+				AND TCS.AuthorTeamID = #{AuthorTeamID}
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+				AND TIA.PlainText Like '%'+#{searchValue}+'%'
+			</if>
+			<if test="s_itemID != null and s_itemID != ''">
+				AND TCS.ItemID = #{s_itemID}
+			</if>
+			<if test="category != null and category != ''">
+				AND TCS.PJTCategory = #{category}
+			</if>
+			<if test="version != null and version != ''">
+				AND TCS.Version = #{version}
+			</if>
+			<if test='"N".equals(isNotIn)'>	
+				<if test="DimTypeID != null and DimTypeID != '' and DimValueID != null and DimValueID != ''">
+					AND TID.DimValueID = #{DimValueID}	AND TID.DimTypeID  = #{DimTypeID}
+				</if>	
+			</if>		
+			<choose>
+				<when test="'PG'.equals(screenType)">
+					AND TCS.ProjectID IN(Select ProjectID From XBOLTADM.TB_PROJECT Where RefPGID = #{refID} And ProjectType = 'CSR' )
+				</when>
+				<when test="'PJT'.equals(screenType)">
+					AND TCS.ProjectID IN(Select ProjectID From XBOLTADM.TB_PROJECT Where RefPjtID = #{refID} And ProjectType = 'CSR' )
+				</when>
+			</choose>
+			<if test="projectID != null and projectID != ''">
+				AND TCS.ProjectID IN(Select ProjectID From XBOLTADM.TB_PROJECT Where RefPjtID = #{projectID} And ProjectType = 'CSR' )
+			</if>
+			<if test="parentPjtID != null and parentPjtID != ''">
+				AND TPJ.RefPjtID = #{parentPjtID}
+			</if>
+			<if test="csrID != null and csrID != ''">
+				AND TCS.ProjectID = #{csrID}
+			</if>
+			<if test="AuthorID != null and AuthorID != ''">
+				AND TCS.AuthorID = #{AuthorID}
+			</if>
+			<if test="ChangeSetID != null and ChangeSetID != ''">
+				AND TCS.ChangeSetID = #{ChangeSetID}
+			</if>
+			<if test="classCode != null and classCode != ''">
+				AND TCLS.ItemClassCode = #{classCode}
+			</if>
+			<if test="reqStartDt != null and reqStartDt != '' and reqEndDt != null and reqEndDt != ''">
+				AND CONVERT(char(8),TCS.CreationTime, 112) BETWEEN #{reqStartDt} AND #{reqEndDt}
+			</if>  
+			<if test="clsStartDt != null and clsStartDt != '' and clsEndDt != null and clsEndDt != ''">
+				AND CONVERT(char(8),TCS.CompletionDT, 112) BETWEEN #{clsStartDt} AND #{clsEndDt}
+			</if>  
+			<if test="vfStartDt != null and vfStartDt != '' and vfEndDt != null and vfEndDt != ''">
+				AND CONVERT(char(8),TCS.ValidFrom, 112) BETWEEN #{vfStartDt} AND #{vfEndDt}
+			</if>  
+			<if test="authorName != null and authorName != ''">
+				AND TM.Name like '%'+#{authorName} +'%'
+			</if>
+		</where>
+			
+		)TC
+		<where>
+			<if test="pageNo != null and pageNo != ''">
+				TC.RNUM BETWEEN ((#{pageNo}-1)*#{LIST_PAGE_SCALE}  + 1) AND (#{pageNo}*#{LIST_PAGE_SCALE})
+			</if>
+			<if test='"Y".equals(isNotIn) and DimTypeID != null and DimTypeID != ""'>
+				AND ItemID NOT IN (select ItemID FROM XBOLTADM.TB_ITEM_DIM WHERE DimTypeID = #{DimTypeID})
+			</if>
+		</where>
+	</select>
+	
+	<select id="getChangeSetMultiList_gridList" resultType="java.util.HashMap">
+  	SELECT 
+		*
+	FROM(	
+		SELECT
+		TOP 1000
+		 Row_Number()OVER(ORDER BY TI.ClassCode, ChangeSetID DESC) as RNUM
+		 , 0 AS CHK  
+ 		 , TCS.ChangeSetID
+ 		 , TCS.ProjectID
+ 		 , TI.Identifier
+		 , TIA.PlainText AS ItemName
+		 , TCS.ItemID
+		 , TCTS.Name AS  ChangeType
+		 , TD.Name AS ClassCode
+		 , TRS.Name AS Reason
+		 , TCS.Description
+		 , ISNULL(TTT.Name,'') AS TeamName
+		 , TCS.AuthorID
+		 , TM.Name As AuthorName  
+		 , ISNULL(CONVERT(char(10),TCS.CreationTime, 120),'') as CreationTime
+		 , ISNULL(CONVERT(char(10),TCS.ApproveDate, 120),'') as ApproveDate
+		 , ISNULL(CONVERT(char(10),TCS.CompletionDT, 120),'') as CompletionDT
+		 , CASE ISNULL(TCS.CompletionDT, '') WHEN '' THEN '' ELSE '~' END CompletionDTYNMark
+		 , TCS.Status as StatusCode
+		 , TDS.Name AS StatusName	
+		 , TI.Status AS ItemStatus
+		 , ISNULL(CONVERT(char(10), TCS.CreationTime, 120),'') as CreationTime2
+		 , ISNULL(CONVERT(char(10), TI.LastUpdated, 120),'') as LastUpdated
+		 , ISNULL(TCLS.ExtFunc, 0) as ExtFunc
+		 , ISNULL(TCS.CurTask,'') as CurTask
+		 , TPJ.Creator
+		 , ISNULL(TPJ.AuthorID,'') as pjtAuthorId
+		 , TPJ.Status As CSRStatusCode
+		 , TM2.Name As CreatorName
+		 , PT1.Name As csrName
+		 , PT2.Name As PjtName
+		 , PT2.Name As parentPjtName
+		 , ISNULL(TIT.Icon, 'img_job.png') ItemTypeImg
+		 , TCS.Version
+		 , ISNULL(CONVERT(char(10),TCS.ValidFrom, 120),'') as ValidFrom
+		 , TCS.ChangeType AS ChangeTypeCode
+		FROM XBOLTADM.TB_CHANGE_SET TCS
+			Left Outer Join XBOLTADM.TB_ITEM TI
+			on TCS.ItemID = TI.ItemID			
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+			on TCS.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+			on TCS.AuthorID = TM.MemberID
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT
+			on TCS.AuthorTeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD 
+			on TCS.ItemClassCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_DICTIONARY TDS
+			on TCS.Status = TDS.TypeCode AND TDS.Category = 'CNGSTS'  AND TDS.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_DICTIONARY TRS
+			on TCS.Reason = TRS.TypeCode AND TRS.Category = 'CR'  AND TRS.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_DICTIONARY TCTS
+			on TCS.ChangeType = TCTS.TypeCode AND TCTS.Category = 'CNGT1'  AND TCTS.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_ITEM_CLASS TCLS on TI.ClassCode = TCLS.ItemClassCode
+			Left outer Join XBOLTADM.TB_PROJECT TPJ on TCS.ProjectID = TPJ.ProjectID
+			Left Outer Join XBOLTADM.TB_MEMBER TM2 on TPJ.Creator = TM2.MemberID
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT PT1 on TCS.ProjectID = PT1.ProjectID AND PT1.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT PT2 on TPJ.RefPjtID = PT2.ProjectID AND PT2.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_TYPE TIT ON TI.ItemTypeCode = TIT.ItemTypeCode
+			<if test="DimTypeID != null and DimTypeID != ''">
+			Left Outer JOIN XBOLTADM.TB_ITEM_DIM TID ON TI.ItemID = TID.ItemID 
+			</if>
+		<where>
+			<if test="ItemTypeCode != null and ItemTypeCode != ''">
+				AND TCS.ItemTypeCode = #{ItemTypeCode}
+			</if>
+			<if test="changeClassList != null and changeClassList != '' and !changeClassList.equals('null')">
+				AND TCS.ChangeType = #{changeClassList}
+			</if>
+			<if test="Status != null and Status != ''">
+				AND TCS.Status = #{Status}
+			</if>
+			<if test="Reason != null and Reason != '' and !Reason.equals('null')">
+				AND TCS.Reason = #{Reason}
+			</if>
+			<if test="AuthorTeamID != null and AuthorTeamID != ''">
+				AND TCS.AuthorTeamID = #{AuthorTeamID}
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+				AND TIA.PlainText Like '%'+#{searchValue}+'%'
+			</if>
+			<if test="s_itemID != null and s_itemID != ''">
+				AND TCS.ItemID = #{s_itemID}
+			</if>
+			<if test="category != null and category != ''">
+				AND TCS.PJTCategory = #{category}
+			</if>
+			<if test="version != null and version != ''">
+				AND TCS.Version = #{version}
+			</if>
+			<if test='"N".equals(isNotIn) and DimTypeID != null and !"".equals(DimTypeID) '>	
+				AND TID.DimTypeID  = #{DimTypeID}
+				<if test="DimValueID != null">
+					AND TID.DimValueID IN (
+					<foreach collection="DimValueID" index="index" item="item" separator=",">
+					 	#{item}
+					</foreach>
+					)
+				</if>	
+			</if>	
+			<choose>
+				<when test="'PG'.equals(screenType)">
+					AND TCS.ProjectID IN(Select ProjectID From XBOLTADM.TB_PROJECT Where RefPGID = #{refID} And ProjectType = 'CSR' )
+				</when>
+				<when test="'PJT'.equals(screenType)">
+					AND TCS.ProjectID IN(Select ProjectID From XBOLTADM.TB_PROJECT Where RefPjtID = #{refID} And ProjectType = 'CSR' )
+				</when>
+			</choose>
+			<if test="projectID != null and projectID != ''">
+				AND TCS.ProjectID IN(Select ProjectID From XBOLTADM.TB_PROJECT Where RefPjtID = #{projectID} And ProjectType = 'CSR' )
+			</if>
+			<if test="parentPjtID != null and parentPjtID != ''">
+				AND TPJ.RefPjtID = #{parentPjtID}
+			</if>
+			<if test="csrList != null">
+				AND TCS.ProjectID IN (
+				<foreach collection="csrList" index="index" item="item" separator=",">
+				 	#{item}
+				</foreach>
+				)
+			</if>
+			<if test="AuthorID != null and AuthorID != ''">
+				AND TCS.AuthorID = #{AuthorID}
+			</if>
+			<if test="ChangeSetID != null and ChangeSetID != ''">
+				AND TCS.ChangeSetID = #{ChangeSetID}
+			</if>
+			<if test="classCode != null">
+				AND TCLS.ItemClassCode IN (
+				<foreach collection="classCode" index="index" item="item" separator=",">
+				 	#{item}
+				</foreach>
+				)
+			</if>
+			<if test="reqStartDt != null and reqStartDt != '' and reqEndDt != null and reqEndDt != ''">
+				AND CONVERT(char(8),TCS.CreationTime, 112) BETWEEN #{reqStartDt} AND #{reqEndDt}
+			</if>  
+			<if test="clsStartDt != null and clsStartDt != '' and clsEndDt != null and clsEndDt != ''">
+				AND CONVERT(char(8),TCS.CompletionDT, 112) BETWEEN #{clsStartDt} AND #{clsEndDt}
+			</if>  
+			<if test="vfStartDt != null and vfStartDt != '' and vfEndDt != null and vfEndDt != ''">
+				AND CONVERT(char(8),TCS.ValidFrom, 112) BETWEEN #{vfStartDt} AND #{vfEndDt}
+			</if>  
+			<if test="authorName != null and authorName != ''">
+				AND TM.Name like '%'+#{authorName} +'%'
+			</if>
+		</where>
+			
+		)TC
+		<where>
+			<if test="pageNo != null and pageNo != ''">
+				TC.RNUM BETWEEN ((#{pageNo}-1)*#{LIST_PAGE_SCALE}  + 1) AND (#{pageNo}*#{LIST_PAGE_SCALE})
+			</if>
+			<if test='"Y".equals(isNotIn) and DimTypeID != null and DimTypeID != ""'>
+				AND ItemID NOT IN (select ItemID FROM XBOLTADM.TB_ITEM_DIM WHERE DimTypeID = #{DimTypeID})
+			</if>
+		</where>
+	</select>
+	
+	<select id="getMyChangeSetList_gridList" resultType="java.util.HashMap">
+	  	SELECT
+			 Row_Number()OVER(ORDER BY TI.ClassCode, ChangeSetID DESC ) as RNUM
+			 , 0 AS CHK  
+	 		 ,TCS.ChangeSetID
+	 		 ,TCS.ProjectID
+	 		 ,TP.ProjectCode AS ProjectCode
+	 		 ,TI.Identifier
+			 ,TIA.PlainText AS ItemName
+			 , TCTS.Name AS  ChangeType
+			 ,TD.Name AS ClassCode
+			 ,TRS.Name AS Reason
+			 ,TCS.Description
+			 ,ISNULL(TTT.Name,'') AS TeamName
+			 ,TCS.AuthorName
+			 ,TM.Name 
+			 ,ISNULL(CONVERT(char(10),TCS.CreationTime, 120),'') as CreationTime
+			 ,TCS.Status as StatusCode
+			 ,TDS.Name AS StatusName	
+			 ,TI.ItemID	
+			FROM XBOLTADM.TB_CHANGE_SET TCS
+				Left Outer Join XBOLTADM.TB_ITEM TI
+				on TCS.ItemID = TI.ItemID		
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+				on TCS.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_MEMBER TM
+				on TCS.AuthorID = TM.MemberID
+				Left Outer Join XBOLTADM.TB_TEAM_TXT TTT
+				on TCS.AuthorTeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_DICTIONARY TD 
+				on TCS.ItemClassCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+				Left outer Join XBOLTADM.TB_DICTIONARY TDS
+				on TCS.Status = TDS.TypeCode AND TDS.Category = 'CNGSTS'  AND TDS.LanguageID = #{languageID}
+				Left outer Join XBOLTADM.TB_DICTIONARY TRS
+				on TCS.Reason = TRS.TypeCode AND TRS.Category = 'CR'  AND TRS.LanguageID = #{languageID}
+				
+				Left Outer Join XBOLTADM.TB_PROJECT TP on TCS.ProjectID = TP.ProjectID 
+				
+				Left outer Join XBOLTADM.TB_DICTIONARY TCTS
+				on TCS.ChangeType = TCTS.TypeCode AND TCTS.Category = 'CNGT1'  AND TCTS.LanguageID = #{languageID}
+									
+			<where>
+				<if test="ItemTypeCode != null and ItemTypeCode != ''">
+					AND TCS.ItemTypeCode = #{ItemTypeCode}
+				</if>
+				<if test="changeClassList != null and changeClassList != '' and !changeClassList.equals('null')">
+					AND TCS.ChangeType = #{changeClassList}
+				</if>
+				<if test="Status != null and Status.size > 0">
+					AND TCS.Status IN 
+							<foreach collection="Status" index="index" item="item" open="(" close=")"  separator=",">
+								${item}
+							</foreach>
+				</if>
+				<if test="ChangeType != null and ChangeType != ''">
+					AND TCS.ChangeType = #{ChangeType}
+				</if>
+				<if test="ItemClassCode != null and ItemClassCode != ''">
+					AND TCS.ItemClassCode = #{ItemClassCode}
+				</if>
+				<if test="Reason != null and Reason != '' and !Reason.equals('null')">
+					AND TCS.Reason = #{Reason}
+				</if>
+				<if test="AuthorID != null and AuthorID != ''">
+					AND TTCS.AuthorID = #{AuthorID}
+				</if>
+				<if test="searchValue != null and searchValue != ''">
+					AND TIA.PlainText Like '%'+#{searchValue}+'%'
+				</if>
+				<if test="s_itemID != null and s_itemID != ''">
+					AND TCS.ItemID = #{s_itemID}
+				</if>
+				<if test="category != null and category != ''">
+					AND TCS.PJTCategory = #{category}
+				</if>
+				<if test="projectID != null and projectID != ''">
+					AND TCS.ProjectID = #{projectID}
+				</if>
+				<if test="AuthorID != null and AuthorID != ''">
+					AND TCS.AuthorID = #{AuthorID}
+				</if>
+			</where>
+	</select>
+	
+ 	<select id="getChangeSetItemTypeCode" resultType="java.util.HashMap">
+		SELECT 
+			Distinct TCS.ItemTypeCode AS CODE , TD.Name AS NAME
+		From
+			XBOLTADM.TB_CHANGE_SET TCS
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD  
+			on TCS.ItemTypeCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+ 	</select>
+
+	
+ 	<select id="getChangeSetStatusCode" resultType="java.util.HashMap">
+		SELECT 
+			Distinct TCS.Status AS CODE , TD.Name AS NAME
+		From
+			XBOLTADM.TB_CHANGE_SET TCS
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD  
+			on TCS.Status = TD.TypeCode AND TD.LanguageID = #{languageID}
+ 	</select>
+ 
+  	<select id="getChangeSetTeamCode" resultType="java.util.HashMap">
+		SELECT 
+			Distinct TCS.AuthorTeamID AS CODE , TTT.Name AS NAME
+		From
+			XBOLTADM.TB_CHANGE_SET TCS
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT
+			on TCS.AuthorTeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+		WHERE
+			TCS.AuthorTeamID IS NOT NULL
+ 	</select>
+ 
+ 	<select id="selectProjectOption" resultType="java.util.HashMap">
+ 		SELECT
+			PT.ProjectID, PT.Name
+		FROM
+			XBOLTADM.TB_MEMBER TM
+			Left outer Join XBOLTADM.TB_TEAM_MEMBER_REL TML on TM.MemberID = TML.MemberID
+			Left Outer Join XBOLTADM.TB_PROJECT_TEAM_REL PTR on TML.TeamID = PTR.TeamID
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT PT on PTR.ProjectID = PT.ProjectID
+		WHERE
+			TM.LoginID = #{s_itemID}
+		Order by 
+			ProjectID ASC
+ 	</select>
+ 
+ 	<select id="getOrganizationList" resultType="java.util.HashMap">
+ 			SELECT
+				C.TeamCode , D.Name , ISNULL(C.ItemID, 0) AS ItemID
+			FROM 
+				XBOLTADM.TB_TEAM C, XBOLTADM.TB_TEAM_TXT D
+			WHERE 
+				C.TeamID = D.TeamID
+				AND C.ParentID = #{s_itemID} AND D.LanguageID = #{languageID}
+ 	</select>
+ 	
+ 	<select id="getNewObjecInfo" resultType="java.util.HashMap">
+	SELECT 
+		 TI.ItemID
+		 , TI.Identifier
+		 , ISNULL(
+			XBOLTADM.fn_GetMyAbsPathForList( #{s_itemID} ,#{languageID} ),'') + TIA.PlainText AS Path 
+	FROM
+		XBOLTADM.TB_ITEM TI
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA on  TI.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+	WHERE TI.ItemID = #{s_itemID}
+ </select>
+ 
+ 	<!-- 조직매핑용 selection -->
+ 	<select id="selectOrganization" resultType="java.util.HashMap">
+ 			SELECT
+				D.Name, C.*
+			FROM 
+				XBOLTADM.TB_TEAM C, XBOLTADM.TB_TEAM_TXT D
+			WHERE 
+				C.TeamID = D.TeamID
+				AND C.ParentID != #{s_itemID}
+			ORDER BY 
+				Name ASC	 	
+ 	</select>
+ 
+ 	<insert id="createProject" parameterType="java.util.HashMap">
+ 		INSERT INTO
+ 			XBOLTADM.TB_PROJECT(
+ 				ProjectType
+ 				, ProjectID
+ 				, CreationTime
+ 				, LastUpdated
+ 				, Status
+ 				, Creator
+ 				, OwnerTeamID
+ 				, ParentID
+ 				, AuthorID
+ 				, WFID
+      			, CurWFStepID
+      			, Seq
+ 				, PJCategory
+ 				, ProjectCode
+ 				, AprvOption 
+ 				, TemplCode
+ 				, Prefix
+ 				, RefPGID
+ 				, RefPjtID
+ 				, CompanyID
+				<if test="StartDate != null and StartDate != ''">
+					, StartDate
+				</if>
+				<if test="DueDate != null and DueDate != ''">
+					, DueDate
+				</if>
+				<if test="AuthorName != null and AuthorName != ''">
+					, AuthorName
+				</if>
+				<if test="Priority != null and Priority != ''">
+					, Priority
+				</if>
+				<if test="Reason != null and Reason != ''">
+					, Reason
+				</if>
+				<if test="srID != null and srID != ''">
+					, SRID
+				</if>
+ 		)VALUES(
+ 			 #{ProjectType}
+ 			,#{ProjectID}
+ 			,getDate()
+ 			,getDate()			
+ 			,#{Status}
+ 			,#{UserID}
+ 			,#{TeamID}
+ 			,#{ParentID}
+ 			,#{AuthorID}
+ 			,#{WFID}
+      		,#{CurWFStepID}
+      		,#{Seq}
+ 			,#{PJCategory}
+ 			,#{ProjectCode}
+ 			,#{AprvOption}
+ 			,#{TemplCode}
+ 			,#{Prefix}
+ 			,#{RefPGID}
+ 			,#{RefPjtID}
+ 			,#{CompanyID}
+			<if test="StartDate != null and StartDate != ''">
+				, #{StartDate}
+			</if>
+			<if test="DueDate != null and DueDate != ''">
+				, #{DueDate}
+			</if>
+			<if test="AuthorName != null and AuthorName != ''">
+				, N''+#{AuthorName}
+			</if>
+			<if test="Priority != null and Priority != ''">
+				, #{Priority}
+			</if>
+			<if test="Reason != null and Reason != ''">
+				, #{Reason}
+			</if>
+			<if test="srID != null and srID != ''">
+				, #{srID}
+			</if>
+ 		)	
+ 	</insert>
+ 
+ 	<insert id="createProjectTxt" parameterType="java.util.HashMap">
+ 		INSERT INTO
+ 			XBOLTADM.TB_PROJECT_TXT(ProjectID, Name, Description, LanguageID)
+		VALUES(
+			#{ProjectID}
+			,#{Name}
+			,#{Description}
+			,#{languageID}
+		)
+ 	</insert>
+ 	
+ 	<insert id="createPjtMemberRel" parameterType="java.util.HashMap">
+ 		INSERT INTO
+ 			XBOLTADM.TB_PJT_MEMBER_REL(ProjectID, MemberID, Authority, AssignedDate)
+		VALUES(
+			#{ProjectID}
+			,#{MemberID}
+			,(SELECT Authority FROM XBOLTADM.TB_MEMBER WHERE MemberID = #{MemberID})
+			,getDate()
+		)
+ 	</insert>
+ 	
+ 	<delete id="delPjtMemberRel" parameterType="java.util.HashMap">
+ 		DELETE 
+ 		FROM
+ 			XBOLTADM.TB_PJT_MEMBER_REL
+		WHERE
+			ProjectID = #{ProjectID}
+			<if test="MemberID != null and MemberID != ''">
+			AND MemberID = #{MemberID}
+			</if>
+			<if test="teamID != null and teamID != ''">
+			AND MemberID IN (Select MemberID From XBOLTADM.TB_MEMBER Where TeamID = #{teamID} )
+			</if>
+ 	</delete>
+
+ 	<update id="updateProject" parameterType="java.util.HashMap">
+ 		UPDATE	XBOLTADM.TB_PROJECT
+ 		SET
+ 			LastUpdated = getDate()
+			<if test="Status != null and Status != ''">
+			,Status = #{Status}
+			</if>
+			<if test="TeamID != null and TeamID != ''">
+			,OwnerTeamID = #{TeamID}
+			</if>
+			<if test="AuthorID != null and AuthorID != ''">
+			,AuthorID = #{AuthorID}
+			</if>
+			<if test="CompanyID != null and CompanyID != ''">
+			,CompanyID = #{CompanyID}
+			</if>
+			<if test="AuthorName != null and AuthorName != ''">
+			,AuthorName = #{AuthorName}
+			</if>
+			<if test="StartDate != null and StartDate != ''">
+			,StartDate = #{StartDate}
+			</if>
+			<if test="DueDate != null and DueDate != ''">
+			,DueDate = #{DueDate}
+			</if>
+			<if test="EndDate != null and EndDate != ''">
+			,EndDate = getDate()
+			</if>
+			<if test="ProjectCode != null and ProjectCode != ''">
+			,ProjectCode = #{ProjectCode}
+			</if>
+			<if test="AprvOption != null and AprvOption != ''">
+			,AprvOption = #{AprvOption}
+			</if>
+			<if test="PJCategory != null and PJCategory != ''">
+			,PJCategory = #{PJCategory}
+			</if>
+			<if test="WFID != null and WFID != ''">
+			, WFID = #{WFID}
+			</if>
+			<if test="Seq != null and Seq != ''">
+			, Seq = #{Seq}
+			</if>
+			<if test="TemplCode != null and TemplCode != ''">
+			, TemplCode = #{TemplCode}
+			</if>
+			<if test="Prefix != null and Prefix != ''">
+			, Prefix = #{Prefix}
+			</if>
+			<if test="Priority != null and Priority != ''">
+			, Priority = #{Priority}
+			</if>
+			<if test="Reason != null and Reason != ''">
+			, Reason = #{Reason}
+			</if>
+			<if test="ParentID != null and ParentID != ''">
+			, ParentID = #{ParentID}
+			</if>
+			<if test="RefPGID != null and RefPGID != ''">
+			, RefPGID = #{RefPGID}
+			</if>
+			<if test="RefPGID != null and RefPGID != ''">
+			, RefPjtID = #{RefPjtID}
+			</if>
+ 		<where>
+ 			<choose>
+    		<when test="csrIDs != null and !csrIDs.equals('')">
+				AND ProjectID IN (${csrIDs})
+			</when>
+			<otherwise>
+				AND ProjectID = #{ProjectID}
+			 </otherwise>
+			 </choose>
+		</where>
+ 	</update>
+ 	
+ 	<update id="updateProjectTxt" parameterType="java.util.HashMap">
+ 		UPDATE 
+ 			XBOLTADM.TB_PROJECT_TXT
+		SET
+			Name = #{Name}
+			,Description = #{Description}
+		WHERE
+			ProjectID = #{ProjectID}
+			AND LanguageID = #{languageID}
+
+ 	</update>
+
+
+	<select id="getProjectInfo" resultType="java.util.HashMap">
+		SELECT Distinct
+			TP.ProjectID
+			, TP.ProjectCode
+			, TPT.Name AS ProjectName
+			, TMT.Name AS TeamName
+			, ISNULL(TM.Name,'')  AS AuthorName	
+			, TP.SRID
+			
+			, TP.OwnerTeamID
+			, TP.AuthorID
+			, ISNULL(CONVERT(char(10),TP.CreationTime, 120),'') as CreationDate
+			, ISNULL(CONVERT(char(10),TP.StartDate, 120),'') as StartDate
+			, ISNULL(CONVERT(char(10),TP.DueDate, 120),'') as DueDate			
+			, ISNULL(CONVERT(char(10),TP.EndDate, 120),'') as EndDate
+			
+			, TP.Status
+			, ISNULL(TPT.Description, '') AS Description
+			, XBOLTADM.fn_getMyAbsPathForProject(TP.ProjectID, #{languageID}) AS Path
+			, TP.Creator
+			, ISNULL(TP.WFID, '') As WFID
+			, TM.EmployeeNum
+			
+			, TP.Priority
+			, PRT.Name AS PriorityName
+			
+			, ISNULL(CONVERT(char(10),SRM.ReqDueDate, 120),'') as ReqDueDate
+			, TM1.Name As  ReqUserNM
+			, TMT1.Name As ReqTeamNM	
+			
+			, ATR1.PlainText AS  SRArea1Name
+			, ATR2.PlainText AS  SRArea2Name			
+			,TD1.Name AS SubCategoryNM	
+			
+			, SRM.Description As SRDescription
+			, DOCCAT.Name As WFDocType
+		FROM 
+			XBOLTADM.TB_PROJECT TP
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT
+				on TP.OwnerTeamID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT
+				on TP.ProjectID = TPT.ProjectID AND TPT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+				on TP.AuthorID = TM.MemberID
+			Left Outer Join XBOLTADM.TB_CHANGE_SET TCS
+				on TP.ProjectID = TCS.ProjectID	
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY PRT 
+				ON TP.Priority = PRT.TypeCode AND PRT.Category = 'PRT'
+				AND PRT.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_SR_MST SRM 
+				ON SRM.SRID = TP.SRID
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD1
+				ON TD1.TypeCode = SRM.SubCategory  AND TD1.Category = 'SRCAT' 	AND TD1.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR1 
+				ON SRM.SRArea1 = ATR1.ItemID and ATR1.AttrTypeCode = 'AT00001' AND ATR1.LanguageID = #{languageID} 
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR2
+				ON SRM.SRArea2 = ATR2.ItemID and ATR2.AttrTypeCode = 'AT00001' AND ATR2.LanguageID = #{languageID} 	
+			LEFT OUTER  JOIN XBOLTADM.TB_MEMBER TM1
+				ON SRM.RequestUserID = TM1.MemberID	
+			LEFT OUTER  JOIN  XBOLTADM.TB_TEAM_TXT TMT1
+			    ON SRM.RequestTeamID = TMT1.TeamID AND TMT1.LanguageID = #{languageID} 
+			Left Outer Join XBOLTADM.TB_DICTIONARY DOCCAT ON DOCCAT.TypeCode = TP.ProjectType AND DOCCAT.Category = 'DOCCAT' AND DOCCAT.LanguageID = #{languageID}  
+		WHERE 
+			TP.ProjectID = #{s_itemID}
+	</select>
+	
+	<select id="getProjectInfoForCsr" resultType="java.util.HashMap">
+		SELECT 
+			TP.ProjectID
+			, TP.ProjectCode
+			, TP.ParentID
+			, TPT.Name AS ProjectName
+			, TPT2.Name AS ParentName
+			, TMT.Name AS TeamName
+			, ISNULL(TM.Name,'')  AS CreatorName	
+			, TP.SRIS
+			, TP.RefPGID
+			, TP.RefPjtID
+			
+			, TP.OwnerTeamID
+			, TP.AuthorID
+			, ISNULL(CONVERT(char(10),TP.CreationTime, 120),'') as CreationDate
+			, ISNULL(CONVERT(char(10),TP.StartDate, 120),'') as StartDate
+			, ISNULL(CONVERT(char(10),TP.DueDate, 120),'') as DueDate			
+			, ISNULL(CONVERT(char(10),TP.EndDate, 120),'') as EndDate
+			
+			, TP.Status
+			, STS.Name As StatusName
+			, ISNULL(TPT.Description, '') AS Description
+			, XBOLTADM.fn_getMyAbsPathForProject(TP.ProjectID, #{languageID}) AS Path
+			, TP.TemplCode
+			
+			, TP.WFID
+			, WF.Name As WFName
+			, TP.CurWFStepID
+			, WFSTEP.Name AS CurWFStepName
+			, XBOLTADM.fn_GetPjtMemberInfoList(TP.ProjectID, #{languageID}, 1) AS PjtMemberInfos
+		FROM 
+			XBOLTADM.TB_PROJECT TP
+			
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT
+				on TP.ProjectID = TPT.ProjectID AND TPT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT2
+				on TP.RefPjtID = TPT2.ProjectID AND TPT2.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+				on TP.Creator = TM.MemberID
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT
+				on TM.TeamID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+			
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY WFSTEP 
+				ON WFSTEP.LanguageID = #{languageID} AND TP.CurWFStepID = WFSTEP.TypeCode
+				AND WFSTEP.Category = 'WFSTEP'
+				
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY WF 
+				ON WF.LanguageID = #{languageID} AND TP.WFID = WF.TypeCode
+				AND WF.Category = 'WF'
+			
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY STS 
+				ON STS.LanguageID = #{languageID} AND TP.Status = STS.TypeCode
+				AND STS.Category = 'PJTSTS'
+		WHERE 
+			TP.ProjectID = #{s_itemID}
+	</select>
+	
+	<select id="getProjectInfoView" resultType="java.util.HashMap">
+		SELECT 
+			TP.ProjectID
+			, TP.ProjectCode
+			, TPT.Name AS ProjectName
+			, TMT.Name AS TeamName
+			, TP.CompanyID
+			, TCT.Name AS CompanyName
+			, ISNULL(TM.Name,'')  AS AuthorName				
+			, TP.OwnerTeamID
+			, TP.AuthorID
+			, ISNULL(CONVERT(char(10),TP.CreationTime, 120),'') as CreationDate
+			, ISNULL(CONVERT(char(10),TP.StartDate, 120),'') as StartDate
+			, ISNULL(CONVERT(char(10),TP.DueDate, 120),'') as DueDate			
+			, ISNULL(CONVERT(char(10),TP.EndDate, 120),'') as EndDate			
+			, TP.Status
+			, ISNULL(TPT.Description, '') AS Description
+			, XBOLTADM.fn_getMyAbsPathForProject(TP.ProjectID, #{languageID}) AS Path
+			, rtrim(TP.ProjectType) AS ProjectType
+			, rtrim(TP.PJCategory) AS PJCategory			
+			, TP.TemplCode
+			, TP.Prefix
+			, TP.Creator
+			, TD.Name AS StatusName
+			, TP.RefPGID
+			, TP.RefPjtID
+			, TP.SRID
+			, TP.AprvOption
+			, TD2.Name As AprvOptionName
+		FROM 
+			XBOLTADM.TB_PROJECT TP
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT on TP.OwnerTeamID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TCT on TP.CompanyID = TCT.TeamID AND TCT.LanguageID = #{languageID}				
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT on TP.ProjectID = TPT.ProjectID AND TPT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM on TP.AuthorID = TM.MemberID
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD on TP.Status = TD.TypeCode AND TD.LanguageID = #{languageID} AND TD.Category = 'PJTSTS'	
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD2 on TP.AprvOption = TD2.TypeCode AND TD2.LanguageID = #{languageID} AND TD2.Category = 'APRVOPTION'	
+		WHERE 
+			TP.ProjectID = #{s_itemID}
+	</select>
+	
+	<!-- 변경관리 - 프로젝트 리스트 -->
+	<select id="getProjectList_gridList" resultType="java.util.HashMap">
+		SELECT /*project_SQL.getProjectList_gridList*/
+			 Row_Number()OVER(ORDER BY  TP.CreationTime DESC ) as RNUM 
+			, TP.ProjectID
+			, TP.ProjectType
+			, TPPT.Name AS ParentName
+			, TTPT.Name AS ParentTeamName
+			, TP.OwnerTeamID			
+			, TPT.Name AS ProjectName
+			, COUNT(Distinct TCSN.ChangeSetID) AS NCount
+			, COUNT(Distinct TCSM.ChangeSetID) AS MCount
+			, COUNT(Distinct TCSD.ChangeSetID) AS DCount
+			, COUNT(Distinct TCSR.ChangeSetID) AS RCount
+			, COUNT(Distinct TCSS.ChangeSetID) AS SCount
+			, ISNULL(CONVERT(char(10),TP.CreationTime, 111),'') as CreationTime
+			, ISNULL(CONVERT(char(10),TP.EndDate, 111),'') as EndTime
+			, TMT.Name AS TeamName
+			, ISNULL(TM.Name,'') AS UserName
+			, TD.Name AS StatusName
+			, TP.CompanyID
+			, TP.OwnerTeamID
+			, TP.AuthorID
+		FROM 
+			XBOLTADM.TB_PROJECT TP
+			Left Outer Join XBOLTADM.TB_TEAM TT
+				on TT.TeamID = TP.OwnerTeamID
+			LEFT Outer Join XBOLTADM.TB_TEAM_TXT TTPT
+				on TTPT.TeamID = TT.ParentID	AND TTPT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT
+				on TP.OwnerTeamID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT
+				on TP.ProjectID = TPT.ProjectID AND TPT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+				on TP.AuthorID = TM.MemberID
+			Left Outer Join XBOLTADM.TB_CHANGE_SET TCSN
+				on TP.ProjectID = TCSN.ProjectID AND TCSN.ChangeType = 'NEW'
+			Left Outer Join XBOLTADM.TB_CHANGE_SET TCSM
+				on TP.ProjectID = TCSM.ProjectID AND TCSM.ChangeType = 'MOD'
+			Left Outer Join XBOLTADM.TB_CHANGE_SET TCSD
+				on TP.ProjectID = TCSD.ProjectID AND TCSD.ChangeType = 'DEL'
+			Left Outer Join XBOLTADM.TB_CHANGE_SET TCSR
+				on TP.ProjectID = TCSR.ProjectID AND TCSR.ChangeType = 'OWC'
+			Left Outer Join XBOLTADM.TB_CHANGE_SET TCSS
+				on TP.ProjectID = TCSS.ProjectID AND TCSS.ChangeType = 'OTC'
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD
+				on TP.Status = TD.TypeCode AND TD.LanguageID = 	#{languageID}
+				AND TD.Category = 'PJTSTS'
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPPT
+				on TP.RefPjtID = TPPT.ProjectID AND TPPT.LanguageID = #{languageID}
+		WHERE 
+		<!-- 
+			TP.ParentID = #{s_itemID}
+		 -->
+			TP.PJCategory = #{category}
+			AND TP.ProjectType = 3
+			<if test="parentID != null and parentID != '' and !parentID.equals('null')">
+			AND TT.ParentID = #{parentID}
+			</if>
+			<if test="Status != null and Status != '' and !Status.equals('null')">
+			AND TP.Status = #{Status}
+			</if>
+			<if test="AuthorTeamID != null and AuthorTeamID != '' and !AuthorTeamID.equals('null')">
+			AND TP.OwnerTeamID = #{AuthorTeamID}
+			</if>
+			<if test="SC_STR_DT != null and SC_STR_DT != '' and SC_END_DT != null and SC_END_DT != ''">
+				CONVERT(VARCHAR,TP.CreationTime, 120) BETWEEN #{SC_STR_DT} AND #{SC_END_DT}
+			</if>  	
+		Group By
+			TP.ProjectID
+			, TP.ProjectType
+			, TPPT.Name
+			, TTPT.Name 			
+			, TPT.Name 
+			, TP.CreationTime
+			, TP.EndDate
+			, TMT.Name
+			, TM.Name
+			, TD.Name
+			, TP.AuthorName	
+			, TP.CompanyID
+			, TP.OwnerTeamID
+			, TP.AuthorID
+	</select>
+
+	<!-- 프로젝트 ChangeSet 리스트 -->
+	<select id="getSetProjectList_gridList" resultType="java.util.HashMap">
+		SELECT 
+			 Row_Number()OVER(ORDER BY  TP.CreationTime DESC ) as RNUM 
+			, 0 AS CHK 
+			, TP.ProjectID
+			, TP.CompanyID
+			, TP.OwnerTeamID
+			, XBOLTADM.fn_GetMyAbsPathForProject(TP.ProjectID, #{languageID}) AS Name
+			, TP.ProjectCode
+			, TPT.Name AS ProjectName
+			, TG.ProjectCode + ' ' + TGT.Name AS ProjectGRName
+			, TCT.Name AS CompanyName
+			, TMT.Name AS TeamName
+			, TPT.Description
+			, ISNULL(TM.Name,'') AS CreatorName
+			, ISNULL(CONVERT(char(10),TP.CreationTime, 111),'') as CreationTime
+			, ISNULL(CONVERT(char(10),TP.StartDate, 111),'') as StartDate
+			, ISNULL(CONVERT(char(10),TP.DueDate, 111),'') as DueDate
+			, TD.Name AS StatusName
+			, TP.ProjectType
+			, (SELECT COUNT(PROJECTID) FROM XBOLTADM.TB_PROJECT WHERE RefPjtID = TP.ProjectID AND ProjectType != TP.ProjectType) As ChildCount
+		FROM 
+			XBOLTADM.TB_PROJECT TP
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT
+				on TP.ProjectID = TPT.ProjectID AND TPT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_PROJECT TG 
+			    ON TP.RefPGID = TG.ProjectID
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TGT
+				on TG.ProjectID = TGT.ProjectID AND TGT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TCT
+				on TP.CompanyID = TCT.TeamID AND TCT.LanguageID = #{languageID}	
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT
+				on TP.OwnerTeamID = TCT.TeamID AND TMT.LanguageID = #{languageID}					
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+				on TP.AuthorID = TM.MemberID
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD
+				on TP.Status = TD.TypeCode AND TD.LanguageID = 	#{languageID}
+				AND TD.Category = 'PJTSTS'
+		<where>
+			<if test="filter != null and filter != ''">
+			TP.ProjectType = #{filter}
+			</if>
+			<if test="ParentID != null and ParentID != ''">
+			AND TP.RefPjtID = #{ParentID}
+			</if>
+			<if test="refID != null and refID != '' and screenType.equals('PG')">
+			AND TP.RefPGID = #{refID}
+			</if>
+			<if test="Category != null and Category != ''">
+			AND TP.PJCategory = #{Category}
+			</if>
+			<if test="CompanyID != null and CompanyID != ''">
+			AND TP.CompanyID = #{CompanyID}
+			</if>
+			<if test="loginUserId != null and loginUserId != ''">
+			AND #{loginUserId} IN (SELECT MemberID FROM XBOLTADM.TB_PJT_MEMBER_REL WHERE ProjectID = TP.ProjectID)
+			</if>
+		</where>
+	ORDER BY
+		TP.CreationTime DESC
+	</select>
+	
+	<select id="getSetProjectListForCsr_gridList" resultType="java.util.HashMap">
+		SELECT 
+			TOP 1000
+			 Row_Number()OVER(ORDER BY  TP.CreationTime DESC ) as RNUM 
+			, 0 AS CHK 
+			, TP.ProjectID
+			, TP.SRID
+			, TP.RefPjtID As ParentID
+			, XBOLTADM.fn_GetMyAbsPathForProject(TP.ProjectID, #{languageID}) AS PjtPath
+			, TP.ProjectCode
+			, TPT.Name AS ProjectName
+			, TPT2.Name As ParentName
+			, TPT.Description
+			, ISNULL(TM.Name,'') AS CreatorName
+			, ISNULL(TM2.Name,'') AS AuthorName
+			, ISNULL(CONVERT(char(10),TP.CreationTime, 21),'') as CreationTime
+			, TD.Name AS StatusName
+			, TP.ProjectType
+			, TP.WFID
+			, WF.Name As WFName
+			, TP.CurWFStepID
+			, WFSTEP.Name AS CurWFStepName
+			, TP.Seq
+			, ISNULL(TP.AuthorID,'') AS AuthorID
+			, TP.Creator
+			, TTT.Name AS CreatorTeamName			
+			, ISNULL(CONVERT(char(10),TP.StartDate, 21),'') as StartDate
+			, ISNULL(CONVERT(char(10),TP.DueDate, 21),'') as DueDate
+			, ISNULL(CONVERT(char(10),TP.EndDate, 21),'') as EndDate
+			, TP.Status
+			, TP.Priority
+			, PRT.Name AS PriorityName
+			, TP.Reason , TD2.Name As ReasonNM
+			, (SELECT COUNT(ChangeSetID) FROM XBOLTADM.TB_CHANGE_SET WHERE ProjectID = TP.ProjectID) AS CNGT_CNT
+			, (SELECT COUNT(IssueID) FROM XBOLTADM.TB_ISSUE WHERE CSRID = TP.ProjectID) AS ISSUE_CNT
+			, TTT2.Name As AuthorTeamName
+			, XBOLTADM.fn_GetChangeStatus(TP.ProjectID) AS ChangeStatus
+			, TP.AprvOption
+			, TD1.Name as AprvOptionNM
+		FROM 
+			XBOLTADM.TB_PROJECT TP
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT
+				on TP.ProjectID = TPT.ProjectID AND TPT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT2
+				on TP.RefPjtID = TPT2.ProjectID AND TPT2.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+				on TP.Creator = TM.MemberID
+			Left Outer Join XBOLTADM.TB_MEMBER TM2
+				on TP.AuthorID = TM2.MemberID
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD
+				on TP.Status = TD.TypeCode AND TD.LanguageID = 	#{languageID} 
+				AND TD.Category = 'CSRSTS'
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD1
+				on TP.AprvOption = TD1.TypeCode AND TD1.LanguageID = #{languageID}
+				AND TD1.Category = 'APRVOPTION'
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD2
+				on TP.Reason = TD2.TypeCode AND TD2.LanguageID = 	#{languageID}
+				AND TD2.Category = 'CR'
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY WFSTEP 
+				ON WFSTEP.LanguageID = #{languageID} AND TP.CurWFStepID = WFSTEP.TypeCode
+				AND WFSTEP.Category = 'WFSTEP'	
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY WF 
+				ON WF.LanguageID = #{languageID} AND TP.WFID = WF.TypeCode
+				AND WF.Category = 'WF'
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY PRT 
+				ON TP.Priority = PRT.TypeCode AND PRT.Category = 'PRT'
+				AND PRT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT
+				on TP.OwnerTeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT2 
+				ON TTT2.TeamID = (Select TeamID From XBOLTADM.TB_MEMBER Where MemberID = TP.AuthorID )
+				And TTT2.LanguageID = #{languageID}
+				<if test="'APRV'.equals(Status)">
+				Inner Join XBOLTADM.TB_WF_STEP_INST TW on TP.ProjectID = TW.ProjectID 
+				 AND TW.Seq = (Select LastSeq From XBOLTADM.TB_WF_INST Where ProjectID = TP.ProjectID)
+				 AND TW.ActorID =  #{sessionUserId}
+				</if>			 
+		<where>
+			<if test="filter != null and filter != ''">
+			TP.ProjectType = #{filter}
+			</if>
+			<if test="ParentID != null and ParentID != ''">
+			AND TP.RefPjtID = #{ParentID}
+			</if>
+			<choose>
+				<when test="'PG'.equals(screenType)">
+				AND TP.RefPGID = #{refID}
+				</when>
+				<when test="'PJT'.equals(screenType)">
+				AND TP.RefPjtID = #{refID}
+				</when>
+			</choose>
+			<if test="projectID != null and projectID != ''">
+			AND TP.RefPjtID = #{projectID}
+			</if>
+			<if test="curPJTID != null and curPJTID != ''">
+			AND TP.ProjectID != #{curPJTID}
+			</if>
+			<if test="Category != null and Category != ''">
+			AND TP.PJCategory = #{Category}
+			</if>
+			<if test="CompanyID != null and CompanyID != ''">
+			AND TP.CompanyID = #{CompanyID}
+			</if>
+			<if test="loginUserId != null and loginUserId != ''">
+			AND #{loginUserId} IN (SELECT MemberID FROM XBOLTADM.TB_PJT_MEMBER_REL WHERE ProjectID = TP.ProjectID)
+			</if>
+			<if test="Status != null and Status != ''">
+				AND TP.Status = #{Status}
+			</if>
+			<if test="NotStatus != null and !NotStatus.equals('')">
+				AND TP.Status NOT IN (${NotStatus})
+			</if>
+			<if test="CurWFStepID != null and CurWFStepID != ''">
+			AND TP.CurWFStepID = #{CurWFStepID}
+			</if>
+			<if test="OwnerTeamID != null and OwnerTeamID != ''">
+			AND TP.OwnerTeamID = #{OwnerTeamID}
+			</if>
+			<if test="Priority != null and Priority != ''">
+			AND TP.Priority = #{Priority}
+			</if>
+			<if test="reason != null and reason != ''">
+			AND TP.Reason = #{reason}
+			</if>
+			<if test="memberId != null and memberId != ''">
+			AND (TP.Creator = #{memberId} OR ISNULL(TP.AuthorID,'') = #{memberId} OR
+					#{memberId} in (SELECT MemberID FROM XBOLTADM.TB_PJT_MEMBER_REL WHERE ProjectID = TP.ProjectID)
+					)
+			</if>
+			<if test="ProjectID != null and ProjectID != ''">
+			AND TP.ProjectID = #{ProjectID}
+			</if>
+			<if test="reqStartDt != null and reqStartDt != '' and reqEndDt != null and reqEndDt != ''">
+				AND CONVERT(char(8),TP.StartDate, 112) BETWEEN #{reqStartDt} AND #{reqEndDt}
+			</if>  
+			<if test="clsStartDt != null and clsStartDt != '' and clsEndDt != null and clsEndDt != ''">
+				AND CONVERT(char(8),TP.DueDate, 112) BETWEEN #{clsStartDt} AND #{clsEndDt}
+			</if>  
+			<if test="ProjectName != null and ProjectName != ''">
+			AND TPT.Name like N'%'+#{ProjectName}+'%'
+			</if>
+			<if test='quickCheckOut != null and !quickCheckOut.equals("") and quickCheckOut.equals("Y") '>
+				AND TP.Status IN('CSR','CNG')
+			</if>
+			<if test="ProjectCode != null and ProjectCode != ''">
+				AND TP.ProjectCode like N'%'+#{ProjectCode}+'%'
+			</if>
+			<if test="AuthorName != null and AuthorName != ''">
+				AND TM2.Name like N'%'+#{AuthorName}+'%'
+			</if>
+			<if test="AuthorTeamName != null and AuthorTeamName != ''">
+				AND TTT2.Name like N'%'+#{AuthorTeamName}+'%'
+			</if>
+						
+		</where>
+	ORDER BY
+		TP.ProjectID  DESC
+	</select>
+
+	<select id="getProjectInfoList_gridList" resultType="java.util.HashMap">
+SELECT 
+		*
+	FROM(	
+		SELECT
+		 Row_Number()OVER(ORDER BY  TCS.CreationTime DESC ) as RNUM 
+ 		 ,TCS.ChangeSetID
+ 		 ,TI.Identifier
+		 ,TIA.PlainText AS ItemName
+		 ,TDC.Name AS ChangeType
+		 ,TD.Name AS ClassCode
+		 ,ISNULL(TCS.Description,'') AS Description
+		 ,TTT.Name AS TeamName
+		 ,ISNULL(TCS.AuthorName,'') AS AuthorName
+		 ,TM.Name 
+		 ,ISNULL(CONVERT(char(10),TCS.CreationTime, 120),'') as CreationTime
+		 ,TDS.Name AS StatusName		 
+		 ,TRS.Name AS Reason	 
+		FROM XBOLTADM.TB_CHANGE_SET TCS
+			Left Outer Join XBOLTADM.TB_ITEM TI
+			on TCS.ItemID = TI.ItemID		
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+			on TCS.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+			on TCS.AuthorID = TM.MemberID
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT
+			on TCS.AuthorTeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD 
+			on TCS.ItemTypeCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_DICTIONARY TDS
+			on TCS.Status = TDS.TypeCode AND TDS.Category = 'STS'  AND TDS.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_DICTIONARY TRS
+			on TCS.Reason = TRS.TypeCode AND TRS.Category = 'CR'  AND TRS.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_DICTIONARY TDC
+			on TCS.ChangeType = TDC.TypeCode AND TDC.LanguageID =	#{languageID}
+		WHERE
+			1 = 1
+			AND TCS.ProjectID = #{s_itemID}
+		)TC		
+	</select>
+	
+	<select id="getMaxProjectID" resultType="String">
+		SELECT
+			ISNULL(MAX(ProjectID)+1, 1) as ProjectID
+		FROM
+			XBOLTADM.TB_PROJECT
+	</select> 	
+	
+	<select id="selectChangeSetMaxID" resultType="String">
+		SELECT
+			ISNULL(MAX(ChangeSetID)+1, 1) as ChangeSetID
+		FROM
+			XBOLTADM.TB_CHANGE_SET
+	</select>
+	
+	<select id="getProjectType" resultType="String">
+		SELECT
+			rtrim(ProjectType)
+		FROM
+			XBOLTADM.TB_PROJECT
+		WHERE
+			ProjectID = #{s_itemID} 	
+	</select> 	
+	
+	<!-- Project - group - Allocate Member -->
+		<select id="projectGroupAllocateMember_gridList" resultType="java.util.HashMap">
+			SELECT 
+				Row_Number()OVER(ORDER BY TM.MemberID ASC ) as RNUM
+				, CASE ISNULL(TMG.MemberID, '0') WHEN '0' THEN 0 ELSE 1 END CHK
+				, TM.MemberID
+				, TM.LoginID
+				, ISNULL(TM.Name,'') AS UserName
+				, TM.LoginID
+				, TM.Addr1
+				, Convert(varchar(20), TM.RegDate, 111) AS RegDate
+				, ISNULL(TDML.Name, '') AS AuthorityName
+				, ISNULL(TM.TeamID,'') AS TeamID
+				, ISNULL(TTT.Name,'') AS TeamName
+				, ISNULL(TM.CompanyID,'') AS CompanyID
+				, ISNULL(TMC.Name,'') AS CompanyName				
+			FROM 
+				XBOLTADM.TB_MEMBER TM
+				Left Outer Join XBOLTADM.TB_MEMBER_GR TMG
+				on TMG.MemberID in (
+					SELECT MemberID FROM XBOLTADM.TB_PJT_MEMBER_REL
+					WHERE ProjectID = #{s_itemID}
+				)AND TM.MemberID = TMG.MemberID
+				Left Outer Join XBOLTADM.TB_TEAM_TXT TTT
+					on TM.TeamID = TTT.TeamID
+					ANd TTT.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_TEAM_TXT TMC
+					on TM.CompanyID = TMC.TeamID
+					AND TMC.LanguageID = #{languageID}	
+				Left outer Join XBOLTADM.TB_DICTIONARY TDML
+					on TM.MLVL = TDML.TypeCode 
+					AND TDML.Category='MLVL'
+					AND	TDML.LanguageID = #{languageID}	
+			WHERE 
+				1=1
+	</select>
+	
+	<select id="wfStepInstAgrAprList_gridList" resultType="java.util.HashMap">
+	SELECT 
+			Row_Number()OVER(ORDER BY  TW.StepInstID ASC) as RNUM 
+			, 0 AS CHK 
+			, TP.ProjectID
+			, XBOLTADM.fn_GetMyAbsPathForProject(TP.ProjectID, #{LanguageID}) AS Path
+			, TP.ProjectCode
+			, TPT.Name AS ProjectName
+			, TPT2.Name AS ParentName
+			, TPT.Description
+			, ISNULL(TM.Name,'') AS CreatorName
+			, ISNULL(CONVERT(char(10),TP.CreationTime, 111),'') as CreationTime
+			, TD.Name AS StatusName
+			, TP.ProjectType
+			, TP.WFID
+			, TP.CurWFStepID
+			, TP.Seq
+			, TP.AuthorID
+			, TW.ActorID
+			, GOV.Name AS GovName
+			, TW.Status
+			, CASE WHEN TW.Status = '0' THEN TGD2.Name ELSE TGD1.Name END ISDONE 
+			, CASE WHEN TW.Status = '0' THEN '0' ELSE '2' END ISDONE2
+			, TW.WFStepID
+			, TW.StepInstID
+			, WF.Name As WFName
+		FROM 
+			XBOLTADM.TB_PROJECT TP
+			Inner Join XBOLTADM.TB_WF_STEP_INST TW
+				on TP.ProjectID = TW.ProjectID 
+					 AND (TP.CurWFStepID = TW.WFStepID or TW.Status != '0')
+					 AND TW.ActorID =  #{AuthorID}
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT
+				on TP.ProjectID = TPT.ProjectID AND TPT.LanguageID = #{LanguageID}
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT2
+				on TP.RefPjtID = TPT2.ProjectID AND TPT2.LanguageID = #{LanguageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+				on TP.Creator = TM.MemberID
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD
+				on TP.Status = TD.TypeCode AND TD.LanguageID = 	#{LanguageID}
+				AND TD.Category = 'PJTSTS'
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY GOV 
+			ON GOV.LanguageID = #{LanguageID}
+			AND TW.WFStepID = GOV.TypeCode
+			AND GOV.Category = 'WFSTEP'	
+			Left Outer Join XBOLTADM.TB_DICTIONARY TGD1	
+			on TGD1.TypeCode = 'LN00118' 
+			AND TGD1.LanguageID = #{LanguageID}
+			AND TGD1.Category = 'LN'	
+			Left Outer Join XBOLTADM.TB_DICTIONARY TGD2	
+			on TGD2.TypeCode = 'LN00121' 
+			AND TGD2.LanguageID = #{LanguageID}
+			AND TGD2.Category = 'LN'
+			
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY WF 
+				ON WF.LanguageID = #{LanguageID} AND TP.WFID = WF.TypeCode
+				AND WF.Category = 'WF'
+						
+		WHERE RTRIM(Tp.ProjectType) = 'CSR'
+		<if test="Gov != null and Gov != ''">
+		AND TW.WFStepID = #{Gov}			
+		</if>
+		<if test="IsDone != null and IsDone != ''">
+			<choose>
+				<when test='"0".equals(IsDone)'>
+					AND TW.Status IN (0,1)
+				</when>
+				<when test='"2".equals(IsDone)'>
+					AND TW.Status = #{IsDone}
+				</when>
+			</choose>			
+		</if>
+		
+	</select>
+
+	<select id="searchNamePop" resultType="java.util.HashMap">
+		SELECT 
+			 TM.Name AS UserName
+			, TM.MemberID
+			, TTT.Name AS TeamName
+			, TM.LoginID
+			, TM.EmployeeNum
+			, TM.TeamID
+			, XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{languageID}) + '/' + TTT.Name AS TeamPath
+		FROM
+			XBOLTADM.TB_MEMBER TM
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT On TM.TeamID = TTT.TeamID  AND TTT.LanguageID = #{languageID}
+		WHERE 
+			<choose>
+				<when test="searchKey.equals('Name')">
+					TM.Name Like '%'+#{searchValue}+'%'
+				</when>
+				<when test="searchKey.equals('ID')">
+					TM.LoginID Like '%'+#{searchValue}+'%'
+				</when>
+				<otherwise>
+					TM.Name Like '%'+#{searchValue}+'%'
+				</otherwise>
+			</choose>
+			<if test="UserLevel == null or !UserLevel.equals('ALL')">
+				AND TM.Authority != 4	
+			</if>
+			
+	</select>
+	
+	<select id="searchPjtNamePop" resultType="java.util.HashMap">
+		SELECT 
+			 TM.Name AS UserName
+			, TM.MemberID
+			, TTT.Name AS TeamName
+			, TM.LoginID
+			, TM.EmployeeNum
+			, TM.TeamID
+			, XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{languageID}) + '/' + TTT.Name AS TeamPath
+		FROM
+			XBOLTADM.TB_MEMBER TM
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT On TM.TeamID = TTT.TeamID  AND TTT.LanguageID = #{languageID}
+		<where>
+			<if test="searchValue != null and searchValue != ''">
+				<choose>
+					<when test="searchKey.equals('Name')">
+						AND TM.Name Like '%'+#{searchValue}+'%'
+					</when>
+					<when test="searchKey.equals('ID')">
+						AND TM.MemberID Like '%'+#{searchValue}+'%'
+					</when>
+				</choose>
+			</if>
+			<if test="teamID != null and teamID != ''">
+			AND TM.TeamID = #{teamID}	
+			</if>
+			<if test="!'ALL'.equals(UserLevel)">
+			AND TM.Authority != 4
+			</if>
+		</where>
+			
+	</select>
+
+	<select id="searchTeamPop" resultType="java.util.HashMap">
+		SELECT 
+			TM.TeamID
+			, XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{languageID}) AS ParentName
+			, TTT.Name AS TeamName
+		FROM
+			XBOLTADM.TB_TEAM TM
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT On TM.TeamID = TTT.TeamID  AND TTT.LanguageID = #{languageID}
+		WHERE
+			TM.TeamType = '4'
+			AND TTT.Name Like N'%'+#{Name}+'%'
+	</select>
+	
+	<select id="searchNamePop_gridList" resultType="java.util.HashMap">
+		SELECT  Top 500
+			Row_Number()OVER(ORDER BY TM.Name) as RNUM
+			, PMR.MemberID
+			, TM.Name AS UserName
+			, TTT.Name AS TeamName
+			, TM.LoginID
+			, ISNULL(master.dbo.dec_varchar_sel(0,'HTMAIL',TM.Email),'') AS Email
+			, XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{languageID}) + '/' + TTT.Name AS TeamPath
+			, ISNULL(TM.Position, '') As Position
+			, ISNULL(master.dbo.dec_varchar_sel(0,'HTPHONE',TM.MTelNum),'') AS MTelNum
+			, ISNULL(CONVERT(varchar(20),PMR.AssignedDate, 111),'') As RegDate
+			, TM.Authority
+			, TM.MLVL
+			, TM.Name + '/' +ISNULL(master.dbo.dec_varchar_sel(0,'HTMAIL',TM.Email),'') AS MemberName
+			, <![CDATA[
+			TM.EmployeeNum+'.jpg' As EmployeeNums,	
+			ISNULL(TM.Name,'') +'/'+ISNULL(TTT2.Name,'') + '<BR>' + ISNULL(master.dbo.dec_varchar_sel(0,'HTMAIL',TM.Email),'') +'<BR>'
+			+ ISNULL(master.dbo.dec_varchar_sel(0,'HTPHONE',TM.MTelNum),'') + Case When ISNULL(TM.TelNum,'') != '' Then  ', '  Else '' End + ISNULL(TM.TelNum,'') AS MemberInfo
+			]]> 
+			<if test='"Y".equals(assignmentYN )'>
+			,Case When ISNULL(TM.Photo,'blank_photo.png') = 'blank_photo.png' Then #{blankPhotoUrlPath}
+			Else CAST(#{photoUrlPath} AS varchar(50)) + ISNULL(TM.Photo,'blank_photo.png') END AS Photo
+			</if>			
+		FROM XBOLTADM.TB_PJT_MEMBER_REL PMR,	
+  		     XBOLTADM.TB_MEMBER TM
+  		     Left Outer Join XBOLTADM.TB_TEAM_TXT TTT On TM.TeamID = TTT.TeamID  AND TTT.LanguageID = #{languageID}	 
+  		     Left Outer Join XBOLTADM.TB_TEAM_TXT TTT2 On TM.CompanyID = TTT2.TeamID  AND TTT2.LanguageID = #{languageID}	  		
+	  	WHERE PMR.MemberID = TM.MemberID
+	  	
+	  			AND PMR.Involved = 1
+				<if test="projectID != null and projectID != ''">
+				AND PMR.ProjectID = #{projectID}
+				</if>
+				<if test="!'ALL'.equals(UserLevel)">
+				AND TM.Authority != 4
+				</if>
+				<if test="csrId != null and csrId != ''">
+				AND TM.MemberID NOT IN (SELECT MemberID FROM XBOLTADM.TB_PJT_MEMBER_REL WHERE ProjectID = #{csrId})
+				</if>
+				<if test="userType != null and userType != ''">
+				AND TM.UserType = #{userType}
+				</if>
+				<if test="teamId != null and teamId != ''">
+				AND TM.TeamID = #{teamId}
+				</if>
+				<if test='selectMember != null and !"".equals(selectMember)'>
+					AND TM.MemberID IN (${selectMember})
+				</if>
+				<if test="searchValue != null and searchValue != ''">
+					<choose>
+						<when test="searchKey.equals('Name')">
+							AND TM.Name Like N'%'+#{searchValue}+'%'
+						</when>
+						<when test="searchKey.equals('ID')">
+							AND TM.LoginID Like N'%'+#{searchValue}+'%'
+						</when>
+					</choose>
+				</if>
+				<if test="Name != null and Name != ''">
+				AND TM.Name Like N'%'+#{Name}+'%'
+				</if>
+		ORDER BY TM.Name
+	</select>
+	
+	<select id="getMemberList_gridList" resultType="java.util.HashMap">		
+		Select
+			Row_Number()OVER(ORDER BY TM.Name) as RNUM, 
+			TM.MemberID,
+			TM.Name,			
+			<![CDATA[
+			TM.EmployeeNum+'.jpg' As EmployeeNum,	
+			+ ISNULL(TM.Name,'') +'/'+ISNULL(TMTXT.Name,'') + '<BR>' +  ISNULL(master.dbo.dec_varchar_sel(0,'HTMAIL',TM.EMAIL),'') +'<BR>'
+			+ ISNULL(master.dbo.dec_varchar_sel(0,'HTPHONE',TM.MTelNum),'') + Case When ISNULL(TM.TelNum,'') != '' Then  ', '  Else '' End + ISNULL(TM.TelNum,'') AS MemberInfo,
+			]]> 
+			TM.Name + '/' +ISNULL(master.dbo.dec_varchar_sel(0,'HTMAIL',TM.EMAIL),'') AS MemberName
+			<if test='"Y".equals(assignmentYN )'>
+			,Case When ISNULL(TM.Photo,'blank_photo.png') = 'blank_photo.png' Then #{blankPhotoUrlPath}
+			Else CAST(#{photoUrlPath} AS varchar(50)) + ISNULL(TM.Photo,'blank_photo.png') END AS Photo
+			</if>		
+		From XBOLTADM.TB_MEMBER TM
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TMTXT ON TMTXT.TeamID = TM.CompanyID And TMTXT.LanguageID = #{languageID}
+		Where TM.MemberID NOT IN (Select MemberID From XBOLTADM.TB_PJT_MEMBER_REL Where ProjectID = #{projectID}) 
+			<if test="teamID != null and teamID != ''">
+			AND TM.TeamID = #{teamID}
+			</if>
+			<if test="!'ALL'.equals(UserLevel)">
+			AND TM.Authority != 4		
+			</if>
+			<if test='selectMember != null and !"".equals(selectMember)'>
+				AND TM.MemberID NOT IN (${selectMember})
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+				<choose>
+					<when test="searchKey.equals('Name')">
+						AND TM.Name Like N'%'+#{searchValue}+'%'
+					</when>
+					<when test="searchKey.equals('ID')">
+						AND TM.LoginID Like N'%'+#{searchValue}+'%'
+					</when>
+				</choose>
+			</if>
+		ORDER BY TM.Name	
+	</select>
+	
+	<select id="searchNewMember_gridList" resultType="java.util.HashMap">
+		SELECT 
+			Row_Number()OVER(ORDER BY TM.Name) as RNUM
+			, TM.MemberID
+			, TM.Name AS UserName
+			, TTT.Name AS TeamName
+			, TM.LoginID
+			, ISNULL(master.dbo.dec_varchar_sel(0,'HTMAIL',TM.Email),'') AS Email
+			, XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{languageID}) + '/' + TTT.Name AS TeamPath
+			, ISNULL(TM.Position, '') As Position
+			, ISNULL(master.dbo.dec_varchar_sel(0,'HTPHONE',TM.MTelNum),'') AS MTelNum
+			, ISNULL(CONVERT(varchar(20),TM.RegDate, 111),'') As RegDate
+			, TM.Authority
+			, TM.MLVL
+			, '' As CNT
+		FROM
+			XBOLTADM.TB_MEMBER TM
+	  		Left Outer Join XBOLTADM.TB_TEAM_TXT TTT On TM.TeamID = TTT.TeamID  AND TTT.LanguageID = #{languageID}
+	  	<where>
+	  		<if test="'null'.equals(screenType)">
+			TM.Authority != 4
+			</if>
+			<if test="projectID != null and projectID != ''">
+			AND TM.MemberID NOT IN (SELECT MemberID FROM XBOLTADM.TB_PJT_MEMBER_REL WHERE ProjectID = #{projectID})
+			</if>
+			<if test="userType != null and userType != ''">
+			AND TM.UserType = #{userType}
+			</if>
+			<if test="teamId != null and teamId != ''">
+			AND TM.TeamID = #{teamId}
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+				<choose>
+					<when test="searchKey.equals('Name')">
+						AND TM.Name Like N'%'+#{searchValue}+'%'
+					</when>
+					<when test="searchKey.equals('ID')">
+						AND TM.LoginID Like N'%'+#{searchValue}+'%'
+					</when>
+				</choose>
+			</if>
+			<if test="groupID != null and groupID != ''">
+			AND TM.MemberID NOT IN (Select MemberID From XBOLTADM.TB_MEMBER_GR Where GroupID = #{groupID} )	
+			</if>
+	  	</where>
+		 ORDER BY TM.Name
+	</select>
+	
+	<select id="deleteNamePop" resultType="java.util.HashMap">
+		SELECT 
+			 TM.Name AS UserName
+			, TM.MemberID
+			, TTT.Name AS TeamName
+		FROM
+			XBOLTADM.TB_MEMBER TM
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT On TM.TeamID = TTT.TeamID  AND TTT.LanguageID = #{languageID}
+		WHERE
+			TM.MemberID IN 
+					<foreach collection="MemberID" index="index" item="item" open="(" close=")"  separator=",">
+						${item}
+					</foreach>
+			<if test="csrUserID != null and csrUserID != ''">
+			AND TM.MemberID != #{csrUserID}
+			</if>
+	</select>
+ 	
+ 	<delete id="DelProject" parameterType="java.util.HashMap">
+ 		DELETE 
+ 		FROM
+ 			XBOLTADM.TB_PROJECT_TXT
+		WHERE
+			<if test="ItemID != null and ItemID != ''">
+			ProjectID = #{ItemID}
+			</if>
+			<if test="pjtIds! = null and pjtIds.size > 0">
+			ProjectID IN 
+				<foreach collection="pjtIds" index="index" item="item" open="(" close=")"  separator=",">
+					${item}
+				</foreach>
+			</if>
+		
+		DELETE 
+ 		FROM
+ 			XBOLTADM.TB_PJT_FILE
+		WHERE
+			<if test="ItemID != null and ItemID != ''">
+			ProjectID = #{ItemID}
+			</if>
+			<if test="pjtIds! = null and pjtIds.size > 0">
+			ProjectID IN 
+				<foreach collection="pjtIds" index="index" item="item" open="(" close=")"  separator=",">
+					${item}
+				</foreach>
+			</if>
+		
+		DELETE 
+ 		FROM
+ 			XBOLTADM.TB_PJT_MEMBER_REL
+		WHERE
+			<if test="ItemID != null and ItemID != ''">
+			ProjectID = #{ItemID}
+			</if>
+			<if test="pjtIds.size > 0">
+			ProjectID IN 
+				<foreach collection="pjtIds" index="index" item="item" open="(" close=")"  separator=",">
+					${item}
+				</foreach>
+			</if>
+ 	
+ 	
+ 		DELETE 
+ 		FROM
+ 			XBOLTADM.TB_PROJECT
+		WHERE
+			<if test="ItemID != null and ItemID != ''">
+			ProjectID = #{ItemID}
+			</if>
+			<if test="pjtIds.size > 0">
+			ProjectID IN 
+				<foreach collection="pjtIds" index="index" item="item" open="(" close=")"  separator=",">
+					${item}
+				</foreach>
+			</if>
+ 	</delete>
+
+ 	<delete id="delChangeSet" parameterType="java.util.HashMap">
+ 		DELETE 
+ 		FROM
+ 			XBOLTADM.TB_CHANGE_SET
+		WHERE
+			ChangeSetID = #{ChangeSetID}
+ 	
+ 	</delete>
+ 	
+ <!-- 2012-XBOLT_SSK END -->
+ 	<!-- 프로젝트 생성용 현 프로젝트의 MaxID 받아오기 -->
+
+ 
+ 	<select id="s_itemIDentifierFromGuid" resultType="String">
+		SELECT 
+			IdentiFier
+		FROM 
+			XBOLTADM.TB_ITEM
+		WHERE 
+			GlobalID = #{GlobalID}
+			AND ItemTypeCode = 'OJ00001' 	
+ 	</select>
+ 
+ 	<select id="getMaxID" resultType="String">
+		SELECT
+			ISNULL(MAX(ItemID)+1, 10001) as ItemID
+		FROM
+			XBOLTADM.TB_ITEM
+		WHERE 
+			ItemID Between 10000 and 20000	
+	</select>
+
+ 	<!-- 프로세스 ID/NAME 조건 검색 목록 받아오기 -->
+ <select id="s_itemIDNameProcessList" resultType="java.util.HashMap">
+ 
+ 			SELECT
+				DISTINCT C.ItemID, C.ToItemID, D.PlainText, E.PlainText as FromText
+			FROM 
+				XBOLTADM.TB_ITEM C, XBOLTADM.TB_ITEM_ATTR D, XBOLTADM.TB_ITEM_ATTR E
+				
+			WHERE 
+				 C.ToItemID = D.ItemID
+				and C.FromItemID = E.ItemID
+				and C.ToItemID not in (SELECT ToItemID from XBOLTADM.TB_ITEM where FromItemID =  #{ITEM_ID} AND Deleted != 'N' ) 
+				and D.AttrTypeCode = 'AT00001'
+				and E.AttrTypeCode = 'AT00001'
+				and C.ItemTypeCode = 'ST00003'
+				and  C.ToItemCategory = 'MD'
+				and D.PlainText 
+					LIKE '%'+#{searchIDName}+'%'
+				or
+				 C.ToItemID = D.ItemID
+				and C.FromItemID = E.ItemID
+				and C.ToItemID not in (SELECT ToItemID from XBOLTADM.TB_ITEM where FromItemID =  #{ITEM_ID} AND Deleted != 'N') 
+				and D.AttrTypeCode = 'AT00001'
+				and E.AttrTypeCode = 'AT00001'
+				and C.ItemTypeCode = 'ST00003'
+				and  C.ToItemCategory = 'MD'
+				and C.ToItemID 
+					LIKE '%'+#{searchIDName}+'%'
+ </select>
+
+ 	<!-- 프로세스 부서 조건 검색 목록 받아오기 -->
+ <select id="getOrgProcessList" resultType="java.util.HashMap">
+ 
+ 			SELECT
+				DISTINCT C.ItemID, C.ToItemID, D.PlainText, E.PlainText as FromText
+			FROM 
+				XBOLTADM.TB_ITEM C, XBOLTADM.TB_ITEM_ATTR D, XBOLTADM.TB_ITEM_ATTR E
+				
+			WHERE 
+				 C.ToItemID = D.ItemID
+				and C.FromItemID = E.ItemID
+				and C.ToItemID not in (SELECT ToItemID from XBOLTADM.TB_ITEM where FromItemID =  #{ITEM_ID} AND Deleted != 'N') 
+				and D.AttrTypeCode = 'AT00001'
+				and E.AttrTypeCode = 'AT00001'
+				and C.ItemTypeCode = 'ST00003'
+				and  C.ToItemCategory = 'MD'
+				and E.PlainText
+					LIKE '%'+#{searchOrg}+'%'
+ </select>
+ 
+  	<!-- 프로세스 ID/NAME & 부서 조건 검색 목록 받아오기 -->
+  <select id="getTweenSearchProcessList" resultType="java.util.HashMap">
+ 
+ 			SELECT
+				DISTINCT C.ItemID, C.ToItemID, D.PlainText, E.PlainText as FromText
+			FROM 
+				XBOLTADM.TB_ITEM C, XBOLTADM.TB_ITEM_ATTR D, XBOLTADM.TB_ITEM_ATTR E
+				
+			WHERE 
+				 C.ToItemID = D.ItemID
+				and C.FromItemID = E.ItemID
+				and C.ToItemID not in (SELECT ToItemID from XBOLTADM.TB_ITEM where FromItemID =  #{ITEM_ID} AND Deleted != 'N') 
+				and D.AttrTypeCode = 'AT00001'
+				and E.AttrTypeCode = 'AT00001'
+				and C.ItemTypeCode = 'ST00003'
+				and  C.ToItemCategory = 'MD'
+				and D.PlainText 
+					LIKE '%'+#{searchIDName}+'%'
+				and E.PlainText
+					LIKE '%'+#{searchOrg}+'%'
+				or
+				 C.ToItemID = D.ItemID
+				and C.FromItemID = E.ItemID
+				and C.ToItemID not in (SELECT ToItemID from XBOLTADM.TB_ITEM where FromItemID =  #{ITEM_ID} AND Deleted != 'N') 
+				and D.AttrTypeCode = 'AT00001'
+				and E.AttrTypeCode = 'AT00001'
+				and C.ItemTypeCode = 'ST00003'
+				and  C.ToItemCategory = 'MD'
+				and C.ToItemID 
+					LIKE '%'+#{searchIDName}+'%'
+				and E.PlainText
+					LIKE '%'+#{searchOrg}+'%'
+ </select>
+
+
+<select id="getProjectListInfo" resultType="java.util.HashMap">
+	  SELECT 
+	  		C.PlainText AS checkCode
+	  		, D.PlainText AS createDay
+	  		, E.PlainText AS completeDay
+	  		, F.Value AS progressStep
+	  		, G.PlainText AS CreaterName
+	  FROM 
+	  		XBOLTADM.TB_ITEM A
+			left outer join XBOLTADM.TB_ITEM_ATTR C on A.ToItemID = C.ItemID AND C.AttrTypeCode = 'AT00000'
+			left outer join XBOLTADM.TB_ITEM_ATTR D on A.ToItemID = D.ItemID AND D.AttrTypeCode = 'AT00027' AND D.LovCode = 'LV00301'
+			left outer join XBOLTADM.TB_ITEM_ATTR E on A.ToItemID = E.ItemID AND E.AttrTypeCode = 'AT00027' AND E.LovCode = 'LV00308'
+			left outer join XBOLTADM.TB_ATTR_TYPE_LOV F on F.AttrTypeCode = 'AT00027' AND F.LovCode = A.ProgressStatus
+			left outer join XBOLTADM.TB_ITEM_ATTR G on A.ToItemID = G.ItemID AND G.AttrTypeCode = 'AT00028'
+	 WHERE 
+		A.FromItemID = (
+			SELECT 
+				ItemID 
+			FROM 
+				XBOLTADM.TB_ARCHITECTURE WHERE ArchitectureCode = #{ArchCode}
+		)		
+	
+
+</select>
+
+<select id="getPrjTmpArc_gridList" resultType="java.util.HashMap">
+	SELECT 
+		Row_Number()OVER(ORDER BY TML.TemplCode ASC, TAT.ArcCode ASC ) as RNUM
+		, CASE CTAT.ArcCode WHEN CTAT.ArcCode THEN '1' ELSE '0' END CHK	
+		, ISNULL(TML.TemplCode,'') AS TemplCode
+		, ISNULL(TD.Name,'') AS TmName
+		, TAT.ArcCode
+		, ISNULL(TDTA.Name,'') AS ArcName
+	FROM 
+		XBOLTADM.TB_TEMPL TML
+		Right Outer Join XBOLTADM.TB_ARC_TEMPL TAT
+		on TML.TemplCode = TAT.TemplCode 
+		Left Outer Join XBOLTADM.TB_ARC_TEMPL CTAT
+		on CTAT.ArcCode = TAT.ArcCode AND CTAT.ProjectID = #{s_itemID}
+		Left Outer join XBOLTADM.TB_DICTIONARY TD
+		on TML.TemplCode = TD.TypeCode AND TD.LanguageID =  #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDTA
+		on TAT.ArcCode = TDTA.TypeCode AND TDTA.LanguageID =  #{languageID}
+	<where>
+		<if test="getCode != null and getCode != ''">
+			TAT.TemplCode = #{getCode}	
+		</if>
+	</where>
+	Order By
+		TML.TemplCode ASC, TAT.ArcCode ASC	
+</select>
+
+<select id="getPrjChangeSetItem_gridList" resultType="java.util.HashMap">
+	SELECT 
+		<if test="top != null and top != ''">
+			TOP ${top}
+		</if>
+		Row_Number()OVER(ORDER BY TCS.CreationTime DESC) AS RNUM
+		, 0 AS CHK
+		, TCS.ChangeSetID
+		, TCS.ItemID 
+		, TD.Name AS TypeName
+		, TCD.Name AS ClassName
+		, TIA.PlainText AS ItemName
+		, ISNULL(TM.NAME , TCS.AuthorName) AS AuthorName
+		, ISNULL(TAM.Name , '') AS ApproveName
+		, CONVERT(varchar(14),TCS.CreationTime,111) as CreationTime
+		, CASE WHEN TCS.Status = 'APRV1' THEN ISNULL(CONVERT(varchar(14),TCS.ApproveDate,111) ,'')
+			ELSE ''
+			END ApprovTime
+		, TSD.Name AS StatusName
+		, XBOLTADM.fn_getMyAbsPathForList(TCS.ItemID, #{languageID}) AS Path
+		, TRD.Name AS ReasonName
+		, TID.Name AS ItemStatus
+		, TCS.Status
+	FROM 
+		XBOLTADM.TB_CHANGE_SET TCS
+		
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TID 
+			ON TID.LanguageID = #{languageID}
+			AND TCS.ChangeType = TID.TypeCode
+			AND TID.Category = 'CNGT1'
+		
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD
+			on TCS.ItemTypeCode = TD.TypeCode 
+			AND TD.LanguageID = #{languageID}
+			
+		Left Outer Join XBOLTADM.TB_DICTIONARY TCD
+			on TCS.ItemClassCode = TCD.TypeCode 
+			AND TCD.LanguageID = #{languageID}
+		
+		Left Outer Join XBOLTADM.TB_DICTIONARY TSD	
+			on TCS.Status = TSD.TypeCode 
+			AND TSD.LanguageID = #{languageID}
+			AND TSD.Category = 'CNGSTS'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TRD	
+			on TCS.Reason = TRD.TypeCode 
+			AND TRD.LanguageID = #{languageID}
+			AND TRD.Category = 'CR'				
+		Left Outer Join XBOLTADM.TB_MEMBER TM
+			on TCS.AuthorID = TM.MemberID
+		Left Outer Join XBOLTADM.TB_MEMBER TAM
+			on TCS.Approver = TAM.MemberID
+				
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+			on TCS.ItemID = TIA.ItemID 
+			AND TIA.LanguageID = #{languageID} 
+			AND TIA.AttrTypeCode ='AT00001'
+			
+	<where>
+		<if test="Category != null and Category != ''">
+			TCS.ProjectID in (
+				 SELECT ProjectID FROM XBOLTADM.TB_PROJECT WHERE PJCategory =  #{Category}
+				 )
+		</if>
+		<if test="s_itemID != null and s_itemID != ''">
+			AND TCS.ProjectID =  #{s_itemID}
+		</if>
+		<if test="TypeCode != null and TypeCode != ''">
+			AND TCS.ItemTypeCode = #{TypeCode}
+		</if>
+		<if test="Status != null and Status != ''">
+			AND TCS.Status = #{Status}
+		</if>
+		<if test="Reason != null and Reason != ''">
+			AND TCS.Reason = #{Reason}
+		</if>
+		<if test="Type != null and Type != ''">
+			AND TCS.ChangeType = #{Type}
+		</if>
+		<if test="apprID != null and apprID != ''">
+			AND TCS.Approver = #{apprID}
+		</if>
+		<if test="viewID != null and viewID != ''">
+			AND TCS.AuthorID = #{viewID}
+		</if>
+	</where>
+	ORDER BY
+		TCS.CreationTime Desc
+</select>
+
+<select id="getPrjChangeSetMyItem_gridList" resultType="java.util.HashMap">
+	SELECT 
+		Row_Number()OVER(ORDER BY TCS.CreationTime DESC) AS RNUM
+		, 0 AS CHK
+		, TCS.ChangeSetID
+		, TCS.ItemID 
+		, TD.Name AS TypeName
+		, TCD.Name AS ClassName
+		, TIA.PlainText AS ItemName
+		, ISNULL(TM.NAME , TCS.AuthorName) AS AuthorName
+		, ISNULL(TAM.Name , '-') AS ApproveName
+		, CONVERT(varchar(14),TCS.CreationTime,111) as CreationTime
+		, CASE WHEN TCS.Status = 'APRV1' THEN ISNULL(CONVERT(varchar(14),TCS.ApproveDate,111) ,'-')
+			ELSE '-'
+			END ApprovTime
+		, TSD.Name AS StatusName
+		, XBOLTADM.fn_getMyAbsPathForList(TCS.ItemID, #{LanguageID}) AS Path
+		, TRD.Name AS ReasonName
+		, TID.Name AS ItemStatus
+		, TCS.Status
+		, GOV.Name AS GovName
+		, CASE WHEN WFI.Event = '1' THEN TGD1.Name ELSE TGD2.Name END ISDONE 
+		, CASE WHEN WFI.Event = '1' THEN 1 ELSE 0 END ISDONE2
+		, WFI.WFStepID
+	FROM 
+		XBOLTADM.TB_CHANGE_SET TCS
+		INNER JOIN XBOLTADM.TB_WF_STEP_INST WFI
+			ON TCS.ChangeSetID = WFI.ChangeSetID
+			<if test="viewCheck != null and viewCheck != ''">
+				AND WFI.WFStepID != 'REQ'
+				AND WFI.ActorID = #{ActorID}
+			</if>
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY GOV 
+			ON GOV.LanguageID = #{LanguageID}
+			AND WFI.WFStepID = GOV.TypeCode
+			AND GOV.Category = 'WFSTEP'	
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TID 
+			ON TID.LanguageID = #{LanguageID}
+			AND TCS.ChangeType = TID.TypeCode
+			AND TID.Category = 'CNGT1'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD
+			on TCS.ItemTypeCode = TD.TypeCode 
+			AND TD.LanguageID = #{LanguageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TCD
+			on TCS.ItemClassCode = TCD.TypeCode 
+			AND TCD.LanguageID = #{LanguageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TSD	
+			on TCS.Status = TSD.TypeCode 
+			AND TSD.LanguageID = #{LanguageID}
+			AND TSD.Category = 'CNGSTS'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TRD	
+			on TCS.Reason = TRD.TypeCode 
+			AND TRD.LanguageID = #{LanguageID}
+			AND TRD.Category = 'CR'				
+		Left Outer Join XBOLTADM.TB_MEMBER TM
+			on TCS.AuthorID = TM.MemberID
+		Left Outer Join XBOLTADM.TB_MEMBER TAM
+			on TCS.Approver = TAM.MemberID
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+			on TCS.ItemID = TIA.ItemID 
+			AND TIA.LanguageID = #{LanguageID} 
+			AND TIA.AttrTypeCode ='AT00001'
+		
+		Left Outer Join XBOLTADM.TB_DICTIONARY TGD1	
+			on TGD1.TypeCode = 'LN00118' 
+			AND TGD1.LanguageID = #{LanguageID}
+			AND TGD1.Category = 'LN'	
+		
+		Left Outer Join XBOLTADM.TB_DICTIONARY TGD2	
+			on TGD2.TypeCode = 'LN00121' 
+			AND TGD2.LanguageID = #{LanguageID}
+			AND TGD2.Category = 'LN'		
+	<where>
+		<if test="Category != null and Category != ''">
+			TCS.ProjectID in (
+				 SELECT ProjectID FROM XBOLTADM.TB_PROJECT WHERE PJCategory =  #{Category}
+				 )
+		</if>
+		<if test="s_itemID != null and s_itemID != ''">
+			AND TCS.ProjectID =  #{s_itemID}
+		</if>
+		<if test="TypeCode != null and TypeCode != ''">
+			AND TCS.ItemTypeCode = #{TypeCode}
+		</if>
+		<if test="Status != null and Status != ''">
+			AND TCS.Status = #{Status}
+		</if>
+		<if test="Reason != null and Reason != ''">
+			AND TCS.Reason = #{Reason}
+		</if>
+		<if test="Type != null and Type != ''">
+			AND TCS.ChangeType = #{Type}
+		</if>
+		<if test="apprID != null and apprID != ''">
+			AND TCS.Approver = #{apprID}
+		</if>
+		<if test="viewID != null and viewID != ''">
+			AND TCS.AuthorID = #{viewID}
+		</if>
+		<if test="Gov != null and Gov != ''">
+			AND WFI.WFStepID = #{Gov}
+		</if>
+		<if test="IsDone != null and IsDone != ''">
+			AND WFI.Event = #{IsDone}
+		</if>
+	</where>
+	ORDER BY
+		TCS.CreationTime Desc
+</select>
+
+<select id="getPrjChangeSetMyItemForRead_gridList" resultType="java.util.HashMap">
+	SELECT 
+		Row_Number()OVER(ORDER BY TCS.CreationTime DESC) AS RNUM
+		, 0 AS CHK
+		, TCS.ChangeSetID
+		, TCS.ItemID 
+		, TD.Name AS TypeName
+		, TCD.Name AS ClassName
+		, TIA.PlainText AS ItemName
+		, ISNULL(TM.NAME , TCS.AuthorName) AS AuthorName
+		, ISNULL(TAM.Name , '-') AS ApproveName
+		, CONVERT(varchar(14),TCS.CreationTime,111) as CreationTime
+		, CASE WHEN TCS.Status = 'APRV1' THEN ISNULL(CONVERT(varchar(14),TCS.ApproveDate,111) ,'-')
+			ELSE '-'
+			END ApprovTime
+		, TSD.Name AS StatusName
+		, XBOLTADM.fn_getMyAbsPathForList(TCS.ItemID, #{LanguageID}) AS Path
+		, TRD.Name AS ReasonName
+		, TID.Name AS ItemStatus
+		, TCS.Status
+		
+	FROM 
+		XBOLTADM.TB_CHANGE_SET TCS
+		
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TID 
+			ON TID.LanguageID = #{LanguageID}
+			AND TCS.ChangeType = TID.TypeCode
+			AND TID.Category = 'CNGT1'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD
+			on TCS.ItemTypeCode = TD.TypeCode 
+			AND TD.LanguageID = #{LanguageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TCD
+			on TCS.ItemClassCode = TCD.TypeCode 
+			AND TCD.LanguageID = #{LanguageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TSD	
+			on TCS.Status = TSD.TypeCode 
+			AND TSD.LanguageID = #{LanguageID}
+			AND TSD.Category = 'CNGSTS'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TRD	
+			on TCS.Reason = TRD.TypeCode 
+			AND TRD.LanguageID = #{LanguageID}
+			AND TRD.Category = 'CR'				
+		Left Outer Join XBOLTADM.TB_MEMBER TM
+			on TCS.AuthorID = TM.MemberID
+		Left Outer Join XBOLTADM.TB_MEMBER TAM
+			on TCS.Approver = TAM.MemberID
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+			on TCS.ItemID = TIA.ItemID 
+			AND TIA.LanguageID = #{LanguageID} 
+			AND TIA.AttrTypeCode ='AT00001'
+	<where>
+		<if test="Category != null and Category != ''">
+			TCS.ProjectID in (
+				 SELECT ProjectID FROM XBOLTADM.TB_PROJECT WHERE PJCategory =  #{Category}
+				 )
+		</if>
+		<if test="s_itemID != null and s_itemID != ''">
+			AND TCS.ProjectID =  #{s_itemID}
+		</if>
+		<if test="TypeCode != null and TypeCode != ''">
+			AND TCS.ItemTypeCode = #{TypeCode}
+		</if>
+		<if test="Status != null and Status != ''">
+			AND TCS.Status = #{Status}
+		</if>
+		<if test="Reason != null and Reason != ''">
+			AND TCS.Reason = #{Reason}
+		</if>
+		<if test="Type != null and Type != ''">
+			AND TCS.ChangeType = #{Type}
+		</if>
+		<if test="apprID != null and apprID != ''">
+			AND TCS.Approver = #{apprID}
+		</if>
+		<if test="viewID != null and viewID != ''">
+			AND TCS.AuthorID = #{viewID}
+		</if>
+	</where>
+	ORDER BY
+		TCS.CreationTime Desc
+</select>
+
+<select id="getPrjItem_gridList" resultType="java.util.HashMap">
+SELECT 
+		DISTINCT 
+		TI.ItemID
+		, 0 AS CHK 
+		, Row_Number()OVER(ORDER BY TIA.PlainText ASC ) as RNUM
+		, TI.ClassCode
+		, TI.Version
+		, TI.Identifier
+		, TI.LastUpdated
+		, TIA.PlainText as ItemName
+		, TD.Name as ClassName
+		, ISNULL(TT.Name, '') as TeamName
+		, TOT.Name as OwnerTeamName
+		, TM.Name AS Name
+		, TIF.PlainText as ProcessInfo
+		
+	FROM 
+		XBOLTADM.TB_ITEM TI
+	
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA 
+		ON TIA.AttrTypeCode = 'AT00001'
+		AND TIA.LanguageID = #{languageID}
+		AND TI.ItemID = TIA.ItemID 
+		
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD 
+		ON TD.LanguageID = #{languageID}
+		AND TI.ClassCode = TD.TypeCode
+		
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TT 
+		ON TT.LanguageID = #{languageID}
+		AND TI.CompanyID = TT.TeamID	
+		
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TOT 
+		ON TOT.LanguageID = #{languageID}
+		AND TI.OwnerTeamID = TOT.TeamID 
+
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM 
+		ON TI.LastUser = TM.MemberID
+		
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIF 
+		ON TIF.LanguageID = #{languageID}
+		AND TIF.AttrTypeCode = 'AT00003'
+		AND TI.FromItemID = TIF.ItemID	
+	WHERE
+		TI.ProjectID = #{s_itemID}		
+		AND TI.CategoryCode = 'OJ'
+	
+</select>
+ 
+ <select id="getTopProjectID" resultType="String">
+ 
+	SELECT
+	 	Max(ItemID) as ItemID 
+	FROM
+	 	XBOLTADM.TB_ITEM
+	WHERE 
+		CategoryCode = 'CH'
+		AND ItemTypeCode = 'CH00002'
+ 
+ </select>
+ 
+  <select id="getBefProjectID" resultType="String">
+ 
+	SELECT
+	 	Max(ItemID) as ItemID 
+	FROM
+	 	XBOLTADM.TB_ITEM
+	WHERE 
+		CategoryCode = 'CH'
+		AND ItemTypeCode = 'CH00002'
+		AND ItemID != #{s_itemID}
+ 
+ </select>
+ 
+ <select id="getFunctionTypeFromGuid" resultType="String">
+ 		SELECT 
+			FunctionType
+		FROM 
+			XBOLTADM.TB_ITEM
+		WHERE 
+			GlobalID = #{GlobalID}
+			AND ItemTypeCode = 'OJ00001' 	
+ </select>
+ 
+  	<!-- 미매핑 프로세스 카운트 -->
+ <select id="getNoMapCount" resultType="String">
+ 	SELECT 
+ 		ISNULL(COUNT(ItemID),0) as ItemIDCount
+	FROM 
+		[XBOLTADM].[TB_ITEM] M
+	WHERE	
+		M.ItemTypeCode = 'OJ00001'
+		and M.CategoryCode = 'MD'
+		and M.ClassCode = 'P'
+		and M.ProjectID		= #{s_itemID}				--	ProjectID 글로벌 변수로 갖고 있어서 입력해줘야 함
+		and M.ItemID NOT IN 
+			(	
+				SELECT 
+					ToItemID  
+				FROM 
+					[XBOLTADM].[TB_ITEM]
+				WHERE
+					ItemTypeCode = 'ST00003'		--	조직과 프로세스간 관계
+					and ProjectID		=  #{s_itemID}	--	ProjectID 글로벌 변수로 갖고 있어서 입력해줘야 함	
+					and ToItemID is not null		--	에러체크용
+				GROUP BY ToItemID
+			)
+ </select>
+ 
+  
+	<insert id="insertItem" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_ITEM
+			(
+				[CreationTime]
+				,[Level]
+				,[ProjectID]
+				,[CategoryCode]
+				,[ClassCode]
+				
+				,[CompanyID]
+				,[ItemID]
+				,[ItemTypeCode]
+				,[FromItemID]
+				,[ToItemID]
+				
+				,[Identifier]
+				,[ToItemCategory]
+				,[ToItemTypeCode]
+				,[Deleted]
+				,[ProgressStatus]
+			) VALUES (
+				 getDate()
+				,#{Level}
+				,#{ProjectID}
+				,#{CategoryCode}
+				,#{ClassCode}
+				
+				,#{CompanyID}
+				,#{ItemID}
+				,#{ItemTypeCode}
+				,#{FromItemID}
+				,#{ToItemID}
+				
+				,#{Identifier}
+				,#{ToItemCategory}
+				,#{ToItemTypeCode}
+				,#{Deleted}
+				,#{ProcessStatus}
+			)
+	</insert>
+
+
+ 	<update id="setOccInfo" parameterType="java.util.HashMap">
+		BEGIN TRAN
+ 	
+		UPDATE 
+			XBOLTADM.TB_ITEM_ATTR
+		SET
+			PlainText = #{PlainText}
+		WHERE
+			ItemID = #{ItemID}  
+			and Language = #{Languqge}
+			and AttrTypeCode = #{AttrTypeCode}
+		COMMIT	
+	</update>
+ 
+  	<update id="processInfoUpdate" parameterType="java.util.HashMap">
+		BEGIN TRAN
+  	
+		UPDATE 
+			XBOLTADM.TB_ITEM
+		SET
+			FromItemID = #{ToItemID}
+		WHERE
+			ItemID = #{ItemID}
+		COMMIT
+	</update>
+ 
+	<select id="getChangeSetStep_gridList" resultType="java.util.HashMap">
+	  	SELECT
+	  	  Row_Number()OVER(ORDER BY  TCSS.CreationTime DESC ) as RNUM   
+	  	  , TCSS.ChangeSetID
+	      , TCSS.ItemID
+	      , TCS.ProjectID
+	      , TD1.Name as PGStatus
+	      , ISNULL(CONVERT(char(10),TCSS.PlannedStartDate, 120),'') as PlannedStartDate
+	      , ISNULL(CONVERT(char(10),TCSS.PlannedEndDate, 120),'') as PlannedEndDate
+	      , ISNULL(CONVERT(char(10),TCSS.ActualStartDate, 120),'') as ActualStartDate
+	      , ISNULL(CONVERT(char(10),TCSS.ActualEndDate, 120),'') as ActualEndDate
+	      , TD2.Name as Status
+	      , TTT.Name as TeamName
+      	  , TCS.AuthorName 
+	  	FROM XBOLTADM.TB_SAP_DEV TCSS
+	  		Left Outer Join XBOLTADM.TB_DICTIONARY TD1
+	  		on TCSS.ProgramStatus = TD1.TypeCode
+	  		AND TD1.Category = 'PGRSTS'
+	  		AND TD1.LanguageID = #{LanguageID}	
+	  		Left Outer Join XBOLTADM.TB_DICTIONARY TD2
+	  		on TCSS.ProgramStatus = TD2.TypeCode
+	  		AND TD2.Category = 'STS'
+	  		AND TD2.LanguageID = #{LanguageID}
+	  		Left Outer Join XBOLTADM.TB_CHANGE_SET TCS
+  			on TCSS.ChangeSetID = TCS.ChangeSetID
+  			AND TCSS.ItemID  = TCS.ItemID
+  			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT
+			on TCS.AuthorTeamID = TTT.TeamID AND TTT.LanguageID = #{LanguageID}			 
+	</select>
+	
+	<select id="getChangeSetStep" resultType="java.util.HashMap">
+		SELECT ChangeSetID
+      		, ItemID
+      		, (SELECT Name FROM XBOLTADM.TB_MEMBER WHERE MemberID = InChargeUser) As InChargeUserName
+      		, InChargeUser
+      		, ProgramStatus
+      		, ISNULL(CONVERT(char(10), PlannedStartDate, 120),'') as PlannedStartDate
+	        , ISNULL(CONVERT(char(10), PlannedEndDate, 120),'') as PlannedEndDate
+	        , ISNULL(CONVERT(char(10), ActualStartDate, 120),'') as ActualStartDate
+	        , ISNULL(CONVERT(char(10), ActualEndDate, 120),'') as ActualEndDate
+      		, Status
+      		, UTScenarioStatus
+      		, IfMappingName 
+      		, ISNULL(CONVERT(char(10), LegacyPlannedEndDate, 120),'') as LegacyPlannedEndDate
+      		, ISNULL(CONVERT(char(10), LegacyActualEndDate, 120),'') as LegacyActualEndDate
+      		, ISNULL(CONVERT(char(10), EAIEndDate, 120),'') as EAIEndDate
+      		, ISNULL(CONVERT(char(10), MWUtEndDate, 120),'') as MWUtEndDate
+      	FROM XBOLTADM.TB_SAP_DEV
+      	WHERE ItemID = #{ItemID}
+      	AND ChangeSetID = #{ChangeSetID}
+      	AND ProgramStatus = #{ProgramStatus}
+	</select>
+	
+	<select id="getChangeSetStepForHtml" resultType="java.util.HashMap">
+		SELECT ChangeSetID
+      		, ItemID
+      		, (SELECT Name FROM XBOLTADM.TB_MEMBER WHERE MemberID = InChargeUser) As InChargeUserName
+      		, InChargeUser
+      		, ProgramStatus
+      		, ISNULL(CONVERT(char(10), PlannedStartDate, 120),'-') as PlannedStartDate
+	        , ISNULL(CONVERT(char(10), PlannedEndDate, 120),'-') as PlannedEndDate
+	        , ISNULL(CONVERT(char(10), ActualStartDate, 120),'-') as ActualStartDate
+	        , ISNULL(CONVERT(char(10), ActualEndDate, 120),'-') as ActualEndDate
+      		, Status
+      		, (SELECT Name FROM XBOLTADM.TB_DICTIONARY WHERE Category = 'PJTSTS' AND LanguageID = #{LanguageID} AND TypeCode = Status) As StatusName
+      		, UTScenarioStatus
+      		, (SELECT Name FROM XBOLTADM.TB_DICTIONARY WHERE Category = 'PJTSTS' AND LanguageID = #{LanguageID} AND TypeCode = UTScenarioStatus) As UTScenarioStatusName
+      		, IfMappingName 
+      		, ISNULL(CONVERT(char(10), LegacyPlannedEndDate, 120),'-') as LegacyPlannedEndDate
+      		, ISNULL(CONVERT(char(10), LegacyActualEndDate, 120),'-') as LegacyActualEndDate
+      		, ISNULL(CONVERT(char(10), EAIEndDate, 120),'-') as EAIEndDate
+      		, ISNULL(CONVERT(char(10), MWUtEndDate, 120),'-') as MWUtEndDate
+      	FROM XBOLTADM.TB_SAP_DEV
+      	WHERE ItemID = #{ItemID}
+      	AND ChangeSetID = #{ChangeSetID}
+      	AND ProgramStatus = #{ProgramStatus}
+	</select>
+	
+	<select id="getChangeSetCount" resultType="String">
+		SELECT COUNT(*)
+  			FROM XBOLTADM.TB_CHANGE_SET
+  			WHERE ItemID = #{s_itemID}
+	</select>
+	
+	<select id="getChangeSetData" resultType="java.util.HashMap">
+		SELECT TCS.ChangeSetID
+      		, TCS.ProjectID
+      		, TCS.PJTCategory
+      		, TCS.Description
+      		, RTRIM(TCS.ChangeType) AS ChangeType
+      		, TCS.Reason
+      		, RTRIM(TCS.Status) AS Status
+      		, TD.Name AS ChangeTypeNM
+      		, TCS.ItemID
+      		, TCS.Version
+      		, ISNULL(CONVERT(char(10), TCS.CreationTime, 111),'') AS CreationTime
+      		, Case When ISNULL(TM.NameEN,'') != '' Then ISNULL(TM.Name,'')+'('+ISNULL(TM.NameEN,'')+')' ELSE ISNULL(TM.NAME,'') END AS AuthorName
+      		, TM.Name AS AuthorNM
+			, TEAM.Name AS AuthorTeamName
+			, CMPNY.Name As CompanyName
+			, Case When TCS.Status = 'CLS' Then CONVERT(VARCHAR, TCS.ApproveDate, 111) Else CONVERT(VARCHAR, TCS.CompletionDT, 111)  End As CompletionDT
+  			, TCS.AuthorID
+  			, CONVERT(VARCHAR, TCS.ApproveDate, 111) As ApproveDate
+  			, TP.EndDate CSREndDate
+  			FROM XBOLTADM.TB_CHANGE_SET TCS
+  			Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TCS.AuthorID
+  			Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM ON TEAM.TeamID = TCS.AuthorTeamID And TEAM.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT CMPNY ON CMPNY.TeamID = TCS.CompanyID And CMPNY.LanguageID = #{languageID} 
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TCS.ChangeType And TD.Category = 'CNGT1' and TD.LanguageID = #{languageID} 
+  			Left Outer Join XBOLTADM.TB_PROJECT TP ON TP.ProjectID = TCS.ProjectID
+  			<where>
+				<if test="s_itemID != null and s_itemID != ''">
+					AND TCS.ItemID =  #{s_itemID} or TCS.ItemID = #{parentItemID}
+				</if>
+				<if test="ChangeSetID != null and ChangeSetID != ''">
+					AND TCS.ChangeSetID = #{ChangeSetID}
+				</if>
+				<if test="ProjectID != null and ProjectID != ''">
+					AND TCS.ProjectID = #{ProjectID}
+				</if>
+				<if test="Status != null and Status != ''">
+					AND TCS.Status = #{Status}
+				</if>
+			</where>			
+	</select>
+	
+	<select id="getMaxChangeSetData" resultType="String">
+		SELECT ISNULL(MAX(ChangeSetID), 0) + 1 as ChangeSetID
+      	FROM XBOLTADM.TB_CHANGE_SET
+	</select>
+	
+	<select id="getProjectCategory" resultType="java.util.HashMap">
+		SELECT PJCategory, Reason
+      	FROM XBOLTADM.TB_PROJECT
+      	WHERE ProjectID = #{projectID}
+	</select>
+	
+	<select id="getItemInfo" resultType="java.util.HashMap">
+		SELECT 
+      		 ItemTypeCode, ClassCode, AuthorID, Status, Blocked, CurChangeSet
+      	FROM XBOLTADM.TB_ITEM
+  		WHERE ItemID = #{s_itemID}
+	</select>
+	
+	<select id="getUserInfo" resultType="java.util.HashMap">
+		SELECT MemberID
+      		 , Name
+      		 , CompanyID
+      		 , TeamID      
+  		FROM XBOLTADM.TB_MEMBER
+  		<where>
+			<if test="userId != null and userId != ''">
+				MemberID = #{userId}		
+			</if>
+		</where>	
+	</select>
+	
+	<select id="getStatus" resultType="java.util.HashMap">
+		SELECT TypeCode
+		      , LanguageID
+		      , Category
+		      , Name
+		      , Description
+		      , ClientID
+		  FROM XBOLTADM.TB_DICTIONARY
+		  WHERE Category = 'PJTSTS'
+		  AND LanguageID = #{LanguageID}
+		  ORDER BY TypeCode DESC
+	</select>
+	
+	<select id="getProjectNameList" resultType="java.util.HashMap">
+	SELECT DISTINCT
+			T2.ProjectID
+			, T1.Name
+			, (T3.Name + '/' + T1.Name) AS PJTFullName
+	  	FROM XBOLTADM.TB_PROJECT TPJ
+	  		Left Outer Join XBOLTADM.TB_PROJECT_TXT T1 ON T1.ProjectID = TPJ.ProjectID 
+	  		Left Outer Join XBOLTADM.TB_PJT_MEMBER_REL T2	ON T2.ProjectID = TPJ.ProjectID 
+	  		Left Outer Join XBOLTADM.TB_PROJECT_TXT T3 on TPJ.RefPjtID = T3.ProjectID AND T3.LanguageID = #{LanguageID}
+	  		, XBOLTADM.TB_ITEM ITM
+	  	WHERE 1=1 
+	  		<!-- T2.MemberID = ITM.AuthorID --> 
+	  		AND T1.LanguageID = #{LanguageID}
+			<if test="s_itemID != null and s_itemID != ''">
+				AND ITM.ItemID IN (${s_itemID})	
+			</if>
+			<if test="userId != null and userId != ''">
+				AND T2.MemberID = #{userId}
+				<!-- AND ITM.AuthorID = #{userId} -->		
+			</if>
+			<if test="ProjectType != null and ProjectType != ''">
+				AND TPJ.ProjectType = #{ProjectType}	
+				<if test="s_itemID != null and s_itemID != ''">
+					AND T1.ProjectID NOT IN (SELECT ProjectID FROM XBOLTADM.TB_CHANGE_SET WHERE ItemID IN (${s_itemID}))
+				</if>
+			</if>
+			<if test="isMainItem != null and isMainItem != ''">
+				AND TPJ.Status IN ('CSR','CNG') 
+			</if>
+		ORDER BY ProjectID	
+	</select>
+	
+	<select id="getChangeSetInsertInfo" resultType="java.util.HashMap">
+		SELECT TypeCode
+      		, LanguageID
+      		, Category
+      		, Name
+      		, SortNum
+      		, Description
+      		, ClientID
+  		FROM XBOLTADM.TB_DICTIONARY
+ 	 	WHERE Category = #{Category}
+  		AND LanguageID = #{LanguageID}
+		<if test="TypeCode != null and TypeCode != ''">
+			AND TypeCode = #{TypeCode}	
+		</if>
+  		ORDER BY SortNum, TypeCode
+	</select>
+
+	<select id="getExtensionFunc" resultType="String">
+		SELECT ISNULL(ExtFunc, '') as ExtFunc
+  		FROM XBOLTADM.TB_ITEM_CLASS
+  		WHERE ItemClassCode = #{classCode}
+	</select>
+	
+	<select id="getItemStatus" resultType="String">
+		SELECT Status
+    	FROM XBOLTADM.TB_ITEM
+  		WHERE ItemID = #{s_itemID}
+	</select>
+	
+	<select id="getItemBlocked" resultType="String">
+		SELECT Blocked
+    	FROM XBOLTADM.TB_ITEM
+  		WHERE ItemID = #{s_itemID}
+	</select>
+	
+	<select id="getItemAuthorIDAndLockOwner" resultType="java.util.HashMap">
+		SELECT AuthorID, LockOwner, Blocked
+    	FROM XBOLTADM.TB_ITEM
+  		WHERE ItemID = #{s_itemID}
+	</select>
+
+	<select id="getItemConvertStatus" resultType="String">
+		SELECT 
+			CASE Status 
+				WHEN 'NEW1' THEN CONVERT(varchar(3), Status) 
+				WHEN 'DEL1' THEN CONVERT(varchar(3), Status) 
+				ELSE 'MOD' END AS CNGT
+    	FROM XBOLTADM.TB_ITEM
+  			WHERE ItemID = #{s_itemID}
+	</select>
+	
+	<select id="getWfStepId" resultType="String">
+  		SELECT ISNULL(WFStepID, '') AS WFStepID
+    	FROM XBOLTADM.TB_WF_STEP_REL
+  		WHERE 
+  		WFID = #{WFID}
+  		AND PreStepID = #{PreStepID}
+	</select>
+	
+	<select id="getMemberIdWithRolType" resultType="java.util.HashMap">
+  		SELECT MemberID
+      	FROM XBOLTADM.TB_MY_ITEM
+  		WHERE ItemID = #{ItemID}
+  		AND AssignmentType = 'GOV'
+  		AND RoleType = #{RoleType}
+	</select>
+	
+	<select id="getSameRolTypeData" resultType="java.util.HashMap">
+  		SELECT
+      		WFStepID
+      		, ActorID
+      		, Event
+  		FROM XBOLTADM.TB_WF_STEP_INST
+  		WHERE
+  			WFID = #{WFID} 
+  			AND ChangeSetID = #{ChangeSetID} 
+  			AND WFStepID = #{WFStepID} 
+  			AND ActorID != #{userID}
+	</select>
+	
+	<select id="getGovNameList" resultType="java.util.HashMap">
+  		SELECT 
+			Distinct
+			 GOV.Name AS Name
+			, TW.WFStepID AS TypeCode
+		FROM 
+			XBOLTADM.TB_PROJECT TP
+			Inner Join XBOLTADM.TB_WF_STEP_INST TW
+				on TP.ProjectID = TW.ProjectID 
+					 AND (TP.CurWFStepID = TW.WFStepID or TW.Status != '0')
+					 AND TW.WFStepID NOT IN('CSR', 'CNG') 
+					 AND TW.ActorID =  #{ActorID}
+			
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY GOV 
+			ON GOV.LanguageID = #{LanguageID}
+			AND TW.WFStepID = GOV.TypeCode
+			AND GOV.Category = 'WFSTEP'	
+			
+		WHERE RTRIM(Tp.ProjectType) = 'CSR'
+	</select>
+	
+	<select id="getWfIdFromWfStepInst" resultType="String">
+  		SELECT distinct WFID
+  		FROM XBOLTADM.TB_WF_STEP_INST
+  		where ChangeSetID = #{ChangeSetID}
+	</select>
+	
+	<select id="getMaxStepInstID" resultType="String">
+  		SELECT ISNULL(MAX(StepInstID), 0) AS MAXID
+      	FROM XBOLTADM.TB_WF_STEP_INST
+	</select>
+	
+	<select id="getWfList" resultType="java.util.HashMap">
+		SELECT T1.WFID, T2.Name , 	, T1.ServiceCode
+      	FROM XBOLTADM.TB_WF T1
+      	LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY T2
+  			on T2.Category = 'WF' AND T1.WFID = T2.TypeCode AND T2.LanguageID = #{LanguageID}
+  		WHERE T2.Name IS NOT NULL 
+		<if test="WFID != null and WFID != ''">
+			AND T1.WFID = #{WFID}		
+		</if>
+      	ORDER BY WFID
+	</select>
+	
+	<select id="getWfStepList" resultType="java.util.HashMap">
+  		SELECT T1.WFStepID
+      		, T1.WFID
+      		, T2.Name
+      		, T3.WFID 
+      	FROM XBOLTADM.TB_WF_STEP_REL T1
+  			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY T2
+  			on T2.Category = 'WFSTEP' AND T1.WFStepID = T2.TypeCode AND T2.LanguageID = #{LanguageID}
+  			LEFT OUTER JOIN XBOLTADM.TB_WF T3
+  			on T1.WFID = T3.WFID 
+  		WHERE 
+  			T3.WFID = #{WFID}
+  		ORDER BY T1.SortNum
+  			
+	</select>
+	
+	<select id="getWfStepInstCnt" resultType="String">
+  		SELECT
+      		COUNT(*)
+  		FROM XBOLTADM.TB_WF_STEP_INST
+  		WHERE
+  			ProjectID = #{ProjectID} 
+	</select>
+	
+	<select id="getParentPjtInfo" resultType="java.util.HashMap">
+  		SELECT
+  			TP.ProjectID 
+  			, TP.TemplCode
+      		, TP.Prefix
+      		, TP.RefPGID
+      		, TP.RefPjtID
+      		, TP.AprvOption
+      		, TD.Name As AprvOptionNM
+  		FROM XBOLTADM.TB_PROJECT TP
+  		      Left Outer Join XBOLTADM.TB_DICTIONARY TD	on TP.AprvOption = TD.TypeCode AND TD.LanguageID = #{languageID}
+				AND TD.Category = 'APRVOPTION'
+  		WHERE
+  			ProjectID = #{ProjectID} 
+	</select>
+	
+	<select id="getCngTForWfStepInst" resultType="java.util.HashMap">
+  		SELECT ChangeSetID
+      		  , ProjectID
+      		  , AuthorID
+  		FROM XBOLTADM.TB_CHANGE_SET
+  		WHERE ProjectID = #{ProjectID}
+	</select>
+	
+	<select id="getParentPjtList" resultType="java.util.HashMap">
+  		SELECT TP.ProjectID As CODE
+      		 ,TPT.Name As NAME
+      		 ,TP.Status
+      		 ,TP.ProjectCode As PCODE
+  		FROM XBOLTADM.TB_PROJECT TP
+  		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT
+				on TP.ProjectID = TPT.ProjectID AND TPT.LanguageID = #{languageID}
+  		WHERE RTRIM(TP.ProjectType) = #{ProjectType}
+  		    AND Deactivated != 1
+			<if test="ParentID != null and ParentID != ''">
+				AND TP.RefPjtID = #{ParentID}	
+			</if>
+			<if test="ProjectID != null and ProjectID != ''">
+				AND TP.ProjectID = #{projectID}	
+			</if>
+			<if test="Creator != null and Creator != ''">
+				AND TP.Creator = #{Creator}
+			</if>
+			<if test="Status != null and Status != ''">
+				AND TP.Status != 'CLS' 
+			</if>
+			<if test="RefPGID != null and RefPGID != ''">
+				AND TP.RefPGID = #{RefPGID}
+			</if>
+			<if test="RefPjtID != null and RefPjtID != ''">
+				AND TP.RefPjtID = #{RefPjtID}
+			</if>
+			<if test="memberId != null and memberId != ''">
+				AND TP.ProjectID in (Select ProjectID from XBOLTADM.TB_PJT_MEMBER_REL where MemberID = #{memberId})
+			</if>
+	</select>
+	
+	<select id="getParentPjtFromRel" resultType="java.util.HashMap">
+  		SELECT Distinct 
+  			PMR.ProjectID AS CODE
+      		,TPT.Name As NAME
+  		FROM 
+  			XBOLTADM.TB_PJT_MEMBER_REL PMR,
+  			XBOLTADM.TB_PROJECT TP
+  			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT
+				on TP.ProjectID = TPT.ProjectID AND TPT.LanguageID = #{languageID}
+  		WHERE 
+  			PMR.ProjectID = TP.ProjectID
+  			AND RTRIM(TP.ProjectType) = 'PJT'
+  		    AND TP.Deactivated != 1
+  		    AND #{loginUserId} IN (PMR.MemberID)
+			<if test="Status != null and Status != ''">
+				AND TP.Status != 'CLS' 
+			</if>
+			<if test="CsrCount != null and CsrCount != ''">
+				AND (
+					0 != (SELECT COUNT(ProjectID) FROM XBOLTADM.TB_PROJECT 
+		  		  	WHERE ProjectType = 'CSR' AND Status != 'CLS' AND RefPjtID = TP.ProjectID)
+				)
+			</if>
+			<if test="ProjectID != null and ProjectID != ''">
+				AND TP.ProjectID = #{ProjectID} 
+			</if>
+			Order by NAME
+	</select>
+	
+	<select id="getParentPjtOfCsr" resultType="java.util.HashMap">
+  		SELECT Distinct TP.RefPjtID As CODE
+      		 ,TPT.Name As NAME
+  		FROM XBOLTADM.TB_PROJECT TP
+  		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT
+				on TP.RefPjtID = TPT.ProjectID AND TPT.LanguageID = #{languageID}
+  		WHERE Deactivated != 1
+  		   AND TP.ProjectID IN (${csrIds})
+  		   AND TP.Status != 'CLS'
+	</select>
+	
+	<select id="getItemIdFromChangeSet" resultType="java.util.HashMap">
+  		SELECT 
+  			 ChangeSetID
+  			, ProjectID
+      		, ItemID
+      		, AuthorID
+  		FROM XBOLTADM.TB_CHANGE_SET 
+  		WHERE ProjectID = #{ProjectID}  
+	</select>
+	
+	<select id="getWFDescription" resultType="String">
+  		SELECT 
+      		Description
+  		FROM XBOLTADM.TB_DICTIONARY
+  		WHERE TypeCode = #{TypeCode} AND LanguageID = #{LanguageID}
+	</select>
+	
+	<select id="getCsrStatusList" resultType="java.util.HashMap">
+  		SELECT TypeCode, Name
+      	FROM XBOLTADM.TB_DICTIONARY
+  		WHERE Category = 'CSRSTS' AND LanguageID = #{LanguageID}
+		<if test="TypeCode != null and TypeCode != ''">
+			AND TypeCode IN (
+				<foreach collection="TypeCode" index="index" item="item" separator=",">
+					${item}
+				</foreach>
+			)
+		</if>
+		<if test="NotTypeCode != null and NotTypeCode != ''">
+			AND TypeCode NOT IN (
+				<foreach collection="NotTypeCode" index="index" item="item" separator=",">
+					${item}
+				</foreach>
+			)
+		</if>
+  		ORDER BY SortNum	
+	</select>
+	
+	<select id="getCurWfStepList" resultType="java.util.HashMap">
+  		SELECT  
+			Distinct TP.CurWFStepID AS TypeCode
+			, WFSTEP.Name AS Name
+		FROM 
+			XBOLTADM.TB_PROJECT TP
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY WFSTEP 
+				ON WFSTEP.LanguageID = #{LanguageID} AND TP.CurWFStepID = WFSTEP.TypeCode
+				AND WFSTEP.Category = 'WFSTEP'
+		WHERE
+			TP.ProjectType = 'CSR'
+			AND TP.CurWFStepID IS NOT NULL
+			<if test="TypeCode != null and TypeCode != ''">
+				AND TP.Status IN (
+					<foreach collection="TypeCode" index="index" item="item" separator=",">
+						${item}
+					</foreach>
+				)
+			</if>
+			<if test="NotTypeCode != null and NotTypeCode != ''">
+				AND TypeCode NOT IN (
+					<foreach collection="NotTypeCode" index="index" item="item" separator=",">
+						${item}
+					</foreach>
+				)
+			</if>
+	</select>
+	
+	<select id="getOwnerTeamList" resultType="java.util.HashMap">
+		SELECT 
+			DISTINCT
+      		T1.OwnerTeamID AS TypeCode
+      		,T2.Name  AS Name
+  		FROM XBOLTADM.TB_PROJECT T1,
+  			XBOLTADM.TB_TEAM_TXT T2
+  		WHERE T1.OwnerTeamID = T2.TeamID
+  			AND T1.ProjectType = 'CSR'
+  			AND T2.LanguageID = #{LanguageID}
+			<if test="TypeCode != null and TypeCode != ''">
+				AND T1.Status IN (
+					<foreach collection="TypeCode" index="index" item="item" separator=",">
+						${item}
+					</foreach>
+				)
+			</if>
+	</select>
+	
+	<select id="getChangeTypeList" resultType="java.util.HashMap">
+  		SELECT 
+  			(TypeCode + '1') AS TypeCode, Name
+  		FROM XBOLTADM.TB_DICTIONARY
+  		WHERE Category = 'CNGT1'
+  		AND LanguageID = #{languageID}
+  		ORDER BY TypeCode DESC
+	</select>
+		
+	<select id="getLastWFStepID" resultType="String">
+  		SELECT TOP 1 
+      		 WFStepID
+  		FROM XBOLTADM.TB_WF_STEP_REL
+  		WHERE WFID = #{WFID}
+		order by SortNum DESC
+	</select>
+	
+	<select id="getClassCodeList" resultType="java.util.HashMap">
+  		SELECT
+			Distinct
+			TD.Name AS NAME
+			,TCS.ItemClassCode AS CODE	 
+		FROM XBOLTADM.TB_CHANGE_SET TCS
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD 
+			on TCS.ItemClassCode = TD.TypeCode AND TD.LanguageID = #{LanguageID}
+	</select>
+	
+	<!-- ChangeSetID를 이용하여 해당 Item정도 가져오기 -->
+	<select id="getItemInfoForChangeSetID" resultType="java.util.HashMap">
+		SELECT 
+			TI.ItemID
+			, TI.Status
+			, TCS.ToItemID
+			, TCS.FromItemID
+		FROM
+			XBOLTADM.TB_CHANGE_SET TCS
+			Left Outer Join XBOLTADM.TB_ITEM TI
+				on TCS.ItemID = TI.ItemID
+		WHERE 
+			TCS.ChangeSetID = #{s_itemID}
+	</select>
+	
+	<select id="getWfStepInstList_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY  T1.CreationTime) as RNUM  
+			, T1.StepInstID
+			, T1.ChangeSetID
+      		, T1.WFID
+      		, T1.WFStepID
+      		, T2.Name AS WFStepName
+      		, T1.ActorID
+      		, T5.Name As ActorName
+      		, T1.ActorTeamID
+      		, T3.Name AS TeamName
+      		, T1.Event
+      		, T1.Status
+      		, T1.Comment
+      		, T4.Name AS StatusNM
+      		, T1.ApprovalDate AS ApprovalDate
+      		, ISNULL(CONVERT(char(10), T1.CreationTime, 111),'-') AS CreationTime
+      		, ISNULL(CONVERT(char(10), T1.LastUpdated, 111),'-') AS LastUpdated
+  			FROM XBOLTADM.TB_WF_STEP_INST T1
+  				LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY T2
+  				on T2.Category = 'WFSTEP' AND T1.WFStepID = T2.TypeCode AND T2.LanguageID = #{LanguageID}
+  				LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT T3 
+				ON T3.LanguageID = #{LanguageID} AND T3.TeamID = T1.ActorTeamID
+				LEFT OUTER JOIN XBOLTADM.TB_MEMBER T5
+				on T1.ActorID = T5.MemberID 
+				LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY T4
+				on T4.TypeCode = T1.Status  AND T4.LanguageID = #{LanguageID} AND T4.Category = 'APRVSTS'	
+  			<where>
+				<if test="ProjectID != null and ProjectID != ''">
+					AND T1.ProjectID = #{ProjectID}
+				</if>
+				<if test="ChangeSetID != null and ChangeSetID != ''">
+					AND T1.ChangeSetID = #{ChangeSetID}
+				</if>
+				<if test="WFID != null and WFID != ''">
+					AND T1.WFID = #{WFID}
+				</if>
+				<if test="WFStepID != null and WFStepID != ''">
+					AND T1.WFStepID = #{WFStepID}
+				</if>
+				<if test="WFStepIDs != null and WFStepIDs != ''">
+					AND T1.WFStepID IN (${WFStepIDs})
+				</if>
+				<if test="StepInstID != null and StepInstID != ''">
+					AND T1.StepInstID = #{StepInstID}
+				</if>
+				<if test="wfInstanceID != null and wfInstanceID != ''">
+					AND T1.WFInstanceID = #{wfInstanceID}
+				</if>
+  			</where>
+  			ORDER BY T1.Seq
+	</select>
+	
+	<select id="getItemChangeList_gridList" resultType="java.util.HashMap">
+		SELECT 
+			 Row_Number()OVER(ORDER BY  T1.CreationTime DESC ) as RNUM 
+			, 0 AS CHK 
+			
+			, T1.ProjectID
+			, T2.Name AS CSRName
+			
+			, T1.ChangeSetID
+			, (SELECT Name FROM XBOLTADM.TB_PROJECT_TXT WHERE ProjectID = T10.RefPjtID AND LanguageID =  #{languageID})  + '/' + T2.Name  AS ProjectName
+			, T3.Name As RequestUserName
+			, T1.AuthorID As RequestUserId
+			, ISNULL(CONVERT(char(10), T1.CreationTime, 111),'-') as RequestDate
+			, ISNULL(T4.Name, '-') As ApprovedUserName
+			, ISNULL(CONVERT(char(10), T1.Approver), '-') As ApprovedUserId
+			, ISNULL(CONVERT(char(10), T1.ApproveDate, 111),'-') as ApproveDate
+			, T5.Name As ChangeSts
+			, T1.Status As ChangeStsCode
+			, T6.Name As ChangeType
+			, T7.Name As ChangeReason
+			, T1.Description
+			, T8.Name As RequestUserTeamName
+			, ISNULL(T9.Name, '-') As ApproverTeamName
+			
+			, (SELECT ProjectCode FROM XBOLTADM.TB_PROJECT WHERE ProjectID = T1.ProjectID) AS CSRID
+			, (SELECT Name FROM XBOLTADM.TB_PROJECT_TXT WHERE ProjectID = T10.RefPjtID AND LanguageID =  #{languageID}) AS ParentName
+			, Case When ISNULL(TIC.ExtFunc, 0) = 1 Then 'btn_view.png' Else 'blank.png' End ImgTaskInfoView
+			, 'btn_view.png' As ImgPjtInfoView
+			, T10.RefPjtID  As ParentID
+			, T1.Version
+			, ISNULL(CONVERT(char(10), T1.ValidFrom, 111),'-') as ValidFromDate
+		FROM 
+			XBOLTADM.TB_CHANGE_SET T1
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT T2
+				on T1.ProjectID = T2.ProjectID AND T2.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER T3
+				on T1.AuthorID = T3.MemberID
+			Left Outer Join XBOLTADM.TB_MEMBER T4
+				on T1.Approver = T4.MemberID	
+			Left Outer Join XBOLTADM.TB_DICTIONARY T5
+				on T1.Status = T5.TypeCode AND T5.LanguageID = #{languageID}
+				AND T5.Category = 'CNGSTS'	
+			Left Outer Join XBOLTADM.TB_DICTIONARY T6
+				on T1.ChangeType = T6.TypeCode AND T6.LanguageID = #{languageID}
+				AND T6.Category = 'CNGT1'
+			Left Outer Join XBOLTADM.TB_DICTIONARY T7
+				on T1.Reason = T7.TypeCode AND T7.LanguageID = #{languageID}
+				AND T7.Category = 'CR'
+			LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT T8 
+				ON T8.LanguageID = #{languageID}
+				AND T3.TeamID = T8.TeamID 
+			LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT T9
+				ON T9.LanguageID = #{languageID}
+				AND T4.TeamID = T9.TeamID 
+			Left Outer Join XBOLTADM.TB_PROJECT T10
+				on T1.ProjectID = T10.ProjectID 
+			Left Outer Join XBOLTADM.TB_ITEM_CLASS TIC ON TIC.ItemClassCode = T1.ItemClassCode 
+		<where>
+			<if test="s_itemID != null and s_itemID != ''">
+				AND T1.ItemID = #{s_itemID}
+			</if>
+			<if test="changeSetID != null and changeSetID != ''">
+				AND T1.ChangeSetID = #{changeSetID}	
+			</if>
+		</where>
+	ORDER BY
+		T1.CreationTime DESC
+	</select>
+	
+	<select id="getAllItemList_gridList" resultType="java.util.HashMap">
+		SELECT 
+			Top 300
+			Row_Number()OVER(ORDER BY TI.Identifier ASC,  TIA.PlainText ASC ) as RNUM
+			, 0 AS CHK
+			, TI.ItemID
+			, XBOLTADM.fn_GetMyAbsPathForList( TI.ItemID, #{languageID}  ) AS FatherName
+			, TIA.PlainText as ItemName
+			, TD.Name as ClassName
+			, ISNULL(TT.Name, '') as TeamName
+			, TOT.Name as OwnerTeamName	
+			, TI.Identifier
+			, TSD.Name AS StatusName
+			, TI.AuthorID
+			, TI.Status
+			, TM.Name As AuthorName
+			, ISNULL(CONVERT(char(10), TI.LastUpdated, 111),'-') as LastUpdated
+		FROM
+				XBOLTADM.TB_ITEM TI
+				Left Outer Join XBOLTADM.TB_ITEM TIF on TI.ItemID = TIF.ToItemID AND TIF.CategoryCode = 'ST1'
+				Left outer join XBOLTADM.TB_DICTIONARY TD on TI.ClassCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+				Left outer join XBOLTADM.TB_DICTIONARY TSD on TI.Status = TSD.TypeCode AND TSD.LanguageID = #{languageID} AND TSD.Category = 'ITMSTS'
+				Left outer join XBOLTADM.TB_TEAM_TXT TT on TI.CompanyID = TT.TeamID AND TT.LanguageID  = #{languageID} 
+				Left outer join XBOLTADM.TB_TEAM_TXT TOT on TI.OwnerTeamID = TOT.TeamID AND TOT.LanguageID  = #{languageID}
+				Left outer join XBOLTADM.TB_ITEM_ATTR TIA on TI.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID  = #{languageID}
+				Left outer join XBOLTADM.TB_MEMBER TM on TI.AuthorID = TM.MemberID
+				Left Outer Join XBOLTADM.TB_ITEM_CLASS TCLS on TI.ClassCode = TCLS.ItemClassCode
+		WHERE
+			TI.ItemID NOT IN (SELECT ItemID FROM XBOLTADM.TB_CHANGE_SET WHERE ProjectID = #{ProjectID})
+			<if test="ClassCode != null and ClassCode != ''">
+				AND TI.ClassCode = #{ClassCode}
+			</if>
+			<if test="ItemTypeCode != null and ItemTypeCode != ''">
+				AND TI.ItemTypeCode = #{ItemTypeCode}
+			</if>
+			<if test="AuthorID != null and AuthorID != ''">
+				AND TI.AuthorID = #{AuthorID}
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+				<choose>
+					<when test="searchKey.equals('Name')">
+						AND TIA.PlainText like N'%'+#{searchValue}+'%'
+					</when>
+					<when test="searchKey.equals('Code')">
+						AND TI.Identifier like N'%'+#{searchValue}+'%'
+					</when>
+					<when test="searchKey.equals('Info')">
+						AND TIA.PlainText like N'%'+#{searchValue}+'%'
+					</when>
+				</choose>
+			</if>
+			<if test="newCompanyCode != null and newCompanyCode != ''">
+				AND TT.TeamID = #{newCompanyCode}
+			</if>
+			<if test="Status.size > 0">
+				AND TI.Status IN 
+							<foreach collection="Status" index="index" item="item" open="(" close=")"  separator=",">
+								${item}
+							</foreach>
+			</if>
+			<if test="ChangeMgt != null and ChangeMgt != ''">
+				AND TCLS.ChangeMgt = #{ChangeMgt}
+			</if>
+			order by
+				TI.Identifier ASC, TIA.PlainText ASC
+	</select>
+	<select id="getMaxChageSetVersion" resultType="String">
+		Select ISNULL(MAX(version), 1.0) AS maxVersion  From XBOLTADM.TB_CHANGE_SET Where ItemID = #{itemID}
+	</select>
+	
+	<insert id="insertToChangeSet" parameterType="java.util.HashMap">
+ 		INSERT INTO
+ 			XBOLTADM.TB_CHANGE_SET(
+ 			ChangeSetID
+ 			, Version
+ 			, ProjectID
+            , PJTCategory
+            , ItemID
+            , ItemClassCode
+            
+            , ItemTypeCode
+            , AuthorID
+            , AuthorName
+            , AuthorTeamID
+            , CompanyID
+            
+            , Description
+            , ChangeType
+            , Reason
+            , Status
+ 			, CreationTime
+ 			
+ 			, Approver
+ 			, ToItemID
+ 			, FromItemID
+ 		)VALUES(
+			#{ChangeSetID}
+			, #{version}
+			, #{ProjectID}
+			, #{PJTCategory}
+			, #{ItemID}
+			, #{ItemClassCode}
+			
+			, #{ItemTypeCode}
+			, #{AuthorID}
+			, N''+#{AuthorName}
+			, #{AuthorTeamID}
+			, #{CompanyID}
+			
+			, #{Description}
+			, #{ChangeType}
+			, #{Reason}
+			, #{Status}
+			, getdate()
+			
+			, #{Approver}
+			, #{ToItemID}
+			, #{FromItemID}
+		)
+ 	</insert>
+ 	
+ 	<insert id="insertToWfStepInst" parameterType="java.util.HashMap">
+ 		INSERT INTO
+ 			XBOLTADM.TB_WF_STEP_INST(
+ 			StepInstID
+ 			, ChangeSetID
+      		, WFID
+      		, WFStepID
+      		, ActorID
+      		, ActorTeamID
+      		, Event
+      		, CreationTime
+      		, LastUpdated
+ 		)VALUES(
+			#{StepInstID}
+			, #{ChangeSetID}
+			, #{WFID}
+			, #{WFStepID}
+			, #{ActorID}
+			, (SELECT TeamID FROM XBOLTADM.TB_MEMBER WHERE MemberID = #{ActorID}) 
+			, #{Event}
+			, getdate()
+			, getdate()
+		)
+ 	</insert>
+ 	
+ 	<insert id="insertWfStepInst" parameterType="java.util.HashMap">
+ 		INSERT INTO
+ 			XBOLTADM.TB_WF_STEP_INST(
+ 			StepInstID
+ 			, WFInstanceID
+	        , Seq
+	        , Status
+	        , Event
+	        , Comment
+	        , ActorID
+	        , ActorTeamID
+	        , ProjectID
+	        , ChangeSetID
+	        , WFID
+	        , WFStepID
+	        , CreationTime
+	        , ApprovalDate
+	        , LastUpdated
+ 		)VALUES( 		
+ 		    #{StepInstID}
+ 		    , #{WFInstanceID}
+	        , #{Seq}
+	        , #{Status}
+	        , #{Event}
+	        , #{Comment}
+	        , #{ActorID}
+	        , (SELECT TeamID FROM XBOLTADM.TB_MEMBER WHERE MemberID = #{ActorID})
+	        , #{ProjectID}
+	        , #{ChangeSetID}
+	        , #{WFID}
+	        , #{WFStepID}
+      		, getdate()
+      		<choose>
+				<when test='!"0".equals(Status)'>
+					<choose>
+						<when test="Status == null">
+							,null
+						</when>
+						<otherwise>
+							,getdate()
+						</otherwise>
+					</choose>
+				</when>
+				<otherwise>
+					,null
+				</otherwise>
+			</choose>
+			, getdate()
+		)
+ 	</insert>
+ 	
+ 	<insert id="insertToChangeSetStep" parameterType="java.util.HashMap">
+ 		INSERT INTO
+ 			XBOLTADM.TB_SAP_DEV(
+ 			ChangeSetID
+           , ItemID
+           , InChargeUser
+           , ProgramStatus
+           , PlannedStartDate
+           , PlannedEndDate
+           , ActualStartDate
+           , ActualEndDate
+           , Status
+           , UTScenarioStatus
+           , IfMappingName
+      	   , LegacyPlannedEndDate
+           , LegacyActualEndDate
+           , EAIEndDate
+           , MWUtEndDate
+      	   , Creator
+           , CreationTime
+           , LastUser
+           , LastUpdated
+           )
+		VALUES(
+			#{ChangeSetID}
+			, #{ItemID}
+			, #{InChargeUser}
+			, #{ProgramStatus}
+			, #{PlannedStartDate}
+			, #{PlannedEndDate}
+			, #{ActualStartDate}
+			, #{ActualEndDate}
+			, #{Status}
+			, #{UTScenarioStatus}
+			, #{IfMappingName}
+      	    , #{LegacyPlannedEndDate}
+            , #{LegacyActualEndDate}
+            , #{EAIEndDate}
+            , #{MWUtEndDate}
+			, #{Creator}
+			, getdate()
+			, #{LastUser}
+			, getdate()
+		)
+ 	</insert>
+ 	
+ 	<update id="updateChangeSetStep" parameterType="java.util.HashMap">
+ 		UPDATE	XBOLTADM.TB_SAP_DEV
+ 		SET
+ 			InChargeUser = #{InChargeUser}
+ 			, PlannedStartDate = #{PlannedStartDate}
+ 			, PlannedEndDate = #{PlannedEndDate}
+ 			, ActualStartDate = #{ActualStartDate}
+ 			, ActualEndDate = #{ActualEndDate}
+ 			, Status = #{Status}
+ 			, UTScenarioStatus = #{UTScenarioStatus}
+ 			, IfMappingName = #{IfMappingName}
+      	   	, LegacyPlannedEndDate = #{LegacyPlannedEndDate}
+           	, LegacyActualEndDate = #{LegacyActualEndDate}
+           	, EAIEndDate = #{EAIEndDate}
+           	, MWUtEndDate = #{MWUtEndDate}
+ 			, LastUser = #{userId}
+      		, LastUpdated  = getDate()
+ 			
+ 		WHERE
+ 			ItemID = #{s_itemID}
+ 			AND ChangeSetID = #{ChangeSetID}
+ 			AND ProgramStatus = #{ProgramStatus}
+ 	</update>
+ 	
+ 	<update id="updateChangeSetForWf" parameterType="java.util.HashMap">
+ 		UPDATE	XBOLTADM.TB_CHANGE_SET
+ 		SET Status = #{Status} 
+		<if test="Description != null and Description != ''">, Description = #{Description}</if>
+		<if test="ChangeType != null and ChangeType != ''">, ChangeType = #{ChangeType}</if>
+		<if test="Reason != null and Reason != ''">, Reason = #{Reason}</if>
+		<if test="WFID != null and WFID != ''">, WFID = #{WFID}</if>
+		<if test="Status.equals('CMPL')">
+ 			, CompletionDT = getDate()
+		</if>		
+		<if test="ItemID != null and ItemID != ''">
+			, ItemID = #{ItemID}
+ 			, ItemClassCode = #{ItemClassCode}
+ 			, ItemTypeCode = #{ItemTypeCode}
+		</if>
+		<if test="AuthorID != null and AuthorID != ''">
+			, AuthorID = #{AuthorID}
+ 			, AuthorName = #{AuthorName}
+		</if>
+		<if test="CompanyID != null and CompanyID != ''">, CompanyID = #{CompanyID}</if>
+		<if test="OwnerTeamID != null and OwnerTeamID != ''">, AuthorTeamID = #{OwnerTeamID}</if>
+		<if test="CurTask != null and CurTask != ''">,CurTask = #{CurTask}</if>
+		<if test="newPjtId != null and newPjtId != ''">,ProjectID = #{newPjtId}</if>
+		<if test="Version != null and Version != ''">,Version = #{Version}</if>
+		<if test="ValidFrom != null and ValidFrom != ''">,ValidFrom = #{ValidFrom}</if>
+ 		<where> 		
+			<if test="s_itemID != null and s_itemID != ''">
+				ChangeSetID = #{s_itemID}
+			</if>
+			<if test="cngItemId != null and cngItemId != ''">
+				AND ItemID = #{cngItemId}
+			</if>
+			<if test="ProjectID != null and ProjectID != ''">
+				AND ProjectID = #{ProjectID}
+			</if>
+ 		</where>
+ 	</update>
+ 	
+ 	<update id="updateChangeSet" parameterType="java.util.HashMap">
+ 		UPDATE	XBOLTADM.TB_CHANGE_SET
+ 		SET 	
+			Status = #{Status}
+			<if test="Description != null and Description != ''">
+				, Description = #{Description}
+			</if>
+			<if test="ChangeType != null and ChangeType != ''">
+				, ChangeType = #{ChangeType}
+			</if>
+			<if test="Reason != null and Reason != ''">
+				, Reason = #{Reason}
+			</if>
+			<if test="!'CR1'.equals(Status)">
+				, Approver = #{userID}
+			</if>
+			, ApproveDate = getDate()	 		
+ 		WHERE
+ 			ChangeSetID = #{s_itemID}
+ 	</update>
+ 	
+ 	<update id="updateItemStatus" parameterType="java.util.HashMap">
+		UPDATE 
+			XBOLTADM.TB_ITEM
+		SET
+			LastUpdated = getDate()			
+			<if test="Status != null and Status != ''">
+				<if test="recover == null or recover == ''">
+						, Status = #{Status}
+				</if>	
+			</if>	
+			<if test="Status != null and Status != ''">
+				<if test="recover != null and recover != ''">
+							, Status = Case When Status = 'DEL1' Then 'MOD1' 
+						  					When Status = 'NEW1' Then 'NEW1'
+					 					    Else #{Status} END
+				</if>
+			</if>			
+			<if test="LastUser != null and LastUser != ''">
+				, LastUser = #{LastUser}
+			</if>
+			<if test="Blocked != null and Blocked != ''">
+				, Blocked = #{Blocked}
+			</if>
+			<if test="Deleted != null and Deleted != ''">
+				, Deleted = #{Deleted}
+			</if>
+			<if test="Identifier != null and Identifier != ''">
+				, Identifier = #{Identifier}
+			</if>
+			<if test="ProjectID != null and ProjectID != ''">
+				<choose>
+					<when test="ProjectID.equals('Del')">
+						, ProjectID = null
+					</when>
+					<when test="!ProjectID.equals('Del')">
+						, ProjectID = #{ProjectID}
+					</when>
+				</choose>
+			</if>
+			<if test="CurChangeSet != null and CurChangeSet != ''">
+				, CurChangeSet = #{CurChangeSet}
+			</if>			
+			<if test="AuthorID != null and AuthorID != ''">
+				, AuthorID = #{AuthorID}
+			</if>
+			<if test="OwnerTeamID != null and OwnerTeamID != ''">
+				, OwnerTeamID = #{OwnerTeamID}
+			</if>
+		<where>
+			<if test="s_itemID != null and s_itemID != ''">
+				ItemID = #{s_itemID}
+			</if>
+			<if test="s_itemIDs != null and s_itemIDs != ''">
+				AND ItemID IN (${s_itemIDs})
+								
+			</if>
+		</where>		
+	</update>
+	
+	<update id="updateWFStepInst" parameterType="java.util.HashMap">
+		UPDATE
+			XBOLTADM.TB_WF_STEP_INST
+		SET
+			LastUpdated = getdate()
+			<if test="Event != null and Event != ''">
+				,Event = #{Event}
+			</if>
+			<if test="Status != null and Status != ''">
+				,Status = #{Status}
+				<if test="!Status.equals('0')">
+					,ApprovalDate = getdate()
+				</if>
+			</if>
+			<if test="comment != null and comment != ''">
+				,comment = #{comment}
+			</if>
+		<where>
+			<if test="ProjectID != null and ProjectID != ''">	
+				ProjectID = #{ProjectID}			
+			</if>
+			<if test="ChangeSetID != null and ChangeSetID != ''">		
+				AND ChangeSetID = #{ChangeSetID}		
+			</if>
+			<if test="StepInstID != null and StepInstID != ''">	
+				AND StepInstID = #{StepInstID}			
+			</if>
+			<if test="WFID != null and WFID != ''">	
+				AND WFID = #{WFID}			
+			</if>
+			<if test="WFInstanceID != null and WFInstanceID != ''">	
+				AND WFInstanceID = #{wfInstanceID}			
+			</if>
+			<if test="WFStepID != null and WFStepID != ''">	
+				AND WFStepID = #{WFStepID}			
+			</if>
+			<if test="ActorID != null and ActorID != ''">	
+				AND ActorID = #{ActorID}			
+			</if>
+			<if test="updateSeq != null and updateSeq != ''">	
+				AND Seq = #{updateSeq}			
+			</if>
+		</where>
+	</update>
+ 	
+ 	<delete id="delChangeSetStep" parameterType="java.util.HashMap">
+	 	
+	  	Delete FROM XBOLTADM.TB_SAP_DEV
+	  	WHERE ChangeSetID = #{ChangeSetID}
+	  	AND ItemID = #{s_itemID}
+	  	
+	  	Delete FROM XBOLTADM.TB_CHANGE_SET
+	  	WHERE ChangeSetID = #{ChangeSetID}
+	  	AND ItemID = #{s_itemID}
+	  	
+	 </delete> 
+	 
+	 <select id="MaxWFInstanceID" resultType="String">
+		SELECT
+			ISNULL(MAX(WFInstanceID), 'OLM0000000000') AS MaxWFInstanceID 
+		FROM
+			XBOLTADM.TB_WF_INST
+	</select>
+	
+	<insert id="insertToWfInst" parameterType="java.util.HashMap">
+ 		INSERT INTO
+ 			XBOLTADM.TB_WF_INST(
+ 			 WFInstanceID
+      		, ProjectID
+			<if test="DocCategory != null and DocCategory != ''">	
+				, DocCategory	
+			</if>
+			<if test="DocumentID != null and DocumentID != ''">	
+				, DocumentID
+			</if>
+			<if test="WFID != null and WFID != ''">	
+				, WFID
+			</if>
+			<if test="lastSeq != null and lastSeq != ''">	
+				, LastSeq
+			</if>
+       		, CreationTime
+      		, Creator
+      		, LastUser
+      		, LastUpdated
+      		, Status  
+      		, CurSeq    		
+      		, AprvOption
+      		, LastSigner
+			<if test="ReturnedValue != null and ReturnedValue != ''">	
+				, ReturnedValue
+			</if>
+			<if test="Path != null and Path != ''">	
+				, Path 
+			</if>
+           )
+		VALUES(
+			 #{WFInstanceID}
+      		, #{ProjectID}
+			<if test="DocCategory != null and DocCategory != ''">	
+			, #{DocCategory}
+			</if>
+			<if test="DocumentID != null and DocumentID != ''">	
+			, #{DocumentID}
+			</if>
+			<if test="WFID != null and WFID != ''">	
+			, #{WFID}
+			</if>
+			<if test="lastSeq != null and lastSeq != ''">	
+			, #{lastSeq}
+			</if>  		
+      		, getdate()
+      		, #{Creator}
+      		, #{LastUser}
+      		, getdate()
+      		, #{Status}
+      		, #{curSeq}
+      		, #{aprvOption}
+      		, #{LastSigner}
+			<if test="ReturnedValue != null and ReturnedValue != ''">	
+				, #{ReturnedValue}
+			</if>
+			<if test="Path != null and Path != ''">	
+				, #{Path}
+			</if>     		
+		)
+ 	</insert>
+ 	
+ 	<update id="updateWfInst" parameterType="java.util.HashMap">
+ 		UPDATE	XBOLTADM.TB_WF_INST
+ 		SET
+ 			LastUser= #{LastUser}
+ 			, LastUpdated = getDate()
+			<if test="WFID != null and WFID != ''">	
+			, WFID = #{WFID}
+			</if> 
+			<if test="aprvOption != null and aprvOption != ''">	
+			, AprvOption = #{aprvOption}
+			</if> 
+			<if test="Status != null and Status != ''">	
+			, Status = #{Status}
+			</if> 
+			<if test="ReturnedValue != null and ReturnedValue != ''">	
+			, ReturnedValue = #{ReturnedValue}
+			</if> 
+			<if test="Path != null and Path != ''">	
+			, Path = N''+#{Path}
+			</if> 
+			<if test="lastSeq != null and lastSeq != ''">	
+			, LastSeq = #{lastSeq}
+			</if> 
+			<if test="curSeq != null and curSeq != ''">	
+			, CurSeq = #{curSeq}
+			</if> 
+ 		WHERE
+ 			WFInstanceID = #{WFInstanceID}
+ 	</update>
+ 	
+ 	<select id="getWFInstance" resultType="String">
+		SELECT 
+			ISNULL(WFInstanceID, '') As Id
+		FROM 
+			XBOLTADM.TB_WF_INST
+		WHERE ProjectID = #{ProjectID}
+ 	</select>
+ 	
+ 	<select id="getWFInstanceDetail_gridList" resultType="java.util.HashMap">
+		SELECT  TOP 1
+			Row_Number()OVER(ORDER BY  T1.CreationTime DESC) as RNUM  
+			, T1.WFInstanceID
+      		, T1.ProjectID
+      		, T1.DocCategory
+      		, T1.DocumentID
+      		, T1.CurSeq
+      		, T1.WFID
+      		, T1.Path
+      		, ISNULL(CONVERT(char(10),T1.CreationTime, 120),'') As CreationTime
+      		, T1.Creator
+      		, T1.LastUser
+      		, T1.Status
+      		, T1.Comment
+      		, T1.AprvOption, TD1.Name As AprvOptionNM
+      		, TD.Name As StatusName
+      		, T1.ReturnedValue 
+      		, ISNULL(CONVERT(char(10),T1.LastUpdated, 120),'') As LastUpdated
+		FROM 
+			XBOLTADM.TB_WF_INST T1			
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TD.LanguageID = #{LanguageID} AND T1.Status = TD.TypeCode AND TD.Category = 'APRVSTS'
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD1 ON TD1.LanguageID = #{LanguageID} AND T1.AprvOption = TD1.TypeCode AND TD1.Category = 'APRVOPTION'
+		WHERE ProjectID = #{ProjectID}  AND WFInstanceID = #{wfInstanceID}
+	
+ 	</select>
+ 	
+ 	<select id="getWFInstanceListByProcessing" resultType="java.util.HashMap">
+		SELECT /*getWFInstanceListByProcessing*/
+			WFInstanceID
+		FROM 
+			XBOLTADM.TB_WF_INST			
+		WHERE Status = 'OPN'
+			<if test="ProjectID != null and ProjectID != ''">
+				ProjectID = #{ProjectID}
+			</if>
+  	</select> 	
+ 	
+ 	<select id="getMemberInfoList" resultType="java.util.HashMap">
+ 		SELECT Name + '(' + LoginID + ')' As MemberInfo
+      	FROM XBOLTADM.TB_MEMBER
+  		WHERE MemberID IN (${memberIds})
+ 	</select>
+ 	
+ 	<select id="pjtFile_nextVal" resultType="String">
+		SELECT ISNULL(MAX(Seq)+1,'1') AS FILEID_NEXTVAL FROM XBOLTADM.TB_PJT_FILE
+	</select>
+	
+	<insert id="pjtFile_insert"  parameterType="java.util.HashMap">
+			INSERT INTO XBOLTADM.TB_PJT_FILE (
+				Seq
+				,ProjectID	
+				,FileName
+				,FileRealName
+				,FileSize
+				,FileMgt
+				,RegMemberID
+				,CreationTime
+				,LastUpdated
+				,LastUser
+				,DownCNT
+				,LanguageID
+			)
+			VALUES (
+				#{Seq}
+				, #{ProjectID}
+				, #{FileName}
+				, #{FileRealName}
+				, #{FileSize}
+				, #{FileMgt}
+				, #{userId}
+				, getDate()
+				, getDate()
+				, #{userId}
+				, 0
+				, #{LanguageID}
+			)
+	</insert>
+	
+	<select id="getProjectFileList" resultType="java.util.HashMap">
+		SELECT
+		   pjtfl.Seq
+		  ,pjtfl.ProjectID
+		  ,pjtfl.FileName
+		  ,pjtfl.FileFormat
+		  ,pjtfl.FileRealName
+		  ,pjtfl.FileSize
+		  ,pjtfl.FileMgt
+		  ,pjtfl.RegMemberID
+		  ,CONVERT(CHAR(10),CONVERT(datetime,pjtfl.CreationTime),21) as CreationTime
+		  ,CONVERT(CHAR(10),CONVERT(datetime,pjtfl.LastUpdated),21) as LastUpdated
+		  ,pjtfl.LastUser
+		  ,pjtfl.Version
+		  ,pjtfl.DownCNT
+		FROM XBOLTADM.TB_PJT_FILE pjtfl
+		<where>
+			<if test="ProjectID != null and ProjectID != ''">
+				ProjectID = #{ProjectID}
+			</if>
+		</where>
+ 	</select>
+ 	
+ 	<select id="getPjtFileList" resultType="java.util.HashMap">
+		SELECT
+		   Seq
+		  ,ProjectID
+		  ,FileName
+		  ,FileFormat
+		  ,FileRealName
+		  ,FileSize
+		  ,FileMgt
+		  ,RegMemberID
+		  ,CONVERT(CHAR(10),CONVERT(datetime,CreationTime),21) as CreationTime
+		  ,CONVERT(CHAR(10),CONVERT(datetime,LastUpdated),21) as LastUpdated
+		  ,LastUser
+		  ,Version
+		  ,DownCNT
+		FROM XBOLTADM.TB_FILE 
+		<where>
+			<if test="ProjectID != null and ProjectID != ''">
+				ProjectID = #{ProjectID}
+			</if>
+			<if test="itemID == null or (itemID != null and itemID.equals('null'))">
+				AND DocumentID Is Null
+			</if>
+		</where>
+ 	</select>
+ 	
+ 	<select id="selectDownFile" resultType="java.util.HashMap">
+		SELECT  FileName as filename
+				, FileRealName as original
+				, #{FilePath} + FileName as downFile
+		FROM XBOLTADM.TB_FILE
+		WHERE Seq = #{Seq}
+	</select>
+	
+	<select id="getPjtMemberRelCnt" resultType="String">
+		SELECT
+			COUNT(MemberID) As cnt
+		FROM
+			XBOLTADM.TB_PJT_MEMBER_REL
+		WHERE
+			ProjectID = #{ProjectID} AND MemberID = #{MemberID}
+	</select> 
+	
+	<delete id="delProjectFile" parameterType="java.util.HashMap">
+	  	Delete FROM XBOLTADM.TB_PJT_FILE
+	  	WHERE ProjectID = #{ProjectID} AND Seq = #{Seq}
+	 </delete>
+	 
+	 <delete id="delPjtFile" parameterType="java.util.HashMap">
+	  	Delete FROM XBOLTADM.TB_FILE
+	  	WHERE ProjectID = #{ProjectID} AND Seq = #{Seq}
+	 </delete>
+	 
+	 <select id="getChangeMgt" resultType="String">
+		SELECT 
+      		ISNULL(ChangeMgt, '') As ChangeMgt
+      	FROM XBOLTADM.TB_ITEM_CLASS
+  			WHERE ItemClassCode = (SELECT ClassCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{ItemID})
+	 </select> 	
+	 
+	 <select id="getCNGTCount" resultType="String">
+	 	SELECT Count(ChangeSetID) As CNT
+      	FROM XBOLTADM.TB_CHANGE_SET
+  		WHERE ProjectID = #{ProjectID}
+		<if test="Status != null and Status != ''">
+			AND Status != #{Status}
+		</if>
+		<if test="ItemID != null and ItemID != ''">
+			AND ItemID = #{ItemID}
+		</if>
+	 </select>
+	 
+	 <select id="getItemProjectId" resultType="String">
+		SELECT 
+      		ISNULL(ProjectID, '') As ProjectID
+      	FROM XBOLTADM.TB_ITEM
+  			WHERE ItemID = #{ItemID}
+	 </select> 	
+	 
+	 <select id="getProjectCreatorCnt" resultType="String">
+		SELECT 
+      		COUNT(Creator) AS CNT
+      	FROM 
+  			XBOLTADM.TB_PROJECT
+  		WHERE 
+ 			ProjectID = #{ProjectID}
+      		AND Creator = #{AuthorID}
+	 </select> 
+	 
+	 <select id="getProjectMemberCnt" resultType="String">
+		SELECT 
+      		COUNT(MemberID) AS CNT
+      	FROM 
+  			XBOLTADM.TB_PJT_MEMBER_REL
+  		WHERE 
+ 			ProjectID = #{ProjectID}
+      		AND MemberID = #{AuthorID}
+	 </select>
+	 
+	 <select id="getProjectMemberList" resultType="java.util.HashMap">
+	  	SELECT Distinct T2.MemberID
+      		  , T2.Name
+      	FROM XBOLTADM.TB_PJT_MEMBER_REL T1,
+	  		 XBOLTADM.TB_MEMBER T2
+	  	WHERE (ProjectID = #{s_itemID} AND T1.MemberID = T2.MemberID)
+	  	or  T2.MemberID = #{Creator}
+	 </select>	
+	 
+	 <select id="getVarItemList" resultType="java.util.HashMap">
+	 	SELECT ItemID
+	 	FROM XBOLTADM.TB_ITEM
+	 	WHERE RefItemID = #{s_itemID} AND ProjectID = #{ProjectID}
+	 </select>
+	 
+	 <select id="getWfStepInstInfo" resultType="java.util.HashMap">
+	  	Select WFStepID, StepInstID, ProjectID 
+	  	From XBOLTADM.TB_WF_STEP_INST 
+		Where ActorID = #{actorID}
+		And ProjectID = #{projectID}
+			
+	 </select>
+
+	<update id="updatePjtMemberRel" parameterType="java.util.HashMap">
+ 		UPDATE	XBOLTADM.TB_PJT_MEMBER_REL
+ 		SET Involved = #{Involved} 
+		<if test="DropOutDate != null and DropOutDate != ''">
+			,DropOutDate = getDate()
+		</if>	 		
+ 		<where>	 		
+			<if test="ProjectID != null and ProjectID != ''">
+				ProjectID = #{ProjectID}
+			</if>
+		</where>
+ 	</update>
+ 	
+ 	<select id="getDictionaryName" resultType="String">
+ 		SELECT 
+      		Name
+  		FROM XBOLTADM.TB_DICTIONARY
+  		where Category = #{Category} 
+  			AND LanguageID = #{languageID}
+  			AND TypeCode = #{TypeCode}
+ 	</select>
+ 	
+ 	<select id="getPjtRelTeam" resultType="java.util.HashMap">
+ 		SELECT Distinct
+	      	T2.TeamID As CODE
+	      	, T3.Name As NAME
+		  FROM XBOLTADM.TB_PJT_MEMBER_REL T1
+		  Left outer join XBOLTADM.TB_MEMBER T2 on T1.MemberID = T2.MemberID
+		  Left outer join XBOLTADM.TB_TEAM_TXT T3 on T2.TeamID = T3.TeamID AND T3.LanguageID  = #{sessionCurrLangType}
+		  where T1.ProjectID = #{projectID}
+ 	</select>
+ 	
+ 	<select id="checkPjtCodeUnique" resultType="String">
+ 		SELECT 
+      		Count(ProjectID)
+  		FROM XBOLTADM.TB_PROJECT
+  		<where>
+			<if test="ProjectType != null and ProjectType != ''">	
+			ProjectType = #{ProjectType}
+				<if test="ProjectID != null and ProjectID != ''">	
+					AND ProjectID != #{ProjectID}
+				</if> 
+			</if> 
+			<if test="Prefix != null and Prefix != ''">	
+			AND Prefix = #{Prefix}
+				<if test="ProjectID != null and ProjectID != ''">	
+					AND ProjectID != #{ProjectID}
+				</if> 
+			</if> 
+			<if test="ProjectCode != null and ProjectCode != ''">	
+			AND ProjectCode = #{ProjectCode}
+			</if> 
+			<if test="ParentID != null and ParentID != ''">	
+			AND RefPjtID = #{ParentID}
+			</if> 
+			<if test="StatusCheck != null and StatusCheck != ''">	
+			AND Status != #{StatusCheck}
+			</if> 
+  		</where>
+ 	</select>
+ 	
+ 	<update id="updateClsPjtItems" parameterType="java.util.HashMap">
+ 		UPDATE	XBOLTADM.TB_ITEM
+ 		SET
+ 			LastUpdated  = getDate()
+ 			, LastUser = #{LastUser}
+ 			, Status = 'REL'
+ 		WHERE
+ 			ProjectID = #{ProjectID}
+ 			AND 0 = (SELECT ChangeMgt FROM XBOLTADM.TB_ITEM_CLASS WHERE ItemClassCode = ClassCode)
+ 			AND Status = 'NEW1'
+ 	</update>
+ 	
+ 	<select id="getCheckOutCngt_gridList" resultType="java.util.HashMap">
+  	SELECT
+		TOP 1000
+		 Row_Number()OVER(ORDER BY  TCS.CreationTime DESC) as RNUM
+		 , 1 AS CHK  
+ 		 , TCS.ChangeSetID
+ 		 , TCS.ProjectID
+ 		 , TI.Identifier
+		 , TIA.PlainText AS ItemName
+		 , TCS.ItemID
+		 , TCTS.Name AS  ChangeType
+		 , TD.Name AS ClassCode
+		 , TRS.Name AS Reason
+		 , TCS.Description
+		 , ISNULL(TTT.Name,'') AS TeamName
+		 , TCS.AuthorID
+		 , TM.Name As AuthorName  
+		 , ISNULL(CONVERT(char(10),TCS.CreationTime, 120),'') as CreationTime
+		 , ISNULL(CONVERT(char(10),TCS.ApproveDate, 120),'') as ApproveDate
+		 , TCS.Status as StatusCode
+		 , TDS.Name AS StatusName	
+		 , TI.Status AS ItemStatus
+		 , ISNULL(CONVERT(char(19), TCS.CreationTime, 120),'') as CreationTime2
+		 , ISNULL(CONVERT(char(19), TI.LastUpdated, 120),'') as LastUpdated
+		 , ISNULL(TCLS.ExtFunc, 0) as ExtFunc
+		 , ISNULL(TCS.CurTask,'') as CurTask
+		 , TPJ.Creator
+		 , TPJ.Status As CSRStatusCode
+		 , TM2.Name As CreatorName
+		 , PT1.Name As csrName
+		 , PT2.Name As parentPjtName
+		 , XBOLTADM.fn_GetMyAbsPathForList(TI.ItemID, #{languageID}) AS ItemPath
+		FROM XBOLTADM.TB_CHANGE_SET TCS
+			Left Outer Join XBOLTADM.TB_ITEM TI
+			on TCS.ItemID = TI.ItemID			
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+			on TCS.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+			on TCS.AuthorID = TM.MemberID
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT
+			on TCS.AuthorTeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD 
+			on TCS.ItemClassCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_DICTIONARY TDS
+			on TCS.Status = TDS.TypeCode AND TDS.Category = 'CNGSTS'  AND TDS.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_DICTIONARY TRS
+			on TCS.Reason = TRS.TypeCode AND TRS.Category = 'CR'  AND TRS.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_DICTIONARY TCTS
+			on TCS.ChangeType = TCTS.TypeCode AND TCTS.Category = 'CNGT1'  AND TCTS.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_ITEM_CLASS TCLS on TI.ClassCode = TCLS.ItemClassCode
+			Left outer Join XBOLTADM.TB_PROJECT TPJ on TCS.ProjectID = TPJ.ProjectID
+			Left Outer Join XBOLTADM.TB_MEMBER TM2 on TPJ.Creator = TM2.MemberID
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT PT1 on TCS.ProjectID = PT1.ProjectID AND PT1.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT PT2 on TPJ.RefPjtID = PT2.ProjectID AND PT2.LanguageID = #{languageID}			
+		<where>
+			<if test="cngts != null and cngts != ''">
+				TCS.ChangeSetID IN (${cngts})
+			</if>	
+		</where>
+				 
+	</select>
+ 	
+ 	<select id="getPjtTaskTypeList_gridList" resultType="java.util.HashMap">
+ 		Select 
+ 			Row_Number()OVER(ORDER BY  PJTSK.TaskTypeCode ASC) as RNUM,
+			PJTSK.TaskTypeCode,
+			TD.Name TaskTypeName,
+			PJTSK.ItemClassCode,
+			TD2.Name As ItemClass,
+			PJTSK.ProjectID,
+			TPT.Name As ProjectName,
+			PJTSK.SortNum,
+			( Select count(T1.TaskTypeCode) From XBOLTADM.TB_PJT_TASK_TP T1
+				Left Outer Join XBOLTADM.TB_PROJECT T2 ON T1.ProjectID = T2.ProjectID
+				Where T2.RefPjtID = #{projectID} And T1.TaskTypeCode = PJTSK.TaskTypeCode
+			) As PjtTaskCnt,
+			PJTSK.SortNum,
+			PJTSK.Mandatory
+		From XBOLTADM.TB_PJT_TASK_TP PJTSK
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = PJTSK.TaskTypeCode And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = PJTSK.ItemClassCode And TD2.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT ON TPT.ProjectID = PJTSK.ProjectID And TPT.LanguageID = #{languageID}
+		Where PJTSK.ProjectID = #{projectID}
+		<if test="searchValue != null and searchValue != ''">
+			<choose>
+				<when test="searchKey.equals('name')">
+					AND TD.Name like N'%'+#{searchValue}+'%'
+				</when>
+				<when test="searchKey.equals('code')">
+					AND PJTSK.TaskTypeCode like N'%'+#{searchValue}+'%'
+				</when>
+			</choose>
+		</if>
+ 	</select>
+ 	
+ 	<select id="getTaskTypeForPjtList_gridList" resultType="java.util.HashMap">
+ 		Select
+ 			Row_Number()OVER(ORDER BY  TSKT.TaskTypeCode ASC) as RNUM, 
+ 			TSKT.TaskTypeCode,
+			TD.Name As TaskTypeName,
+			TSKT.ItemClassCode,
+			TD2.Name As ItemClass	 
+		From XBOLTADM.TB_TASK_TYPE TSKT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TSKT.TaskTypeCode And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = TSKT.ItemClassCode And TD2.LanguageID = #{languageID}
+		Where TaskTypeCode Not In (Select TaskTypeCode From XBOLTADM.TB_PJT_TASK_TP Where ProjectID = #{projectID}) 
+ 	</select>
+ 	
+ 	<insert id="insertPjtTaskTypeCode" parameterType="java.util.HashMap">
+ 		Insert Into XBOLTADM.TB_PJT_TASK_TP (ProjectID, TaskTypeCode, ItemClassCode, Deactivated, CreationTime, Creator, SortNum)
+			Values(#{projectID}, #{taskTypeCode}, #{itemClassCode}, 0, GetDate(), #{userID}, #{sortNum})
+ 	</insert>
+ 	
+ 	<select id="getMaxTaskTypeSortNum" resultType="String">
+ 		Select ISNULL(Cast(Max(SortNum)+1 AS CHAR(10)), 1) As SortNum From XBOLTADM.TB_PJT_TASK_TP Where ProjectID = #{projectID}
+ 	</select>
+ 	
+ 	<delete id="deletePjtTaskTypeCode" parameterType="java.util.HashMap">
+ 		Delete From XBOLTADM.TB_PJT_TASK_TP Where ProjectID = #{projectID} And TaskTypeCode = #{taskTypeCode}
+ 	</delete>
+ 	
+ 	<update id="udpatePjtTaskTypeInfo" parameterType="java.util.HashMap">
+ 		Update XBOLTADM.TB_PJT_TASK_TP Set
+		 SortNum = #{sortNum}, 
+		 Mandatory = #{mandatory},
+		 LastUpdate = GETDATE(),
+		 LastUser = #{userID} 
+		Where ProjectID = #{projectID}
+		And TaskTypeCode = #{taskTypeCode}	
+ 	</update>
+ 	
+ 	<select id="getMyItemForMyPage" resultType="java.util.HashMap">
+ 		SELECT
+ 			Row_Number()OVER(ORDER BY ItemTypeCode, Path) as RNUM 
+			, 0 AS CHK
+			, ItemTypeImg 
+			, ItemTypeCode
+			, ItemTypeName
+			, ClassCode
+			, ClassName
+			, Path
+			, ItemID
+			, Identifier
+			, ItemName
+			, PjtName
+			, CsrName
+			, OwnerTeamName
+			, LastUpdated
+			, Status
+			, StatusName 
+		FROM (
+			SELECT 
+				DISTINCT
+				TI.ItemID
+				, TIT.ItemTypeCode
+				, TITN.Name As ItemTypeName
+				, ISNULL(TIT.Icon, 'img_job.png') ItemTypeImg
+				, TD.Name as ClassName, TI.ClassCode
+			   	, ISNULL(PITM.Identifier,'') + ' ' + ISNULL(XBOLTADM.fn_GetMyAbsPathForList( TI.ItemID ,#{sessionCurrLangType}),'')  AS Path   
+				, ISNULL(TIA.PlainText,'') as ItemName
+				, TPT2.Name As PjtName
+				, TPT1.Name As CsrName
+				, TOT.Name as OwnerTeamName
+				, TI.Version, TI.Identifier
+				, TI.Status
+				, TSD.Name AS StatusName
+				, Convert(nvarchar(20),TI.LastUpdated, 111) AS LastUpdated
+				
+			FROM
+				XBOLTADM.TB_ITEM TI
+				Left Outer JOIN XBOLTADM.TB_ITEM_TYPE TIT ON TI.ItemTypeCode = TIT.ItemTypeCode
+				Left Outer JOIN XBOLTADM.TB_ITEM_CLASS TIC ON TI.ClassCode = TIC.ItemClassCode
+				Left Outer JOIN XBOLTADM.TB_PROJECT TP1 ON TI.ProjectID = TP1.ProjectID
+				Left Outer JOIN XBOLTADM.TB_PROJECT_TXT TPT1 ON TI.ProjectID = TPT1.ProjectID AND TPT1.LanguageID = #{sessionCurrLangType}
+				Left Outer JOIN XBOLTADM.TB_PROJECT_TXT TPT2 ON TP1.RefPjtID = TPT2.ProjectID AND TPT2.LanguageID = #{sessionCurrLangType}
+				Left outer join XBOLTADM.TB_DICTIONARY TD on TI.ClassCode = TD.TypeCode AND TD.LanguageID = #{sessionCurrLangType}
+				Left outer join XBOLTADM.TB_DICTIONARY TITN on TI.ItemTypeCode = TITN.TypeCode AND TITN.LanguageID = #{sessionCurrLangType}
+				Left outer join XBOLTADM.TB_DICTIONARY TSD on TI.Status = TSD.TypeCode AND TSD.LanguageID = #{sessionCurrLangType} AND TSD.Category = 'ITMSTS'
+				Left outer join XBOLTADM.TB_TEAM_TXT TOT on TI.OwnerTeamID = TOT.TeamID AND TOT.LanguageID = #{sessionCurrLangType}
+				Left outer join XBOLTADM.TB_ITEM_ATTR TIA on TI.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001'  AND TIA.LanguageID = #{sessionCurrLangType}
+				Left Outer JOIN XBOLTADM.TB_ITEM ST1 ON TI.ItemID = ST1.ToItemID and ST1.CategoryCode = 'ST1'
+				Left Outer JOIN XBOLTADM.TB_ITEM PITM ON ST1.FromItemID = PITM.ItemID 
+	
+			WHERE
+				TIC.ChangeMgt = 1
+				AND TI.AuthorID = #{sessionAuthId}
+				<if test="ClassCode != null and ClassCode != ''">
+					AND TI.ClassCode = #{ClassCode}
+				</if>
+				<if test="Status != null and Status != ''">
+					AND TI.Status = #{Status}
+				</if>	
+		) A	
+		GROUP BY 
+			ItemTypeCode
+			, ItemTypeName
+			, ItemTypeImg
+			, ClassName, ClassCode
+			, Path
+			, ItemID
+			, Identifier
+			, ItemName
+			, PjtName
+			, CsrName 
+			, OwnerTeamName
+			, LastUpdated
+			, Status
+			, StatusName 
+		Order By ItemTypeCode, Path
+ 		
+ 	</select>
+ 	
+ 	<select id="getRefPjtID" resultType="String">
+ 		Select RefPjtID From XBOLTADM.TB_PROJECT Where ProjectID = #{projectID}
+ 	</select>
+ 	
+	<select id="getMaxCSRCode" resultType="String">
+  		SELECT
+      		TOP 1 ProjectCode
+  		FROM XBOLTADM.TB_PROJECT
+  		Where subString(ProjectCode, 4,6) = #{thisYmd} AND RTRIM(ProjectType) = 'CSR' order by ProjectID DESC
+	</select>
+	
+	<select id="getCngtCount" resultType="String">
+ 		Select count(*) AS CngtCount from XBOLTADM.TB_CHANGE_SET Where ProjectID = #{csrID} And Status != 'CLS'
+ 	</select>
+ 	
+ 	<select id="getCRCount" resultType="String">
+ 		Select Count(*) As CRCount  from XBOLTADM.TB_CR_MST
+ 		Where CSRID = #{csrID} 
+ 		<if test="Status != null and Status != ''">
+	 		<choose>
+				<when test="Status.equals('ING')">
+					AND Status != 'CLS' AND Status != 'WTR'
+				</when>
+				<otherwise>	
+					AND Status = #{Status}
+				</otherwise>
+			</choose>	
+		</if>
+ 	</select>
+ 	
+ 	<update id="updateCSRStatus" parameterType="java.util.HashMap">
+ 		Update XBOLTADM.TB_PROJECT Set 
+ 			Status = #{status},
+ 			LastUpdated = GETDATE() ,	
+ 			<choose>
+				<when test="status != null and status.equals('CLS')">
+					EndDate = GETDATE()
+				</when>
+				<otherwise>	
+					EndDate = Null
+				</otherwise>
+ 			</choose>	 					
+ 		Where ProjectID = #{csrID}
+ 	</update>
+ 	
+ 	<select id="getCsrCountFromSR" resultType="String">
+ 		Select COUNT(*) As CsrCountFromSR From XBOLTADM.TB_PROJECT 
+		Where SRID = #{srID} And ProjectID != #{csrID} And Status Not In ('CLS', 'WTR')
+	</select>
+	
+	<select id="getCngtCountFromItem" resultType="String">
+ 		Select Count(*) AS ItemCount From XBOLTADM.TB_CHANGE_SET Where ProjectID = #{csrID} 
+ 	</select>
+ 	
+	<update id="updateItemStatusFromCSR" parameterType="java.util.HashMap">
+		 Update XBOLTADM.TB_ITEM Set
+		 	Status  = #{status},
+		 	LastUser = #{lastUser},
+ 			LastUpdated = GETDATE()
+		 Where ItemID IN(Select ItemID From XBOLTADM.TB_CHANGE_SET Where ProjectID = #{csrID})
+	</update>
+	
+	<select id="getWFINSTanceInfo" resultType="java.util.HashMap">
+		Select WFInstanceID, ProjectID, AprvOption 
+		From XBOLTADM.TB_WF_INST
+		<where>
+			<if test="WFInstanceID != null and WFInstanceID != ''">
+				AND WFInstanceID = #{WFInstanceID}
+			</if>
+		</where>
+	</select>
+	
+	<select id="getCsrCntSR" resultType="String">
+		Select Count(*) As CSRCnt From XBOLTADM.TB_PROJECT 
+		Where ProjectType = 'CSR' 
+		And SRID= #{srID} 
+		And <![CDATA[ Convert(varchar(10),DueDate, 120) > #{DueDate} ]]>
+	</select>
+	
+	<select id="getWFINSLastSigner" resultType="String">
+		Select LastSigner From XBOLTADM.TB_WF_INST Where ProjectID = #{projectID} AND Status = 2
+	</select>
+	
+	<update id="updateItemDeletedFromCS" parameterType="java.util.HashMap">
+		Update XBOLTADM.TB_ITEM Set 
+  		Deleted = #{deleted}
+		where ItemID = #{itemID} 
+				or 
+			  ItemID IN ( Select ToItemID From XBOLTADM.TB_ITEM Where CategoryCode = 'ST1' And FromItemID = #{itemID}  )
+				or
+			  #{itemID} in ( FromItemID, ToItemID) 
+	  	</update>
+  	
+  	<select id="getItemInfoFromCSList" resultType="java.util.HashMap">
+  		Select * 
+  		  From XBOLTADM.TB_CHANGE_SET 
+  		 Where ProjectID = #{csrID}
+  		 	<if test="changeType != null and changeType != ''">
+  		  	 AND ChangeType = #{changeType} 
+  		    </if>
+  	</select>
+  	
+  	<select id="getBasModelInfo" resultType="java.util.HashMap">
+  		Select TOP 1 TM.ModelID, TMT.Name As ModelName 
+		From XBOLTADM.TB_MODEL TM 
+		Left Outer Join XBOLTADM.TB_MODEL_TXT TMT ON TMT.ModelID = TM.ModelID And TMT.LanguageID = #{languageID}
+		Where TM.ItemID = #{itemID} And MTCategory = 'BAS'
+  	</select>
+  	
+  	<update id="updateModel" parameterType="java.util.HashMap">
+  		Update XBOLTADM.TB_MODEL 
+  			<if test="blocked != null and blocked != ''" ><trim prefix="SET" suffixOverrides=","> Blocked = #{blocked}</trim></if>
+  		Where modelID = #{modelID} 
+  		And MTCategory = #{MTCategory}
+  	</update>
+  	
+  	<select id="getTeamPath" resultType="String">  		
+  		SELECT 
+			XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{languageID}) + '/' + TTT.Name AS TeamPath
+		FROM
+			XBOLTADM.TB_MEMBER TM
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT On TM.TeamID = TTT.TeamID  AND TTT.LanguageID = #{languageID}
+		WHERE TM.MemberID = #{userID}
+  	</select>
+  	
+  	<update id="deleteWFStepInst" parameterType="java.util.HashMap">
+  		Delete From XBOLTADM.TB_WF_STEP_INST
+		Where ProjectID = #{ProjectID}
+  	</update>
+  	
+  	<select id="getWFStepInstInfoList" resultType="java.util.HashMap">
+		Select TWSI.Seq,
+		    TWSI.WFStepID,
+			TD.Name As WFStepName,
+			TWSI.ActorID,
+			TM.Name AS ActorName,
+			TM.TeamID,
+			TMT.Name As TeamName,
+			XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{LanguageID}) + '/' + TMT.Name AS TeamPath
+		From XBOLTADM.TB_WF_STEP_INST TWSI
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TWSI.WFStepID And TD.LanguageID = #{LanguageID} And TD.Category = 'WFSTEP'
+		Left OUter Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TWSI.ActorID
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TMT.TeamID = TM.TeamID And TMT.LanguageID = #{LanguageID}
+		Where ProjectID = #{ProjectID}
+		<if test="WFStepIDs != null and WFStepIDs != ''">
+		AND TWSI.WFStepID IN ( ${WFStepIDs} )
+		</if>
+		<if test="wfInstanceID != null and wfInstanceID != ''">
+		AND TWSI.WFInstanceID = #{wfInstanceID}
+		</if>
+		Order By TWSI.SEQ
+	</select>
+	
+	<select id="getMyItemFromSRList" resultType="java.util.HashMap">
+		Select TMI.MemberID, TMI.ItemID, TMI.RoleType,
+				TM.Name AS MemberName, TMT.Name As TeamName
+		From XBOLTADM.TB_MY_ITEM TMI
+		 Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TMI.MemberID 
+		 Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TMT.TeamID = TM.TeamID And TMT.LanguageID = #{languageID}
+		<where>
+			<if test="srID != null and srID != ''">
+				ItemID = ( Select SRArea2 From XBOLTADM.TB_SR_MST Where SRID = #{srID} )
+			</if>
+			 And AssignmentType = 'WFSTEP'
+		</where>
+		 Order By OrderNum
+	</select>
+	
+	<select id="getWFStepInstSeq" resultType="String">
+		Select Top 1 Seq
+		 From XBOLTADM.TB_WF_STEP_INST
+		Where ProjectID = #{projectID}
+		And Status = 0
+		Order By Seq
+	</select>
+	
+	<select id="getWFInstList_gridList" resultType="java.util.HashMap">
+		Select
+			Row_Number()OVER(ORDER BY  TWI.CreationTime DESC,TWI.Status) as RNUM, 
+			TD.Name AS WFDocType,
+			TPTXT.Name AS Subject,
+			TWI.Creator,
+			TM.Name AS CreatorName,
+			XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{languageID}) AS CreatorTeamPath,
+			TWI.CreationTime,
+			TD2.Name AS Status,
+			TP.ProjectID,
+			TWI.WFID,
+			TWI.WFInstanceID,
+			TWI.LastSeq,	
+			<if test="filter != null and filter != ''">	
+				<choose>
+					<when test="filter.equals('myWF')">
+						TWSI.StepInstID,	TWSI.ActorID,TWSI.Seq AS StepSeq, TM2.Name As ActorName,
+					</when>
+					<otherwise>
+						null AS StepInstID,	null AS ActorID, null AS StepSeq, null As ActorName,
+					</otherwise>
+				</choose>
+			</if> 		
+			TP.ProjectCode,
+			TP.SRID	
+		From XBOLTADM.TB_WF_INST TWI
+		Left Outer Join XBOLTADM.TB_PROJECT TP ON TP.ProjectID = TWI.ProjectID		
+		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPTXT ON TPTXT.ProjectID = TP.ProjectID AND TPTXT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TP.ProjectType AND TD.Category = 'DOCCAT' AND TD.LanguageID = #{languageID} 
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TWI.Creator 	
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = TWI.Status And TD2.Category = 'APRVSTS' AND TD2.LanguageID = #{languageID}
+		<if test="filter != null and filter != ''">	
+			<if test="filter.equals('myWF')">
+				Left Outer Join XBOLTADM.TB_WF_STEP_INST TWSI ON TWSI.WFInstanceID = TWI.WFInstanceID
+				Left Outer Join XBOLTADM.TB_MEMBER TM2 ON TM2.MemberID = TWSI.ActorID 
+			</if>
+		</if> 	
+	  <where>
+	  	<if test="projectID != null and projectID != ''">	
+	  		TP.ProjectID = #{projectID} 
+	  	</if>
+	  	<if test="actorID != null and actorID != ''">	
+	  		AND TWSI.ActorID = #{actorID}
+	  	</if>
+	  	<if test="wfStepID != null and wfStepID != ''">	
+	  		AND TWSI.WFStepID = #{wfStepID}
+	  	</if>
+		<if test="period != null and period != ''">	
+			<choose>
+				<when test='"1".equals(period)'>
+					AND CONVERT(VARCHAR, TWI.CreationTime, 23) BETWEEN #{beforeYmd} AND #{thisYmd}
+				</when>
+				<when test='"2".equals(period)'>
+					AND CONVERT(VARCHAR, TWI.CreationTime, 23)  = CONVERT(VARCHAR, GETDATE(), 23)
+				</when>
+			</choose>
+		</if>
+		<if test="wfMode != null and wfMode != ''">	
+			<choose>
+				<when test="wfMode.equals('CurAprv')">
+					AND TWI.CurSeq = TWSI.Seq AND TWSI.WFStepID != 'REF' AND TWSI.WFStepID != 'AREQ' And TWSI.Status = '0'  And TWI.Status = '1'
+				</when>
+				<when test="wfMode.equals('ToDoAprv')">
+					AND TWI.CurSeq != TWSI.Seq AND TWSI.WFStepID != 'REF' AND TWSI.WFStepID != 'AREQ' AND TWSI.Status is  Null   And TWI.Status = '1'
+				</when>
+				<when test="wfMode.equals('Cls')">
+					AND TWSI.WFStepID != 'AREQ' AND (TWI.Status != '0' OR TWI.Status != '1') AND TWSI.WFStepID != 'REF'
+				</when>
+				<when test="wfMode.equals('RefMgt')">
+					AND TWSI.WFStepID In ('REF' , 'MGT')
+				</when>
+			</choose>
+		</if>		
+	  </where>
+		Order By TWI.CreationTime DESC, TWI.Status , TWI.WFInstanceID DESC
+	</select>
+	
+	<select id="getWFStepInstCount" resultType="String">
+		Select Count(*) As wfStepInstCnt From XBOLTADM.TB_WF_STEP_INST
+		Where ProjectID = #{projectID}
+		 And WFInstanceID = #{wfInstanceID}
+		 And WFStepID Not In ('AREQ','REF')
+			<if test="status != null and status != ''">
+				AND (Status = #{status} OR Status IS NULL)
+			</if>
+			<if test="stepSeq != null and stepSeq != ''">
+				AND Seq = #{stepSeq}
+			</if>		
+	</select>
+	
+	<select id="getCSRNotWTRCnt" resultType="String" >
+		Select COUNT(*) From XBOLTADM.TB_PROJECT
+		Where SRID = #{srID}
+		And Status != 'WTR'
+	</select>
+	
+	<select id="getEvaluationClassInfo" resultType="java.util.HashMap">
+		Select ISNULL(TIC.RefClass,'') AS EvaluationClass,
+			TIC2.ItemTypeCode EVType,
+			TD.Name AS EvaluationClassName
+		From XBOLTADM.TB_ITEM_CLASS TIC
+		Left Outer Join XBOLTADM.TB_ITEM_CLASS TIC2 ON TIC2.ItemClassCode = TIC.RefClass
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TIC.RefClass = TD.TypeCode And TD.LanguageID = #{languageID} And Category = 'CLS'
+		Where TIC.ItemClassCode = (Select ClassCode From XBOLTADM.TB_ITEM Where ItemID = #{itemID})
+	</select>
+	
+	<select id="getEvaluationList" resultType="java.util.HashMap">
+		Select
+			TATA.AttrTypeCode
+			, TD.Name As AttrTypeName
+			,CASE TAT.DataType
+				WHEN 'LOV' THEN TATL.Value
+				ELSE ISNULL(TIA.PlainText, '') 
+			  END PlainText	
+			, ISNULL(TIA.LovCode, '') AS LovCode
+			, ISNULL(TATL.AttrTypeCode, '') AS BaseLovCode
+			, TAT.DataType
+			, TAT.IsComLang
+			, TAT.HTML
+			, ISNULL(TATA.Mandatory, '') AS Mandatory
+			, TES.Seq AS EVSeq
+			, CAST(ISNULL(TES.Score,3) AS Int) AS EVScore
+			, TES.Value AS EVValue
+			, TEM.EvaluationID
+		From XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TATA.AttrTypeCode And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.AttrTypeCode= TATA.AttrTypeCode And TIA.ItemID = #{itemID} And TIA.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT ON TAT.AttrTypeCode = TATA.AttrTypeCode 
+		Left Outer Join	XBOLTADM.TB_ATTR_TYPE_LOV TATL ON TATA.AttrTypeCode = TATL.AttrTypeCode AND TIA.LovCode = TATL.LovCode AND TATL.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_EV_MST TEM ON TEM.EVClass = TATA.ItemClassCode 
+												And TEM.ObjectID = #{itemID} And TEM.EvaluatorID =  #{userID} 
+												And ProjectID = #{projectID} AND ChangeSetID = #{changeSetID}
+		Left Outer Join XBOLTADM.TB_EV_SCORE TES ON TES.EvaluationID = TEM.EvaluationID  And TES.EVUnitCode = TATA.AttrTypeCode 
+		Where TATA.ItemClassCode = #{evaluationClassCode}
+	</select>
+	
+	<select id="getMaxEVSeqID" resultType="String">
+  		SELECT ISNULL(MAX(Seq), 0)+1 AS MAXID
+      	FROM XBOLTADM.TB_EV_SCORE
+	</select>
+	
+	<select id="getMaxEvaluationID" resultType="String">
+  		SELECT ISNULL(MAX(EvaluationID), 0)+1 AS MAXID FROM XBOLTADM.TB_EV_MST
+	</select>	
+	
+	<insert id="insertEVMST" parameterType="java.util.HashMap">
+		Insert Into XBOLTADM.TB_EV_MST
+		  ( EvaluationID
+		  	, EVType 
+		  	, EVClass
+		  	, ObjectID
+		  	, ProjectID
+			<if test="changeSetID != null and changeSetID != ''">
+				, ChangeSetID
+			</if>
+		  	, EvaluatorID
+		  	, TeamID
+		  	, CreationTime
+		  	, LastUpdated 		  
+		)Values(
+			#{evaluationID}
+			, #{evType}
+			, #{evClass}
+			, #{objectID}
+			, #{projectID}
+			<if test="changeSetID != null and changeSetID != ''">
+				, #{changeSetID}
+			</if>		
+			, #{evaluatorID}
+			, #{teamID}
+			, GETDATE()
+			, GETDATE()
+		)
+	</insert>
+	
+	<insert id="insertEVScore" parameterType="java.util.HashMap">
+		Insert Into XBOLTADM.TB_EV_SCORE
+		  ( Seq
+			, EvaluationID
+			, EVUnitCode
+			, Value 
+			<if test="lovCode != null and lovCode != ''">
+				, LovCode 
+			</if>	
+			, Score 			
+			, CreationTime
+			, LastUpdated )
+		Values(
+			#{evSeq}
+			, #{evaluationID}
+			, #{evUnitCode}
+			, #{evValue}
+			<if test="lovCode != null and lovCode != ''">
+				, #{lovCode}
+			</if>	
+			, #{evScore}
+			, GETDATE()
+			, GETDATE()
+		)
+	</insert>
+	
+	<update id="updateEVScore" parameterType="java.util.HashMap" >
+		Update XBOLTADM.TB_EV_SCORE SET
+			Value = #{evValue},
+			Score = #{evScore},
+			LovCode = #{lovCode}, 
+			LastUpdated = GETDATE()
+		Where Seq = #{evSeq}	
+	</update>
+	
+	<select id="getEvaluationID" resultType="String" >
+		Select EvaluationID 
+		From XBOLTADM.TB_EV_MST
+		Where EVType = #{evType}
+		And EVClass = #{evClass}
+		And ObjectID = #{objectID}
+		And EvaluatorID = #{userID}
+		AND ProjectID = #{projectID}
+		And ChangeSetID = #{changeSetID}
+	</select>
+	
+	<select id="getPJTMemberRelList_gridList" resultType="java.util.HashMap">
+		Select 
+			Row_Number()OVER(ORDER BY  TPT.Name) as RNUM, 
+			TP.ProjectCode,
+			TPMR.ProjectID,
+			TPT.Name ProjectName,
+			TP.TemplCode,
+			TP.ProjectType,
+			TM.URL AS TemplUrl,
+			TD.Name AS TemplName,
+			ISNULL(TM.VarFilter,'') AS URLFilter,
+			ISNULL(TMPL.VarFilter,'') AS TmplFilter,
+			TD1.Name As StatusNM
+		From XBOLTADM.TB_PJT_MEMBER_REL TPMR,
+		XBOLTADM.TB_PROJECT TP
+		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT ON TPT.ProjectID = TP.ProjectID And TPT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_TEMPL TMPL ON TMPL.TemplCode = TP.TemplCode 
+		Left Outer Join XBOLTADM.TB_MENU TM ON TM.MenuID = TMPL.MenuID 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TMPL.TemplCode And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD1 ON TD1.TypeCode = TP.Status  And TD1.LanguageID = #{languageID} And TD1.Category = 'PJTSTS'
+	   
+	    Where TPMR.ProjectID = TP.ProjectID
+		 AND TPMR.MemberID = #{loginUserID}
+		 And TP.Deactivated != 1
+		 And TP.ProjectType = 'PJT'
+	 </select>
+	 
+	<select id="getProjectName" resultType="String">
+  		Select Name As ProjectName From XBOLTADM.TB_PROJECT_TXT TPT Where ProjectID = #{projectID} And LanguageID = #{languageID}
+	</select>
+	
+	<select id="getProjectID" resultType="String">
+  		Select ProjectID From XBOLTADM.TB_PROJECT Where ProjectCode = #{projectCode}
+	</select>
+	
+	<!-- And ISNULL(TIC.ChangeMgt,'') != '1' -->
+	<select id="getChangeMgtCsrIDList" resultType="java.util.HashMap">
+		Select TI.ItemID From XBOLTADM.TB_ITEM TI
+		Left Outer Join XBOLTADM.TB_ITEM_CLASS TIC ON TIC.ItemClassCode = TI.ClassCode 
+		Where TI.ProjectID = #{csrID}
+	</select>
+	
+	<select id="getPjtAuthorID" resultType="String">
+  		Select AuthorID From XBOLTADM.TB_PROJECT Where ProjectID = #{ProjectID} 
+	</select>
+	
+	<select id="getPjtAprvOption" resultType="String">
+  		Select AprvOption From XBOLTADM.TB_PROJECT Where ProjectID = #{ProjectID} 
+	</select>
+	
+	<select id="getNextPreChangeSetID" resultType="String" >
+		Select ChangeSetID From (
+			Select Row_Number()OVER(ORDER BY ChangeSetID DESC ) as RNUM ,ChangeSetID
+			From XBOLTADM.TB_CHANGE_SET
+			Where ItemID = #{itemID} or ItemID = #{parentItemID}
+		) A 
+		Where A.RNUM = #{rNum}
+	</select>
+	
+	<select id="getChangeSetRNUM" resultType="java.util.HashMap" >
+		Select 
+			CurrCS.RNUM, CurrCS.RNUM+1 AS PreRNUM, CurrCS.RNUM-1 AS NextRNUM  		
+		From (
+			Select Row_Number()OVER(ORDER BY ChangeSetID DESC ) as RNUM ,ChangeSetID
+			From XBOLTADM.TB_CHANGE_SET
+			Where itemID = #{itemID} or itemID = #{parentItemID}
+		) CurrCS
+		Where CurrCS.ChangeSetID = #{changeSetID} 
+	</select>
+	
+	<insert id="insertItemAttrRev" parameterType="java.util.HashMap">
+		Insert Into XBOLTADM.TB_ITEM_ATTR_REV(
+			ChangeSetID,
+			Seq,
+			ItemID,
+			AttrTypeCode,
+			LanguageID,
+			ModelID,
+			PlainText,
+			HtmlText,
+			LovCode,
+			ItemTypeCode,
+			ClassCode,
+			Deleted,
+			Font,
+			FontFamily,
+			FontStyle,
+			FontSize,
+			FontColor,
+			LastUpdated
+		) Values(
+				#{changeSetID},
+				#{seq},
+				#{itemID},
+				#{attrTypeCode},
+				#{languageID},
+				#{modelID},
+				#{plainText},
+				#{htmlText},
+				#{lovCode},
+				#{itemTypeCode},
+				#{classCode},
+				#{deleted},
+				#{font},
+				#{fontFamily},
+				#{fontStyle},
+				#{fontSize},
+				#{fontColor},
+				Getdate()
+			)
+	</insert>
+	
+	<select id="getMaxAttrRevSeq" resultType="String">
+		SELECT ISNULL(MAX(seq)+1, 1) AS Seq FROM XBOLTADM.TB_ITEM_ATTR_REV
+	</select> 
+	  	
+  	<select id="getItemAttrList" resultType="java.util.HashMap" >
+  		SELECT Seq,ItemID,AttrTypeCode,LanguageID,ModelID
+  			,PlainText,HtmlText,LovCode,ItemTypeCode,ClassCode,Deleted
+  			,Font,FontFamily,FontStyle,FontSize,FontColor,LastUpdated
+  		FROM XBOLTADM.TB_ITEM_ATTR
+  		Where ItemID = #{itemID}
+		<if test="attrTypeCode != null and attrTypeCode != ''">
+			AND AttrTypeCode = #{attrTypeCode}
+		</if>
+  	</select>
+  	
+  	<select id="getLatestChagneSet" resultType="String" >
+  		Select ChangeSetID From (
+			Select Row_Number()OVER(ORDER BY  creationTime DESC ) as RNUM ,ChangeSetID
+			From XBOLTADM.TB_CHANGE_SET
+			Where ItemID =(Select Distinct ItemID From XBOLTADM.TB_CHANGE_SET Where ChangeSetID = #{changeSetID} )
+		) A 
+		Where A.RNUM = 1
+		And A.ChangeSetID = #{changeSetID}
+  	</select>
+
+	<select id="getPjtAuthorInfo" resultType="java.util.HashMap">
+		SELECT 
+			TP2.AuthorID, 
+			TP2.AuthorName, 
+			TT.Name
+		FROM XBOLTADM.TB_PROJECT TP
+		INNER JOIN XBOLTADM.TB_PROJECT TP2 ON TP.RefPjtID = TP2.ProjectID
+		INNER JOIN XBOLTADM.TB_MEMBER TM ON TP2.AuthorID = TM.MemberID
+		INNER JOIN XBOLTADM.TB_TEAM_TXT TT ON TT.TeamID = TM.TeamID
+		WHERE TP.ProjectID = #{projectID} AND TT.LanguageID = #{languageID}
+	</select>		
+  	
+  	<select id="getWFStepMailList" resultType="java.util.HashMap">
+		Select TWSI.Seq,
+		    TWSI.WFStepID,
+			TD.Name As WFStepName,
+			TWSI.ActorID,
+			TM.Name AS ActorName,
+			TM.TeamID,
+			TMT.Name As TeamName,
+			XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{LanguageID}) + '/' + TMT.Name AS TeamPath
+		From XBOLTADM.TB_WF_STEP_INST TWSI
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TWSI.WFStepID And TD.LanguageID = #{LanguageID} And TD.Category = 'WFSTEP'
+		Left OUter Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TWSI.ActorID
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TMT.TeamID = TM.TeamID And TMT.LanguageID = #{LanguageID}
+		Where ProjectID = #{ProjectID}
+		<if test="WFStepIDs != null and WFStepIDs != ''">
+		AND TWSI.WFStepID IN ( ${WFStepIDs} )
+		</if>
+		<if test="wfStepID != null and wfStepID != ''">
+		AND TWSI.WFStepID =  #{wfStepID}
+		</if>
+ 		<if test="wfInstanceID != null and wfInstanceID != ''">
+ 			AND TWSI.WFInstanceID = #{wfInstanceID}
+ 		</if>
+ 		<if test="NEXT != null and NEXT != ''">
+ 			AND TWSI.WFStepID = #{NEXT} AND Status = 0
+ 		</if>
+ 		<if test="NextSeq != null and NextSeq != ''">
+ 			AND TWSI.Seq = #{NextSeq}
+ 		</if>
+		Order By TWSI.SEQ
+	</select>
+	
+  	<select id="getWFAgreementYN" resultType="java.util.HashMap" >
+  		Select WFID, ISNULL(agreementYN,'N') as agreementYN
+  		  FROM XBOLTADM.TB_WF
+  	</select>
+  	
+  	<select id="getCSRCount" resultType="String">
+ 		Select Count(*) AS CSRCount From XBOLTADM.TB_PROJECT TP
+ 		Where #{authorID} IN (SELECT MemberID FROM XBOLTADM.TB_PJT_MEMBER_REL WHERE ProjectID = TP.ProjectID)
+ 		<if test="status != null and !status.equals('')">
+ 			And TP.Status IN (${status})
+ 		</if>
+ 		<if test="projectType != null and !projectType.equals('')">
+ 			And TP.ProjectType = #{projectType}
+ 		</if>
+ 	</select>
+ 	
+ 	<select id="getDelMarkItemFromModelList" resultType="java.util.HashMap">
+ 		Select ItemID 
+ 		From XBOLTADM.TB_ITEM 
+ 		Where ItemID IN(
+			Select ToItemID 
+			From XBOLTADM.Tb_Item
+			Where FromItemID IN ( Select ItemID From XBOLTADM.tb_Item T1,
+													(Select ObjectID 
+													From XBOLTADM.TB_ELEMENT 
+													Where ModelID = (Select Top 1 ModelID From XBOLTADM.TB_MODEL where MTCategory = 'BAS' And ItemID = #{itemID})
+													) T2
+								Where T1.ItemID = T2.ObjectID
+								And T1.ClassCode = 'CL01005')
+								And CategoryCode = 'ST1'
+			)
+		AND ItemID NOT IN (
+						Select ITEMID 
+						From XBOLTADM.tb_Item T1,
+							(Select ObjectID 
+							From XBOLTADM.TB_ELEMENT 
+							Where ModelID = (Select Top 1 ModelID From XBOLTADM.TB_MODEL where MTCategory = 'BAS' And ItemID = #{itemID})
+							) T2
+						Where T1.ItemID = T2.ObjectID
+						And T1.ClassCode = 'CL01006'
+						)
+	
+ 	</select>
+ 	 	
+ 	<update id="updateItemsDelMark"  parameterType="java.util.HashMap">
+ 		UPDATE XBOLTADM.TB_ITEM SET Deleted = '1' Where ItemID IN (${itemIDs})		
+		UPDATE XBOLTADM.TB_ITEM SET Deleted = '1' Where FromItemID IN (${itemIDs}) OR ToItemID IN (${itemIDs}) 				
+ 	</update>
+ 	
+ 	
+ 	<update id="updateChangeSetClose" parameterType="java.util.HashMap">
+ 		UPDATE XBOLTADM.TB_CHANGE_SET
+ 		SET 	
+			ApproveDate = getDate()
+            <if test="csStatus != null and !csStatus.equals('')">
+                , Status = #{csStatus}
+            </if>
+			<if test='"Y".equals(validNull)'>
+				, ValidFrom = getDate()
+			</if>		
+ 		WHERE
+ 			ChangeSetID = #{s_itemID}
+ 	</update>
+ 	
+ 	<select id="getCsrListWithMember" resultType="java.util.HashMap">
+		SELECT distinct 
+			T1.ProjectID As CODE
+			, (T4.Name + '/' +T3.Name) AS NAME
+			, T1.Status
+  		FROM XBOLTADM.TB_PROJECT T1
+	  		Left Outer Join XBOLTADM.TB_PJT_MEMBER_REL T2
+	  			on T1.ProjectID = T2.ProjectID
+	  		Left Outer Join XBOLTADM.TB_PROJECT_TXT T3
+			  	on T1.ProjectID = T3.ProjectID AND T3.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT T4
+			  	on T1.RefPjtID = T4.ProjectID AND T4.LanguageID = #{languageID}
+  		WHERE 
+  			T1.ProjectType = 'CSR'
+  			AND T1.Status IN ('CSR', 'CNG')
+  			AND (T1.Creator = #{AuthorID} OR T2.MemberID = #{AuthorID})
+  		ORDER BY NAME
+	</select>
+	
+	<select id="getAttrRevChangSetInfo" resultType="java.util.HashMap">
+		Select T2.RNUM AS RNUM
+			, T2.RNUM+1 As PreRNUM
+			, T2.RNUM-1 AS NextRNUM
+			, T2.ChangeSetID  
+		From (
+				Select Row_Number()OVER(ORDER BY T1.ChangeSetID DESC ) AS RNUM, T1.ChangeSetID From 
+				(
+					Select distinct ChangeSetID, itemId  
+					from XBOLTADM.TB_ITEM_ATTR_REV
+					Where ItemID = #{itemID} and LanguageID = #{languageID}
+				) T1
+			) T2
+		<where>
+			<if test="changeSetID != null and !changeSetID.equals('')">
+				T2.ChangeSetID = #{changeSetID}
+			</if>
+			<if test="rNum != null and !rNum.equals('')">
+				T2.RNUM = #{rNum}
+			</if>
+		</where>	
+	</select>
+	
+	<select id="getAttrRevChangSetID" resultType="String">
+		Select 
+			T2.ChangeSetID AS ChangeSetID
+		From (
+				Select Row_Number()OVER(ORDER BY T1.ChangeSetID DESC ) AS RNUM, T1.ChangeSetID From 
+				(
+					Select distinct ChangeSetID, itemId  
+					from XBOLTADM.TB_ITEM_ATTR_REV
+					Where ItemID = #{itemID} and LanguageID = #{languageID}
+				) T1
+			) T2
+		Where T2.RNUM = #{rNum}
+	</select>
+	
+ 	<select id="getMemberProjectList" resultType="java.util.HashMap">
+ 		SELECT
+			PTR.ProjectID, PXT.Name as ProjectName, TP.Deactivated, TP.ProjectCode
+		FROM
+			XBOLTADM.TB_PROJECT TP 
+			Left Outer Join XBOLTADM.TB_PJT_MEMBER_REL PTR ON TP.ProjectID = PTR.ProjectID
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT PXT on PTR.ProjectID = PXT.ProjectID
+		WHERE
+			PTR.MemberID = #{sessionUserId}
+			AND PXT.LanguageID = #{sessionCurrLangType}
+			AND TP.Status = 'OPN'
+			AND TP.PJCategory = 'VAR'
+		Order by 
+			ProjectID ASC
+ 	</select>
+ 	
+ 	<select id="getMemberProjectText" resultType="String">
+ 		SELECT
+			TP.ProjectCode + ' ' + PXT.Name as ProjectName
+		FROM
+			XBOLTADM.TB_PROJECT TP 
+			Left Outer Join XBOLTADM.TB_PJT_MEMBER_REL PTR ON TP.ProjectID = PTR.ProjectID
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT PXT on PTR.ProjectID = PXT.ProjectID
+		WHERE
+			TP.ProjectID = #{projectID}
+			AND PTR.MemberID = #{sessionUserId}
+			AND PXT.LanguageID = #{sessionCurrLangType}
+			AND TP.Status = 'OPN'
+			AND TP.PJCategory = 'VAR'
+ 	</select>
+ 	
+ 	<select id="getProjectPath" resultType="String">
+ 		SELECT XBOLTADM.fn_getMyAbsPathForProject(#{projectID}, #{languageID}) AS Path
+ 	</select>
+ 	
+ 	<select id="getProjectMemberRelCnt" resultType="String">
+ 		Select Count(ProjectID) from XBOLTADM.TB_PJT_MEMBER_REL where MemberID = #{sessionUserId}
+ 	</select>
+ 	
+ 	<select id="geUserListTypeString" resultType="String">
+ 		SELECT
+			STUFF((
+			  SELECT ',' + CAST(EmployeeNum AS VARCHAR(10))
+			  FROM (
+				 SELECT EmployeeNum
+				 FROM XBOLTADM.TB_MEMBER
+				 WHERE MLVL != 'SYS' AND LoginID not in('GUEST')
+			  )A
+			  FOR XML PATH('')
+			 ),1,1,'') AS userList
+ 	</select>
+ 	
+ 	
+</mapper>

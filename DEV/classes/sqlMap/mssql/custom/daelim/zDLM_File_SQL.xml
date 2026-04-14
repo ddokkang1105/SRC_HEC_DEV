@@ -1,0 +1,108 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="zDLM_File_SQL">	
+	
+	<insert id="addFileMaster" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTDLM.COMTNFILE
+		  	 ( ATCH_FILE_ID 
+		  	 , CREAT_DT
+		  	 , USE_AT
+		  	 )
+		VALUES
+			 ( #{AtchFileId}
+			 , GETDATE()
+			 , 'Y'
+			 )
+	</insert>
+
+	<insert id="addFileDetail" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTDLM.COMTNFILEDETAIL
+		  	 ( ATCH_FILE_ID 
+		  	 , FILE_SN
+		  	 , FILE_STRE_COURS
+		  	 , STRE_FILE_NM
+		  	 , ORIGNL_FILE_NM
+		  	 , FILE_EXTSN
+		  	 , FILE_CN
+		  	 , FILE_SIZE
+		  	 )
+		VALUES
+			 ( #{AtchFileId}
+			 , #{FileSn}
+			 , #{FilePath}
+			 , #{FileRealNm}
+			 , #{FileNm}
+			 , #{FileExt}
+			 , NULL
+			 , #{FileSize}
+			 )
+	</insert>
+
+	<select id="getFilesFrom" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+		SELECT A.ATCH_FILE_ID AS atchFileId
+			 , B.FILE_CN AS fileCn
+			 , B.FILE_SN AS fileSn
+			 , B.FILE_STRE_COURS AS fileStreCours
+			 , B.STRE_FILE_NM AS streFileNm
+			 , B.FILE_EXTSN AS fileExtsn
+			 , B.ORIGNL_FILE_NM AS orignlFileNm
+			 , B.FILE_SIZE AS fileMg
+			 , A.CREAT_DT AS creatDt
+		  FROM XBOLTDLM.COMTNFILE A
+		     , XBOLTDLM.COMTNFILEDETAIL B
+		 WHERE A.ATCH_FILE_ID  = #{ATCH_FILE_ID}
+		   AND A.ATCH_FILE_ID = B.ATCH_FILE_ID
+		   AND A.USE_AT = 'Y'
+	  ORDER BY B.FILE_SN
+	</select>
+
+		<select id="getFileName" resultType="String">
+		SELECT ORIGNL_FILE_NM FROM XBOLTDLM.COMTNFILEDETAIL
+		WHERE FILE_SN = #{seq}
+		AND ATCH_FILE_ID = #{AtchFileId}
+	</select>		
+	
+	<select id="getFileSysName" resultType="String">
+		SELECT STRE_FILE_NM FROM XBOLTDLM.COMTNFILEDETAIL
+		WHERE FILE_SN = #{seq}
+		AND ATCH_FILE_ID = #{AtchFileId}
+	</select>		
+	
+	<select id="getFilePath" resultType="String">
+		SELECT FILE_STRE_COURS FROM XBOLTDLM.COMTNFILEDETAIL
+		WHERE FILE_SN = #{seq}
+		AND ATCH_FILE_ID = #{AtchFileId}
+	</select>		
+	
+	<select id="getFileSn" resultType="String">
+		SELECT MAX(FILE_SN)+1 as FILE_SN FROM XBOLTDLM.COMTNFILEDETAIL
+		WHERE ATCH_FILE_ID = #{AtchFileId}
+	</select>		
+	
+	<select id="selectDownFile" resultType="java.util.HashMap">
+		SELECT STRE_FILE_NM as filename, FILE_STRE_COURS+STRE_FILE_NM as downFile, ORIGNL_FILE_NM  as original
+		FROM XBOLTDLM.COMTNFILEDETAIL
+		WHERE FILE_SN = #{seq}
+		AND ATCH_FILE_ID = #{AtchFileId}
+	</select>
+	
+	<select id="boardFile_select" resultType="java.util.HashMap">
+		SELECT ATCH_FILE_ID
+				,FILE_STRE_COURS+STRE_FILE_NM fullFileName
+				,FILE_SN
+				,FILE_STRE_COURS
+				,STRE_FILE_NM FileName
+				,ORIGNL_FILE_NM FileRealName
+		 FROM XBOLTDLM.COMTNFILEDETAIL
+		WHERE ATCH_FILE_ID = #{atchFileId}
+		  AND FILE_SN = #{Seq}
+	</select>
+	
+	<delete id="boardFile_delete" parameterType="java.util.HashMap">
+		DELETE XBOLTDLM.COMTNFILEDETAIL
+		 WHERE ATCH_FILE_ID = #{atchFileId}
+		   AND FILE_SN = #{Seq}
+	</delete>
+</mapper>

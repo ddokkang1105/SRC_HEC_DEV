@@ -1,0 +1,723 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="zSK_SQL2">
+	<select id="getPrcList_gridList" resultType="java.util.HashMap">
+		SELECT 
+		    RNUM,
+		    0 AS CHK,
+			ItemID,
+			Identifier, 
+		    ItemTypeCode,
+		    Path,
+			Site,
+		    SiteCode, 
+			DocLevCode, 
+			DocLev, 
+			DocFieldCode,
+			DocField, 
+			DocTypeCode, 
+			DocType,
+	        KeyWord,
+		    ItemName,
+		    ClassCode,
+		    OwnerTeamName,
+		    Name,
+		    LastUpdated,
+		    CreationTime,
+		    Version,
+		    CSVersion,
+			SiteCode,
+		    ItemTypeName,
+		    Status,
+		    StatusName,
+			CSStatus,
+			CSStatusName,		
+		    PItemID,
+		    AuthorID,
+			L1Name,
+			L1ItemID,
+			L2Name,
+			L2ItemID,
+			ChargeSite
+		FROM (
+		    SELECT 
+		        Row_Number() OVER(ORDER BY TI.CreationTime DESC) AS RNUM,
+		        TI.ItemID,
+				TI.Identifier AS Identifier,
+		        TI.ItemTypeCode AS ItemTypeCode,
+		        ISNULL(TIPT.Path, '') AS Path,
+		        ISNULL(TIA.PlainText, '') AS ItemName,
+				AggData.Site AS Site,
+				AggData.SiteCode AS SiteCode,
+				ISNULL(TIA3.LovCode,'') AS DocLevCode,
+				ISNULL(LOV2.Value,'')AS DocLev,
+				ISNULL(TIA5.LovCode,'') AS DocFieldCode,
+				ISNULL(LOV4.Value,'') AS DocField, 
+				ISNULL(TIA6.LovCode,'') AS DocTypeCode,
+				ISNULL(LOV5.Value,'') AS DocType,
+                ISNULL(TIA10.PlainText,'')AS KeyWord,
+		        TI.ClassCode,
+		        TOT.Name AS OwnerTeamName,
+		        CASE WHEN #{languageID} In (#{languageID},2052,1041) THEN TM.Name ELSE ISNULL(TM.NameEN,TM.Name) END AS Name,
+		        TI.Version,
+		        TI.Status,
+		        TSD.Name AS StatusName,
+				TCS.Status as CSStatus,
+				TCD.Name AS CSStatusName,
+		        TID.Name AS ItemTypeName,
+		        CONVERT(nvarchar(10), TCSM.ApproveDate, 120) AS LastUpdated,
+		        ISNULL(CONVERT(nvarchar(10), TCSN.ApproveDate, 120),CONVERT(nvarchar(10), TI.CreationTime,120)) AS CreationTime,
+		        TCS.Version AS CSVersion,
+		        ISNULL(ST.FromItemID, '') AS PItemID,
+		        TI.AuthorID,
+				L1.PlainText as L1Name,
+				L1.itemID as L1ItemID,
+				L2.PlainText as L2Name,
+				L2.itemID as L2ItemID,
+				ISNULL(LOV1.Value,'') AS ChargeSite
+		    FROM XBOLTADM.TB_ITEM TI
+			INNER JOIN (
+				SELECT 
+				DIM.ItemID,
+				STUFF((
+				    SELECT ', ' + DTXT2.Name
+				    FROM XBOLTADM.TB_ITEM_DIM DIM2
+				    INNER JOIN XBOLTADM.TB_DIM_VALUE TDV2 ON DIM2.DimValueID = TDV2.DimValueID
+				    INNER JOIN XBOLTADM.TB_DIM_VALUE_TXT DTXT2 ON DTXT2.DimValueID = DIM2.DimValueID AND DTXT2.LanguageID = #{languageID}
+				    WHERE DIM2.ItemID = DIM.ItemID
+				    ORDER BY TDV2.SortNum
+				    FOR XML PATH(''), TYPE).value('.', 'NVARCHAR(MAX)'), 1, 2, '') AS Site,
+				STUFF((
+				    SELECT ', ' + TDV2.DimValueID
+				    FROM XBOLTADM.TB_ITEM_DIM DIM2
+				    INNER JOIN XBOLTADM.TB_DIM_VALUE TDV2 ON DIM2.DimValueID = TDV2.DimValueID
+				    WHERE DIM2.ItemID = DIM.ItemID
+				    ORDER BY TDV2.SortNum
+				    FOR XML PATH(''), TYPE).value('.', 'NVARCHAR(MAX)'), 1, 2, '') AS SiteCode
+				FROM XBOLTADM.TB_ITEM_DIM DIM
+				GROUP BY DIM.ItemID
+			) AggData ON AggData.ItemID = TI.ItemID
+		    LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TSD ON TI.Status = TSD.TypeCode AND TSD.LanguageID = #{languageID} AND TSD.Category = 'ITMSTS'
+		    LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TID ON TI.ItemTypeCode = TID.TypeCode AND TID.LanguageID = #{languageID}
+		    LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TT ON TI.CompanyID = TT.TeamID AND TT.LanguageID = #{languageID}
+		    LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TOT ON TI.OwnerTeamID = TOT.TeamID AND TOT.LanguageID = #{languageID}
+		    LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TI.AuthorID = TM.MemberID
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA ON TI.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA2 ON TI.ItemID = TIA2.ItemID AND TIA2.AttrTypeCode = 'ZAT01010' AND TIA2.LanguageID = '1042'
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA3 ON TI.ItemID = TIA3.ItemID AND TIA3.AttrTypeCode = 'ZAT01020' AND TIA3.LanguageID = '1042'
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA5 ON TI.ItemID = TIA5.ItemID AND TIA5.AttrTypeCode = 'ZAT01040' AND TIA5.LanguageID = '1042'
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA6 ON TI.ItemID = TIA6.ItemID AND TIA6.AttrTypeCode = 'ZAT01060' AND TIA6.LanguageID = '1042'
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA10 ON TI.ItemID = TIA10.ItemID AND TIA10.AttrTypeCode = 'AT01007' AND TIA10.LanguageID = #{languageID}		
+			LEFT OUTER JOIN XBOLTADM.TW_ITEM_HIER TIH ON TI.ItemID = TIH.ItemID
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR L1 ON TIH.L1ItemID = L1.ItemID AND L1.AttrTypeCode = 'AT00001' AND L1.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR L2 ON TIH.L2ItemID = L2.ItemID AND L2.AttrTypeCode = 'AT00001' AND L2.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_ATTR_TYPE_LOV LOV1  ON LOV1.LovCode = TIA2.PlainText And LOV1.AttrTypeCode = 'ZAT01010' AND LOV1.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_ATTR_TYPE_LOV LOV2  ON LOV2.LovCode = TIA3.LovCode AND LOV2.AttrTypeCode = 'ZAT01020' AND LOV2.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_ATTR_TYPE_LOV LOV4  ON LOV4.LovCode = TIA5.LovCode AND LOV4.AttrTypeCode = 'ZAT01040' AND LOV4.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_ATTR_TYPE_LOV LOV5  ON LOV5.LovCode = TIA6.LovCode AND LOV5.AttrTypeCode = 'ZAT01060' AND LOV5.LanguageID = #{languageID}
+		    LEFT OUTER JOIN XBOLTADM.TB_CHANGE_SET TCS ON TI.CurChangeSet = TCS.ChangeSetID
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM ST ON TI.ItemID = ST.ToItemID AND ST.CategoryCode = 'ST1'
+		    LEFT OUTER JOIN XBOLTADM.TW_ITEM_PATH_TXT TIPT ON TIPT.ItemID = TI.ItemID AND TIPT.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TCD ON TCS.Status = TCD.TypeCode AND TCD.LanguageID = #{languageID} AND TCD.Category = 'CNGSTS'
+		    LEFT OUTER JOIN XBOLTADM.TB_CHANGE_SET TCSN ON TI.ItemID = TCSN.ItemID AND TCSN.ChangeType = 'NEW'
+		    LEFT OUTER JOIN XBOLTADM.TB_CHANGE_SET TCSM ON TI.ItemID = TCSM.ItemID AND TCSM.ChangeType = 'MOD' AND TI.ReleaseNo = TCSM.ChangeSetID
+		    WHERE (TI.Deleted != 1 or (TI.Deleted = 1 AND TI.Status = 'REL') )
+		    AND TI.ClassCode in (${defClassList})
+			 <choose>
+			 	<when test="SKO1 != null and SKO1 != ''">
+			 		AND  (
+						TI.ItemID IN(
+							Select ItemID from XBOLTADM.TB_ITEM_DIM Where DimTypeID = '100001' AND DimValueID in ('SKO1')					
+						)
+						<if test="siteCode != null and siteCode != ''">
+						AND TI.ItemID IN(
+							Select ItemID from XBOLTADM.TB_ITEM_DIM Where DimTypeID = '100001' AND DimValueID in (${siteCode})					
+						)
+						</if>
+					)
+			 	</when>
+			 	<otherwise>
+			 		AND TI.ItemID IN(
+						Select ItemID from XBOLTADM.TB_ITEM_DIM Where DimTypeID = '100001' AND DimValueID in (${siteCode})					
+					)
+			 	</otherwise>
+			 </choose>
+		  	 <if test="csStatus != null and csStatus != ''">
+ 				And TCS.Status = #{csStatus}
+ 			 </if>
+ 			 <if test="SC_STR_DT1 != null and SC_STR_DT1 != '' and SC_END_DT1 != null and SC_END_DT1 != ''">
+				AND TCSN.ApproveDate BETWEEN #{SC_STR_DT1} AND #{SC_END_DT1}
+			</if>
+				<if test="SC_STR_DT2 != null and SC_STR_DT2 != '' and SC_END_DT2 != null and SC_END_DT2 != ''">
+				AND TCSM.ApproveDate BETWEEN #{SC_STR_DT2} AND #{SC_END_DT2}
+			</if>
+		) A
+		WHERE 1 = 1
+	    <if test="L1ItemID != null and L1ItemID != ''">
+			And L1ItemID = #{L1ItemID}
+		 </if>
+		 <if test="L2ItemID != null and L2ItemID != ''">
+			And L2ItemID = #{L2ItemID}
+		 </if>
+		<if test="searchValue != null and searchValue != ''">
+	 		And (Identifier like N'%'+#{searchValue}+'%' OR itemName like N'%'+#{searchValue}+'%')
+	 	</if>
+	 	 <if test="totalInfo != null and totalInfo != ''">
+		   AND (
+		        itemName like N'%'+#{totalInfo}+'%'
+		        OR Keyword like N'%'+#{totalInfo}+'%'
+		    )
+	 	</if>
+	    <if test="identifier != null and identifier != ''">
+	 		And Identifier like N'%'+#{identifier}+'%'
+ 		</if>
+	 	<if test="itemName != null and itemName != ''">
+	 		And itemName like N'%'+#{itemName}+'%'
+	 	</if>
+	 	<if test="status != null and status != ''">
+	 		And Status = #{status}
+	 	</if>	
+	 	<if test="ownerTeamID != null and ownerTeamID != ''">
+	 		And Status = #{ownerTeamID}
+	 	</if>
+	 	<if test="authorName != null and authorName != ''">
+	 		And Name like N'%'+#{authorName}+'%'
+	 	</if>
+	 	<if test="ownerTeamName != null and ownerTeamName != ''">
+	 		And OwnerTeamName like N'%'+#{ownerTeamName}+'%'
+	 	</if>
+		<if test="ZAT01060 != null and ZAT01060 != ''">
+	 		And DocTypeCode = #{ZAT01060}
+	 	</if>
+	 	<if test="ZAT01040 != null and ZAT01040 != ''">
+	 		And DocFieldCode = #{ZAT01040}
+	 	</if>
+	 	<if test="ZAT01020 != null and ZAT01020 != ''">
+	 		And DocLevCode = #{ZAT01020}
+	 	</if>
+	 	<if test="keyWord != null and keyWord != ''">
+	 		And Keyword like N'%'+#{keyWord}+'%'
+	 	</if>
+	</select>
+	
+	<select id="execItemHier" parameterType="java.util.HashMap" statementType="CALLABLE">
+		{ CALL XBOLTADM.TW_ITEM_HIER_INSERT }
+	</select>
+	
+	<select id="getLovListByItemType" resultType="String">
+		Select XBOLTADM.fn_GETLovListByItemType(#{itemTypeCode}, #{attrTypeCode})
+	</select>
+	
+	<select id="getProcessActivity_gridList" resultType="java.util.HashMap">
+	WITH ItemHierarchy AS (
+    SELECT 
+        ST1.FromItemID AS ParentItemID,
+        ST1.ToItemID AS ItemID,
+        ST1.SortNum,
+        1 AS Level
+    FROM 
+        XBOLTADM.TB_ITEM ST1
+    WHERE 
+        ST1.ToItemID = #{s_itemID}
+        AND ST1.CategoryCode IN ('ST1', 'ST2')
+        AND ST1.Deleted != '1'
+    UNION ALL
+    SELECT 
+        IH.ItemID AS ParentItemID,
+        ST1.ToItemID AS ItemID,
+        ST1.SortNum,
+        IH.Level + 1 AS Level
+    FROM 
+        ItemHierarchy IH
+    JOIN 
+        XBOLTADM.TB_ITEM ST1 ON ST1.FromItemID = IH.ItemID
+    WHERE 
+        ST1.CategoryCode IN ('ST1', 'ST2')
+        AND ST1.Deleted != '1'
+	),
+	RankedData AS (
+	    SELECT 
+	        Row_Number() OVER (PARTITION BY Item.Identifier ORDER BY Item.Identifier ASC) AS RNUM,
+	        Item.Identifier,
+	        Dic.Name AS ClassName,
+	        Dic.TypeCode AS ClassCode,
+	        Item.ItemID,
+	        [AT00001] AS Activity,
+			[AT00003] AS Outline,
+			[AT00015] AS Input, 
+			[AT00016] AS Output,
+			[ZAT02015] AS PerformanceSystem
+	    FROM (
+	        SELECT 
+	            ItemID,
+	            AttrTypeCode,
+	            PlainText
+	        FROM [XBOLTADM].[TB_ITEM_ATTR]
+	        WHERE LanguageID = #{languageID}　
+	    ) AS SourceTable
+	    PIVOT (
+	        MAX(PlainText)
+	        FOR AttrTypeCode IN ( [AT00001], [AT00003], 
+			[ZAT02007], [ZAT02008], [ZAT02009], [ZAT02010], [ZAT02013],
+			[AT00015], [AT00016], 
+			[ZAT02014], [ZAT02015])
+	    ) AS ItemAttr
+	    JOIN [XBOLTADM].[TB_ITEM] AS Item
+	        ON ItemAttr.ItemID = Item.ItemID
+	    LEFT JOIN XBOLTADM.TB_ITEM_CLASS TIC ON Item.ClassCode = TIC.ItemClassCode
+	    LEFT JOIN XBOLTADM.TB_DICTIONARY DIC ON Item.ClassCode = DIC.TypeCode AND Dic.LanguageID = #{languageID}　
+	    WHERE Item.Identifier NOT LIKE '$%'
+	),
+	FilteredData AS (
+	    SELECT 
+	        RNUM,
+	        Identifier,
+	        ClassName,
+	        ClassCode,
+	        ItemID,
+	        Activity,
+	       Outline,
+			Input,
+			Output,
+			PerformanceSystem
+	    FROM RankedData
+	    WHERE RNUM = 1
+	),
+	ProcessCXN AS (
+	SELECT 
+        STRING_AGG(CASE WHEN ITEM.ClassCode = 'CNL0201A' THEN ITATR.PlainText END, '$$ ') AS r_text,
+        STRING_AGG(CASE WHEN ITEM.ClassCode = 'CNL0201A' THEN ITATR.ItemID END, '$$ ') AS r_ItemID,
+        STRING_AGG(
+		    CASE 
+		        WHEN ITEM.ClassCode = 'CNL0201B' THEN 
+		            CASE 
+		                WHEN TATL2.Value IS NOT NULL AND TATL2.Value != '' THEN 
+		                    ITATR.PlainText + ' (' + TATL2.Value + ')'
+		                ELSE 
+		                    ITATR.PlainText
+		            END
+		    END, 
+		    '$$ '
+		) AS a_text,
+        STRING_AGG(CASE WHEN ITEM.ClassCode = 'CNL0201B' THEN ITATR.ItemID END, '$$ ') AS a_ItemID,
+        STRING_AGG(CASE WHEN ITEM.ClassCode = 'CNL0201C' THEN ITATR.PlainText END, '$$ ') AS s_text,
+        STRING_AGG(CASE WHEN ITEM.ClassCode = 'CNL0201C' THEN ITATR.ItemID END, '$$ ') AS s_ItemID,
+        STRING_AGG(CASE WHEN ITEM.ClassCode = 'CNL0201D' THEN ITATR.PlainText END, '$$ ') AS i_text,
+        STRING_AGG(CASE WHEN ITEM.ClassCode = 'CNL0201D' THEN ITATR.ItemID END, '$$ ') AS i_ItemID,
+        STRING_AGG(CASE WHEN ITEM.ClassCode = 'CNL0201E' THEN ITATR.PlainText END, '$$ ') AS c_text,
+        STRING_AGG(CASE WHEN ITEM.ClassCode = 'CNL0201E' THEN ITATR.ItemID END, '$$ ') AS c_ItemID,
+    	ITEM.ToItemID
+	FROM XBOLTADM.TB_ITEM ITEM
+	LEFT JOIN XBOLTADM.TB_ITEM_ATTR ITATR 
+	    ON ITEM.FromItemID = ITATR.ItemID 
+	    AND ITATR.LanguageID = #{languageID}
+	    AND ITATR.AttrTypeCode = 'AT00001'
+	    AND ITEM.Deleted != '1'
+	LEFT JOIN XBOLTADM.TB_ITEM_ATTR ITATR2
+	    ON ITEM.ItemID = ITATR2.ItemID 
+	    AND ITATR2.LanguageID = #{languageID}
+	    AND ITATR2.AttrTypeCode = 'ZAT02028'
+	    AND ITEM.Deleted != '1'
+	LEFT JOIN XBOLTADM.TB_ATTR_TYPE_LOV TATL2
+	    ON ITATR2.AttrTypeCode = TATL2.AttrTypeCode
+	    AND ITATR2.PlainText = TATL2.LovCode
+	    AND ITATR2.LanguageID = TATL2.LanguageID
+	WHERE ITEM.Deleted != '1'
+	GROUP BY ITEM.ToItemID
+	)
+	SELECT 
+	    ROW_NUMBER() OVER (ORDER BY IH.Level ASC, IH.SortNum ASC, FD.ClassCode ASC, FD.Identifier ASC) AS NewRNUM,
+	    ISNULL(IH.ParentItemID, '') as ParentItemID,
+		ISNULL(IH.ItemID, '') as ItemID,
+		ISNULL(FD.Identifier, '') as Identifier,
+		ISNULL(FD.ClassName, '') as ClassName,
+		ISNULL(FD.ClassCode, '') as ClassCode,
+		ISNULL(FD.Activity, '') as Activity,
+		ISNULL(FD.Outline, '') as Outline,
+		ISNULL(FD.Input, '') as Input,
+		ISNULL(FD.Output, '') as Output,
+		ISNULL(FD.PerformanceSystem, '') as PerformanceSystem,
+		ISNULL(P_CXN.r_text, '') as r_text,
+		ISNULL(P_CXN.r_ItemID, '') as r_ItemID,
+		ISNULL(P_CXN.a_text, '') as a_text,
+		ISNULL(P_CXN.a_ItemID, '') as a_ItemID,
+		ISNULL(P_CXN.s_text, '') as s_text,
+		ISNULL(P_CXN.s_ItemID, '') as s_ItemID,
+		ISNULL(P_CXN.i_text, '') as i_text,
+		ISNULL(P_CXN.i_ItemID, '') as i_ItemID,
+		ISNULL(P_CXN.c_text, '') as c_text,
+		ISNULL(P_CXN.c_ItemID, '') as c_ItemID
+	FROM 
+	    ItemHierarchy IH
+	LEFT JOIN FilteredData FD ON IH.ItemID = FD.ItemID
+	LEFT JOIN ProcessCXN P_CXN ON IH.ItemID = P_CXN.ToItemID
+	WHERE FD.ClassCode = 'CL01006'
+	ORDER BY 
+	    IH.Level ASC, 
+	    IH.SortNum ASC, 
+	    FD.Identifier ASC,
+	    FD.ClassCode ASC; 
+	</select>
+	
+	<select id="OrgTreeListByUserClientID" resultType="java.util.HashMap"> 
+		SELECT
+		CASE C.TeamID When #{rootTeamID} Then 0 Else C.ParentID END AS PRE_TREE_ID,			
+		     C.TeamID AS TREE_ID , D.Name AS TREE_NM , SortNum
+		FROM 
+			XBOLTADM.TB_TEAM C, XBOLTADM.TB_TEAM_TXT D
+		WHERE 
+			C.TeamID = D.TeamID
+			<choose>
+				<when test="sessionClientId == 'SKOS' or sessionClientId == 'SKOJ' or sessionClientId == 'SKBA' ">
+				AND C.Sourcesystemtype = 'SKON001'
+				</when>
+				<when test="sessionClientId == 'SKOY'">
+				AND C.Sourcesystemtype = 'SKON002'
+				</when>
+				<when test="sessionClientId == 'SKOH1' or sessionClientId == 'SKOH2' or sessionClientId == 'SKBM' ">
+				AND C.Sourcesystemtype = 'SKON003'
+				</when>
+			</choose>
+			AND C.Deleted != '1'
+			AND D.LanguageID = #{sessionCurrLangType}
+			<if test="rootTeamID != null and rootTeamID != ''">
+				 AND C.ParentID != 0
+			</if>
+		ORDER BY SortNum,	TREE_NM ASC
+	</select>
+	
+	<select id="getLastUpdatedWithin7Days" resultType="java.util.HashMap">
+		SELECT 
+		*
+	FROM(	
+		SELECT	
+		    TOP ${topNum} Row_Number()OVER(		
+					Order by TI.LastUpdated DESC
+		   ) as RNUM
+		 , TI.ItemID
+ 		 , TI.Identifier
+		 , TIA.PlainText AS ItemName
+		 , TDIS.Name AS ItemStatusName
+		 , ISNULL(CONVERT(char(10), TI.LastUpdated, 120),'') as LastUpdated
+		 , TDT.Name AS TypeCode
+		 , TTT.Name AS TeamName
+		FROM XBOLTADM.TB_ITEM TI		
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA on TI.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}		
+			Left outer Join XBOLTADM.TB_DICTIONARY TDIS on TI.Status = TDIS.TypeCode AND TDIS.Category = 'ITMSTS'  AND TDIS.LanguageID = #{languageID}			
+			Left outer Join XBOLTADM.TB_ITEM_CLASS TCLS on TI.ClassCode = TCLS.ItemClassCode
+			Left Outer Join XBOLTADM.TB_ITEM_TYPE TIT ON TI.ItemTypeCode = TIT.ItemTypeCode
+			Left Outer Join XBOLTADM.TB_DICTIONARY TDT on TI.ItemTypeCode = TDT.TypeCode AND TDT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM ON TI.AuthorID = TM.MemberID
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT ON TM.TeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_CHANGE_SET TCS ON TCS.ItemID = TI.ItemID AND TCS.ChangeSetID = TI.CurChangeSet			
+			Left Outer Join XBOLTADM.TB_ITEM_DIM TID ON TI.ItemID = TID.ItemID 
+		WHERE 
+		      TI.Deleted != 1		      
+			  <if test="changeMgtYN != null and changeMgtYN != ''">
+				  <choose>
+					  <when test="changeMgtYN.equals('Yes')">
+						AND TCLS.ChangeMgt = '1' AND TCS.ChangeSetID IS NOT NULL
+					  </when>
+					  <when test="changeMgtYN.equals('No')">
+						AND TCLS.ChangeMgt = '0'
+					  </when>
+				  </choose>
+			  </if>
+			  <if test="categoryCode != null and categoryCode != ''">
+		     	 AND TI.CategoryCode = #{categoryCode}
+			  </if>	
+			  AND TID.DimValueID = #{defDimValueID}
+		      AND TI.LastUpdated BETWEEN GETDATE()-7 AND GETDATE()	
+		)TC
+			where	TC.RNUM BETWEEN 1 AND 15
+		ORDER BY RNUM
+	</select>
+	
+	<select id="processStt_chart" resultType="java.util.HashMap">
+		SELECT COUNT(*) AS value, TATL.Value AS label
+		FROM XBOLTADM.TW_PROCESS TP
+		INNER JOIN XBOLTADM.TB_ITEM_ATTR IA ON TP.ItemID=IA.ItemID AND IA.AttrTypeCode='ZAT01060' AND IA.LanguageID=#{defaultLang}
+		INNER JOIN XBOLTADM.TB_ATTR_TYPE_LOV TATL ON IA.LovCode = TATL.LovCode AND TATL.AttrTypeCode = 'ZAT01060' AND TATL.LanguageID = #{sessionCurrLangType}
+		WHERE TP.ItemClassCode=#{ClassCode}
+		GROUP BY TATL.Value
+	</select>
+	
+	<!-- SKON 메인사이트 tech. chart 나오지 않아 임시 주석 -->
+	<!-- 	
+	<select id="processStt_chart" resultType="java.util.HashMap">
+		SELECT COUNT(*) AS value, PlainText label, IA.ItemID AS ItemID
+		FROM XBOLTADM.TW_PROCESS TP
+			INNER JOIN XBOLTADM.TB_ITEM_ATTR IA ON TP.L1ItemID=IA.ItemID AND IA.AttrTypeCode='AT00001' AND IA.ClassCode='CL01001' AND IA.LanguageID=#{sessionCurrLangType}
+		WHERE TP.ItemClassCode in (${ClassCode})
+		GROUP BY ItemClassCode, PlainText, IA.ItemID
+	</select>
+	
+	<select id="techStt_chart" resultType="java.util.HashMap">
+		SELECT COUNT(*) AS value, TATL.Value AS label
+		FROM XBOLTADM.TW_PROCESS TP
+		INNER JOIN XBOLTADM.TB_ITEM_ATTR IA ON TP.ItemID=IA.ItemID AND IA.AttrTypeCode='ZAT01060' AND IA.LanguageID=#{defaultLang}
+		INNER JOIN XBOLTADM.TB_ATTR_TYPE_LOV TATL ON IA.LovCode = TATL.LovCode AND TATL.AttrTypeCode = 'ZAT01060' AND TATL.LanguageID = #{sessionCurrLangType}
+		WHERE TP.ItemClassCode=#{ClassCode}
+		GROUP BY TATL.Value
+	</select> -->
+	
+	<select id="getMTRList_gridList" resultType="java.util.HashMap">
+		SELECT 
+		    Row_Number() OVER(ORDER BY A.RNUM ASC) AS RENUM,
+		    A.*
+		FROM (
+		    SELECT 
+		        Row_Number() OVER(ORDER BY TI.CreationTime ASC) AS RNUM,
+		        0 AS CHK,
+		        TI.ItemID,
+		        TI.Identifier AS Identifier,
+		        TI.ItemTypeCode AS ItemTypeCode,
+		        ISNULL(TIPT.Path, '') AS Path,
+		        AggData.Site AS Site,
+				AggData.SiteCode AS SiteCode,
+		        ISNULL(TIA.PlainText, '') AS ItemName,
+		        ISNULL(TIA2.LovCode,'') as ZAT03010Code,
+		        ISNULL(TATL1.Value,'') as ZAT03010,
+		        ISNULL(TIA3.LovCode,'') as ZAT03011Code,
+		        ISNULL(TATL2.Value,'') as ZAT03011,
+		        ISNULL(TIA4.PlainText,'') as ZAT03030,
+				ISNULL(TIA5.PlainText,'') as ZAT03040,
+				ISNULL(TIA6.PlainText,'') as ZAT09006,
+				ISNULL(TIA7.PlainText,'') as ZAT09005,
+				ISNULL(TIA8.PlainText,'') as ZAT03050,
+				ISNULL(TIA9.PlainText,'') as ZAT03070,
+				AggData2.ZAT03090Code AS ZAT03090Code,
+				AggData2.ZAT03090 AS ZAT03090,
+		        TI.ClassCode,
+		        TOT.Name AS OwnerTeamName,
+				CONVERT(nvarchar(10), TI.CreationTime,120) As CreationTime,
+		        CASE WHEN #{languageID} In (#{languageID},2052,1041) THEN TM.Name ELSE ISNULL(TM.NameEN,TM.Name) END AS Name,
+		        TI.Version,
+		        TI.Status,
+		        TSD.Name AS StatusName,
+		        TCS.Status as CSStatus,
+				TCD.Name AS CSStatusName,
+		        TID.Name AS ItemTypeName,
+		        ISNULL(ST.FromItemID, '') AS PItemID,
+		        TI.AuthorID,
+		        L2.PlainText as L2Name,
+		        L2.itemID as L2ItemID
+		    FROM XBOLTADM.TB_ITEM TI
+		   INNER JOIN (
+			SELECT 
+				 DIM.ItemID,
+				 STRING_AGG(DTXT.Name, ', ') AS Site,
+				 STRING_AGG(DTXT.DimValueID, ', ') AS SiteCode
+				FROM XBOLTADM.TB_ITEM_DIM DIM
+       　		INNER JOIN XBOLTADM.TB_DIM_VALUE_TXT DTXT ON DTXT.DimValueID = DIM.DimValueID　and DTXT.LanguageID = #{languageID}    
+				GROUP BY DIM.ItemID		
+			) AggData ON AggData.ItemID = TI.ItemID
+			LEFT OUTER JOIN (
+			SELECT 
+				 TIA.ItemID,
+				 STRING_AGG(TIA.LovCode, ', ') AS ZAT03090Code,
+				 STRING_AGG(TATL.Value, ', ') AS ZAT03090
+				FROM XBOLTADM.TB_ITEM_ATTR TIA
+				LEFT OUTER JOIN XBOLTADM.TB_ATTR_TYPE_LOV TATL ON TIA.LovCode = TATL.LovCode
+       　		WHERE TIA.AttrTypeCode = 'ZAT03090' AND TIA.LanguageID = '1042'
+				GROUP BY TIA.ItemID		
+			) AggData2 ON AggData2.ItemID = TI.ItemID
+		    LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TSD ON TI.Status = TSD.TypeCode AND TSD.LanguageID = #{languageID} AND TSD.Category = 'ITMSTS'
+		    LEFT OUTER JOIN XBOLTADM.TB_CHANGE_SET TCS ON TI.CurChangeSet = TCS.ChangeSetID
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TCD ON TCS.Status = TCD.TypeCode AND TCD.LanguageID = #{languageID} AND TCD.Category = 'CNGSTS'
+		    LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TID ON TI.ItemTypeCode = TID.TypeCode AND TID.LanguageID = #{languageID}
+		    LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TT ON TI.CompanyID = TT.TeamID AND TT.LanguageID = #{languageID}
+		    LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TOT ON TI.OwnerTeamID = TOT.TeamID AND TOT.LanguageID = #{languageID}
+		    LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TI.AuthorID = TM.MemberID
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA ON TI.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}     
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA2 ON TI.ItemID = TIA2.ItemID AND TIA2.AttrTypeCode = 'ZAT03010' AND TIA2.LanguageID = '1042'
+		    LEFT OUTER JOIN XBOLTADM.TB_ATTR_TYPE_LOV TATL1 ON TIA2.LovCode = TATL1.LovCode AND TATL1.LanguageID = #{languageID}
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA3 ON TI.ItemID = TIA3.ItemID AND TIA3.AttrTypeCode = 'ZAT03011' AND TIA3.LanguageID = '1042'
+		    LEFT OUTER JOIN XBOLTADM.TB_ATTR_TYPE_LOV TATL2 ON TIA3.LovCode = TATL2.LovCode AND TATL2.LanguageID = #{languageID}
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA4 ON TI.ItemID = TIA4.ItemID AND TIA4.AttrTypeCode = 'ZAT03030' AND TIA4.LanguageID =#{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA5 ON TI.ItemID = TIA5.ItemID AND TIA5.AttrTypeCode = 'ZAT03040' AND TIA5.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA6 ON TI.ItemID = TIA6.ItemID AND TIA6.AttrTypeCode = 'ZAT09006' AND TIA6.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA7 ON TI.ItemID = TIA7.ItemID AND TIA7.AttrTypeCode = 'ZAT09005' AND TIA7.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA8 ON TI.ItemID = TIA8.ItemID AND TIA8.AttrTypeCode = 'ZAT03050' AND TIA8.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA9 ON TI.ItemID = TIA9.ItemID AND TIA9.AttrTypeCode = 'ZAT03070' AND TIA9.LanguageID = #{languageID}
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM ST ON TI.ItemID = ST.ToItemID AND ST.CategoryCode = 'ST1'
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR L2 ON ST.FromItemID = L2.ItemID AND L2.AttrTypeCode = 'AT00001' AND L2.LanguageID = #{languageID}
+		    LEFT OUTER JOIN XBOLTADM.TW_ITEM_PATH_TXT TIPT ON TIPT.ItemID = TI.ItemID AND TIPT.LanguageID = #{languageID}
+		    WHERE (TI.Deleted != 1 or (TI.Deleted = 1 AND TI.Status = 'REL') )
+		    AND TI.ClassCode in (${defClassList})
+		) A
+		WHERE 1=1
+		 <if test="L2ItemID != null and L2ItemID != ''">
+			And L2ItemID = #{L2ItemID}
+		</if>
+		<if test="ZAT03010 != null and ZAT03010 != ''">
+			And ZAT03010Code = #{ZAT03010}
+		</if>
+		<if test="ZAT03011 != null and ZAT03011 != ''">
+			And ZAT03011Code = #{ZAT03011}
+		</if>
+		<if test="ZAT03030 != null and ZAT03030 != ''">
+			And ZAT03030 like N'%'+#{ZAT03030}+'%'
+		</if>
+		<if test="ZAT03040 != null and ZAT03040 != ''">
+			And ZAT03040  like N'%'+#{ZAT03040}+'%'
+		</if>
+
+		<if test="ZAT01070 != null and ZAT01070 != ''">
+			AND ItemID IN (Select ItemID from XBOLTADM.TB_ITEM_DIM Where DimTypeID = '100001' AND DimValueID in (#{ZAT01070}))
+		</if>
+		<if test="ZAT09006 != null and ZAT09006 != ''">
+			And ZAT09006  like N'%'+#{ZAT09006}+'%'
+		</if>
+		<if test="ZAT09005 != null and ZAT09005 != ''">
+			And ZAT09005  like N'%'+#{ZAT09005}+'%'
+		</if>
+
+		<if test="AT00001 != null and AT00001 != ''">
+			And ItemName  like N'%'+#{AT00001}+'%'
+		</if>
+		<if test="ZAT03050 != null and ZAT03050 != ''">
+			And ZAT03050  like N'%'+#{ZAT03050}+'%'
+		</if>
+		<if test="ZAT03070 != null and ZAT03070 != ''">
+			And ZAT03070  like N'%'+#{ZAT03070}+'%'
+		</if>
+		<if test="ZAT03090 != null and ZAT03090 != ''">
+			And ZAT03090Code like N'%'+#{ZAT03090}+'%'
+		</if>
+
+	</select>
+	
+<select id="getTERList_gridList" resultType="java.util.HashMap">
+	    SELECT DISTINCT
+	        Row_Number() OVER(ORDER BY TI.CreationTime DESC) AS RNUM,
+	        0 AS CHK,
+	        '' AS Link,
+	        TI.ItemID,
+	        TI.Identifier AS Identifier,
+	        TI.ItemTypeCode AS ItemTypeCode,
+	        ISNULL(TIPT.Path, '') AS Path,
+	        AggData.Site AS Site,
+			AggData.SiteCode AS SiteCode,
+	        ISNULL(TIA.PlainText, '') AS ItemName,
+	        ISNULL(TIA2.LovCode, '') AS ZAT03260Code,
+		    ISNULL(TATL1.Value, '') AS ZAT03260,
+		    ISNULL(TIA_AGG.ZAT04003Code, '') AS ZAT04003Code,
+			ISNULL(TIA_AGG.ZAT04003, '') AS ZAT04003,
+			ISNULL(TIA_AGG.ZAT04006Code, '') AS ZAT04006Code,
+			ISNULL(TIA_AGG.ZAT04006, '') AS ZAT04006,
+	        TI.ClassCode,
+	        TOT.Name AS OwnerTeamName,
+			CONVERT(nvarchar(10), TCS.CompletionDT, 120) AS CompletionDT,
+			TCS.Description as Description,
+	        CASE WHEN #{languageID} In (#{languageID},2052,1041) THEN TM.Name ELSE ISNULL(TM.NameEN,TM.Name) END AS Name,
+	        TCS.Version,
+	        TI.Status,
+	        TSD.Name AS StatusName,
+	        TCS.Status as CSStatus,
+			TCD.Name AS CSStatusName,
+	        TID.Name AS ItemTypeName,
+	        TI.AuthorID,
+	        TIA3.PlainText AS KeyWord,
+	        TCS0.AuthorName AS firstAuthorName,
+			CONVERT(nvarchar(10), TCS0.CompletionDT, 120) AS firstCompletionDT,
+         	ISNULL(ST.FromItemID, '') AS PItemID
+	   	FROM XBOLTADM.TB_ITEM TI
+	    INNER JOIN (
+		SELECT 
+			 DIM.ItemID,
+			 STRING_AGG(DTXT.Name, ', ') AS Site,
+			 STRING_AGG(DTXT.DimValueID, ', ') AS SiteCode
+			FROM XBOLTADM.TB_ITEM_DIM DIM
+      　		INNER JOIN XBOLTADM.TB_DIM_VALUE_TXT DTXT ON DTXT.DimValueID = DIM.DimValueID　and DTXT.LanguageID = #{languageID}    
+			GROUP BY DIM.ItemID		
+		) AggData ON AggData.ItemID = TI.ItemID
+	    LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TSD ON TI.Status = TSD.TypeCode AND TSD.LanguageID = #{languageID} AND TSD.Category = 'ITMSTS'
+	    LEFT OUTER JOIN XBOLTADM.TB_CHANGE_SET TCS ON TI.CurChangeSet = TCS.ChangeSetID
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TCD ON TCS.Status = TCD.TypeCode AND TCD.LanguageID = #{languageID} AND TCD.Category = 'CNGSTS'
+	    LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TID ON TI.ItemTypeCode = TID.TypeCode AND TID.LanguageID = #{languageID}
+	    LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TT ON TI.CompanyID = TT.TeamID AND TT.LanguageID = #{languageID}
+	    LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TOT ON TI.OwnerTeamID = TOT.TeamID AND TOT.LanguageID = #{languageID}
+	    LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TI.AuthorID = TM.MemberID
+	    LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA ON TI.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}     
+	    LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA2 ON TI.ItemID = TIA2.ItemID AND TIA2.AttrTypeCode = 'ZAT03260' AND TIA2.LanguageID = '1042'
+	    LEFT OUTER JOIN XBOLTADM.TB_ATTR_TYPE_LOV TATL1 ON TIA2.LovCode = TATL1.LovCode  AND TATL1.AttrTypeCode = 'ZAT03260' AND TATL1.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA3 ON TI.ItemID = TIA3.ItemID AND TIA3.AttrTypeCode = 'AT01007' AND TIA3.LanguageID = #{LanguageID}		
+		LEFT JOIN (
+		    SELECT 
+		        ATTR.ItemID,
+		        STRING_AGG(CASE WHEN ATTR.AttrTypeCode = 'ZAT04003' THEN ATTR.LovCode END, ',') AS ZAT04003Code,
+		        STRING_AGG(CASE WHEN ATTR.AttrTypeCode = 'ZAT04003' THEN ISNULL(VAL.Value, '') END, ',') AS ZAT04003,
+		        STRING_AGG(CASE WHEN ATTR.AttrTypeCode = 'ZAT04006' THEN ATTR.LovCode END, ',') AS ZAT04006Code,
+		        STRING_AGG(CASE WHEN ATTR.AttrTypeCode = 'ZAT04006' THEN ISNULL(VAL.Value, '') END, ',') AS ZAT04006
+		    FROM XBOLTADM.TB_ITEM_ATTR ATTR
+		    LEFT JOIN XBOLTADM.TB_ATTR_TYPE_LOV VAL  ON ATTR.LovCode = VAL.LovCode AND ATTR.AttrTypeCode = VAL.AttrTypeCode AND VAL.LanguageID = #{languageID}
+		    WHERE ATTR.AttrTypeCode IN ('ZAT04003', 'ZAT04006') AND ATTR.LanguageID = #{languageID}
+		    GROUP BY ATTR.ItemID
+		) TIA_AGG ON TI.ItemID = TIA_AGG.ItemID
+	    LEFT OUTER JOIN XBOLTADM.TW_ITEM_PATH_TXT TIPT ON TIPT.ItemID = TI.ItemID AND TIPT.LanguageID = #{languageID}
+ 		LEFT OUTER JOIN XBOLTADM.TB_ITEM ST ON TI.ItemID = ST.ToItemID AND ST.CategoryCode = 'ST1'
+	    LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR L2 ON ST.FromItemID = L2.ItemID AND L2.AttrTypeCode = 'AT00001' AND L2.LanguageID = #{languageID}
+	    LEFT OUTER JOIN XBOLTADM.TB_ITEM_DIM TIDM ON AggData.SiteCode = TIDM.DimValueID and TI.ItemID = TIDM.ItemID
+	    LEFT OUTER JOIN XBOLTADM.TB_CHANGE_SET TCS0 ON TI.ItemID = TCS0.itemID and TCS0.Version = '0'
+	    WHERE (TI.Deleted != 1 )
+	    AND TI.ClassCode in (${defClassList})
+	    <if test="L2ItemID != null and L2ItemID != ''">
+			AND TIDM.DimValueID = (select PlainText from XBOLTADM.TB_ITEM_ATTR where AttrTypeCode = 'ZAT01010' and ItemID = #{L2ItemID})
+		</if>
+	    <if test="ZAT09006 != null and ZAT09006 != ''"> <!-- 문서번호 -->
+			And TI.Identifier = #{ZAT09006}
+		</if>
+		<if test="totalInfo != null and totalInfo != ''"> <!-- 보고제목: 통합 -->
+		   AND (
+		        TIA.PlainText like N'%'+#{totalInfo}+'%'
+		        OR TIA3.PlainText like N'%'+#{totalInfo}+'%'
+		    )
+		</if> 
+		<if test="itemName != null and itemName != ''"> <!-- 보고제목 : 보고제목 -->
+			And TIA.PlainText like N'%'+#{itemName}+'%'
+		</if>
+		 <if test="keyWord != null and keyWord != ''"> <!-- 보고제목: 키워드 -->
+	 		And TIA3.PlainText like N'%'+#{keyWord}+'%'
+	 	</if> 
+	 	<if test="authorName != null and authorName != ''"> <!-- 작성자 -->
+		    AND CASE 
+		        WHEN #{languageID} IN (#{languageID},2052,1041) 
+		        THEN TM.Name 
+		        ELSE ISNULL(TM.NameEN, TM.Name) 
+		    END LIKE N'%'+#{authorName}+'%'
+		</if>
+		<if test="ZAT01010 != null and ZAT01010 != ''"> <!-- 채번 Site -->
+			AND TI.ItemID IN (Select ItemID from XBOLTADM.TB_ITEM_DIM Where DimTypeID = '100001' AND DimValueID in (#{ZAT01010}))
+		</if>
+		<if test="ZAT03260 != null and ZAT03260 != ''"> <!-- 공정(기술문서) -->
+			And TIA2.LovCode = #{ZAT03260}
+		</if>
+		<if test="ZAT04003 != null and ZAT04003.length > 0">
+		    AND (
+		        <foreach collection="ZAT04003" item="item" separator=" OR ">
+		            TIA_AGG.ZAT04003Code LIKE '%${item}%' OR TIA_AGG.ZAT04003 LIKE '%${item}%'
+		        </foreach>
+		    )
+		</if>
+		<if test="ZAT04006 != null and ZAT04006.length > 0">
+		    AND (
+		        <foreach collection="ZAT04006" item="item" separator=" OR ">
+		            TIA_AGG.ZAT04006Code LIKE '%${item}%' OR TIA_AGG.ZAT04006 LIKE '%${item}%'
+		        </foreach>
+		    )
+		</if>
+		<if test="SC_STR_DT1 != null and SC_STR_DT1 != '' and SC_END_DT1 != null and SC_END_DT1 != ''">
+		    AND ISNULL(TCSN.ApproveDate, TI.CreationTime) BETWEEN #{SC_STR_DT1} AND #{SC_END_DT1}
+		</if>
+	</select>
+	
+	
+	<select id="fn_TERcreateItemIdentifier" resultType ="String">
+    	SELECT XBOLTADM.fn_TERcreateItemIdentifier(#{ItemID},#{ClassCode},#{languageID},#{docSiteVal})AS docInfo;
+	</select> 
+	
+	
+</mapper>

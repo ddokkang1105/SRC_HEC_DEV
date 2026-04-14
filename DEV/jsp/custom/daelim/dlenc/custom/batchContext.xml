@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+ xmlns:context="http://www.springframework.org/schema/context"
+ xmlns:p="http://www.springframework.org/schema/p"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xmlns:mvc="http://www.springframework.org/schema/mvc"
+ xmlns:task="http://www.springframework.org/schema/task" 
+ xsi:schemaLocation="http://www.springframework.org/schema/beans   
+       http://www.springframework.org/schema/beans/spring-beans-4.3.xsd
+       http://www.springframework.org/schema/context
+       http://www.springframework.org/schema/context/spring-context-4.3.xsd
+	   http://www.springframework.org/schema/task
+	   http://www.springframework.org/schema/task/spring-task-4.2.xsd">
+
+ <!-- ############################################################################################## -->
+ <!-- ==============   ANNOTATION, PROPERTIES ====================================================== -->
+ <!--	여기서 기본적으로 설정된 패키지 부터 검색하여 내부적으로 읽을 xml을 생성한다.
+ 		그래서처음 로딩시에만 적용되는 부분과 리로딩으로도 적용되는것이 나뉘게 된다.	-->
+ <!-- ############################################################################################## -->      
+ <context:component-scan base-package="xbolt.custom.daelim.dlenc" /> 
+
+<!-- job bean -->
+<bean id="batchJob" class="xbolt.custom.daelim.dlenc.DLENCBatchActionController" />
+
+<task:scheduler id="jobScheduler" pool-size="10" />
+<task:annotation-driven scheduler="jobScheduler"/>
+ 
+<task:scheduled-tasks scheduler="jobScheduler">
+	<task:scheduled ref="batchJob" method="exeBatchHRinterface" cron="0 0 0 * * *"/>
+ 	<task:scheduled ref="batchJob" method="exeAllBatches" cron="0 30 23 * * *"/>
+</task:scheduled-tasks>
+ 
+</beans>

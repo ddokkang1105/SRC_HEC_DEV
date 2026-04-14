@@ -1,0 +1,122 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+        
+<mapper namespace="zDLM_SQL2">
+	
+	<select id="boardList_gridList" resultType="java.util.HashMap">
+	
+  		<![CDATA[
+		SELECT    RNUM
+				, knoId
+	            , knoNm
+	            , orgnztId
+				, orgnztNm
+				, knoTypeNm
+				, userNm
+				, appYmd
+				, frstRegisterId
+				, frstRegistPnttm
+				, lastUpdusrId
+				, lastUpdtPnttm
+
+		FROM (
+			SELECT Row_Number() OVER(ORDER BY A.FRST_REGIST_PNTTM desc ) as RNUM
+				,	A.KNWLDG_ID				knoId		     		
+				,	A.KNWLDG_NM				knoNm
+				,	C.ORGNZT_ID				orgnztId
+				,	C.ORGNZT_NM				orgnztNm
+				,	B.KNWLDG_TY_NM			knoTypeNm			 
+				,	D.USER_NM				userNm
+				,	FORMAT(CONVERT(datetime, A.EVL_DE), 'yyyy-MM-dd') appYmd
+				,	A.FRST_REGISTER_ID		frstRegisterId
+				,	A.FRST_REGIST_PNTTM		frstRegistPnttm
+				,	A.LAST_UPDUSR_ID		lastUpdusrId
+				,	A.LAST_UPDT_PNTTM		lastUpdtPnttm
+			FROM  XBOLTDLM.COMTNDAMKNOIFM A, XBOLTDLM.COMTNDAMMAPKNO B, XBOLTDLM.COMTNDAMMAPTEAM C, XBOLTDLM.COMVNUSERMASTER D
+			WHERE C.ORGNZT_ID = B.ORGNZT_ID
+			AND   A.KNWLDG_TY_CODE = B.KNWLDG_TY_CODE
+			AND   A.FRST_REGISTER_ID = D.ESNTL_ID
+			AND   A.OTHBC_AT = 'Y'
+			AND   A.KNWLDG_EVL = '1'	]]>
+			<if test="orgnztId != null and orgnztId != ''">
+					AND C.ORGNZT_ID = #{orgnztId}
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+				<choose>
+					<when test="searchKey.equals('KnoName')">
+						AND A.KNWLDG_NM like N'%'+#{searchValue}+'%'
+					</when>
+					<when test="searchKey.equals('UserNm')">
+						AND D.USER_NM like N'%'+#{searchValue}+'%'
+					</when>
+				</choose>
+			</if>
+		<![CDATA[
+		) brd
+		]]>
+	</select>		
+	
+	<select id="getForumRegID" resultType="String">
+		SELECT FRST_REGISTER_Id
+		FROM XBOLTDLM.COMTNDAMKNOIFM
+		WHERE KNWLDG_ID = #{knwldgId}
+	</select>
+
+	<select id="boardNextVal" resultType="String">
+		SELECT TOP 1 'DMID_' + CAST(CAST(SUBSTRING(KNWLDG_ID, 6, LEN(KNWLDG_ID) - 5) AS BIGINT) + 1 AS VARCHAR)
+		FROM XBOLTDLM.COMTNDAMKNOIFM
+		ORDER BY KNWLDG_ID DESC;
+	</select>
+	
+	<select id="getKnoTypeCd" resultType="String">
+		SELECT KNWLDG_TY_CODE
+		FROM XBOLTDLM.COMTNDAMMAPKNO
+		WHERE ORGNZT_ID = #{project}
+	</select>
+	
+	<insert id="insertKnoPersonal">
+		 <![CDATA[
+		    INSERT 
+		      INTO  XBOLTDLM.COMTNDAMKNOIFM
+		         (  KNWLDG_ID
+		         ,  KNWLDG_NM
+		         ,	ORGNZT_ID
+		         ,  KNWLDG_TY_CODE
+		         ,  KNWLDG_CN
+		         ,  COLCT_DE
+		         ,  OTHBC_AT
+		         ,  ATCH_FILE_ID
+			     ,	FRST_REGISTER_ID
+			     ,	FRST_REGIST_PNTTM
+		         ,  LAST_UPDUSR_ID			     	         
+		         ,  LAST_UPDT_PNTTM
+		         ,  CORP_ID
+				 ,  SVC_CI_ID
+				 ,  SYMPTON_DESC
+				 ,  ROOTCAUSE_DESC
+				 ,  KNWLDG_EVL 
+		         ) 
+		    VALUES  
+		         (  #{knwldgId}
+		         ,  #{knwldgNm}
+		         ,  #{project}		         		         
+		         ,  #{knoTypeCd}
+		         ,  #{knwldgCn}
+		         ,  GETDATE()
+		         ,  'Y'
+		         ,  #{AtchFileId}
+		         ,  #{userId}
+		         ,  GETDATE()      		 
+		         ,  #{userId}
+		         ,  GETDATE()
+		         ,  #{srArea1}
+		         ,  #{srArea2}
+		         ,  #{sympton}
+		         ,  #{rootCause}
+		         , '1'
+		         ) 
+		         ]]>
+	</insert>
+</mapper>

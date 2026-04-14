@@ -1,0 +1,318 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="api_SQL">	
+	 	
+	<!-- ***** olm api sql ***** 추가 -->
+
+	<insert id="insertItemIfWithInfo" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TI_ITEM_IF
+			(	
+				ItemID,
+				DocumentNo,
+				Version,
+				Identifier
+			) VALUES (
+				#{itemId},
+				#{docNo},
+				#{version},
+				#{identifier}
+			)
+
+	</insert>
+
+	
+	<select id="selectOlmApiItemInfoWithInfo" resultType="java.util.HashMap">
+  		SELECT
+			ItemID as itemId,
+			Version as revNo,
+			DocumentNo as docNo,
+			Identifier as identifier
+			FROM XBOLTADM.TI_ITEM_IF
+			WHERE DocumentNo = #{docNo}
+			<if test="version != null">
+				AND Version = #{version}
+ 			</if>
+			<if test="identifier != null and identifier != ''">
+				AND Identifier LIKE #{identifier} + '%'
+ 			</if>
+	</select>
+	
+		
+	<select id="selectOlmApiItemIDWithVersion" resultType="java.util.HashMap">
+  		SELECT
+			DISTINCT(ItemID) as itemId
+			FROM XBOLTADM.TI_ITEM_IF
+			WHERE DocumentNo = #{docNo}
+			AND Version = #{version}
+			
+	</select>
+	
+		<select id="selectOlmApiItemIDWithIdentifier" resultType="java.util.HashMap">
+  		SELECT
+			DISTINCT(ItemID) as itemId
+			FROM XBOLTADM.TI_ITEM_IF
+			WHERE DocumentNo = #{docNo}
+			AND Identifier LIKE #{identifier} + '%'
+	</select>
+	
+	
+	<update id="updateItemWithUserInfo" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_ITEM 
+		SET Creator = #{MemberID}
+			,LastUser = #{MemberID}
+			,CompanyID = #{CompanyID}
+			,OwnerTeamID = #{TeamID}
+			,AuthorID = #{MemberID}
+		WHERE ItemID = #{itemId}
+	</update>		
+	
+
+	<select id="getMaxIdentifier" resultType ="String">
+
+	SELECT RIGHT('000' + CAST(ISNULL(MAX(CAST(RIGHT(Identifier, 3) AS INT)), 0) + 1 AS VARCHAR(4)), 3) AS nextNum
+	FROM  XBOLTADM.TB_ITEM
+	WHERE 1 =1 AND ClassCode = #{ClassCode}
+    	AND IDENTIFIER IS NOT NULL
+    	AND TRIM(IDENTIFIER) != ''
+    	 AND LEN(IDENTIFIER) >= 4
+    	 AND Deleted != 1
+		AND SUBSTRING(IDENTIFIER, 1, LEN(IDENTIFIER) - 4) =#{docIdentifier};
+	</select> 
+	
+	<select id="selectLovCodeByInfo" resultType="String">
+		SELECT LovCode
+  		FROM XBOLTADM.TB_ATTR_TYPE_LOV
+  		WHERE 1 =1 
+  			<choose>
+  				<when test="attrTypeCode != null and attrTypeCode != ''">
+  					AND AttrTypeCode = #{attrTypeCode}
+				</when>
+				<otherwise>
+  					AND AttrTypeCode LIKE 'ZAT%'
+				</otherwise>
+			</choose>
+  			AND Value = #{value}
+  			AND LanguageID = #{languageID} 
+	</select>
+
+	
+	<select id="selectValueByLovCode" resultType="String">
+		SELECT Value
+  		FROM XBOLTADM.TB_ATTR_TYPE_LOV
+  		WHERE 1 =1 				
+  			AND AttrTypeCode LIKE 'ZAT%'
+  			AND LovCode = #{lovCode}
+  			AND LanguageID = #{languageID} 
+	</select>
+	
+	<select id="selectLovCodeByValue" resultType="String">
+		SELECT LovCode as lovCode
+  		FROM XBOLTADM.TB_ATTR_TYPE_LOV
+  		WHERE  AttrTypeCode = #{lv3AttrTypeCode}
+   			AND Value = #{docProc}
+	</select>
+
+	
+	<select id="selectFromItemIDByInfo"  resultType="String">
+		SELECT
+			L3.ItemID
+		FROM XBOLTADM.TB_ITEM_ATTR L3
+		LEFT JOIN XBOLTADM.TB_ITEM L2ST ON 
+			L2ST.CategoryCode = #{categoryCode}  
+			AND L2ST.ToItemID = L3.ItemID
+		LEFT JOIN XBOLTADM.TB_ITEM_ATTR L2 ON 
+			L2.AttrTypeCode = #{attrTypeCode}
+			AND L2.ClassCode = #{lv2ClassCode}
+			AND L2.LanguageID = #{languageId}
+			AND L2.PlainText = #{docTyp}
+			AND L2.ItemID = L2ST.FromItemID
+		LEFT JOIN XBOLTADM.TB_ITEM L1ST ON 
+			L2ST.CategoryCode = #{categoryCode} 
+			AND L1ST.ToItemID = L2.ItemID
+		LEFT JOIN XBOLTADM.TB_ITEM_ATTR L1 ON 
+			L1.AttrTypeCode = #{attrTypeCode}
+			AND L1.ClassCode = #{lv1ClassCode}
+			AND L1.LanguageID = #{languageId}
+			AND L1.PlainText = #{docArea}
+			AND L1.ItemID = L1ST.FromItemID
+		WHERE L3.AttrTypeCode = #{attrTypeCode}
+			AND L3.ClassCode = #{lv3ClassCode}
+			AND L3.LanguageID = #{languageId}
+			AND L3.PlainText = #{docProc}
+			AND L2.ItemID IS NOT NULL 
+			AND L1.ItemID IS NOT NULL
+	</select>
+		
+	<select id="selectItemIfFileListByItemID" resultType="map">
+		SELECT
+		 DocumentID as itemId,
+		 FileName as fileName,
+		 FileRealName as fileRealName
+  		FROM XBOLTADM.TB_FILE
+  		WHERE DocumentID = #{itemID}
+	</select>
+	
+	<select id="selectItemWithDocNoAndIdentifier" parameterType="java.util.HashMap">
+		SELECT *
+  		FROM XBOLTADM.TB_ITEM
+  		WHERE 1 =1 selectItemIfFileListByItemId
+  			AND DocNo = #{docNo}
+  			AND Identifier LIKE #{identifier}%
+	</select>
+	
+	
+	<delete id="selectChangeSetVersionByItemID" parameterType="java.util.HashMap">
+		SELECT
+			ItemID as itemId,
+			CurChangeSet as curChangeSet,
+			Identifier as identifier,
+			Version as version
+  		FROM XBOLTADM.TB_CHANGESET
+  		WHERE 1 =1 
+  			AND ItemID = #{itemId}
+	</delete>	
+	
+	<select id="selectItemWithItemID" resultType="java.util.HashMap">
+		SELECT
+			I.ItemID as itemId,
+			I.Identifier as identifier,
+			I.ProjectID as projectId,
+			CS.Version as version,
+			I.CurChangeSet as curChangeSet
+		FROM XBOLTADM.TB_ITEM I
+		INNER JOIN XBOLTADM.TB_CHANGE_SET AS CS ON CS.ChangeSetID = I.CurChangeSet
+		WHERE I.ItemID = #{itemId}
+	</select>
+	
+	<delete id="deleteItemAttrWithItemID" parameterType="java.util.HashMap">
+		DELETE XBOLTADM.TB_ITEM_ATTR
+  		WHERE ItemID = #{itemId}
+	</delete>
+	
+	<insert id="insertChangeSetWithCompleted" parameterType="java.util.HashMap">
+ 		INSERT INTO
+ 			XBOLTADM.TB_CHANGE_SET(
+ 			ChangeSetID
+			<if test='!"".equals(version)'>
+ 			, Version
+			</if>
+ 			, ProjectID
+            , PJTCategory
+            , ItemID
+            , ItemClassCode
+            
+            , ItemTypeCode
+            , AuthorID
+            , AuthorName
+            , AuthorTeamID
+            , CompanyID
+            
+            , Description
+            , ChangeType
+            , Reason
+            , Status
+ 			, CreationTime
+ 			
+ 			, Approver
+ 			, ToItemID
+ 			, FromItemID
+ 			, CheckInOption
+ 			<if test="SRID != null and SRID != ''">
+ 			, SRID
+ 			</if>
+ 			<if test="SCRID != null and SCRID != ''">
+ 			, CRID
+ 			</if>
+ 			, ApproveDate
+ 			, CompletionDT
+ 		)VALUES(
+			#{ChangeSetID}
+			<if test='!"".equals(version)'>
+			, #{version}
+			</if>
+			, #{ProjectID}
+			, #{PJTCategory}
+			, #{ItemID}
+			, #{ItemClassCode}
+			
+			, #{ItemTypeCode}
+			, #{AuthorID}
+			, N''+#{AuthorName}
+			, #{AuthorTeamID}
+			, #{CompanyID}
+			
+			, #{Description}
+			, #{ChangeType}
+			, #{Reason}
+			, #{Status}
+			, getdate()
+			
+			, #{Approver}
+			, #{ToItemID}
+			, #{FromItemID}
+			, #{checkInOption}
+			<if test="SRID != null and SRID != ''">
+ 			, #{SRID}
+ 			</if>
+ 			<if test="SCRID != null and SCRID != ''">
+ 			, #{SCRID}
+ 			</if>
+			, getdate()
+			, getdate()
+		)
+ 	</insert>
+	 	
+	 	
+	 <delete id="deleteDimWithItemID" parameterType="java.util.HashMap">
+		DELETE XBOLTADM.TB_ITEM_DIM
+		WHERE ItemID = #{itemId}
+	</delete>	
+	 	
+	 	
+	 <insert id="insertItemAttrRevWithInfo" parameterType="java.util.HashMap">
+		Insert Into XBOLTADM.TB_ITEM_ATTR_REV(
+			ChangeSetID,
+			Seq,
+			ItemID,
+			AttrTypeCode,
+			LanguageID,
+			ModelID,
+			PlainText,
+			HtmlText,
+			LovCode,
+			ItemTypeCode,
+			ClassCode,
+			Deleted,
+			Font,
+			FontFamily,
+			FontStyle,
+			FontSize,
+			FontColor,
+			LastUpdated
+		) Values(
+				#{changeSetID},
+				#{seq},
+				#{itemID},
+				#{attrTypeCode},
+				#{languageID},
+				#{modelID},
+				#{plainText},
+				#{htmlText},
+				#{lovCode},
+				#{itemTypeCode},
+				#{classCode},
+				#{deleted},
+				#{font},
+				#{fontFamily},
+				#{fontStyle},
+				#{fontSize},
+				#{fontColor},
+				Getdate()
+			)
+	</insert>
+	
+	
+
+</mapper>

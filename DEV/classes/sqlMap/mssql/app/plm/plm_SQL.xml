@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+       
+<mapper namespace="plm_SQL">
+ 	<update id="updateInstanceAttr" parameterType="java.util.HashMap">
+	 	Update XBOLTAPP.PIM_INSTANCE_ATTR Set
+			Value = #{value}
+			, Lastuser = #{lastUser}
+			, LastUpdated = GetDate()
+		Where instanceNo = #{instanceNo}
+		And InstanceClass = #{InstanceClass}
+		And AttrTypeCode = #{attrTypeCode}
+	</update>
+ 	
+ 	<update id="updateProcInstance" parameterType="java.util.HashMap">
+	 	Update XBOLTAPP.PIM_PROC_INST Set
+			ProcInstNo = #{ProcInstNo}
+			,LastUser = #{lastUser}
+			,LastUpdated = GetDate()
+		Where ProcInstanceID = #{procInstanceID}
+	</update>
+	
+	<select id="getElmItemID" resultType="String">
+		 Select ElmItemID From XBOLTAPP.PIM_ELM_INST Where ElmInstNo = #{ElmInstNo}
+	</select>
+	
+	<select id="getProcInstanceID" resultType="String">
+		 Select ProcessID From XBOLTAPP.PIM_PROC_INST Where ProcInstNo = #{ProcInstNo}
+	</select>
+	
+	<select id="getElmInstacneURL" resultType="String">
+		Select TM.URL  
+		From XBOLTAPP.PIM_ITEM_MENU TIMA
+		Left Outer Join XBOLTADM.TB_Menu TM ON TM.MenuID = TIMA.MenuID 
+		 WHERE TIMA.ItemID = #{itemID} AND TIMA.MNLVL = 1
+ 	</select>
+ 	
+ 	<select id="getProcInstList_gridList" resultType="java.util.HashMap">
+ 	 SELECT
+ 	 	Row_Number() OVER (Order By TPI.CreationTime) AS RNUM
+ 	    , TPI.ProcInstanceID
+		, TPI.ProcInstNo
+		, TPI.ProcessID
+		, TOA.Value AS ProcInstanceName			
+		, ISNULL(TM.Name,'') AS OwnerName
+		, ISNULL(TEAM.Name,'') AS OwnerTeamName
+		, CONVERT(VARCHAR, TPI.CreationTime, 111) AS CreationTime
+		, CONVERT(VARCHAR, TPI.StartTime, 111) AS StartDate
+		, CONVERT(VARCHAR, TPI.EndTime, 111) AS EndDate
+		, CONVERT(VARCHAR, TPI.DueDate, 111) AS DueDate
+		, ISNULL(TD.Name,'') AS StatusNM
+		, TOA.InstanceClass
+	FROM XBOLTAPP.PIM_PROC_INST TPI
+		Left Outer join XBOLTADM.TB_MEMBER TM ON TPI.OwnerID = TM.MemberID
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM ON TEAM.TeamID = TPI.OwnerTeamID And TEAM.LanguageID = #{languageID}
+		Left Outer Join XBOLTAPP.PIM_INSTANCE_ATTR TOA ON  TPI.ProcInstNo = TOA.instanceNo AND TOA.AttrTypeCode = 'AT01001' And TOA.InstanceClass = 'PROC' And LanguageID = #{languageID}		
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON  TPI.Status = TD.TypeCode AND TD.Category = 'PROCSTS' AND TD.LanguageID = #{languageID}
+	WHERE 1=1
+	 <if test="instanceName != null and instanceName != ''">
+		And TOA.Value like '%'+#{instanceName}+'%'
+	</if>
+	</select>
+	
+ 	<select id="getWBSInstanceList" resultType="java.util.HashMap">    
+ 	   SELECT 	'' AS P_TREE_ID,                 
+            	TXPI.ProcInstNo AS TREE_ID,
+            	TIA.PlainText  AS TREE_NM,
+            	CONVERT(VARCHAR,(SELECT MIN(ReqStartDate) FROM XBOLTAPP.PIM_ELM_INST WHERE ProcInstNo = TXPI.ProcInstNo),112) AS ReqStartDate,
+            	CONVERT(VARCHAR,(SELECT MIN(ReqStartDate) FROM XBOLTAPP.PIM_ELM_INST WHERE ProcInstNo = TXPI.ProcInstNo),105) AS ViewStartTime,
+           	    CONVERT(VARCHAR,(SELECT MAX(ReqDueDate) FROM XBOLTAPP.PIM_ELM_INST WHERE ProcInstNo = TXPI.ProcInstNo),112) AS ReqDueDate,
+           	    CONVERT(VARCHAR,(SELECT MAX(ReqDueDate) FROM XBOLTAPP.PIM_ELM_INST WHERE ProcInstNo = TXPI.ProcInstNo),105) AS ViewEndTime,
+				'' as PreElmInstNo,
+				'' as ParentInstNo,
+				'' AS ClassCode
+         FROM   XBOLTAPP.PIM_PROC_INST TXPI        
+           	    Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TXPI.ProcessID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+        WHERE   TXPI.ProcInstNo = #{ProcInstNo}
+	   UNION ALL
+ 	   SELECT  ISNULL(TXSI.ParentElmInstNo, ProcInstNo) AS P_TREE_ID,                 
+	            TXSI.ElmInstNo AS TREE_ID,
+	            ISNULL(TIA.PlainText,TXIA.Value)  AS TREE_NM,
+	            CONVERT(VARCHAR,ISNULL(TXSI.ReqStartDate,(SELECT MIN(ReqStartDate) FROM XBOLTAPP.PIM_ELM_INST WHERE ParentElmInstNo = TXSI.ElmInstNo)),112) AS ReqStartDate,
+	            CONVERT(VARCHAR,ISNULL(TXSI.ReqStartDate,(SELECT MIN(ReqStartDate) FROM XBOLTAPP.PIM_ELM_INST WHERE ParentElmInstNo = TXSI.ElmInstNo)),105) AS ViewStartTime,
+	            CONVERT(VARCHAR,ISNULL(TXSI.ReqDueDate,(SELECT MAX(ReqDueDate) FROM XBOLTAPP.PIM_ELM_INST WHERE ParentElmInstNo = TXSI.ElmInstNo)),112) AS ReqDueDate,
+           	    CONVERT(VARCHAR,ISNULL(TXSI.ReqDueDate,(SELECT MAX(ReqDueDate) FROM XBOLTAPP.PIM_ELM_INST WHERE ParentElmInstNo = TXSI.ElmInstNo)),105) AS ViewEndTime,
+				TXSI.PreElmInstNo,
+				TXSI.ParentElmInstNo, 
+				TI.ClassCode
+         FROM  XBOLTAPP.PIM_ELM_INST TXSI        
+                Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TXSI.ElmItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+                Left Outer Join XBOLTAPP.PIM_INSTANCE_ATTR TXIA ON TXIA.instanceNo = TXSI.ElmInstNo And TXIA.AttrTypeCode = 'AT01001'
+				Left Outer Join XBOLTADM.TB_ITEM TI ON TXSI.ElmItemID = TI.ItemID
+        WHERE  TXSI.ProcInstNo = #{ProcInstNo}
+	</select>
+	
+ 	<select id="getWBSStepList" resultType="java.util.HashMap">    
+ 	   	SELECT FromItemID, ToItemID ,Identifier
+		  FROM XBOLTADM.TB_ITEM 
+		 WHERE ToItemID in (
+		 		SELECT Items 
+		 		  FROM XBOLTADM.fn_Split(
+		 		  	       (SELECT XBOLTPIM.fn_GetWbsChildrenList(#{wbsItemID}, #{rootItemID}, 0)),',')
+		 		       )
+		       AND ItemTypeCode in (
+		               SELECT ConTypeCode 
+		                 FROM xboltadm.tb_arc_filter 
+		                WHERE RootItemID = #{rootItemID})
+		 ORDER BY identifier
+	</select>
+ 	
+ 	<select id="getWBSRootItemID" resultType="String">    
+ 	   	SELECT TOP 1 FromItemID 
+          FROM XBOLTADM.TB_ITEM 
+         WHERE ToItemID = #{wbsItemID} 
+               AND CategoryCode = 'ST1'
+	</select>
+ 	 	
+ 	<insert id="insertProcInstTxt" parameterType="java.util.HashMap">
+	 	Insert Into 
+		 XBOLTAPP.PIM_INSTANCE_ATTR (
+	        instanceNo
+		   ,InstanceClass
+	       ,AttrTypeCode
+	       ,Value
+	       ,RegUserID
+	       ,RegTeamID
+	       ,LastUser
+	       ,LastUserTeamID
+	       ,LastUpdated
+	     ) Values(
+			#{instanceNo}
+		   ,#{objectType}
+	       ,#{attrTypeCode}
+	       ,#{instanceName}
+	       ,#{loginUserID}
+	       ,#{loginTeamID}
+	       ,#{loginUserID}
+	       ,#{loginTeamID}
+		   ,GetDate()	      
+		 )
+ 	</insert>
+ 	
+ 	<update id="UpdateElmInst" parameterType="java.util.HashMap">
+	 	UPDATE XBOLTAPP.PIM_ELM_INST
+	 	   SET ReqStartDate = #{startDate}, ReqDueDate = #{endDate}
+	 	 WHERE ElmInstNo = #{ElmInstNo}
+	</update>
+ 	
+ 	<select id="getWBSStepCnt" resultType="String">    
+		SELECT
+				COUNT(*) AS CNT
+		FROM
+			XBOLTAPP.PIM_ELM_INST
+		WHERE ElmInstNo = #{ElmInstNo}
+	</select>
+	
+ 	<update id="UpdateParentElmInst" parameterType="java.util.HashMap">
+	 	UPDATE XBOLTAPP.PIM_ELM_INST
+		   SET ReqStartDate = A.ReqStartDate, ReqDueDate = A.ReqDueDate
+		  FROM XBOLTAPP.PIM_ELM_INST TIS
+		       Left Outer Join (
+			   SELECT MIN(ReqStartDate) AS ReqStartDate, MAX(ReqDueDate) AS ReqDueDate, ParentInstNo
+				 FROM XBOLTAPP.PIM_ELM_INST 
+				WHERE ParentElmInstNo = #{ElmInstNo}
+				      GROUP BY ParentElmInstNo 
+		       )A ON TIS.ElmInstNo = A.ParentElmInstNo
+	 	 WHERE TIS.ElmInstNo = #{ElmInstNo}
+	</update>
+</mapper>

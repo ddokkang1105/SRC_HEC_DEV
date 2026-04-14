@@ -1,0 +1,1429 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	project Item 관련 관련	-->
+<mapper namespace="wf_SQL">
+ 	
+	<select id="getWfMemberList_gridList" resultType="java.util.HashMap">		
+		Select
+			<if test='"Y".equals(secYN) and "".equals(selectMember)'>
+			TOP 0 
+			</if>
+			Row_Number()OVER(ORDER BY TM.Name) as RNUM, 
+			<![CDATA[
+			ISNULL(TM.Name,'') + Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')' Else '' End +'/'+ISNULL(TCTXT.Name,'') + '<BR>' + ISNULL(TM.Email,'') + ', '
+			+ ISNULL(TM.MTelNum,'') + Case When ISNULL(TM.TelNum,'') != '' Then  ', '  Else '' End + ISNULL(TM.TelNum,'') AS MemberInfo,
+			]]> 
+			TM.Name+ Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')' Else '' End+Case When ISNULL(TM.EMAIL,'') != '' Then '/' +ISNULL(TM.EMAIL,'') Else '' End AS MemberName,
+			TMTXT.Name AS TeamName,
+			XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{languageID}) + '/' + TMTXT.Name AS TeamPath,
+			TM.MemberID,
+			TM.Name + Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')' Else '' End AS Name,
+			<choose>
+				<when test='"Y".equals(secYN) and !"".equals(selectMember)'>
+					CASE XBOLTADM.fn_GetMemberRole(#{selectMember},#{tmpSelSHR},TM.MemberID)
+					WHEN 'H' THEN (SELECT TOP 1 Name FROM XBOLTADM.TB_DICTIONARY TD WHERE TD.Category = 'WFSTEP' AND TYPECODE = 'AGR' And TD.LanguageID = #{languageID})
+					WHEN 'P' THEN (SELECT TOP 1 Name FROM XBOLTADM.TB_DICTIONARY TD WHERE TD.Category = 'WFSTEP' AND TYPECODE = 'PAGR' And TD.LanguageID = #{languageID})
+					WHEN 'S' THEN (SELECT TOP 1 Name FROM XBOLTADM.TB_DICTIONARY TD WHERE TD.Category = 'WFSTEP' AND TYPECODE = 'APRV' And TD.LanguageID = #{languageID})
+					WHEN 'R' THEN (SELECT TOP 1 Name FROM XBOLTADM.TB_DICTIONARY TD WHERE TD.Category = 'WFSTEP' AND TYPECODE = 'REF' And TD.LanguageID = #{languageID})
+					WHEN 'W' THEN (SELECT TOP 1 Name FROM XBOLTADM.TB_DICTIONARY TD WHERE TD.Category = 'WFSTEP' AND TYPECODE = 'REW' And TD.LanguageID = #{languageID})
+					ELSE '' END AS Role,
+					CASE XBOLTADM.fn_GetMemberRole(#{selectMember},#{tmpSelSHR},TM.MemberID)
+					WHEN 'H' THEN 'AGR'
+					WHEN 'P' THEN 'PAGR'
+					WHEN 'S' THEN 'APRV'
+					WHEN 'R' THEN 'REF'
+					WHEN 'W' THEN 'REW'
+					ELSE '' END AS RoleCode
+				</when>
+				<otherwise>
+					'' AS Role
+				</otherwise>
+			</choose>
+			<if test='"Y".equals(secYN) and !"".equals(selectMember)'>
+			, XBOLTADM.fn_GetWFMemberListIndex(#{selectMember},TM.MemberID) AS MemberIndex
+			</if>
+		From XBOLTADM.TB_MEMBER TM
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TMTXT ON TMTXT.TeamID = TM.TeamID And TMTXT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TCTXT ON TCTXT.TeamID = TM.CompanyID And TCTXT.LanguageID = #{languageID}		
+		where 
+			TM.UserType = 1 AND TM.Active = 1
+			<if test="teamID != null and teamID != ''">
+				AND TM.TeamID = #{teamID}
+			</if>
+			<if test="UserLevel != null and !UserLevel.equals('ALL')">
+				AND TM.Authority != 4
+			</if>
+			<if test='selectMember != null and !"".equals(selectMember) and "Y".equals(secYN)'>
+				AND TM.MemberID IN (${selectMember})
+			</if>
+			<if test='selectMember != null and !"".equals(selectMember) and !"Y".equals(secYN)'>
+				AND TM.MemberID NOT IN (${selectMember})
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+				<choose>
+					<when test="searchKey.equals('Name')">
+						AND (TM.Name Like N'%'+#{searchValue}+'%' OR TM.NameEN Like N'%'+#{searchValue}+'%') 
+					</when>
+					<when test="searchKey.equals('ID')">
+						AND TM.LoginID Like N'%'+#{searchValue}+'%'
+					</when>
+				</choose>
+			</if>
+		ORDER BY 
+			<if test='"Y".equals(secYN) and !"".equals(selectMember)'>
+				MemberIndex , 
+			</if>
+			TM.Name	
+	</select>
+	
+	<select id="workFlowAllocation_gridList" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY WA.WFID ASC) as RNUM
+		, 0 AS CHK
+		, WA.WFID
+		, WA.Description
+		, WA.Deactivated
+		, WA.Creator
+		, CONVERT(varchar(20),WA.CreationTime, 120) AS CreationTime
+		From
+		XBOLTADM.TB_WF_ALLOCATION WA
+		WHERE WA.WFID = #{WFID}
+	
+	</select>
+	
+	<select id="WFAllocation_gridList" resultType="java.util.HashMap">
+		SELECT 
+			  TypeCode,
+			  LanguageID,
+			  Name
+		FROM  XBOLTADM.TB_DICTIONARY 
+		WHERE TypeCode like 'WFA%'
+			   AND LanguageID = #{LanguageID}
+			   AND Editable = 1
+		Order By SortNum
+	
+	</select>
+	
+	<select id="getWFID" resultType="String">
+		SELECT 
+			  WFID
+		FROM  XBOLTADM.TB_WF_INST 
+		WHERE WFInstanceID = #{wfInstanceID}	
+	</select>
+	
+	<select id="getProjectID" resultType="String">
+		SELECT 
+			  ProjectID
+		FROM  XBOLTADM.TB_WF_INST 
+		WHERE WFInstanceID = #{wfInstanceID}	
+	</select>
+	
+	<select id="getPostProcessing" resultType="String">
+		SELECT 
+			  PostProcessing
+		FROM  XBOLTADM.TB_WF_ALLOCATION 
+		<where>
+			<if test='wfID != null and !"".equals(wfID)'>
+				AND WFID = #{wfID} 
+			</if>
+			<if test='wfDocType != null and !"".equals(wfDocType)'>
+				AND DocCategoryCode = #{wfDocType}
+			</if>
+			<if test='wfAllocID != null and !"".equals(wfAllocID)'>
+				AND WFAllocID = #{wfAllocID}
+			</if>
+			<if test='docSubClass != null and !"".equals(docSubClass)'>
+				AND DocSubClass = #{docSubClass}
+			</if>
+		</where> 
+	</select>
+	
+	<select id="getMandatoryGRID" resultType="String">
+		SELECT 
+			  MandatoryGRID
+		FROM  XBOLTADM.TB_WF 
+		WHERE WFID = #{WFID}	
+	</select>
+	
+	<select id="getEndGRID" resultType="String">
+		SELECT 
+			  EndGRID
+		FROM  XBOLTADM.TB_WF 
+		WHERE WFID = #{WFID}	
+	</select>
+	
+	<select id="getAgrSeq" resultType="String">
+		SELECT 
+			  AgrSeq
+		FROM  XBOLTADM.TB_WF 
+		WHERE WFID = #{wfID}	
+	</select>
+	
+	<select id="getWFActorID" resultType="String">
+		SELECT 
+			  ActorID
+		FROM  XBOLTADM.TB_WF_INST TWI
+			LEFT OUTER JOIN XBOLTADM.TB_WF_STEP_INST TWSI 
+				 ON TWI.WFID = TWSI.WFID 
+				 AND TWI.WFInstanceID = TWSI.WFInstanceID 
+				 AND TWI.ProjectID = TWSI.ProjectID
+		WHERE TWI.ProjectID = #{projectID}
+		  AND WFStepID = #{wfStepID}
+		  AND TWI.WFInstanceID = #{wfInstanceID}
+		  <if test="wfInstanceStatus != null and wfInstanceStatus != ''">
+ 			<![CDATA[ 
+ 				and TWSI.Seq <= TWI.CurSeq 
+ 				and TWSI.Status != 0
+ 			]]> 
+ 		</if>
+	</select>
+	
+	<select id="getWFDescription" resultType="java.util.HashMap">
+		SELECT 
+			  TP.ProjectCode,
+			  TD.Description
+		FROM  XBOLTADM.TB_PROJECT TP
+		LEFT OUTER JOIN XBOLTADM.TB_WF_INST TWI ON TP.ProjectID = TWI.ProjectID 
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TWI.WFID = TD.TypeCode
+		WHERE TP.ProjectID = #{projectID}
+	
+	</select>
+	
+	<select id="getApprTransYN" resultType="String">
+		SELECT ISNULL(TransferYN,'N') AS TransferYN
+		  FROM XBOLTADM.TB_WF_STEP
+		 WHERE WFStepID = #{WFStepID}
+	</select>
+	
+  	<update id="changeActor" parameterType="java.util.HashMap">
+  		UPDATE XBOLTADM.TB_WF_STEP_INST
+  		  SET ActorID = #{actorID},
+  		      ActorTeamID = #{actorTeamID}
+		Where StepInstID = #{stepInstID}
+  	</update>
+  	
+  	
+	<select id="getChangeSetInfoWF" resultType="java.util.HashMap">
+	  	SELECT Top 1
+			  TCS.ChangeSetID
+	 		 ,TCS.ProjectID		
+			 ,TCS.Description
+			 ,ISNULL(TTT.Name,'') AS TeamName
+			 ,TCS.AuthorName + Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')' Else '' End AS AuthorName
+			 ,TM.Name + Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')' Else '' End AS Name
+			 ,ISNULL(CONVERT(char(10),TCS.CreationTime, 120),'') as CreationTime
+			 ,TCS.Status as CSStatus
+			 ,TCTS.Name AS  ChangeType
+			 ,TCS.ChangeType AS ChangeTypeCode
+			 ,TCS.AuthorID
+      	     ,TCS.Version
+      	   	 ,TCS.ItemTypeCode
+		     ,TCS.ItemClassCode
+		     ,TCS.Description
+		     ,TCS.Reason
+		     ,ISNULL(CONVERT(char(10),TCS.ValidFrom, 120),'') as ValidFrom 
+		     ,TI.ItemID	
+		     ,TI.Identifier
+		   	 ,TIA.PlainText AS ItemName
+		   	 ,TI.Status AS ItemStatus
+		 
+			FROM XBOLTADM.TB_CHANGE_SET TCS
+				Left Outer Join XBOLTADM.TB_ITEM TI		on TCS.ItemID = TI.ItemID		
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA	on TCS.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_MEMBER TM on TCS.AuthorID = TM.MemberID
+				Left Outer Join XBOLTADM.TB_TEAM_TXT TTT on TCS.AuthorTeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}						
+				Left outer Join XBOLTADM.TB_DICTIONARY TCTS	on TCS.ChangeType = TCTS.TypeCode AND TCTS.Category = 'CNGT1'  AND TCTS.LanguageID = #{languageID}	
+			<where>				
+				<if test='s_itemID != null and !"".equals(s_itemID)'>
+					TCS.ItemID = #{s_itemID}
+				</if>
+				<if test='ChangeSetID != null and !"".equals(ChangeSetID)'>
+					AND TCS.ChangeSetID = #{ChangeSetID}
+				</if>	
+				<if test='ProjectID != null and !"".equals(projectID)'>
+					AND TCS.ProjectID = #{ProjectID}
+				</if>	
+				<if test='AuthorID != null and !"".equals(AuthorID)'>
+					AND TCS.AuthorID = #{AuthorID}
+				</if>				
+				<if test='wfInstanceID != null and !"".equals(wfInstanceID)'>
+					AND TCS.WFInstanceID = #{wfInstanceID}
+				</if>
+			</where>
+	</select>
+	
+ 	<insert id="insertWfStepInst" parameterType="java.util.HashMap">
+ 		INSERT INTO
+ 			XBOLTADM.TB_WF_STEP_INST(
+ 			StepInstID
+ 			, WFInstanceID
+	        , Seq
+	        , Status
+	        , Event
+	        , Comment
+	        , ActorID
+	        , ActorTeamID
+	        , ProjectID
+	        , ChangeSetID
+	        , WFID
+	        , WFStepID
+	        , CreationTime
+	        , ApprovalDate
+	        , LastUpdated
+ 		)VALUES( 		
+ 		    #{StepInstID}
+ 		    , #{WFInstanceID}
+	        , #{Seq}
+	        , #{Status}
+	        , #{Event}
+	        , #{Comment}
+	        <choose>	
+				<when test='ActorTeamID != null and !"".equals(ActorTeamID)'>
+				, ''
+				</when>
+				<otherwise>
+	       		, #{ActorID}
+				</otherwise>
+	        </choose>	
+	        <choose>	
+				<when test='ActorTeamID != null and !"".equals(ActorTeamID)'>
+				, #{ActorTeamID}
+				</when>
+				<otherwise>
+	       		, (SELECT TeamID FROM XBOLTADM.TB_MEMBER WHERE MemberID = #{ActorID})
+				</otherwise>
+	        </choose>	
+	        , #{ProjectID}
+	        , #{ChangeSetID}
+	        , #{WFID}
+	        , #{WFStepID}
+      		, getdate()
+      		<choose>
+				<when test='!"0".equals(Status)'>
+					<choose>
+						<when test="Status == null">
+							,null
+						</when>
+						<otherwise>
+							,getdate()
+						</otherwise>
+					</choose>
+				</when>
+				<otherwise>
+					,null
+				</otherwise>
+			</choose>
+			, getdate()
+		)
+ 	</insert>
+ 	
+	<select id="getWfIdFromWfStepInst" resultType="String">
+  		SELECT distinct WFID
+  		FROM XBOLTADM.TB_WF_STEP_INST
+  		where ChangeSetID = #{ChangeSetID}
+	</select>
+	
+	<select id="getMaxStepInstID" resultType="String">
+  		SELECT ISNULL(MAX(StepInstID), 0) AS MAXID
+      	FROM XBOLTADM.TB_WF_STEP_INST
+	</select>
+	
+	<select id="getWfList" resultType="java.util.HashMap">
+		SELECT T1.WFID, T2.Name, T1.ServiceCode
+      	FROM XBOLTADM.TB_WF T1
+      	LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY T2
+  			on T2.Category = 'WF' AND T1.WFID = T2.TypeCode AND T2.LanguageID = #{LanguageID}
+  		WHERE T2.Name IS NOT NULL 
+		<if test="WFID != null and WFID != ''">
+			AND T1.WFID = #{WFID}		
+		</if>
+      	ORDER BY WFID
+	</select>
+	
+	<select id="getWfStepList" resultType="java.util.HashMap">
+  		SELECT T1.WFStepID
+      		, T1.WFID
+      		, T2.Name
+      		, T3.WFID 
+      	FROM XBOLTADM.TB_WF_STEP_REL T1
+  			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY T2
+  			on T2.Category = 'WFSTEP' AND T1.WFStepID = T2.TypeCode AND T2.LanguageID = #{LanguageID}
+  			LEFT OUTER JOIN XBOLTADM.TB_WF T3
+  			on T1.WFID = T3.WFID 
+  		WHERE 
+  			T3.WFID = #{WFID}
+  		ORDER BY T1.SortNum
+  			
+	</select>
+	
+	<select id="getWfStepInstCnt" resultType="String">
+  		SELECT
+      		COUNT(*)
+  		FROM XBOLTADM.TB_WF_STEP_INST
+  		WHERE
+  			ProjectID = #{ProjectID} 
+	</select>
+	 <select id="MaxWFInstanceID" resultType="String">
+		SELECT
+			ISNULL(MAX(WFInstanceID), 'OLM0000000000') AS MaxWFInstanceID 
+		FROM
+			XBOLTADM.TB_WF_INST
+	</select>
+	
+	<insert id="insertToWfInst" parameterType="java.util.HashMap">
+	  <selectKey keyProperty="WFInstanceID" resultType="string" order="BEFORE">
+	      IF EXISTS (
+		    SELECT 1 FROM sys.sequences
+		    WHERE name = N'WFInstanceSeq' AND schema_id = SCHEMA_ID(N'XBOLTADM')
+		  )
+		  BEGIN
+		    SELECT CONCAT(
+		             #{prefix},
+		             RIGHT(REPLICATE('0', 10) +
+		                  CAST(NEXT VALUE FOR XBOLTADM.WFInstanceSeq AS VARCHAR(20)), 10)
+		           )
+		  END
+		  ELSE
+		  BEGIN
+		    SELECT #{WFInstanceID}
+		  END    		
+	  </selectKey>
+	  
+ 		INSERT INTO
+ 			XBOLTADM.TB_WF_INST(
+ 			 WFInstanceID
+      		, ProjectID
+			<if test="DocCategory != null and DocCategory != ''">	
+				, DocCategory	
+				, WFDocType	
+			</if>
+			<if test="DocumentID != null and DocumentID != ''">	, DocumentID </if>
+			<if test="DocumentNo != null and DocumentNo != ''">	, DocumentNo </if>
+			<if test="WFID != null and WFID != ''">	, WFID </if>
+			, LastSeq
+       		, CreationTime
+      		, Creator
+      		, LastUser
+      		, LastUpdated
+      		, Status  
+      		, CurSeq    		
+      		, AprvOption
+      		, LastSigner
+			<if test="ReturnedValue != null and ReturnedValue != ''"> , ReturnedValue </if>
+			<if test="Path != null and Path != ''">	, Path </if>
+			<if test="wfAllocID != null and wfAllocID != ''">	, wfAllocID </if>
+			, CreatorTeamID
+           )
+		VALUES(
+			 #{WFInstanceID}
+      		, #{ProjectID}
+			<if test="DocCategory != null and DocCategory != ''">	
+			, #{DocCategory}
+			, #{DocCategory}
+			</if>
+			<if test="DocumentID != null and DocumentID != ''">	, #{DocumentID} </if>
+			<if test="DocumentNo != null and DocumentNo != ''">	, #{DocumentNo}	</if>
+			<if test="WFID != null and WFID != ''">	, #{WFID} </if>
+			, #{lastSeq}
+      		, getdate()
+      		, #{Creator}
+      		, #{LastUser}
+      		, getdate()
+      		, #{Status}
+      		, #{curSeq}
+      		, #{aprvOption}
+      		, #{LastSigner}
+			<if test="ReturnedValue != null and ReturnedValue != ''"> , #{ReturnedValue} </if>
+			<if test="Path != null and Path != ''">	, #{Path} </if>    
+			<if test="wfAllocID != null and wfAllocID != ''">	, #{wfAllocID} </if>    
+			, #{creatorTeamID} 		
+		)
+ 	</insert>
+ 	
+ 	<update id="updateWfInst" parameterType="java.util.HashMap">
+ 		UPDATE	XBOLTADM.TB_WF_INST
+ 		SET
+ 			LastUser= #{LastUser}
+ 			, LastUpdated = getDate()
+			<if test="WFID != null and WFID != ''">	
+			, WFID = #{WFID}
+			</if> 
+			<if test="aprvOption != null and aprvOption != ''">	
+			, AprvOption = #{aprvOption}
+			</if> 
+			<if test="Status != null and Status != ''">	
+			, Status = #{Status}
+			</if> 
+			<if test="Status == '-1'">
+            , ReturnedValue = NULL
+            , Path = NULL
+	        </if>
+	        <if test="ReturnedValue != null and ReturnedValue != '' and Status != '-1'">
+	        , ReturnedValue = #{ReturnedValue}
+	        </if>
+	        <if test="Path != null and Path != '' and Status != '-1'">
+	        , Path = N''+#{Path}
+	        </if>
+			<if test="lastSeq != null and lastSeq != ''">	
+			, LastSeq = #{lastSeq}
+			</if> 
+			<if test="curSeq != null and curSeq != ''">	
+			, CurSeq = #{curSeq}
+			</if> 
+			<if test="Comment != null and Comment != ''">
+			, Comment = #{Comment}
+			</if>
+			<if test="gwProcessID != null and gwProcessID != ''">
+			, GWProcessID = #{gwProcessID}
+			</if>
+ 		WHERE
+ 			WFInstanceID = #{WFInstanceID}
+ 	</update>
+ 	
+ 	<select id="getWFInstance" resultType="String">
+		SELECT 
+			ISNULL(WFInstanceID, '') As Id
+		FROM 
+			XBOLTADM.TB_WF_INST
+		WHERE ProjectID = #{ProjectID}
+ 	</select>
+ 	
+ 	<select id="getWFInstDoc" resultType="java.util.HashMap">
+		SELECT 
+			ISNULL(DocCategory, 'CSR') As DocCategory, DocumentID
+		FROM 
+			XBOLTADM.TB_WF_INST
+		WHERE WFInstanceID = #{wfInstanceID}
+ 	</select>
+ 	
+ 	<select id="getWFInstanceDetail_gridList" resultType="java.util.HashMap">
+		SELECT  TOP 1
+			Row_Number()OVER(ORDER BY  T1.CreationTime DESC) as RNUM  
+			, T1.WFInstanceID
+      		, T1.ProjectID
+      		, T1.DocCategory
+      		, T1.WFDocType
+      		, T1.DocumentID
+      		, T1.CurSeq
+      		, T1.WFID
+      		, T1.Path
+      		, ISNULL(CONVERT(char(10),T1.CreationTime, 120),'') As CreationTime
+      		, T1.Creator
+      		, T1.LastUser
+      		, T1.Status
+      		, T1.Comment
+      		, T1.AprvOption, TD1.Name As AprvOptionNM
+      		, TD.Name As StatusName
+      		, T1.ReturnedValue 
+      		, ISNULL(CONVERT(char(10),T1.LastUpdated, 120),'') As LastUpdated
+      		, WFT.Subject
+      		, WFT.Description
+      		, WFT.SubjectEN
+      		, TD2.Name AS DocCatNM
+      		, TD3.Name AS WFDocTypeNM
+		FROM 
+			XBOLTADM.TB_WF_INST T1			
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TD.LanguageID = #{LanguageID} AND T1.Status = TD.TypeCode AND TD.Category = 'APRVSTS'
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD1 ON TD1.LanguageID = #{LanguageID} AND T1.AprvOption = TD1.TypeCode AND TD1.Category = 'APRVOPTION'
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD2 ON TD2.LanguageID = #{LanguageID} AND T1.DocCategory = TD2.TypeCode AND TD2.Category = 'DOCCAT'
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD3 ON TD3.LanguageID = #{LanguageID} AND T1.DocCategory = TD3.TypeCode AND TD3.Category = 'WFDOCTP'
+			LEFT OUTER JOIN XBOLTADM.TB_WF_INST_TXT WFT ON T1.WFInstanceID = WFT.WFInstanceID
+			WHERE T1.WFInstanceID = #{wfInstanceID}
+        <if test="ProjectID != null and ProjectID != '' ">
+             AND T1.ProjectID = #{ProjectID}  
+        </if>
+	
+ 	</select>
+ 	
+ 	<select id="getWFInstanceListByProcessing" resultType="java.util.HashMap">
+		SELECT /*getWFInstanceListByProcessing*/
+			WFInstanceID
+		FROM 
+			XBOLTADM.TB_WF_INST			
+		WHERE Status = 'OPN'
+			<if test="ProjectID != null and ProjectID != ''">
+				ProjectID = #{ProjectID}
+			</if>
+  	</select> 	
+ 	
+	<select id="getWFINSLastSigner" resultType="String">
+		Select LastSigner From XBOLTADM.TB_WF_INST Where ProjectID = #{projectID} AND Status = 2
+	</select>
+	
+	<select id="getWfStepInstInfo" resultType="java.util.HashMap">
+	  	Select WFStepID, StepInstID, ProjectID 
+	  	From XBOLTADM.TB_WF_STEP_INST 
+		Where ActorID = #{actorID}
+		And ProjectID = #{projectID}
+			
+	</select>
+	 
+	<select id="getWFINSTanceInfo" resultType="java.util.HashMap">
+		Select Top 1 TWI.WFInstanceID, TWI.ProjectID, TWI.AprvOption, TWI.DocumentID, TWI.DocumentNo
+				, TWIT.Subject, TWIT.Description, TWI.Creator, TWI.WFID, TWI.Creator
+				, TWI.RefWFInstanceID, TWI.Comment, TWI.Status
+		From XBOLTADM.TB_WF_INST TWI
+		Left Outer Join XBOLTADM.TB_WF_INST_TXT TWIT ON TWIT.WFInstanceID = TWI.WFInstanceID 
+		<where>
+			<if test="WFInstanceID != null and WFInstanceID != ''">
+				AND TWI.WFInstanceID = #{WFInstanceID}
+			</if>
+			<if test="returnValue != null and returnValue != ''">
+				AND TWI.ReturnedValue = #{returnValue}
+			</if>
+			<if test="changeSetID != null and changeSetID != ''">
+				AND TWI.DocumentID = #{changeSetID} AND TWI.DocCategory = 'CS'
+			</if>
+		</where>
+	</select>
+	
+	<select id="getWFINSTanceForStatusOne" resultType="java.util.HashMap">
+		SELECT WFInstanceID 
+		  FROM XBOLTADM.TB_WF_INST 
+		 WHERE Status = '1'
+	</select>
+	
+  	<update id="deleteWFStepInst" parameterType="java.util.HashMap">
+  		Delete From XBOLTADM.TB_WF_STEP_INST
+		Where WFInstanceID = #{wfInstanceID}
+  	</update>
+  	
+  	<select id="getWFStepInstInfoList" resultType="java.util.HashMap">
+		Select TWSI.Seq,
+		    TWSI.WFStepID,
+			TD.Name As WFStepName,
+			TWSI.ActorID,
+			ISNULL(TM.Name,TMT.Name) + Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')' Else '' End AS ActorName,
+			TM.TeamID,
+			TMT.Name As TeamName,
+			XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{LanguageID}) + '/' + TMT.Name AS TeamPath,
+			TWSI.Status,
+			TD2.Name AS StatusName
+		From XBOLTADM.TB_WF_STEP_INST TWSI
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TWSI.WFStepID And TD.LanguageID = #{LanguageID} And TD.Category = 'WFSTEP'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = TWSI.Status And TD2.LanguageID = #{LanguageID} And TD2.Category = 'APRVSTS'
+		Left OUter Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TWSI.ActorID
+		<choose>
+			<when test="'REC'.equals(WFStepID)">
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TMT.TeamID = TWSI.ActorTeamID And TMT.LanguageID = #{LanguageID}
+			</when>
+			<otherwise>
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TMT.TeamID = TM.TeamID And TMT.LanguageID = #{LanguageID}
+			</otherwise>
+		</choose>
+		
+		Where
+			TWSI.WFInstanceID = #{wfInstanceID}
+			<if test="ProjectID != null and ProjectID != ''">
+			AND ProjectID = #{ProjectID}
+			</if>
+			<if test="WFStepIDs != null and WFStepIDs != ''">
+			AND TWSI.WFStepID IN ( ${WFStepIDs} )
+			</if>
+			<if test="stepInstID != null and stepInstID != ''">
+			AND TWSI.StepInstID = #{stepInstID}
+			</if>
+		Order By TWSI.SEQ
+	</select>
+	
+	<select id="getWFStepInstSeq" resultType="String">
+		Select Top 1 Seq
+		 From XBOLTADM.TB_WF_STEP_INST
+		Where ProjectID = #{projectID}
+		And Status = 0
+		Order By Seq
+	</select>
+	
+	<select id="getWFInstList_gridList" resultType="java.util.HashMap">
+		Select
+			Row_Number()OVER(ORDER BY  TWI.CreationTime DESC,TWI.Status) as RNUM, 
+			TD.Name AS WFDocType,
+			TWIT.Subject,
+			TWI.Creator,
+			ISNULL(TM.Name,'') + Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')' Else '' End AS CreatorName,
+			XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{languageID}) AS CreatorTeamPath,
+			TWI.CreationTime,
+			
+			CONVERT(char(10),TWI.CreationTime, 120) As CreationDT,	
+			TD2.Name AS Status,
+			TWI.ProjectID,
+			TWI.WFID,
+			TWI.WFInstanceID,
+			<if test="filter != null and filter != ''">	
+				<choose>
+					<when test="filter.equals('myWF')">
+						TWSI.StepInstID,	TWSI.ActorID,TWSI.Seq AS StepSeq, TM2.Name As ActorName,
+					</when>
+					<otherwise>
+						null AS StepInstID,	null AS ActorID, null AS StepSeq, null As ActorName,						
+					</otherwise>
+				</choose>
+			</if> 		
+			TWI.LastSeq,
+			TWI.DocumentID,
+			TWI.Status AS StatusCode,
+			TWI.DocCategory,
+			TEAM.Name AS CreatorTeamNM,
+			TWI.DocumentNo,
+			ESM.SRID,
+			TMT.Inhouse
+		From XBOLTADM.TB_WF_INST TWI
+		Left Outer Join XBOLTADM.TB_WF_INST_TXT TWIT ON TWI.WFInstanceID = TWIT.WFInstanceID
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TWI.DocCategory AND TD.Category = 'DOCCAT' AND TD.LanguageID = #{languageID} 
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TWI.Creator 	
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = TWI.Status And TD2.Category = 'APRVSTS' AND TD2.LanguageID = #{languageID}
+		<if test="'myWF'.equals(filter)">
+			Left Outer Join XBOLTADM.TB_WF_STEP_INST TWSI ON TWSI.WFInstanceID = TWI.WFInstanceID
+			Left Outer Join XBOLTADM.TB_MEMBER TM2 ON TM2.MemberID = TWSI.ActorID 
+		</if> 	
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM ON TEAM.TeamID = TWI.CreatorTeamID And TEAM.LanguageID = #{languageID}
+		Left Outer Join XBOLTAPP.ESM_SR_MST ESM ON TWI.WFInstanceID = ESM.CurWFInstanceID
+		Left Outer Join XBOLTADM.TB_TEAM TMT ON TMT.TeamID = TM.TeamID
+	  <where>
+	  	<if test="projectID != null and projectID != ''">	
+	  		TWI.ProjectID = #{projectID} 
+	  	</if>
+	  	<if test="documentID != null and documentID != ''">	
+	  		AND TWI.DocumentID = #{documentID} 
+	  	</if>
+	  	<if test="actorID != null and actorID != ''">	
+	  		AND TWSI.ActorID = #{actorID}
+	  	</if>
+	  	<if test="wfStepID != null and wfStepID != ''">	
+	  		AND TWSI.WFStepID = #{wfStepID}
+	  	</if>
+	  	<if test="wfInstanceID != null and wfInstanceID != ''">	
+	  		AND TWI.WFInstanceID = #{wfInstanceID}
+	  	</if>
+		<if test="period != null and period != ''">	
+			<choose>
+				<when test='"1".equals(period)'>
+					AND CONVERT(VARCHAR, TWI.CreationTime, 23) BETWEEN #{beforeYmd} AND #{thisYmd}
+				</when>
+				<when test='"2".equals(period)'>
+					AND CONVERT(VARCHAR, TWI.CreationTime, 23)  = CONVERT(VARCHAR, GETDATE(), 23)
+				</when>
+			</choose>
+		</if>
+		<if test="wfMode != null and wfMode != ''">	
+			<choose>
+				<when test="wfMode.equals('AREQ')">
+					AND TWI.Status IN ('0', '1') AND TWSI.WFStepID = 'AREQ'
+				</when>
+				<when test="wfMode.equals('CurAprv')">
+					AND TWI.CurSeq = TWSI.Seq AND TWSI.WFStepID NOT IN ('REF','REC', 'AREQ','MGT') And TWSI.Status = '0'  And TWI.Status = '1'
+				</when>
+				<when test="wfMode.equals('ToDoAprv')">
+					AND TWI.CurSeq != TWSI.Seq AND TWSI.WFStepID NOT IN ('REF','REC', 'AREQ','MGT') AND TWI.Status IN ('0', '1')
+				</when>
+				<when test="wfMode.equals('Cls')">
+					AND TWI.Status NOT IN ('0', '1')
+				</when>
+				<when test="wfMode.equals('RefMgt')">
+					AND TWSI.WFStepID In ('REF', 'MGT')
+				</when>
+				<when test="wfMode.equals('Ref')">
+					AND TWSI.WFStepID In ('REF')
+				</when> 	
+				<when test="wfMode.equals('RefMgt3')">
+					AND TWSI.WFStepID In ('REF', 'MGT') 
+			        AND (TWSI.ApprovalDate BETWEEN DATEADD(mm,-3,GETDATE()) and GETDATE() OR TWI.Status IN ('0', '1'))
+				</when>
+				<when test="wfMode.equals('MyWIP')">
+					AND TWI.Status IN ('0', '1') AND TWSI.Status != 0 AND TWSI.WFStepID NOT IN ('REF','REC','MGT')
+				</when>
+			</choose>
+		</if>		
+	  </where>
+		Order By TWI.CreationTime DESC, TWI.Status , TWI.WFInstanceID DESC
+	</select>
+	
+	<select id="getWFStepInstCount" resultType="String">
+		Select
+		 Count(*) As wfStepInstCnt From XBOLTADM.TB_WF_STEP_INST
+		Where ProjectID = #{projectID}
+		 And WFInstanceID = #{wfInstanceID}
+		 And WFStepID Not In ('AREQ','REF','REC','MGT')
+			<if test="status != null and status != ''">
+				AND (Status = #{status} OR Status IS NULL)
+			</if>
+			
+			<if test="stepSeq != null and stepSeq != ''">
+				AND Seq = #{stepSeq}
+			</if>		
+	</select>
+	
+  	<select id="getWFStepMailList" resultType="java.util.HashMap">
+		Select TWSI.Seq,
+		    TWSI.WFStepID,
+			TD.Name As WFStepName,
+			CASE TWSI.ActorID WHEN 0 THEN TM.MemberID ELSE TWSI.ActorID END AS ActorID,
+			TM.Name AS ActorName,
+			TM.TeamID,
+			TMT.Name As TeamName,
+			XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{languageID}) + '/' + TMT.Name AS TeamPath,
+			TWSI.StepInstID
+		From XBOLTADM.TB_WF_STEP_INST TWSI
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TWSI.WFStepID And TD.LanguageID = #{languageID} And TD.Category = 'WFSTEP'
+		Left OUter Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TWSI.ActorID
+		<if test="'REC'.equals(wfStepID)">
+		OR (TWSI.ActorID = 0 And TM.TeamID = TWSI.ActorTeamID)
+		</if>
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TMT.TeamID = TM.TeamID And TMT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_WF_INST TWI ON TWI.WFInstanceID = TWSI.WFInstanceID
+		Where TWSI.ProjectID = #{projectID}
+		<if test="wfStepIDs != null and wfStepIDs != ''">
+		AND TWSI.WFStepID IN ( ${wfStepIDs} )
+		</if>
+		<if test="wfStepID != null and wfStepID != ''">
+		AND TWSI.WFStepID =  #{wfStepID}
+		</if>
+ 		<if test="wfInstanceID != null and wfInstanceID != ''">
+ 			AND TWSI.WFInstanceID = #{wfInstanceID}
+ 		</if>
+ 		<if test="next != null and next != ''">
+ 			AND TWSI.WFStepID = #{next} AND Status = 0
+ 		</if>
+ 		<if test="nextSeq != null and nextSeq != ''">
+ 			AND TWSI.Seq = #{nextSeq}
+ 		</if>
+ 		<if test="wfInstanceStatus != null and wfInstanceStatus != ''">
+ 			<![CDATA[ 
+ 				and TWSI.Seq <= TWI.CurSeq
+ 				and TWSI.Status != 0 
+ 			]]> 
+ 		</if>
+		Order By TWSI.SEQ
+	</select>
+	
+  	<select id="getWFAgreementYN" resultType="java.util.HashMap" >
+  		Select WFID, ISNULL(agreementYN,'N') as agreementYN
+  		  FROM XBOLTADM.TB_WF
+  	</select>
+  	  	
+ 	<insert id="insertWfInstTxt" parameterType="java.util.HashMap">
+ 		INSERT INTO
+ 			XBOLTADM.TB_WF_INST_TXT(
+ 			WFInstanceID
+ 			, Subject
+	        , SubjectEN
+	        , Description
+	        , DescriptionEN
+	        , Comment
+	        , CreationTime
+	        , Creator
+	        , LastUpdated
+	        , LastUser
+ 		)VALUES(
+ 		    #{WFInstanceID}
+	        , #{subject}
+	        , #{subjectEN}
+	        , #{description}
+	        , #{descriptionEN}
+	        , #{comment}
+      		, getdate()
+	        , #{actorID}
+			, getdate()
+	        , #{actorID}
+		)
+ 	</insert>
+  	
+	<select id="getWfStepInstList_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY  T1.CreationTime) as RNUM  
+			, T1.StepInstID
+			, T1.ChangeSetID
+      		, T1.WFID
+      		, T1.WFStepID
+      		, T2.Name AS WFStepName
+      		, T1.ActorID
+      		, ISNULL(T5.Name,'') + Case When ISNULL(T5.NameEN,'') != '' Then '(' + ISNULL(T5.NameEN,'') + ')' Else '' End As ActorName
+      		, T1.ActorTeamID
+      		, T3.Name AS TeamName
+      		, T1.Event
+      		, T1.Status
+      		, T1.Comment
+      		, T4.Name AS StatusNM
+      		, T1.ApprovalDate AS ApprovalDate
+      		, ISNULL(CONVERT(char(10), T1.CreationTime, 120),'-') AS CreationTime
+      		, ISNULL(CONVERT(char(10), T1.LastUpdated, 120),'-') AS LastUpdated
+      		, T5.Position
+  			FROM XBOLTADM.TB_WF_STEP_INST T1
+  				LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY T2
+  				on T2.Category = 'WFSTEP' AND T1.WFStepID = T2.TypeCode AND T2.LanguageID = #{LanguageID}
+  				LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT T3 
+				ON T3.LanguageID = #{LanguageID} AND T3.TeamID = T1.ActorTeamID
+				LEFT OUTER JOIN XBOLTADM.TB_MEMBER T5
+				on T1.ActorID = T5.MemberID 
+				LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY T4
+				on T4.TypeCode = T1.Status  AND T4.LanguageID = #{LanguageID} AND T4.Category = 'APRVSTS'	
+  			<where>
+				<if test="ProjectID != null and ProjectID != ''">
+					AND T1.ProjectID = #{ProjectID}
+				</if>
+				<if test="ChangeSetID != null and ChangeSetID != ''">
+					AND T1.ChangeSetID = #{ChangeSetID}
+				</if>
+				<if test="WFID != null and WFID != ''">
+					AND T1.WFID = #{WFID}
+				</if>
+				<if test="WFStepID != null and WFStepID != ''">
+					AND T1.WFStepID = #{WFStepID}
+				</if>
+				<if test="WFStepIDs != null and WFStepIDs != ''">
+					AND T1.WFStepID IN (${WFStepIDs})
+				</if>
+				<if test="StepInstID != null and StepInstID != ''">
+					AND T1.StepInstID = #{StepInstID}
+				</if>
+				<if test="wfInstanceID != null and wfInstanceID != ''">
+					AND T1.WFInstanceID = #{wfInstanceID}
+				</if>
+  			</where>
+  			ORDER BY T1.Seq
+	</select>
+	
+	
+	<update id="updateWFStepInst" parameterType="java.util.HashMap">
+		UPDATE
+			XBOLTADM.TB_WF_STEP_INST
+		SET
+			LastUpdated = getdate()
+			<if test="Event != null and Event != ''">
+				,Event = #{Event}
+			</if>
+			<if test="Status != null and Status != ''">
+				,Status = #{Status}
+				<if test='!"0".equals(Status)'>
+					,ApprovalDate = getdate()
+				</if>
+			</if>
+			<if test="comment != null and comment != ''">
+				,comment = #{comment}
+			</if>
+		<where>
+			<if test="ProjectID != null and ProjectID != ''">	
+				ProjectID = #{ProjectID}			
+			</if>
+			<if test="ChangeSetID != null and ChangeSetID != ''">		
+				AND ChangeSetID = #{ChangeSetID}		
+			</if>
+			<if test="StepInstID != null and StepInstID != ''">	
+				AND StepInstID = #{StepInstID}			
+			</if>
+			<if test="WFID != null and WFID != ''">	
+				AND WFID = #{WFID}			
+			</if>
+			<if test="WFInstanceID != null and WFInstanceID != ''">	
+				AND WFInstanceID = #{WFInstanceID}			
+			</if>
+			<if test="WFStepID != null and WFStepID != ''">	
+				AND WFStepID = #{WFStepID}			
+			</if>
+			<if test="ActorID != null and ActorID != ''">	
+				AND ActorID = #{ActorID}			
+			</if>
+			<if test="updateSeq != null and updateSeq != ''">	
+				AND Seq = #{updateSeq}			
+			</if>
+		</where>
+	</update>
+ 	
+ 	<select id="getWFInstDetail" resultType="java.util.HashMap">
+		Select
+			TD.Name AS WFDocType,
+			TWIT.Subject,
+			TWI.Creator,
+			TM.Name AS CreatorName,
+			TTT.Name AS CreatorTeamName,
+			XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{languageID}) AS CreatorTeamPath,
+			TWI.CreationTime,
+			TD2.Name AS Status,
+			TWI.ProjectID,
+			TWI.WFID,
+			TWI.WFInstanceID,
+			TWI.LastSeq,
+			TWI.DocumentID,
+			TWIT.Description,
+			TWI.Status AS StatusCode,
+			TWI.AprvOption,			
+			TWI.DocumentNo
+		From XBOLTADM.TB_WF_INST TWI
+		Left Outer Join XBOLTADM.TB_WF_INST_TXT TWIT ON TWI.WFInstanceID = TWIT.WFInstanceID
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TWI.DocCategory AND TD.Category = 'DOCCAT' AND TD.LanguageID = #{languageID} 
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TWI.Creator 	
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = TWI.Status And TD2.Category = 'APRVSTS' AND TD2.LanguageID = #{languageID}
+		Left Outer Join	XBOLTADM.TB_TEAM_TXT TTT ON TM.TeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+	 WHERE TWI.WFInstanceID = #{wfInstanceID}
+	</select>
+	
+	<select id="getWFCategoryList" resultType="java.util.HashMap">
+		SELECT TODC.DocCategoryCode + '/' + TM.URL AS CODE, Name AS NAME
+		  FROM XBOLTADM.TB_OLM_DOC_CATEGORY TODC
+		       Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TODC.DocCategoryCode
+		       Left Outer Join XBOLTADM.TB_MENU TM ON TM.MenuID = TODC.WFDocMenuID
+		 WHERE TODC.WFDocMenuID IS NOT NULL
+		       AND TD.Category = 'DOCCAT'  
+		       AND TD.LanguageID = #{sessionCurrLangType}
+	</select>	
+ 	
+ 	<select id="getWFCategoryNameList" resultType="java.util.HashMap">
+		SELECT TypeCode AS CODE, Name AS NAME
+		  FROM XBOLTADM.TB_DICTIONARY
+		 WHERE Category = 'DOCCAT' 
+		       AND TypeCode in (${category}) 
+		       AND LanguageID = #{languageID}
+	</select>
+
+	<select id="getWFCSRList_gridList" resultType="java.util.HashMap">
+  	SELECT 
+		*
+	FROM(	
+		SELECT 
+			TOP 1000
+			 Row_Number()OVER(ORDER BY  TP.CreationTime DESC ) as RNUM 
+			, 0 AS CHK 
+			, TP.ProjectCode AS CODE
+			, TPT.Name AS Subject
+			, ISNULL(TM.Name,'') AS AuthorName
+			, ISNULL(CONVERT(char(10),TP.CreationTime, 120),'') as CreationTime
+			, TD.Name AS StatusName
+			, TP.ProjectID
+			, TP.SRID
+			, '' AS ChangeSetID
+			, TPT2.Name AS ProjectName
+		FROM 
+			XBOLTADM.TB_PROJECT TP
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT
+				on TP.ProjectID = TPT.ProjectID AND TPT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+				on TP.AuthorID = TM.MemberID
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD
+				on TP.Status = TD.TypeCode AND TD.LanguageID = 	#{languageID} 
+				AND TD.Category = 'CSRSTS'
+			Left Outer Join XBOLTADM.TB_PROJECT TP2
+				on TP2.ProjectID = TP.ParentID
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT2
+				on TP2.ProjectID = TPT2.ProjectID AND TPT2.LanguageID = #{languageID}
+		WHERE (TP.Status = 'CSR' AND (TP.AprvOption = 'PRE' OR TP.AprvOption ='PRENPOST')) 
+		   OR ((TP.Status = 'CNG' OR TP.Status = 'HOLD') AND (TP.AprvOption = 'POST' OR TP.AprvOption ='PRENPOST') AND XBOLTADM.fn_GetChangeStatus(TP.ProjectID) = 'Y')
+		)TC
+		<where>
+			<if test="pageNo != null and pageNo != ''">
+				TC.RNUM BETWEEN ((#{pageNo}-1)*#{LIST_PAGE_SCALE}  + 1) AND (#{pageNo}*#{LIST_PAGE_SCALE})
+			</if>
+			<if test="projectID != null and projectID != ''">
+				AND TC.ProjectID = #{projectID}
+			</if>
+		</where>
+	order by RNUM
+	</select>
+	
+
+  	<select id="getWFChangeSetList_gridList" resultType="java.util.HashMap">
+  	SELECT 
+		*
+	FROM(	
+		SELECT
+		TOP 1000
+		 Row_Number()OVER(ORDER BY  TI.Identifier, TCS.ChangeSetID DESC) as RNUM	
+		 , 0 AS CHK  
+ 		 , TCS.ChangeSetID
+ 		 , TCS.Version
+ 		 , TCS.ProjectID
+ 		 , TI.Identifier AS CODE
+		 , TIA.PlainText AS Subject
+		 , TCS.ItemID
+		 , TCS.Description
+		 , TM.Name + Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')' Else '' End AS AuthorName  
+		 , ISNULL(CONVERT(char(10),TCS.CreationTime, 120),'') as CreationTime
+		 , ISNULL(CONVERT(char(10),TCS.CompletionDT, 120),'') as CompletionDT
+		 , TDS.Name AS StatusName	
+		 , TMN.URL
+		 , TDIC.Name AS ClassName
+		 , TPT.Name AS ProjectName
+		 , XBOLTADM.fn_GetMyAbsPathForProject(TP.ProjectID, #{languageID}) AS Path
+		FROM XBOLTADM.TB_CHANGE_SET TCS
+			Left Outer Join XBOLTADM.TB_ITEM TI
+			on TCS.ItemID = TI.ItemID			
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+			on TCS.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+			on TCS.AuthorID = TM.MemberID
+			Left outer Join XBOLTADM.TB_DICTIONARY TDS
+			on TCS.Status = TDS.TypeCode AND TDS.Category = 'CNGSTS'  AND TDS.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_OLM_DOC_CATEGORY TODC
+			on TODC.DocCategoryCode = 'CS'
+			Left outer Join XBOLTADM.TB_MENU TMN
+			on TODC.WFDocMenuID = TMN.MenuID
+			Left outer Join XBOLTADM.TB_DICTIONARY TDIC
+			on TCS.ItemClassCode = TDIC.TypeCode AND TDIC.Category = 'CLS'  AND TDIC.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_PROJECT TP
+			on TCS.ProjectID = TP.ProjectID
+			Left outer Join XBOLTADM.TB_PROJECT_TXT TPT
+			on TP.ProjectID = TPT.ProjectID  AND TPT.LanguageID = #{languageID} 
+		where
+			TCS.Status IN (${status})
+			<if test="changeSetID != null and changeSetID != ''">
+				AND TCS.ChangeSetID IN (${changeSetID})
+			</if>
+			<if test="wfInstanceID != null and wfInstanceID != ''">
+			 	AND TCS.WFInstanceID = #{wfInstanceID}
+			</if>				
+			<if test="noViewIDs != null and noViewIDs != ''">
+			 	AND TCS.ChangeSetID NOT IN (${noViewIDs})
+			</if>						
+		)TC
+		<where>
+			<if test="pageNo != null and pageNo != ''">
+				TC.RNUM BETWEEN ((#{pageNo}-1)*#{LIST_PAGE_SCALE}  + 1) AND (#{pageNo}*#{LIST_PAGE_SCALE})
+			</if>
+		</where>
+	order by CHK DESC, RNUM
+	</select>
+	
+	<update id="deleteWFInstTxt" parameterType="java.util.HashMap">
+  		Delete From XBOLTADM.TB_WF_INST_TXT
+		Where WFInstanceID = #{wfInstanceID}
+  	</update>
+	
+	
+ 	<select id="getWFInstTXT" resultType="java.util.HashMap">
+		SELECT Subject, Description
+		  FROM XBOLTADM.TB_WF_INST_TXT
+		 WHERE WFInstanceID = #{wfInstanceID}
+	</select>
+	
+  	<select id="getWFAllocationList_gridList" resultType="java.util.HashMap">
+  SELECT 
+		*
+	FROM(	
+		SELECT
+		TOP 1000
+		 Row_Number()OVER(ORDER BY  TWA.DocCategoryCode, TWA.MenuID) as RNUM		
+ 		 , TWA.DocCategoryCode
+ 		 , TW.WFID
+ 		 , TWA.MenuID 
+ 		 , TD2.Name AS MenuName
+ 		 , TD.Name AS CategoryName 
+		FROM XBOLTADM.TB_WF TW
+			Left Outer Join XBOLTADM.TB_WF_ALLOCATION TWA
+			on TW.WFID = TWA.WFID			
+			Left Outer Join XBOLTADM.TB_OLM_DOC_CATEGORY TODC
+			on TWA.DocCategoryCode = TODC.DocCategoryCode			
+			Left outer Join XBOLTADM.TB_DICTIONARY TD
+			on TODC.DocCategoryCode = TD.TypeCode AND TD.Category = 'DOCCAT'  AND TD.LanguageID = #{languageID}
+			Left outer Join XBOLTADM.TB_DICTIONARY TD2
+			on TWA.MenuID = TD2.TypeCode AND TD2.Category = 'MN'  AND TD2.LanguageID = #{languageID}
+		where
+			TW.WFID = #{wfID}
+		)TC
+	order by RNUM
+	</select>
+	
+	<select id="selecWFMenuAllocation" resultType="String">
+		Select WFID
+		  From XBOLTADM.TB_WF_ALLOCATION
+		Where WFID = #{wfID}
+		 And DocCategoryCode = #{category}
+	</select>
+	
+	
+ 	<insert id="insertWFMenuAllocation" parameterType="java.util.HashMap">
+ 		INSERT INTO
+ 			XBOLTADM.TB_WF_ALLOCATION(
+ 			DocCategoryCode
+ 			, WFID
+	        , MenuID
+	        ,CreationTime
+	        ,Creator
+	        ,LastUpdate
+	        ,LastUser
+ 		)VALUES( 		
+ 		    #{category}
+ 		    , #{wfID}
+	        , #{menuID}
+      		, getdate()
+	        , #{creator}
+      		, getdate()
+	        , #{creator}
+		)
+ 	</insert>
+ 	
+  	<update id="updateWFMenuAllocation" parameterType="java.util.HashMap">
+  		UPDATE XBOLTADM.TB_WF_ALLOCATION
+  		   SET LastUpdate = getdate(),
+  		       LastUser = #{creator},
+  		       MenuID = #{menuID},
+  		       DocCategoryCode = #{category}
+	 	 WHERE WFID = #{wfID}
+		   AND DocCategoryCode = #{category}
+  	</update>
+  	
+  	<update id="deleteWFMenuAllocation" parameterType="java.util.HashMap">
+  		DELETE 
+  		  FROM XBOLTADM.TB_WF_ALLOCATION
+		WHERE WFID = #{wfID}
+		  AND MenuID = #{menuID}
+		  AND DocCategoryCode = #{categoryCode}
+  	</update>
+  	
+	<select id="getWfReturnedValue" resultType="String">
+		Select ReturnedValue
+		  From XBOLTADM.TB_WF_INST
+		 Where WFInstanceID = #{wfInstanceID}
+	</select>
+	
+	<select id="getWFCategoryURL" resultType="String">
+		SELECT TM.URL
+		  FROM XBOLTADM.TB_OLM_DOC_CATEGORY TODC WITH (NOLOCK)
+		       Left Outer Join XBOLTADM.TB_MENU TM WITH (NOLOCK) ON TM.MenuID = TODC.WFDocMenuID
+		 WHERE TODC.WFDocMenuID IS NOT NULL
+		 	   AND TODC.DocCategoryCode = #{DocCategory}       
+	</select>	
+  	
+  	<update id="updateWFInstTxT" parameterType="java.util.HashMap">
+  		UPDATE XBOLTADM.TB_WF_INST_TXT
+  		   SET Subject = #{subject},
+  		       SubjectEN = #{subject},
+  		       <if test="description != null and description != ''">
+  		       Description = #{description},
+  		       DescriptionEN = #{description},
+  		       </if>
+  		       LastUser = #{loginID},
+  		       LastUpdated = getdate()
+	 	 WHERE WFInstanceID = #{wfInstanceID}
+  	</update>
+  	
+	<select id="getWFDocTypeName" resultType="String">
+		SELECT Name As WFDocType
+		  FROM XBOLTADM.TB_DICTIONARY
+		 WHERE TypeCode = #{wfDocType} 
+		       AND Category = 'DOCCAT' 
+		       AND LanguageID = #{languageID}		       
+	</select>	
+			  
+	<select id="getWFINStepID" resultType="String">
+		Select WFStepID 
+		  From XBOLTADM.TB_WF_STEP_INST 
+		 Where WFInstanceID = #{wfInstanceID} 
+		       AND StepInstID = #{StepInstID}
+	</select>
+  	
+	<select id="getDefWFIDForClassCode" resultType="String">
+		SELECT DefWFID
+		  FROM XBOLTADM.TB_ITEM_CLASS
+		 WHERE ItemTypeCode = #{itemTypeCode} AND ItemClassCode = #{itemClassCode}	       
+	</select>	
+	
+  	<select id="getWFStepFuncList" resultType="java.util.HashMap">
+	    SELECT TWSR.WFStepURL, TWSR.VarFilter
+	      FROM XBOLTADM.TB_WF_STEP_REL TWSR
+	           LEFT OUTER JOIN XBOLTADM.TB_WF_STEP TWF ON TWSR.WFStepID = TWF.WFStepID
+		 WHERE TWSR.WFID = #{wfID} AND TWF.Deactivated = 0
+		 ORDER BY TWSR.SortNum
+	</select>
+		
+	<select id="getWFDocURL" resultType="String">
+		Select WFDocURL 
+		From XBOLTADM.TB_OLM_DOC_CATEGORY
+		Where DocCategoryCode = #{docCategory}
+	</select>	
+	
+	<select id="getWFAprURL" resultType="String">
+		Select WFAprURL 
+		From XBOLTADM.TB_OLM_DOC_CATEGORY
+		Where DocCategoryCode = #{docCategory}
+	</select>	
+	
+	<select id="getWFURL" resultType="String">
+		SELECT 
+			  WFURL
+		FROM  XBOLTADM.TB_WF 
+		WHERE WFID = #{WFID}	
+	</select>	
+	
+	<select id="getWFIDForTypeCode" resultType="String">
+		SELECT 
+			  WFID
+		FROM  XBOLTADM.TB_WF_ALLOCATION
+		WHERE  DocCategoryCode = #{wfDocType}
+		      AND DocSubClass = #{docSubClass}
+	</select>	
+	
+	<select id="getWFPathSqlID" resultType="String">
+		SELECT 
+			  WfPathSQLID
+		FROM  XBOLTADM.TB_WF
+		WHERE  WFID = #{WFID}
+	</select>	
+	
+	
+  	<select id="getReviewWFStepPath" resultType="java.util.HashMap">
+		SELECT    TT.RoleManagerID
+				, TM1.Name As RoleManagerNM
+				, ISNULL(TMT.Name,'') AS TeamNM
+		  FROM XBOLTADM.TB_ITEM TI
+				Left Outer Join XBOLTADM.TB_TEAM_ROLE TTR ON TTR.ItemID = TI.ItemID
+				Left Outer Join XBOLTADM.TB_TEAM TT ON TTR.TeamID = TT.TeamID
+				Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TMT.TeamID = TTR.TeamID And TMT.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_MEMBER TM1 ON TM1.MemberID = TT.RoleManagerID
+		 WHERE TI.ItemID = #{s_itemID}
+		   AND TTR.TeamRoleID IS NOT NULL
+	</select>
+	
+	
+	<select id="getWFIDForVarfilter" resultType="String">
+		SELECT 
+			  VarFilter
+		FROM  XBOLTADM.TB_WF_ALLOCATION
+		WHERE  DocCategoryCode = #{wfDocType}
+		      AND DocSubClass = #{docSubClass}
+	</select>	
+	
+	
+	<select id="getWFIDForWFAllocID" resultType="String">
+		SELECT 
+			  WFAllocID
+		FROM  XBOLTADM.TB_WF_INST
+		WHERE  WFInstanceID = #{wfInstanceID}
+	</select>	
+	
+	<select id="getWFInstDocSubClass" resultType="String">
+		SELECT 
+			  DocSubClass
+		FROM  XBOLTADM.TB_WF_ALLOCATION
+		WHERE  WFAllocID = #{wfAllocID}
+	</select>	
+	
+	<select id="getWFAllocID" resultType="String">
+		SELECT 
+			  WFAllocID
+		FROM  XBOLTADM.TB_WF_ALLOCATION
+		WHERE  WFID = #{wfID}
+		      AND DocCategoryCode = #{wfDocType}
+		      AND DocSubClass = #{docSubClass}
+	</select>	
+	
+	<delete id="deleteWFInst" parameterType="java.util.HashMap">
+  		Delete From XBOLTADM.TB_WF_INST
+		Where WFInstanceID = #{wfInstanceID}
+  	</delete>
+	
+	<select id="getCSAprqDelayList" resultType="java.util.HashMap">
+		SELECT
+			'CS' AS alarmMailType,
+			CS.AuthorID AS ReceiverID, 
+			ISNULL(TM.Name,'') + Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')' Else '' End AS AuthorName,
+			TI.Identifier,
+			AT.PlainText AS ItemName,
+			CS.Version,
+			TD.Name As ChangeType,
+			FORMAT(CS.CompletionDT, 'yyyy-MM-dd') as CompletionDT,
+			null as CreationTime,
+			DATEDIFF(DAY,CS.CompletionDT, getDate()) AS delayDate,
+			ISNULL(TM.DefLanguageID,#{LanguageID}) AS DefLanguageID
+		FROM XBOLTADM.TB_CHANGE_SET CS
+		INNER JOIN XBOLTADM.TB_ITEM TI ON TI.ItemID = CS.ItemID and TI.CurChangeSet = CS.ChangeSetID
+		LEFT JOIN XBOLTADM.TB_MEMBER TM ON CS.AuthorID = TM.MemberID
+		LEFT JOIN XBOLTADM.TB_ITEM_ATTR AT ON Ti.ItemID = AT.ItemID and AT.AttrTypeCode = 'AT00001' and AT.LanguageID = ISNULL(TM.DefLanguageID,#{LanguageID})
+		LEFT JOIN XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = CS.ChangeType AND TD.Category = 'CNGT1' AND TD.LanguageID = ISNULL(TM.DefLanguageID,#{LanguageID})
+		WHERE CS.Status = 'CMP'
+		--AND TI.ItemTypeCode in (${itemTypeCode})
+		AND DATEDIFF(DAY,CS.CompletionDT, getDate()) > #{delayDate}
+	
+		UNION ALL
+	
+		SELECT
+			'WF' AS alarmMailType,
+			wsi.actorID AS ReceiverID,
+			ISNULL(TM.Name,'') + Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')' Else '' End AS AuthorName,
+			ti.Identifier, 
+			at.plainText as ItemName,
+			CS.Version,
+			TD.Name As ChangeType,
+			FORMAT(CS.CompletionDT, 'yyyy-MM-dd') as CompletionDT,
+			FORMAT(WI.CreationTime, 'yyyy-MM-dd') as CreationTime,
+			DATEDIFF(DAY,wi.CreationTime, getDate()) AS delayDate,
+			ISNULL(TM2.DefLanguageID,#{LanguageID}) AS DefLanguageID
+		FROM XBOLTADM.TB_WF_STEP_INST wsi
+			LEFT OUTER JOIN xboltadm.TB_WF_INST wi ON wi.WFInstanceID = wsi.WFInstanceID
+			INNER JOIN XBOLTADM.TB_CHANGE_SET CS ON WI.DocumentID = CS.ChangeSetID
+			INNER JOIN XBOLTADM.TB_ITEM TI ON TI.ItemID = CS.ItemID and TI.CurChangeSet = CS.ChangeSetID
+			LEFT JOIN XBOLTADM.TB_MEMBER TM ON CS.AuthorID = TM.MemberID
+			LEFT JOIN XBOLTADM.TB_MEMBER TM2 ON WSI.ActorID = TM2.MemberID
+			LEFT JOIN XBOLTADM.TB_ITEM_ATTR AT ON TI.ItemID = AT.ItemID and AT.AttrTypeCode = 'AT00001' and AT.LanguageID = ISNULL(TM2.DefLanguageID,#{LanguageID})
+			LEFT JOIN XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = CS.ChangeType AND TD.Category = 'CNGT1' AND TD.LanguageID = ISNULL(TM2.DefLanguageID,#{LanguageID})
+			WHERE wi.Status = 1 AND wsi.status = 0
+			AND DATEDIFF(DAY, wi.CreationTime, getDate()) > #{delayDate}
+			AND wsi.ApprovalDate is null
+		ORDER BY ReceiverID
+	</select>
+	
+	<select id="getDueWFInstCountByActor" resultType="java.util.HashMap">
+		SELECT TM.LoginID as userID, 
+		ISNULL(WSI.count,0) count
+		FROM XBOLTADM.TB_MEMBER TM
+		LEFT OUTER JOIN (
+			SELECT ActorID, count(ActorID) as count
+			FROM XBOLTADM.TB_WF_STEP_INST A
+			LEFT OUTER JOIN XBOLTADM.TB_WF_INST WI ON A.WFINSTANCEID = WI.WFINSTANCEID
+			WHERE WI.STATUS = 1 
+			AND A.STATUS = 0
+			GROUP BY ActorID
+		) WSI ON TM.MemberID = WSI.ActorID
+		WHERE TM.Active = 1
+		GROUP BY TM.LoginID, WSI.count
+		ORDER BY count desc
+	</select>
+	
+	
+	<select id="getWFIDForWFReturnedValueID" resultType="String">
+		SELECT 	  WFInstanceID
+		FROM  XBOLTADM.TB_WF_INST
+		WHERE  ReturnedValue = #{returnedValue}
+	</select>	
+	
+	<select id="getWfDocumentID" resultType="String">
+		Select DocumentID
+		From   XBOLTADM.TB_WF_INST
+		Where 1=1 	
+		<if test="returnValue != null and returnValue != ''"> AND  ReturnedValue = #{returnValue} </if>
+		<if test="wfInstanceID != null and wfInstanceID != ''"> AND  WFInstanceID = #{wfInstanceID}	</if>
+	</select>
+		
+	
+	<select id="getWFPath" resultType="String">
+		SELECT 
+			  Path
+		FROM  XBOLTADM.TB_WF_INST 
+		WHERE WFInstanceID = #{wfInstanceID}	
+	</select>
+	
+	<select id="getWfInstON" resultType="String">
+	  	SELECT  
+			  Case When  CreationTime  =  LastUpdated Then 'N' else 'Y'  End as WFON     
+		FROM  XBOLTADM.TB_WF_INST WITH (NOLOCK)
+		WHERE Status = '1'
+			<if test="wfInstanceID != null and wfInstanceID != ''"> AND  WFInstanceID = #{wfInstanceID} </if>
+			<if test="changeSetID != null and changeSetID != ''"> AND  DocumentID = #{changeSetID} AND DocCategory = 'CS' </if>
+			<if test="srID != null and srID != ''"> AND DocumentID = #{srID} AND DocCategory = 'SR' </if>	
+	</select>
+	
+	<select id="getWfInstanceID" resultType="String">
+		Select Top 1 WFInstanceID 
+		From XBOLTADM.TB_WF_INST 
+		Where DocumentID = #{documentID} 
+		And DocumentNo = #{documentNo}
+		And Status = #{status}
+		Order by WFInstanceID DESC
+	</select>
+	
+	<select id="getWfPath" resultType="String">
+		Select Path
+		  From XBOLTADM.TB_WF_INST
+		 Where WFInstanceID = #{wfInstanceID}
+	</select>
+</mapper>

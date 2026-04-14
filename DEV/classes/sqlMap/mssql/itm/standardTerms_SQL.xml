@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="standardTerms_SQL">
+ 	<select id="getSearchResult_gridList" resultType="java.util.HashMap">
+		SELECT 
+		    Row_Number() OVER (ORDER BY TERM.TIAPlainText ASC) as RNUM,
+		    TERM.ItemID,
+		    TERM.Name,
+			TERM.Abbreviation,
+			TERM.KoreanText,
+			TERM.EnglishText,
+			TERM.ChineseText
+		FROM (
+		    SELECT DISTINCT 
+		        TI.ItemID AS ItemID,
+		        REPLACE(REPLACE(TIa.PlainText, CHAR(13), ''), CHAR(10), '') AS Name,
+		        TIA.PlainText AS TIAPlainText,
+				TIA73.PlainText AS Abbreviation,
+				<![CDATA[ 
+				Replace(REPLACE( replace(replace(left(ISNULL(TIA56.PlainText,''),200), char(13),''),char(10),'<br>') ,'&lt;','<'), '&gt;','>') AS KoreanText,
+				Replace(REPLACE( replace(replace(left(ISNULL(TIA57.PlainText,''),200), char(13),''),char(10),'<br>') ,'&lt;','<'), '&gt;','>') AS EnglishText,
+				Replace(REPLACE( replace(replace(left(ISNULL(TIA58.PlainText,''),200), char(13),''),char(10),'<br>') ,'&lt;','<'), '&gt;','>') AS ChineseText
+				]]>
+		    FROM 
+		        XBOLTADM.TB_ITEM TI			        
+     				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TI.ItemID	And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+				    Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA3 ON TIA3.ItemID = TI.ItemID And TIA3.AttrTypeCode = 'AT00034' And TIA3.LanguageID = #{defaultLang}
+			        Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA73 ON TIA73.ItemID = TI.ItemID And TIA73.AttrTypeCode = 'AT00073' And TIA73.LanguageID = #{defaultLang}
+					Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA56 ON TIA56.ItemID = TI.ItemID	And TIA56.AttrTypeCode = 'AT00056' And TIA56.LanguageID = #{defaultLang}
+					Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA57 ON TIA57.ItemID = TI.ItemID	And TIA57.AttrTypeCode = 'AT00057' And TIA57.LanguageID = #{defaultLang}
+					Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA58 ON TIA58.ItemID = TI.ItemID	And TIA58.AttrTypeCode = 'AT00058' And TIA58.LanguageID = #{defaultLang}
+		    WHERE 
+		        TI.ItemTypeCode = 'OJ00011' 
+		        AND TI.ClassCode = 'CL11004'
+		        AND TIA.PlainText IS NOT NULL
+		        AND TI.Deleted != 1
+				<if test="lovCode != null and lovCode != ''">
+				  	  AND TIA3.LovCode = #{lovCode}
+				    </if>
+				    <if test="searchCondition1 != null and searchCondition1 != ''">
+				  	  AND (TIA.PlainText LIKE '%' + #{searchCondition1} +'%' or	
+						   TIA73.PlainText LIKE '%' + #{searchCondition1} +'%')
+				    </if>
+				    <if test="searchCondition2 != null and searchCondition2 != ''">
+				  	  AND SUBSTRING(TIA.PlainText,1,1) LIKE '%' + #{searchCondition2} +'%'
+				    </if>
+				    <if test="searchCondition3 != null and searchCondition3 != ''">
+				  	  AND SUBSTRING(TIA.PlainText,1,1) BETWEEN ''+#{searchCondition3} AND ''+#{searchCondition4}
+				    </if>
+				    <choose>
+					    <when test='"Y".equals(mgt)'>
+					  	  AND TI.Status = 'NEW2'
+					    </when> 
+					    <when test='"N".equals(mgt)'>
+					  	  AND TI.Status IN ('NEW1','REL')
+					    </when>     
+				    </choose>
+			) AS TERM
+		
+		Order By TIAPlainText
+ 	</select>
+ 	
+ 	<select id="getSearchResult_OLD_gridList" resultType="java.util.HashMap">
+ 		SELECT 
+ 			RNUM
+			,Name
+			,Description
+			,TypeCode
+		FROM (
+			SELECT 
+				Row_Number()OVER(ORDER BY TypeCode ASC) as RNUM
+				,Name
+				,Description
+				,TypeCode
+			FROM 
+				XBOLTADM.TB_DICTIONARY TDIC
+			WHERE 
+				LanguageID = #{languageID}
+				AND ClientID = #{clientID}
+				AND Category = 'ST'
+			    <if test="searchCondition1 != null and searchCondition1 != ''">
+			  	  AND TDIC.Name LIKE N'%' + #{searchCondition1} +'%'
+			    </if>
+			    <if test="searchCondition2 != null and searchCondition2 != ''">
+			  	  AND TDIC.Name LIKE N'%(' + #{searchCondition2} +'%'
+			    </if>
+			    <if test="searchCondition3 != null and searchCondition3 != ''">
+			  	  AND SUBSTRING(TDIC.Name,1,1) BETWEEN N''+#{searchCondition3} AND N''+#{searchCondition4}
+			    </if>
+		) dic
+		WHERE dic.RNUM BETWEEN ((cast(#{page} as int)-1)*#{pageSize}  + 1) AND (cast(#{page} as int)*#{pageSize}) 
+		ORDER BY dic.RNUM ASC	
+	</select>
+	
+	<select id="getSearchResultOLD_ListCount" resultType="String">
+ 		SELECT 
+			Count(*)
+		FROM 
+			XBOLTADM.TB_ITEM_ATTR TDIC
+		WHERE 
+			LanguageID = #{languageID}
+			And AttrTypeCode = 'AT00034'
+		    <if test="searchCondition1 != null and searchCondition1 != ''">
+		  	  AND TDIC.Name LIKE N'%' + #{searchCondition1} +'%'
+		    </if>
+		    <if test="searchCondition2 != null and searchCondition2 != ''">
+		  	  AND TDIC.Name LIKE N'%(' + #{searchCondition2} +'%'
+		    </if>
+		    <if test="searchCondition3 != null and searchCondition3 != ''">
+		  	  AND SUBSTRING(TDIC.PlainText,1,1) BETWEEN N''+#{searchCondition3} AND N''+#{searchCondition4}
+		    </if>
+	</select>
+	
+	<select id="getUserClientId" resultType="String">
+ 		SELECT 
+			ClientID
+		FROM 
+			XBOLTADM.TB_MEMBER
+		WHERE 
+			MemberID = #{userId}
+	</select>
+	
+	<select id="getMaxTypeCode" resultType="String">
+ 		SELECT MAX(TypeCode) AS MaxTypeCode
+      	FROM XBOLTADM.TB_DICTIONARY
+        WHERE Category = 'ST'
+	</select>
+	
+	<select id="getStandardTerm" resultType="java.util.HashMap">
+ 		SELECT 
+ 			Name As subject
+      	   ,Description As content
+      	FROM XBOLTADM.TB_DICTIONARY
+        WHERE 
+			TypeCode = #{TypeCode}
+			AND LanguageID = #{LanguageID}
+			AND Category = 'ST'
+	</select>
+	
+	<update id="standardTermsUpdate" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_DICTIONARY SET
+			Name = #{subject}
+			,Description = #{content}
+		WHERE 
+			TypeCode = #{TypeCode}
+			AND LanguageID = #{LanguageID}
+			AND Category = 'ST'
+	</update>
+	
+	<insert id="standardTermsInsert" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_DICTIONARY (
+			TypeCode
+			, LanguageID
+			, Category
+			, Name
+			, Description
+			, ClientID
+			) VALUES (
+				#{TypeCode}
+				, #{LanguageID}
+				, 'ST'
+				, #{subject}
+				, #{content}
+				, #{ClientID}
+			)
+	</insert>
+	
+	<delete id="standardTermsDelete" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_DICTIONARY
+		WHERE 
+			TypeCode = #{TypeCode}
+			AND LanguageID = #{LanguageID}
+			AND Category = 'ST'
+	</delete>
+
+
+<!-- ******************************NEW***************************************	-->
+	<select id="getTermsMenu" resultType="java.util.HashMap"> 
+		Select TI.ItemID,
+			TIA.PlainText,
+			TI.ClassCode,
+			TIA.LanguageID
+		From XBOLTADM.TB_ITEM TI
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TI.ItemID 
+				And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+		Where TI.ItemTypeCode = 'OJ00011'
+		And TI.ClassCode = #{classCode} 
+		Order By TI.ClassCode 
+	</select>
+	
+	<select id="getLovValue" resultType="String" >
+		Select Value AS LovName From XBOLTADM.TB_ATTR_TYPE_LOV Where LovCode = #{lovCode} And LanguageID = #{languageID}
+	</select>
+	
+	<select id="getTermDetailInfo" resultType="java.util.HashMap"> 
+	   Select TI.ITemID
+	        ,TIA.PlainText AS Name
+	        ,TIA2.PlainText AS enName
+	        ,TIA3.PlainText AS cnName
+			,TIA34.LovCode AS Category
+			,TIA34LOV.Value AS CategoryNM
+			,TIA73.PlainText AS Abbreviation
+			,TIADESC.PlainText AS Overview
+			,TIA56.PlainText AS KoreanText
+			,TIA57.PlainText AS EnglishText
+			,TIA58.PlainText AS ChineseText
+		From XBOLTADM.TB_ITEM TI
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TI.ItemID	And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{defaultLang}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA34 ON TIA34.ItemID = TI.ItemID	And TIA34.AttrTypeCode = 'AT00034' And TIA34.LanguageID = #{defaultLang}
+		Left Outer Join XBOLTADM.TB_ATTR_TYPE_LOV TIA34LOV ON TIA34LOV.AttrTypeCode = TIA34.AttrTypeCode  AND  TIA34LOV.LovCode = TIA34.LovCode AND TIA34LOV.LanguageID = #{defaultLang}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA73 ON TIA73.ItemID = TI.ItemID	And TIA73.AttrTypeCode = 'AT00073' And TIA73.LanguageID = #{defaultLang}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIADESC ON TIADESC.ItemID = TI.ItemID	And TIADESC.AttrTypeCode = 'AT00003' And TIADESC.LanguageID = #{defaultLang}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA56 ON TIA56.ItemID = TI.ItemID	And TIA56.AttrTypeCode = 'AT00056' And TIA56.LanguageID = #{defaultLang}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA57 ON TIA57.ItemID = TI.ItemID	And TIA57.AttrTypeCode = 'AT00057' And TIA57.LanguageID = #{defaultLang}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA58 ON TIA58.ItemID = TI.ItemID	And TIA58.AttrTypeCode = 'AT00058' And TIA58.LanguageID = #{defaultLang}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 ON TIA2.ItemID = TI.ItemID	And TIA2.AttrTypeCode = 'AT00001' And TIA2.LanguageID = 1033
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA3 ON TIA3.ItemID = TI.ItemID	And TIA3.AttrTypeCode = 'AT00001' And TIA3.LanguageID = 2052
+		Where TI.ItemID = #{itemID}
+	</select>
+	
+	<update id="saveTerms"  parameterType="java.util.HashMap">
+		IF (Select Count(*) From XBOLTADM.TB_Item_ATTR Where ItemID = #{itemID} And AttrTypeCode = #{attrTypeCode} And LanguageID = #{languageID} ) > 0
+			BEGIN
+				UPDATE XBOLTADM.TB_ITEM_ATTR
+					SET
+						PlainText = #{plainText}
+						,ItemTypeCode = (Select ItemTypeCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{itemID})
+						,ClassCode = (Select ClassCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{itemID})
+						,LastUpdated = GetDate()
+		  			  	<if test="lovCode != null and lovCode != ''">
+		  			  		,LovCode = #{lovCode}
+		  			  	</if>	
+					WHERE
+						ItemID = #{itemID}
+						AND AttrTypeCode = #{attrTypeCode}
+						AND LanguageID = #{languageID}
+				END
+			ELSE
+				BEGIN
+					INSERT INTO
+						XBOLTADM.TB_ITEM_ATTR
+						(
+						PlainText
+						,LanguageID
+						,ItemID
+						,AttrTypeCode
+						,LovCode
+						,ItemTypeCode
+						,ClassCode
+						,LastUpdated
+						)
+					VALUES
+						(
+						 #{plainText}
+						, #{languageID}
+						, #{itemID}
+						, #{attrTypeCode}
+						, #{lovCode}	
+						, (Select ItemTypeCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{itemID})
+						, (Select ClassCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{itemID})
+						, GETDATE()
+						)
+				END
+	</update>
+	
+ 	<select id="getSubItemList_gridList" resultType="java.util.HashMap">
+		SELECT 
+		    Row_Number() OVER (ORDER BY TERM.TIAPlainText ASC) as RNUM,
+		    TERM.ItemID,
+		    TERM.ClassCode,
+		    TERM.ParentID,
+		    TERM.Name,
+		    TERM.enName,
+		    TERM.cnName,
+		    TERM.Description,
+		    TERM.enDescription,
+		    TERM.cnDescription,
+			TERM.Terms
+		FROM (
+		    SELECT 
+		        DISTINCT ST.ToItemID AS ItemID, CLS.ClassCode, ST.FromItemID AS ParentID,
+		        REPLACE(REPLACE(TIa.PlainText, CHAR(13), ''), CHAR(10), '') AS Name,
+				REPLACE(REPLACE(enName.PlainText, CHAR(13), ''), CHAR(10), '') AS enName,
+				REPLACE(REPLACE(cnName.PlainText, CHAR(13), ''), CHAR(10), '') AS cnName,
+				<![CDATA[ 
+		        Replace(REPLACE( replace(replace(ISNULL(TIA2.PlainText,''), char(13),''),char(10),'<br>') ,'&lt;','<'), '&gt;','>') AS Description,
+				Replace(REPLACE( replace(replace(ISNULL(TIA1.PlainText,''), char(13),''),char(10),'<br>') ,'&lt;','<'), '&gt;','>') AS enDescription,
+				Replace(REPLACE( replace(replace(ISNULL(TIA5.PlainText,''), char(13),''),char(10),'<br>') ,'&lt;','<'), '&gt;','>') AS cnDescription,
+				]]>
+		        TIA.PlainText AS TIAPlainText,
+				<![CDATA[ 
+				CASE WHEN ISNULL(TIA1.PlainText,'') = ''
+					 THEN '<span style=font-weight:bold>' + REPLACE(REPLACE(TIa.PlainText, CHAR(13), ''), CHAR(10), '') + '</span>' +'<br>' 
+					    + Replace(REPLACE( replace(replace(left(ISNULL(TIA2.PlainText,''),200), char(13),''),char(10),'<br>') ,'&lt;','<'), '&gt;','>')
+					 WHEN ISNULL(TIA4.PlainText,'') = ''
+					 THEN '<span style=font-weight:bold>'+ TIA.PlainText + '(' + ISNULL(TIA1.PlainText,'') +')' +'</span>' + '<br>' 
+					    + Replace(REPLACE( replace(replace(left(ISNULL(TIA2.PlainText,''),200), char(13),''),char(10),'<br>') ,'&lt;','<'), '&gt;','>')				      
+					 ELSE '<span style=font-weight:bold>'+ TIA.PlainText + '(' + ISNULL(TIA1.PlainText,'') + '/' + ISNULL(TIA4.PlainText,'') +')' +'</span>' + '<br>' 
+					    + Replace(REPLACE( replace(replace(left(ISNULL(TIA2.PlainText,''),200), char(13),''),char(10),'<br>') ,'&lt;','<'), '&gt;','>')				      
+						END AS Terms
+				]]>  
+		    FROM 
+		        XBOLTADM.TB_ITEM TI
+		        	Left outer join XBOLTADM.TB_ITEM ST on TI.ItemID = ST.FromItemID and TI.CategoryCode != 'MOJ' 
+					Left outer join XBOLTADM.TB_ITEM CLS on CLS.ItemID = ST.ToItemID
+					Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = ST.ToItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{defaultLang}
+					Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 ON TIA2.ItemID = ST.ToItemID And TIA2.AttrTypeCode = 'AT00056' And TIA2.LanguageID = #{defaultLang}
+				    Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA3 ON TIA3.ItemID = ST.ToItemID And TIA3.AttrTypeCode = 'AT00034' And TIA3.LanguageID = #{defaultLang}
+			        Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA4 ON TIA4.ItemID = ST.ToItemID And TIA4.AttrTypeCode = 'AT00073' And TIA4.LanguageID = #{defaultLang}
+			        Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA1 ON TIA1.ItemID = ST.ToItemID And TIA1.AttrTypeCode = 'AT00057' And TIA1.LanguageID = #{defaultLang}
+			        Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA5 ON TIA5.ItemID = ST.ToItemID And TIA5.AttrTypeCode = 'AT00058' And TIA5.LanguageID = #{defaultLang}
+					Left Outer Join XBOLTADM.TB_ITEM_ATTR enName ON enName.ItemID = ST.ToItemID And enName.AttrTypeCode = 'AT00001' And enName.LanguageID = 1033
+					Left Outer Join XBOLTADM.TB_ITEM_ATTR cnName ON cnName.ItemID = ST.ToItemID And cnName.AttrTypeCode = 'AT00001' And cnName.LanguageID = 2052
+		    WHERE
+		        TI.ItemTypeCode = 'OJ00011'
+		        AND TIA.PlainText IS NOT NULL
+		        AND TI.Deleted != 1
+			    <choose>
+				    <when test='"Y".equals(mgt)'>
+				  	  AND TI.Status = 'NEW2'
+				    </when> 
+				    <when test='"N".equals(mgt)'>
+				  	  AND TI.Status IN ('NEW1','REL')
+				    </when>
+			    </choose>
+			) AS TERM
+		
+		Order By TIAPlainText
+ 	</select>
+</mapper>

@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- shkim -->
+<mapper namespace="callback_SQL">
+	
+	<!-- CTI 대상 CALLBACK 테이블에서 데이터 조회 후 CALLBACK_MST 테이블에 삽입  -->
+	<insert id="insertCALLBACK_MST">
+		INSERT INTO XBOLTDLM.CALLBACK_MST (
+		    CallBackKey, RegDate, RegTime, ReqNum, ReqNm, AgentID, AgentNm, 
+		    CallYn, CallRet, DelYn, CreationTime, Creator, LastUpdated, LastUser
+		)
+		SELECT 
+		    A.CallBackKey, 
+		    A.RegDate,  -- YYYYMMDD 형식
+		    A.RegTime,  -- HHMMSS 형식
+		    A.TelNum AS ReqNum, 
+		    B.Name AS ReqNm, 
+		    A.AgentID, 
+		    C.CC_USER_NAME AS AgentNm, 
+		    'N', 
+		    COALESCE(A.CallRet, '02'), 
+		    'N', 
+		    CONVERT(DATETIME, A.RegDate, 112) AS CreationTime, 
+		    C.CC_USR_EMP_NO AS Creator, 
+		    CONVERT(DATETIME, A.RegDate, 112) AS LastUpdated, 
+		    C.CC_USR_EMP_NO AS LastUser
+		FROM XBOLTDLM.CTI_TO_E_CALLBACK A
+		JOIN XBOLTDLM.CC_USER_STS C 
+		    ON A.AgentID = C.TelNum
+		LEFT JOIN XBOLTADM.TB_MEMBER B 
+		    ON A.TelNum = B.TelNum 
+		    OR A.TelNum = B.MTelNum
+		WHERE A.AgentID = #{AgentID}   
+		AND NOT EXISTS (
+		    SELECT 1 FROM XBOLTDLM.CALLBACK_MST M 
+		    WHERE M.CallBackKey = A.CallBackKey
+		);
+	</insert>
+	
+	<!--CTI 대상 데이터 CALLBACK 테이블에서 데이터 조회 후 CALLBACK_DTL 테이블에 삽입  -->
+	<insert id="insertCALLBACK_DTL">
+		INSERT INTO XBOLTDLM.CALLBACK_DTL (
+		    CallBackKey, Seq, CallYn, CallRet, Memo, DelYn, VoiceFile, 
+		    CreationTime, Creator, LastUpdated, LastUser
+		)
+		SELECT 
+		    CAST(A.CallBackKey AS VARCHAR(20)),
+		    ROW_NUMBER() OVER (PARTITION BY A.CallBackKey ORDER BY A.CallBackKey, A.RegDate) AS Seq,
+		    'N' AS CallYn, 
+		    COALESCE(A.CallRet, '02') AS CallRet, 
+		    A.Memo, 
+		    'N' AS DelYn, 
+		    A.VoiceFile, 
+		    CONVERT(DATETIME, A.RegDate, 112) AS CreationTime, 
+		    C.CC_USR_EMP_NO AS Creator, 
+		    CONVERT(DATETIME, A.RegDate, 112) AS LastUpdated, 
+		    C.CC_USR_EMP_NO AS LastUser
+		FROM XBOLTDLM.CTI_TO_E_CALLBACK A
+		JOIN XBOLTDLM.CC_USER_STS C 
+		    ON A.AgentID = C.TelNum
+		LEFT JOIN XBOLTADM.TB_MEMBER B 
+		    ON A.TelNum = B.TelNum 
+		    OR A.TelNum = B.MTelNum
+		WHERE A.AgentID = #{AgentID} 
+		AND NOT EXISTS (
+		    SELECT 1 FROM XBOLTDLM.CALLBACK_DTL D 
+		    WHERE D.CallBackKey = A.CallBackKey 
+		    AND D.Seq = 1
+		);
+	</insert>
+	
+	<!-- 콜백내역 조회 -->
+	<select id="selectCallbackList_gridList" resultType="java.util.HashMap">
+		WITH RankedData AS (
+		    SELECT 
+		        M.CallBackKey,
+		        FORMAT(CONVERT(DATETIME, M.Regdate + ' ' + STUFF(STUFF(M.regtime, 3, 0, ':'), 6, 0, ':'), 120), 'yyyy-MM-dd HH:mm:ss') AS RegDayTime,
+		        M.ReqNm,
+		        D.Seq,
+		        CONVERT(VARCHAR,  D.CreationTime , 120) AS CreationTime, 
+		        M.AgentID,
+		        B.CC_USER_NAME AS NAME,
+		        D.Memo,
+		        ROW_NUMBER() OVER (PARTITION BY M.CallBackKey ORDER BY D.Seq DESC) AS RowNum
+		    FROM XBOLTDLM.CALLBACK_MST M
+		    LEFT JOIN XBOLTDLM.CALLBACK_DTL D 
+		        ON M.CallBackKey = D.CallBackKey
+		    LEFT JOIN XBOLTDLM.CC_USER_STS B 
+		        ON M.AgentID = B.TelNum
+		    WHERE M.DelYn = 'N'
+		      AND M.CallRet IN ('00', '02')
+		      AND M.AgentID =  #{AgentID}
+		)
+		SELECT 
+		    CallBackKey, 
+		    RegDayTime, 
+		    ReqNm, 
+		    Seq, 
+		    CreationTime, 
+		    AgentID, 
+		    NAME, 
+		    Memo
+		FROM RankedData
+		WHERE RowNum = 1  
+		ORDER BY CreationTime DESC;
+
+	</select>
+	
+	<!-- 내역 팝업시 상세조회조건 -->
+	<select id="selectCallbackDtl" resultType="java.util.HashMap">
+	    SELECT 
+	        m.CallBackKey,
+	        m.RegDate,
+	        m.RegTime,
+	        m.ReqNum,
+	        m.ReqNm,
+	        m.AgentID,
+	        m.AgentNm,
+	        m.CallYn AS MstCallYn,
+	        m.CallRet AS MstCallRet,
+	        m.DelYn AS MstDelYn,
+	        CONVERT(VARCHAR,  m.CreationTime, 120)  AS MstCreationTime,
+	        m.Creator AS MstCreator,
+	        CONVERT(VARCHAR,  m.LastUpdated, 120)  AS MstLastUpdated,
+	        m.LastUser AS MstLastUser,
+	        d.Seq,
+	        d.CallYn AS DtlCallYn,
+	        d.CallRet AS DtlCallRet,
+	        CASE 
+		        WHEN d.CallRet = '01' THEN '통화성공'
+		        WHEN d.CallRet = '02' THEN '통화실패'
+		        WHEN d.CallRet = '03' THEN '콜백포기'
+		        ELSE '기타'
+		    END AS DtlCallRetNm,
+	        d.Memo,
+	        d.DelYn AS DtlDelYn,
+	        d.VoiceFile,
+	        CONVERT(VARCHAR,  d.CreationTime , 120) AS DtlCreationTime, 
+	        d.Creator AS DtlCreator,
+	        CONVERT(VARCHAR,  d.LastUpdated , 120) AS DtlLastUpdated,
+	        d.LastUser AS DtlLastUser,
+	        (SELECT COUNT(*) 
+	         FROM XBOLTDLM.CALLBACK_DTL 
+	         WHERE CallBackKey = #{CallBackKey} AND CallRet IN ('02', '03')) AS RejectCount
+	    FROM XBOLTDLM.CALLBACK_MST m
+		    JOIN XBOLTDLM.CALLBACK_DTL d
+		    ON m.CallBackKey = d.CallBackKey
+	    WHERE d.CallBackKey = #{CallBackKey}
+	    	AND m.AgentID = #{AgentID}
+		    AND d.Seq = 
+		    <choose>
+		        <when test="varSeq != null">
+		            #{varSeq}
+		        </when>
+		        <otherwise>
+		            (SELECT MAX(Seq) FROM XBOLTDLM.CALLBACK_DTL WHERE CallBackKey = #{CallBackKey})
+		        </otherwise>
+		    </choose>
+	</select>
+
+	
+	<!-- 통화실패내역 조회 -->
+	<select id="selectCallbackDtl_gridList" resultType="java.util.HashMap">
+		SELECT 
+		    ROW_NUMBER() OVER (ORDER BY m.CallBackKey, d.Seq ASC) AS no,  
+		    d.CallBackKey,
+		    d.Seq,
+		    m.ReqNum AS ReqNum,
+		    CONVERT(VARCHAR,  d.CreationTime , 120) as RegDayTime,
+		    CONVERT(VARCHAR,  d.LastUpdated , 120) AS LastUpdated,
+			b.CC_USER_NAME AS AgentNm, 
+		    d.CallRet,
+		    CASE 
+		        WHEN d.CallRet = '01' THEN '통화성공'
+		        WHEN d.CallRet = '02' THEN '통화실패'
+		        WHEN d.CallRet = '03' THEN '콜백포기'
+		        ELSE '실패'
+		    END AS CallRetNm,
+		    d.Memo
+		FROM XBOLTDLM.CALLBACK_MST m
+			JOIN XBOLTDLM.CALLBACK_DTL d
+				ON m.CallBackKey = d.CallBackKey
+			LEFT JOIN XBOLTDLM.CC_USER_STS b ON
+				d.LastUser = b.CC_USR_EMP_NO
+		WHERE d.CallBackKey = #{CallBackKey}   
+		ORDER BY m.CallBackKey, d.Seq DESC;
+
+	</select>
+	
+	
+	
+	<!-- 통화내역 신규등록 -->
+	<insert id="insertCallbackDtl">
+		INSERT INTO XBOLTDLM.CALLBACK_DTL (
+		    CallBackKey, Seq, CallYn, CallRet, Memo, DelYn, VoiceFile, CreationTime, Creator, LastUpdated, LastUser
+		) 
+		VALUES (
+		    #{CallBackKey},  
+		    (SELECT ISNULL(MAX(Seq), 0) + 1 FROM XBOLTDLM.CALLBACK_DTL WHERE CallBackKey = #{CallBackKey}), 
+		    'N',  
+		    #{CallRet}, 
+		    #{Memo},  
+		    'N', 
+		    NULL,  
+		    #{CreationTime},  
+		    #{Creator},  
+		    GETDATE(),  
+		    #{LastUser}  
+		);
+	</insert>
+	
+	<!-- 통화내역 신규등록한 seq값 가져오기 -->
+	<select id="getCallbacklistSeq" parameterType="map" resultType="map" >
+		SELECT MAX(seq) AS makeSeq
+		  FROM XBOLTDLM.CALLBACK_DTL
+		 WHERE CallBackKey = #{CallBackKey};
+	</select>
+		
+	<!-- 통화내역dtl update -->
+	<update id="updateCallbackDtl">
+		UPDATE XBOLTDLM.CALLBACK_DTL	
+		SET CallYn = #{CallYn},  
+		    CallRet = #{CallRet},  
+		    Memo = #{Memo},
+		    DelYn = 'N',
+		    LastUpdated = GETDATE(),	
+		    LastUser = #{LastUser}
+		WHERE CallBackKey = #{CallBackKey}
+		  AND Seq = #{reqSeq};	
+	</update>
+
+	<!-- 통화성공 후 횟수 mst 테이블 update -->
+	<update id="updateCallbackMst_suc">
+		UPDATE XBOLTDLM.CALLBACK_MST		
+		SET CallYn = 'Y', 	
+		    CallRet = '01',  	
+		    LastUpdated = GETDATE(),		
+		    LastUser = #{LastUser}
+		WHERE CallBackKey = #{CallBackKey};		
+	</update>
+	
+	<!-- 담당자변경 대상조회 -->
+	<select id="getCallbackUserlist" resultType="java.util.HashMap">
+		SELECT
+		    CC_USER_NAME AS NAME,
+		    TelNum AS CODE
+		FROM XBOLTDLM.CC_USER_STS
+		WHERE 1=1
+		 AND useYN ='Y'
+		 <if test="CC_USR_EMP_NO != null and CC_USR_EMP_NO != ''">AND CC_USR_EMP_NO = #{CC_USR_EMP_NO}</if>
+	    ORDER BY MOD_DATE DESC;  
+	</select>
+	
+	<!-- 콜백 대상 담당자 변경 eClick MST TBL update -->
+	<update id="updateCallbackMst_User" >
+		UPDATE XBOLTDLM.CALLBACK_MST
+		SET AgentID = #{NewAgentID},  
+			AgentNm = #{NewAgentName},
+		    LastUpdated = GETDATE(), 
+		    LastUser = #{LastUser}    
+		WHERE CallBackKey = #{CallBackKey};  
+	</update>
+	
+	
+	
+</mapper>

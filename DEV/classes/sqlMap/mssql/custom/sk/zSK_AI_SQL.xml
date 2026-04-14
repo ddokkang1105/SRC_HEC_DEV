@@ -1,0 +1,127 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="zSK_AI_SQL">
+    <!--	<select id="getItemId" resultType="java.lang.Integer">-->
+    <!--		SELECT Top 20 ItemID FROM XBOLTADM.TB_ITEM-->
+    <!--	</select>-->
+
+    <select id="get_process_md" resultType="java.util.HashMap">
+        SELECT
+            TI.ItemID,
+            TI.CurChangeSet,
+            TI.Identifier,
+            TI.Version,
+            TM.Name + '(' + TM.LoginId + ')' as authorName,
+            TTT.Name as TeamName,
+            STRING_AGG(ISNULL(TDVT.Name, ''), ', ') as dimSite,
+            TCS.Description
+        FROM XBOLTADM.TB_ITEM TI
+                 LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM
+                                 ON TM.MemberID = TI.AuthorID
+                 LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TTT
+                                 ON TTT.TeamID = TM.TeamID
+                                     AND TTT.LanguageID = #{languageID}
+                 LEFT OUTER JOIN XBOLTADM.TB_ITEM_DIM TID
+                                 ON TID.ItemID = TI.ItemID
+                 LEFT OUTER JOIN XBOLTADM.TB_DIM_VALUE_TXT TDVT
+                                 ON TDVT.DimValueID = TID.DimValueID
+                                     AND TDVT.DimTypeID = TID.DimTypeID
+                                     AND TDVT.LanguageID = #{languageID}
+                 LEFT OUTER JOIN XBOLTADM.TB_CHANGE_SET TCS
+                                 ON TCS.ItemID = TI.ItemID
+                                     AND TCS.ChangeSetID = TI.CurChangeSet
+        WHERE TI.ItemID = #{itemID}
+        GROUP BY
+            TI.ItemID,
+            TI.CurChangeSet,
+            TI.Identifier,
+            TI.Version,
+            TM.Name,
+            TM.LoginID,
+            TTT.Name,
+            TCS.Description
+    </select>
+
+    <select id="get_process_attr_md" resultType="java.util.HashMap">
+        SELECT
+            CASE
+                WHEN TD.Name = '명칭' THEN '문서명'
+                ELSE TD.Name
+                END AS Name,
+            TATA.AttrTypeCode,
+            CASE
+                WHEN TAT.DataType = 'MLOV' THEN STRING_AGG(ISNULL(TATL.Value, ''), ', ')
+                WHEN TAT.DataType = 'LOV' THEN MAX(ISNULL(TATL.Value, ''))
+                ELSE MAX(ISNULL(TIA.PlainText, ''))
+                END AS PlainText
+        FROM XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA
+                 LEFT OUTER JOIN XBOLTADM.TB_ATTR_TYPE TAT
+                                 ON TAT.AttrTypeCode = TATA.AttrTypeCode
+                 LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD
+                                 ON TD.TypeCode = TATA.AttrTypeCode
+                                     AND TD.Category = 'AT'
+                                     AND TD.LanguageID = #{languageID}
+                 LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA
+                                 ON TIA.AttrTypeCode = TATA.AttrTypeCode
+                                     AND TIA.ClassCode = TATA.ItemClassCode
+                                     AND TIA.LanguageID = #{languageID}
+                                     AND TIA.ItemID = #{itemID}
+                 LEFT OUTER JOIN XBOLTADM.TB_ATTR_TYPE_LOV TATL
+                                 ON TATL.AttrTypeCode = TATA.AttrTypeCode
+                                     AND TATL.LovCode = TIA.LovCode
+                                     AND TATL.LanguageID = #{languageID}
+                 LEFT OUTER JOIN XBOLTADM.TB_CHANGE_SET TCS
+                                 ON TCS.ItemID = TIA.ItemID
+        WHERE TATA.ItemClassCode = (
+            SELECT ClassCode
+            FROM XBOLTADM.TB_ITEM
+            WHERE ItemID = #{itemID}
+        )
+          AND TIA.ItemID IS NOT NULL
+          AND TIA.AttrTypeCode not in ('ZAT01080') -- 채번 attr
+        GROUP BY
+            TD.Name,
+            TATA.AttrTypeCode,
+            TAT.DataType,
+            TATA.SortNum
+        ORDER BY TATA.SortNum
+    </select>
+
+    <select id="get_file_md" resultType="java.util.HashMap">
+        SELECT
+            TF.DocumentID,
+            TD.Name as FileType,
+            TF.FileRealName,
+            TF.FileName,
+            TFL.FilePath,
+            REPLACE(REPLACE(TFL.FilePath, '//', '\'), '/', '\') + FileName AS FileRealPath,
+            TI.Version,
+            TM.Name + '(' + TM.LoginId + ')' as authorName,
+            CONVERT(VARCHAR, TF.CreationTime, 23) AS CreationDate
+        FROM XBOLTADM.TB_FILE TF
+                 LEFT OUTER JOIN XBOLTADM.TB_ITEM TI
+                                 ON TI.ItemID = TF.DocumentID
+                 LEFT OUTER JOIN XBOLTADM.TB_FLTP TFL
+                                 ON TFL.FltpCode = TF.FltpCode
+                 LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD
+                                 ON TD.TypeCode = TF.FltpCode
+                                     AND TD.Category = 'FLTP'
+                                     AND TD.LanguageID = #{languageID}
+                 LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM
+                                 ON TM.MemberID = TF.RegMemberID
+        WHERE TF.DocumentID = #{itemID}
+          AND TF.LanguageID = #{languageID}
+          AND TF.ChangeSetID = TI.CurChangeSet
+    </select>
+
+    <select id="get_actovity_md" resultType="java.util.HashMap">
+        SELECT
+            ToItemID
+        FROM XBOLTADM.TB_ITEM
+        WHERE FromItemID = #{itemID}
+          AND CategoryCode = 'ST1'
+          AND Deleted != '1'
+    </select>
+</mapper>

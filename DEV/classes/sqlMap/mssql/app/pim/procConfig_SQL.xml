@@ -1,0 +1,557 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+       
+<mapper namespace="procConfig_SQL">
+
+	<select id="getProcessStepList" resultType="java.util.HashMap">
+			Select 
+				TI.Identifier,
+				TI.ItemID,
+				TIA.PlainText AS ItemName,
+				TI.ClassCode,			
+				ISNULL(XBOLTADM.fn_GetMyAbsPathForList( TI.ItemID, #{languageID}),'') AS Path,
+				TM.Name AS AuthorName,
+				ISNULL(TT.Name, '') AS TeamName,
+				TOT.Name AS OwnerTeamName,
+				TSD.Name AS StatusName,
+				ISNULL(CONVERT(char(10), TI.CreationTime, 111),'') AS CreationTime
+			From XBOLTADM.TB_Item TI
+			Left Outer Join XBOLTADM.TB_Item_Attr TIA ON TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_MEMBER TM on TI.AuthorID = TM.MemberID
+			Left outer join XBOLTADM.TB_TEAM_TXT TT on TI.CompanyID = TT.TeamID AND TT.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_TEAM_TXT TOT on TI.OwnerTeamID = TOT.TeamID AND TOT.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_DICTIONARY TSD on TI.Status = TSD.TypeCode AND TSD.LanguageID = #{languageID} AND TSD.Category = 'ITMSTS'
+			Where TI.Deleted != 1
+			<if test="modelID != null and modelID != ''">
+				AND TI.ItemID IN ( Select ObjectID From XBOLTADM.TB_Element Where ModelID = #{modelID} And ClassCode = #{classCode} )
+			</if>
+			<if test="itemID != null and itemID != ''">
+				AND TI.ItemID = #{itemID}
+			</if>
+			Order By TI.Identifier 
+	</select>
+	
+	<select id="getRoleProgramList" resultType="java.util.HashMap">
+		Select 
+			TI.Identifier,
+			TI.ItemID,
+			TIA.PlainText AS ItemName,
+			TI.ClassCode,			
+			ISNULL(XBOLTADM.fn_GetMyAbsPathForList( TI.ItemID, #{languageID}),'') AS Path,
+			TM.Name AS AuthorName,
+			ISNULL(TT.Name, '') AS TeamName,
+			TOT.Name AS OwnerTeamName,
+			TSD.Name AS StatusName,
+			ISNULL(CONVERT(char(10), TI.CreationTime, 111),'') AS CreationTime 
+		From XBOLTADM.TB_Item TI
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And LanguageID = #{languageID}
+		Left outer join XBOLTADM.TB_MEMBER TM on TI.AuthorID = TM.MemberID
+		Left outer join XBOLTADM.TB_TEAM_TXT TT on TI.CompanyID = TT.TeamID AND TT.LanguageID = #{languageID}
+		Left outer join XBOLTADM.TB_TEAM_TXT TOT on TI.OwnerTeamID = TOT.TeamID AND TOT.LanguageID = #{languageID}
+		Left outer join XBOLTADM.TB_DICTIONARY TSD on TI.Status = TSD.TypeCode AND TSD.LanguageID = #{languageID} AND TSD.Category = 'ITMSTS'
+		Where TI.ItemTypeCode = #{itemTypeCode}	AND TI.Deleted != 1
+		<if test="processItemID != null and processItemID != ''">
+			AND TI.ItemID IN (Select FromItemID From XBOLTADM.TB_Item Where ToItemID = #{processItemID} And ItemTypeCode = 'CN00201' AND CategoryCode = 'CN'AND Deleted != 1) 
+		</if>
+		<if test="roleItemID != null and roleItemID != ''">
+			AND TI.ItemID IN (Select ToItemID From XBOLTADM.TB_Item Where FromItemID = #{roleItemID} And ItemTypeCode = 'CN00204' AND CategoryCode = 'CN'AND Deleted != 1) 
+		</if>			
+	</select>
+	
+	<select id="itemConfigInfo" resultType="java.util.HashMap">
+		SELECT
+			TICM.ItemConfigID
+			, TD2.Name As Status
+			, TICM.Description
+			, TICM.RegUserID
+			, ISNULL(TM2.Name,'') + Case When ISNULL(TM2.NameEN,'') != '' Then '(' + ISNULL(TM2.NameEN,'') + ')' Else '' End AS Configurator
+			, Convert(nvarchar(20),TICM.LastUpdated, 111) AS LastUpdated
+			, TC.Status As changeSetStatus
+			, TICM.Status As configStatus
+		FROM
+			XBOLTAPP.PIM_ITEM_CONFIG_MST TICM
+			LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM2 on TICM.RegUserID = TM2.MemberID
+		    LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD2 on TICM.Status = TD2.TypeCode and TD2.LanguageID = #{languageID} and TD2.Category = 'CNGSTS'
+		    LEFT OUTER JOIN XBOLTADM.TB_CHANGE_SET TC on TICM.ChangeSetID = TC.ChangeSetID and TICM.ItemID = TC.ItemID
+		WHERE TICM.ItemID = #{s_itemID}
+	</select>
+	
+	<select id="messageName" resultType="java.util.HashMap">
+		SELECT 
+			TypeCode, Name 
+		FROM 
+			XBOLTADM.TB_DICTIONARY
+		WHERE 
+			Category = #{Category}
+			AND LanguageID = #{languageID}	
+			ORDER BY
+				Name ASC
+	</select>
+	
+	<select id="getMaxItemConfigID" resultType="String">
+		Select Max(ItemConfigID)+1 As ItemConfigID From XBOLTAPP.PIM_ITEM_CONFIG_MST
+	</select>
+	
+	<insert id="addItemConfigInfo">
+		INSERT INTO
+		XBOLTAPP.PIM_ITEM_CONFIG_MST(
+		ItemConfigID
+		,ChangeSetID
+		,ItemID
+		,ItemClass
+		,Seq
+		,Status
+		,RegUserID
+		,RegUserTeamID
+		,CreationTime
+		)
+		VALUES(
+		#{itemConfigID}
+		,(SELECT CurChangeSet FROM XBOLTADM.TB_ITEM WHERE ItemID = #{itemID})
+		,#{itemID}
+		,(SELECT ClassCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{itemID})
+		,'1'
+		,'MOD'
+		,#{UserID}
+		,(SELECT TeamID FROM XBOLTADM.TB_MEMBER WHERE MemberID = #{UserID})
+		,getDate()
+		)
+	</insert>
+
+	<update id="saveItemConfigInfo" parameterType="java.util.HashMap">
+		UPDATE XBOLTAPP.PIM_ITEM_CONFIG_MST SET
+			<if test="description != null and description != ''">
+				Description = #{description},
+			</if>
+			<if test="status != null and status != ''">
+				Status = #{status},
+			</if>
+			<if test="isLast != null and isLast != ''">
+				isLast = #{isLast},
+			</if>
+			LastUpdated = getDate(),
+			LastUser = #{UserID}
+		WHERE ItemID=#{itemID} AND ItemConfigID=#{itemConfigID}
+	</update>
+	
+	<update id="updateCurConfigID" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_ITEM 
+			SET 
+				CurConfigID = #{itemConfigID}
+			WHERE
+				ItemID = #{itemID}
+	</update>
+	
+	<select id="getItemAttrType_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY TATA.SortNum ASC) as RNUM
+			, 0 AS CHK
+			, TATA.SortNum
+			, TATA.RowNum
+			, TATA.ColumnNum
+			, TAT.AttrTypeCode
+			, TD.Name
+			, TD3.Name As Alias
+			, TD.Description
+			, ISNULL(TATA.Mandatory,'') AS Mandatory
+			, ISNULL(TATA.Calculated,'') AS Calculated	
+			, ISNULL(TATA.Invisible,'') AS Invisible	
+			, TATA.Link		
+			, ISNULL(TD2.Name, TM.DicCode) AS LinkName	
+			, TATA.VarFilter
+			, TATA.EditLink		
+			, ISNULL(TD4.Name, TM2.DicCode) AS EditLinkName	
+			, TATA.EditLinkVarFilter
+			, TATA.AttrTypeNMCode
+			, TIAD.DefValue
+		FROM XBOLTADM.TB_ATTR_TYPE TAT
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TD on TAT.AttrTypeCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+		 Inner Join XBOLTAPP.PIM_ITEM_ATTR_TYPE TATA on TAT.AttrTypeCode = TATA.AttrTypeCode AND TATA.ItemID = #{ItemID}
+		 Left Outer Join XBOLTADM.TB_MENU TM ON TM.MenuID = TATA.Link 
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TD2 on TM.DicCode = TD2.TypeCode AND TD2.LanguageID = #{languageID}
+		 Left Outer Join XBOLTADM.TB_MENU TM2 ON TM2.MenuID = TATA.EditLink 
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TD4 on TM2.DicCode = TD4.TypeCode AND TD4.LanguageID = #{languageID}
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TD3 On TD3.TypeCode = TATA.AttrTypeNMCode And TD3.LanguageID = #{languageID} And TD3.Category = 'LN'
+		 Left Outer Join XBOLTAPP.PIM_ITEM_ATTR_DEF TIAD on TIAD.ItemID = TATA.ItemID and TIAD.AttrTypeCode = TATA.AttrTypeCode and TIAD.LanguageID = #{languageID}
+		WHERE TD.Name IS NOT NULL	
+	</select>  
+	
+	<update id="UpdateItemAttrType">
+		UPDATE XBOLTAPP.PIM_ITEM_ATTR_TYPE SET
+			SortNum = #{SortNum}
+			,RowNum = #{RowNum}
+			,ColumnNum = #{ColumnNum}
+			,Invisible = #{Invisible}
+			,Mandatory = #{Mandatory}
+			,Calculated = #{Calculated}
+			<choose>
+				<when test="Link != null and Link != ''">
+					,Link = #{Link}
+				</when>
+				<when test="Link == null or Link == ''">
+					,Link = NULL
+				</when>
+			</choose>	
+			<choose>
+				<when test="dicCode != null and dicCode != ''">
+					,AttrTypeNMCode = #{dicCode}
+				</when>
+				<when test="dicCode == null or dicCode == ''">
+					,AttrTypeNMCode = NULL
+				</when>
+			</choose>
+			,EditLink = #{EditLink}	
+			,VarFilter = #{varFilter}
+			,EditLinkVarFilter = #{EditLinkVarFilter}
+			,LastUser = #{UserID}
+			,LastUpdated = getDate()
+		WHERE ItemID=#{s_itemID} AND AttrTypeCode=#{AttrTypeCode}
+	</update>
+
+	<delete id="DeleteItemAttrType">
+		DELETE
+		XBOLTAPP.PIM_ITEM_ATTR_TYPE
+		WHERE
+		ItemID = #{ItemID}
+		AND AttrTypeCode = #{AttrTypeCode}
+	</delete>
+	
+	<select id="AddItemAttrType_gridList" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY TAT.AttrTypeCode ASC) as RNUM
+		, 0 AS CHK
+		, TAT.AttrTypeCode
+		, TD.Name
+		, TD.Description
+		FROM
+		XBOLTADM.TB_ATTR_TYPE TAT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD
+		on TAT.AttrTypeCode = TD.TypeCode
+		AND TD.LanguageID = #{languageID}
+		WHERE
+		TD.Name IS NOT NULL
+		and 1=1
+		and TAT.AttrTypeCode NOT IN(
+		SELECT
+		AT.AttrTypeCode
+
+		FROM
+		XBOLTADM.TB_ATTR_TYPE AS AT
+
+		Inner Join XBOLTAPP.PIM_ITEM_ATTR_TYPE TATA
+		on AT.AttrTypeCode = TATA.AttrTypeCode
+		AND TATA.ItemID = #{ItemID}
+
+		)
+	</select>
+	
+	<insert id="AddItemAttrType">
+		INSERT INTO
+		XBOLTAPP.PIM_ITEM_ATTR_TYPE(
+		ItemID
+		,AttrTypeCode
+		,RegUserID
+		,RegUserTeamID
+		,CreationTime
+		)
+		VALUES(
+		#{ItemID}
+		,#{AttrTypeCode}
+		,#{UserID}
+		,(SELECT TeamID FROM XBOLTADM.TB_MEMBER WHERE MemberID = #{UserID})
+		,getDate()
+		)
+	</insert>
+	
+	<select id="selectItemAttrDef" resultType="String">
+		Select ItemID
+		  From XBOLTAPP.PIM_ITEM_ATTR_DEF
+		Where 
+		 ItemID = #{s_itemID}
+		 And AttrTypeCode = #{AttrTypeCode}
+		 And LanguageID = #{languageID}
+	</select>
+	
+	<insert id="InsertItemAttrDef">
+		INSERT INTO
+		XBOLTAPP.PIM_ITEM_ATTR_DEF(
+		ItemID
+		,AttrTypeCode
+		,LanguageID
+		,DefValue
+		)
+		VALUES(
+		#{s_itemID}
+		,#{AttrTypeCode}
+		,#{languageID}
+		,#{DefValue}
+		)
+	</insert>
+	
+	<update id="UpdateItemAttrDef">
+		Update XBOLTAPP.PIM_ITEM_ATTR_DEF Set
+			DefValue = #{DefValue},
+			LastUpdated = getDate(),
+			LastUser = #{UserID}
+		Where ItemID = #{s_itemID} AND AttrTypeCode = #{AttrTypeCode} AND LanguageID = #{languageID}
+	</update>
+	
+	<delete id="DeleteItemAttrDef">
+		DELETE
+		XBOLTAPP.PIM_ITEM_ATTR_DEF
+		WHERE
+		ItemID = #{ItemID}
+		AND AttrTypeCode = #{AttrTypeCode}
+	</delete>
+	
+	<select id="getItemFileType_gridList" resultType="java.util.HashMap">
+	SELECT 
+		Row_Number()OVER(ORDER BY FT.FltpCode ASC) as RNUM
+			,0 AS CHK
+			, FT.FltpCode As FltpCode
+			, TD.Name
+			, FT.FilePath
+			, FA.LinkType
+			, FA.ItemID
+			, FA.Mandatory
+			, FA.Authority
+		FROM XBOLTAPP.PIM_ITEM_FLTP AS FA		
+			LEFT OUTER JOIN XBOLTADM.TB_FLTP AS FT ON FT.FltpCode = FA.DocFltpCode		
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD ON FT.FltpCode = TD.TypeCode AND TD.LanguageID = #{languageID} AND TD.Category = 'FLTP'
+		Where FA.ItemID=#{s_itemID}
+
+	</select>
+	
+	<select id="AddItemFileType_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY FT.FltpCode ASC) as RNUM
+			,0 AS CHK
+			, FT.FltpCode As FltpCode
+			, FT.FilePath
+			, TD.Name
+		FROM XBOLTADM.TB_FLTP AS FT
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD ON FT.FltpCode = TD.TypeCode AND TD.LanguageID = #{languageID} AND TD.Category = 'FLTP'
+			LEFT OUTER JOIN XBOLTAPP.PIM_ITEM_FLTP AS TFA ON FT.FltpCode = TFA.DocFltpCode AND TFA.ItemID=#{ItemID}
+		WHERE 
+			FT.FltpCode NOT IN(
+				Select TF.FltpCode From XBOLTADM.TB_FLTP TF
+				Inner Join XBOLTAPP.PIM_ITEM_FLTP TFA ON TF.FltpCode = TFA.DocFltpCode
+				AND TFA.ItemID=#{ItemID}
+			)
+			AND FT.DocCategory = 'IST'
+			<if test="varFilter != null and varFilter != ''">
+				AND FT.ParentCode = #{varFilter}
+			</if>
+			
+	</select>
+	
+	<insert id="AddItemFileType">
+		Insert into
+		XBOLTAPP.PIM_ITEM_FLTP(
+		DocFltpCode
+		,ItemID
+		,RegUserID
+		,RegUserTeamID
+		,CreationTime
+		)
+		values(
+		#{FltpCode}
+		,#{ItemID}
+		,#{UserID}
+		,(SELECT TeamID FROM XBOLTADM.TB_MEMBER WHERE MemberID = #{UserID})
+		,getDate()
+		)
+	</insert>
+
+	<delete id="DeleteItemFileType">
+		delete
+		XBOLTAPP.PIM_ITEM_FLTP
+		where
+		DocFltpCode = #{FltpCode}
+		and ItemID = #{ItemID}
+	</delete>
+	
+	<update id="updateItemFileType" parameterType="java.util.HashMap" >
+		Update 
+		XBOLTAPP.PIM_ITEM_FLTP SET 
+		LinkType = #{linkType},
+		Mandatory = #{mandatory},
+		LastUser = #{UserID},
+		LastUpdated = getDate()
+		Where DocFltpCode = #{fltpCode} 
+		And ItemID = #{itemID}
+	</update>
+
+	<select id="getAllocateItemReport_gridList" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY TB.ReportCode ASC) as RNUM
+		, 0 AS CHK
+		, TB.ReportCode
+		, TB.ReportType
+		, TB.OutputType
+		, TD.Name
+		, TD.Description
+		FROM
+		XBOLTADM.TB_REPORT TB
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TB.ReportCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+		Inner Join XBOLTAPP.PIM_ITEM_REPORT TRA ON TB.ReportCode = TRA.TXReportCode AND TRA.ItemID = #{s_itemID}
+	</select>
+	
+	<select id="AddItemReport_gridList" resultType="java.util.HashMap">
+		select
+		Row_Number()OVER(ORDER BY TR.ReportCode ASC) as RNUM
+		, 0 AS CHK
+		,TR.ReportCode
+		,TR.ReportType
+		,TR.OutputType
+		,TD.Name
+		,TD.Description
+		from
+		XBOLTADM.TB_REPORT TR
+
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD
+		on TR.ReportCode = TD.TypeCode
+		and LanguageID=#{languageID}
+
+		Left Outer Join XBOLTAPP.PIM_ITEM_REPORT TRA ON TR.ReportCode = TRA.TXReportCode AND TRA.ItemID=#{ItemID}
+		where
+		1=1
+		AND TR.ReportCode NOT IN( 
+			SELECT TR.ReportCode FROM XBOLTADM.TB_REPORT TR 
+			Inner Join XBOLTAPP.PIM_ITEM_REPORT TRA ON TR.ReportCode = TRA.TXReportCode AND TRA.ItemID = #{ItemID}
+		)
+	</select>
+	
+	<insert id="AddItemReport">
+		Insert
+		XBOLTAPP.PIM_ITEM_REPORT(
+		TXReportCode
+		,ItemID
+		,RegUserID
+		,RegUserTeamID
+		,CreationTime
+		)
+		values(
+		#{ReportCode}
+		,#{ItemID}
+		,#{UserID}
+		,(SELECT TeamID FROM XBOLTADM.TB_MEMBER WHERE MemberID = #{UserID})
+		,getDate()
+		)
+	</insert>
+
+	<delete id="DeleteItemReport">
+		delete
+		XBOLTAPP.PIM_ITEM_REPORT
+		where
+		ItemID=#{ItemID}
+		and TXReportCode=#{ReportCode}
+	</delete>
+	
+	<select id="getAllocateItemMenu_gridList"   resultType="java.util.HashMap">
+		Select Row_Number()OVER(ORDER BY TMA.ItemMenuID) As RNUM
+			,TMA.ItemID, TMA.MenuID
+			, TD.Name As MenuName ,TMA.Sort ,TMA.MenuType
+			, CASE WHEN TMA.MenuType ='M' THEN 'Main' 
+				   WHEN TMA.MenuType ='S' THEN 'Sub'
+				   WHEN TMA.MenuType ='P' THEN 'Post'
+				   ELSE '' END AS MenuTypeName
+			, TMA.VarFilter, TMA.MenuNMCode As DicCode, TMA.ItemMenuID , TMA.HideOption , TD2.Name As Alias    
+		From XBOLTAPP.PIM_ITEM_MENU TMA
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TMA.MenuID And TD.LanguageID = #{languageID} And TD.Category = 'MN'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 On TD2.TypeCode = TMA.MenuNMCode And TD2.LanguageID = #{languageID} And TD2.Category = 'LN'
+		Where TMA.ItemID = #{s_itemID}
+	</select>
+	
+	<select id="getMaxItemMenuSeq" resultType="String">
+		Select Max(ItemMenuID)+1 As ItemMenuID From XBOLTAPP.PIM_ITEM_MENU
+	</select>
+	
+	<select id="getPimMenuList_gridList"   resultType="java.util.HashMap">
+		Select Row_Number()OVER(ORDER BY TM.MenuId) As RNUM
+			,TM.MenuID, ISNULL(TD.Name,TM.DicCode) As MenuName, TM.URL
+		From XBOLTADM.TB_MENU TM
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TM.MenuID And TD.LanguageID = #{languageID} And TD.Category = 'MN'
+		Where 
+			ISNULL(TM.Deactivated,'') != 1
+			AND TM.MenuID NOT IN(
+				Select TM.MenuID From XBOLTADM.TB_MENU AS TM
+				Inner Join XBOLTAPP.PIM_ITEM_MENU AS TMA ON TM.MenuID = TMA.MenuID
+				AND TMA.ItemID=#{ItemID}
+			)
+		<if test="menuCat != null and menuCat != ''">
+			AND TM.MenuCat = #{menuCat}
+		</if>
+	</select>
+	
+	<insert id="insertItemMenu" parameterType="java.util.HashMap">
+		Insert Into XBOLTAPP.PIM_ITEM_MENU (ItemMenuID, ItemID, MenuID, MenuType, Sort, MenuNMCode, VarFilter , CreationTime, RegUserID, RegUserTeamID)
+		Values(#{ItemMenuID}, #{ItemID}, #{menuID}, #{menuType}, #{sort}, #{menuNMCode}, #{varFilter}, getDate(), #{UserID}, (SELECT TeamID FROM XBOLTADM.TB_MEMBER WHERE MemberID = #{UserID}))
+	</insert>
+	
+	<insert id="updateItemMenu" parameterType="java.util.HashMap">
+		Update XBOLTAPP.PIM_ITEM_MENU Set
+			MenuID = #{menuID},
+			MenuType = #{menuType},
+			Sort = #{sort},
+			MenuNMCode = #{menuNMCode},
+			VarFilter = #{varFilter},
+			LastUser = #{UserID},
+			LastUpdated = getDate()
+		Where ItemMenuID = #{ItemMenuID} and ItemID = #{ItemID}
+	</insert>
+	
+	<delete id="deleteItemMenu" parameterType="java.util.HashMap">
+		Delete From XBOLTAPP.PIM_ITEM_MENU
+		Where ItemMenuID = #{ItemMenuID} and ItemID = #{ItemID}
+	</delete>
+	
+	<select id="getAllocateItemWF_gridList"   resultType="java.util.HashMap">
+		Select Row_Number()OVER(ORDER BY TIW.CreationTime) As RNUM
+			,TIW.ItemID, TIW.WFID
+			, TIW.Status , TD.Name
+			, CONVERT(varchar(20),TIW.LastUpdate, 111) As LastUpdate, TM.Name As LastUser    
+		From XBOLTAPP.PIM_ITEM_WF TIW
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TIW.WFID And TD.LanguageID = #{languageID} And TD.Category = 'WF'
+		Left outer join XBOLTADM.TB_MEMBER TM on TIW.LastUser = TM.MemberID
+		Where TIW.ItemID = #{s_itemID}
+	</select>
+	
+	<select id="AddItemWFType_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY TW.WFID ASC) as RNUM
+			, TW.WFID
+			, TD.Name
+		FROM XBOLTADM.TB_WF AS TW
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD ON TW.WFID = TD.TypeCode AND TD.LanguageID = #{languageID} AND TD.Category = 'WF'
+			LEFT OUTER JOIN XBOLTAPP.PIM_ITEM_WF AS TIW ON TW.WFID = TIW.WFID AND TIW.ItemID=#{ItemID}
+		WHERE 
+			TW.WFID NOT IN(
+				Select TW.WFID From XBOLTAPP.PIM_ITEM_WF AS TW
+				Inner Join XBOLTAPP.PIM_ITEM_WF AS TIW ON TW.WFID = TIW.WFID
+				AND TIW.ItemID=#{ItemID}
+			)
+	</select>
+	
+	<insert id="insertItemWF" parameterType="java.util.HashMap">
+		Insert Into XBOLTAPP.PIM_ITEM_WF (ItemID, WFID, Status, CreationTime, RegUserID, RegUserTeamID)
+		Values(#{ItemID}, #{WFID}, #{Status},getDate(),#{UserID},(SELECT TeamID FROM XBOLTADM.TB_MEMBER WHERE MemberID = #{UserID}) )
+	</insert>
+	
+	<insert id="updateItemWF" parameterType="java.util.HashMap">
+		Update XBOLTAPP.PIM_ITEM_WF Set
+			WFID = #{WFID},
+			Status = #{Status},
+			LastUpdate = getDate(),
+			LastUser = #{UserID}
+		Where ItemID = #{ItemID} AND WFID = #{old_WFID}
+	</insert>
+	
+	<delete id="deleteItemWF" parameterType="java.util.HashMap">
+		Delete From XBOLTAPP.PIM_ITEM_WF
+		Where ItemID = #{ItemID} and WFID = #{WFID}
+	</delete>
+
+</mapper>

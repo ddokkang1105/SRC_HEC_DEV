@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	revision 관련 관련	-->
+<mapper namespace="revision_SQL">
+ 
+ 	<select id="getRevisionCOUNT" resultType="String">
+		SELECT COUNT(*) FROM XBOLTADM.TB_REVISION 
+		WHERE DocumentID = #{documentID}
+		<if test='curChangeSetYN == "Y"'>
+			And ChangeSetID = (Select CurChangeSet From XBOLTADM.TB_Item Where ItemID =  #{documentID})
+		</if>
+		<if test="docCategory != null and docCategory != ''">
+			And DocCategory = #{docCategory}
+		</if>
+	</select>
+		
+	<select id="revisionList_gridList" resultType="java.util.HashMap">
+		SELECT 
+			Row_Number()OVER(ORDER BY RevisionID) as RNUM
+			,TR.RevisionID
+			,TR.DocumentID
+			,TR.ChangeSetID
+			,TR.Description
+			,TR.AuthorID
+			,TR.AuthorTeamID
+			,CONVERT(VARCHAR, TR.CreationTime, 111) AS CreationTime
+			,CONVERT(VARCHAR, TR.LastUpdated, 111) AS LastUpdated
+			,TM.Name AS AuthorName
+			,TTT.Name AS AuthorTeamName
+			,CASE TR.DocCategory
+			  	WHEN 'ITM' THEN 'OJ'
+			 	WHEN 'MDL' THEN 'MT'
+			 	WHEN 'FILE' THEN 'FLTP' 					   
+			 END AS DictionaryCategory
+			,TD1.Name As DocCategory
+			,TR.ObjectType
+			,TD2.Name AS ObjectTypeName
+		FROM XBOLTADM.TB_REVISION TR
+		LEFT JOIN XBOLTADM.TB_MEMBER TM ON TM.MemberID = TR.AuthorID
+		LEFT JOIN XBOLTADM.TB_TEAM_TXT TTT ON TTT.TeamID = TR.AuthorTeamID AND TTT.LanguageID = #{languageID}
+		LEFT JOIN XBOLTADM.TB_DICTIONARY TD1 ON TD1.TypeCode = TR.DocCategory AND TD1.LanguageID = #{languageID} and TD1.Category = 'DOCCAT'
+		LEFT JOIN XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = TR.ObjectType AND TD2.LanguageID = #{languageID}
+		WHERE TR.DocumentID = #{s_itemID}   
+		<if test="scStartDt != null and scStartDt != '' and scEndDt != null and scEndDt != ''">
+			AND CONVERT(VARCHAR, TR.CreationTime, 112) BETWEEN #{scStartDt} AND #{scEndDt}
+		</if>
+		<if test="searchValue != null and searchValue != ''">
+			<choose>
+				<when test="searchKey.equals('AuthorTeamName')">
+					AND TTT.NAME like N'%'+#{searchValue}+'%'
+				</when>
+				<when test="searchKey.equals('Description')">
+					AND TR.Description like N'%'+#{searchValue}+'%'
+				</when>
+			</choose>
+		</if>
+		ORDER BY TR.RevisionID DESC, TR.CreationTime DESC
+	</select>
+	
+	<select id="getRevision" resultType="java.util.HashMap">
+		SELECT
+			TR.Description
+			,CONVERT(VARCHAR, TR.CreationTime, 111) AS CreationTime
+			,TM.Name
+			,TM.NameEN
+			,TR.RevisionID
+			,TR.AuthorID
+			,CONVERT(VARCHAR, TR.LastUpdated, 111) AS LastUpdated
+			,TEAM.Name AS AuthorTeamName
+		FROM XBOLTADM.TB_REVISION TR
+		LEFT JOIN XBOLTADM.TB_MEMBER TM ON TM.MemberID = TR.AuthorID	
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM ON TEAM.TeamID = TR.AuthorTeamID And TEAM.LanguageID = #{languageID}
+		WHERE TR.DocumentID = #{documentID} AND TR.RevisionID = #{revisionID}
+	</select>
+		
+	<insert id="insertRevision" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_REVISION (
+				DocCategory
+				, ObjectType
+				, DocumentID
+				, ChangeSetID
+				, Description
+				, AuthorID
+				, AuthorTeamID
+				, CreationTime
+				, LastUpdated
+				, RevisionType
+			) 
+			SELECT
+			    #{docCategory}
+			    , #{objectType}
+			    , #{documentID}
+			    , #{changeSetID}
+			    ,#{description}
+			    , #{authorID}
+			    , #{authorTeamID},
+			    GETDATE(), GETDATE(), #{revisionType}
+			  WHERE NOT EXISTS (
+			    SELECT 1
+			    FROM XBOLTADM.TB_REVISION WITH (UPDLOCK, HOLDLOCK)
+			    WHERE DocCategory = #{docCategory}
+			      AND ObjectType  = #{objectType}
+			      AND DocumentID  = #{documentID}
+			  );
+	</insert>
+	
+	<update id="updateRevision" parameterType="java.util.HashMap">
+ 		UPDATE	XBOLTADM.TB_REVISION
+ 		SET
+ 			Description = #{description}, 
+ 			LastUpdated = GetDate()			
+ 		WHERE RevisionID = #{revisionID}
+ 	</update>
+ 
+</mapper>

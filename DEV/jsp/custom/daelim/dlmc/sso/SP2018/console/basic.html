@@ -1,0 +1,149 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<title>::: Configurations for Basic Informations :::</title>
+		<style type="text/css">
+           .item-title {font-weight: bold}
+           .item-req {color: red; font-weight: bold; margin-left: 5px}
+        </style>
+	</head>
+	<body>
+	
+	   <p />
+       <input type="checkbox" id="SPM_USE_IDP_AUTHENTICATION">
+       <span class="item-title">SSO 활성화<span class="item-req">*</span></span>
+<!-- 
+       <p />
+       <span class="item-title">현업 인증페이지 URI<span class="item-req">*</span></span>
+       <br>
+       <input type="text" id="SPO_AUTHENTICATION_URI" size="50"> 
+       <ul class="item-explain">
+           <li>SP 인증을 위한 URL -- 11.03.23 프로세스 다시 생각 해보자.</li>
+           <li>SPM_USE_IDP_AUTHENTICATION의 설정 값이 false일 경우 에만 적용된다.</li>
+           <li>http:// 또는 https://로 시작 하지 않으면 컨텍스트 이하 path부터 설정한다 (반드시 /로 시작)</li>
+           <li>ex) /loginProcessor.do or http://xxxx.com/test/loginProcessor.do</li>
+       </ul>
+-->        
+       <p />
+       <span class="item-title">Identity Provider domain<span class="item-req">*</span></span>
+       <br>
+       <input type="text" id="IDPM_DOMAIN_CONTEXT" size="50"> 
+       <ul class="item-explain">
+           <li>IdP 도메인정보를 설정 한다.</li>
+           <li>http:// 또는 https:// 시작해야 하며 DOMAIN과 CONTEXT 정보까지 설정한다.</li>
+           <li>예) http://your-idp-domain:port/contextname</li>
+       </ul>
+        
+       <p />
+       <span class="item-title">Service Provider SAML Response URI</span>
+       <br>
+       <input type="text" id="SPM_SAML_RES_URI" size="50"> 
+       <ul class="item-explain">
+           <li>SP SAML Response URL</li>
+           <li>IDP로 부터 SAML Response(Assertion)을 받아 처리하는 URL</li>
+           <li>컨텍스트 이하 path로 설정한다 (반드시 /로 시작)</li>
+           <li>기본값은 <b>/dispatch/sso</b> 이다.</li>
+       </ul>
+
+<!--    
+       <p />
+       <span class="item-title">Service Provider Logout Request uri</span>
+       <br>
+       <input type="text" id="SPM_LOGOUT_REQ_URI" size="50"> 
+       <ul class="item-explain">
+           <li>SP Logout Request URI</li>
+           <li>filter 방식에서만 사용</li>
+           <li>IDP에게 soap으로 LogoutRequest를 전달하여 현재 로그인 되어있는 SP를 모두 로그아웃 시키거나,다른 SP가 로그아웃 되었을때, IDP로 부터 soap request를 받는다.</li>
+           <li>컨텍스트 이하 path로 설정한다 (반드시 /로 시작)</li>
+           <li>기본값은 <b>/SP/test_logout.jsp</b> 이다.</li>
+       </ul>
+-->     
+
+       <p />
+       <span class="item-title">Service Provider Logout Response URI</span>
+       <br>
+       <input type="text" id="SPM_LOGOUT_RES_URI" size="50"> 
+       <ul class="item-explain">
+           <li>SP Logout Response URL</li>
+           <li>IDP로 부터 Logout Response 를 받아 처리하는 URL</li>
+           <li>컨텍스트 이하 path로 설정한다 (반드시 /로 시작)</li>
+           <li>기본값은 <b>/dispatch/slo</b> 이다.</li>
+       </ul>
+       
+       <p />
+       <span class="item-title">Identity Provider SSO 인증 요청 URI</span>
+       <br>
+       <input type="text" id="IDPM_SAML_REQ_URI" size="50"> 
+       <ul class="item-explain">
+           <li>로그인시 SAML Reqeust(AuthnRequest)를 보내는 IDP의 URL</li>
+           <li>IDP의 컨텍스트 이하 path로 설정한다 (반드시 /로 시작)</li>
+           <li>기본값은 <b>/dispatch</b> 이다.</li>
+       </ul>
+        
+       <p />
+       <span class="item-title">Identity Provider Login Process URI</span>
+       <br>
+       <input type="text" id="IDPM_LOGIN_REQ_URI" size="50"> 
+       <ul class="item-explain">
+           <li>로그인시 Login Reqeust를 보내는 IDP의 URI</li>
+           <li>IDP의 컨텍스트 이하 path로 설정한다 (반드시 /로 시작)</li>
+           <li>기본값은 <b>/dispatch/login</b> 이다.</li>
+       </ul>
+        
+       <p />
+       <span class="item-title">Identity Provider Logout Process URI</span>
+       <br>
+       <input type="text" id="IDPM_LOGOUT_REQ_URI" size="50"> 
+       <ul class="item-explain">
+           <li>로그아웃시 Logout Reqeust를 보내는 IDP의 URI</li>
+           <li>IDP의 컨텍스트 이하 path로 설정한다 (반드시 /로 시작)</li>
+           <li>기본값은 <b>/dispatch/logout</b> 이다.</li>
+       </ul>
+       
+       <p />
+       <input type="checkbox" id="SPO_USE_OF_AJAX" onclick="rathon.util.enabledElements(['SPO_AJAX_REQ_METHOD','SPO_AJAX_REQ_NAME','SPO_AJAX_REQ_VALUE'], this.checked)">
+       <span class="item-title">AJAX 활성화</span>
+       <ul class="item-explain">
+        <li>ajax를 이용하여 sso 인증 시 설정한다. </li>
+        <li>기본값은 <b>false</b> 이다.</li>
+       </ul>
+       
+       <p />
+       <span class="item-title">AJAX 요청방식</span>
+       <br>
+       <select id="SPO_AJAX_REQ_METHOD">
+        <option value="header">HEADER</option>
+        <option value="parameter">PARAMETER</option>        
+       </select>
+       <ul class="item-explain">
+        <li>ajax 모듈을 이용하여 request를 할때 파라메터를 이용할것인지 header를 이용할것인지 결정한다.</li>
+        <li>기본값은 <b>HEADER</b> 이다.</li>
+       </ul>
+       
+       <p />
+       <span class="item-title">AJAX 요청 헤더명</span>
+       <br>
+       <input type="text" id="SPO_AJAX_REQ_NAME"> 
+       <ul class="item-explain">
+        <li>ajax를 이용하여 sso 요청 시 보내는 요청 헤더명</li>
+        <li>기본값은 <b>true</b> 이다.</li>
+       </ul>
+       
+       <p />
+       <span class="item-title">AJAX 요청 헤더값</span>
+       <br>
+       <input type="text" id="SPO_AJAX_REQ_VALUE"> 
+       <ul class="item-explain">
+        <li>ajax를 이용하여 sso 요청 시 보내는 요청 헤더값</li>
+        <li>기본값은 <b>true</b> 이다.</li>
+       </ul>
+       
+       <hr></hr>
+       
+       <p />
+       <input type="button" id="btn_submit" value="저장하기" onclick="rathon.doConfig(0)" style="font-weight:bold">
+       
+	</body>
+
+</html>

@@ -1,0 +1,821 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="zDLMserviceCal_SQL">	
+	
+	<select id="exeSvcAdmPkg" parameterType="java.util.HashMap" statementType="CALLABLE">		
+		{CALL XBOLTDLM.SVC_ADM_PKG (#{APPLY_YM}, #{CORP_ID}) }
+	</select>
+	<select id="exeSvcAdm2Pkg" parameterType="java.util.HashMap" statementType="CALLABLE">		
+		{CALL XBOLTDLM.SVC_ADM2_PKG (#{APPLY_YM}, #{CORP_ID}) }
+	</select>
+	<!-- 
+	<select id="getYear" resultType="java.util.HashMap">
+	<![CDATA[
+	WITH YearList AS (
+	    SELECT 2018 AS year
+	    UNION ALL
+	    SELECT year + 1 FROM YearList WHERE year < YEAR(GETDATE())
+	)
+	SELECT year AS CODE
+		, year AS NAME
+	FROM YearList
+	]]>
+	</select>
+	<select id="getMon" resultType="java.util.HashMap">
+	<![CDATA[
+		SELECT number AS CODE
+			 , number AS NAME
+		FROM (VALUES ('01'), ('02'), ('03'), ('04'), ('05'), ('06'), ('07'), ('08'), ('09'), ('10'), ('11'), ('12')) AS Numbers(number)
+	]]>
+	
+	</select>
+	-->
+	
+		<select id="getSerCustomerList" resultType="java.util.HashMap">
+		SELECT 
+			TMT.TeamCode AS CODE
+			, TMT.Name AS NAME
+		FROM 
+			XBOLTAPP.CRM_CUST_MST  CMST
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT on CMST.TeamID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+		WHERE
+			CMST.CustLvl = 'C'
+			<if test="userID != null and userID != ''">
+				And CMST.CustomerNo in (
+					SELECT ClientID
+					FROM XBOLTADM.TB_PROJECT TP
+					left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR on TP.ProjectID = TPMR.ProjectID
+					Where TPMR.MemberID = #{userID}
+					And TP.ProjectType = 'CSR'
+				)
+			</if>
+			<!-- <if test="notCompanyIDs != null and notCompanyIDs != ''">
+				AND CMST.TeamID NOT IN (${notCompanyIDs})
+			</if>-->
+		ORDER BY NAME			
+	</select>
+	
+	<select id="zDlm_selectServiceCalExcel_gridList" resultType="java.util.HashMap">
+		/* 기본규모, 특성규모, 역량규모 산정    */
+			WITH PRICE AS(
+			SELECT
+			       APPLY_YEAR
+			      ,CORP_ID
+			      ,SVC_TYPE_CD
+			      ,ISNULL(SUM(CASE WHEN UNIT_PRICE_LEVEL = 'B' THEN UNIT_PRICE END) ,0) AS UNIT_PRICE_B
+			      ,ISNULL(SUM(CASE WHEN UNIT_PRICE_LEVEL = 'S' THEN UNIT_PRICE END) ,0) AS UNIT_PRICE_S
+			      ,ISNULL(SUM(CASE WHEN UNIT_PRICE_LEVEL = 'H' THEN UNIT_PRICE END) ,0) AS UNIT_PRICE_H
+			      ,ISNULL(SUM(CASE WHEN UNIT_PRICE_LEVEL = 'M' THEN UNIT_PRICE END) ,0) AS UNIT_PRICE_M
+			      ,ISNULL(SUM(CASE WHEN UNIT_PRICE_LEVEL = 'L' THEN UNIT_PRICE END) ,0) AS UNIT_PRICE_L
+			FROM XBOLTDLM.SVC_TYPE_UNIT_PRICE
+			WHERE 1=1
+			AND   APPLY_YEAR  = SUBSTRING(#{APPLY_YM},1,4)
+			AND   CORP_ID     = #{CORP_ID}
+			GROUP BY 
+			         APPLY_YEAR
+			        ,CORP_ID
+			        ,SVC_TYPE_CD
+)
+, BS AS (
+	    SELECT 
+	       A.APPLY_YM
+	      ,A.CORP_ID
+	      ,A.CORP_NAME
+	      ,A.SVC_TYPE_CD    /* 관리 (운영, 장애, 개선, 지원)*/
+	      ,A.SVC_TYPE_NAME  
+	      ,(
+	      CASE WHEN A.MSR_ITEM_ID LIKE '%SVS00001' THEN 'SVS00001'
+	           WHEN A.MSR_ITEM_ID LIKE '%SVS00002' THEN 'SVS00002'
+	           WHEN A.MSR_ITEM_ID LIKE '%SVS00003' THEN 'SVS00003'
+			   WHEN A.MSR_ITEM_ID LIKE 'SMI001' THEN 'SMI001'
+			   WHEN A.MSR_ITEM_ID LIKE 'SMI002' THEN 'SMI002'
+			   WHEN A.MSR_ITEM_ID LIKE 'SMI003' AND B.MSR_SEQ = '1' THEN 'SMI003'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI003' AND B.MSR_SEQ = '2' THEN 'SMI003_P'
+			   WHEN A.MSR_ITEM_ID LIKE 'SMI004' AND B.MSR_SEQ = '1' THEN 'SMI004'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI004' AND B.MSR_SEQ = '2' THEN 'SMI004_P'
+			   WHEN A.MSR_ITEM_ID LIKE 'ITS000100' THEN 'TOT_V'
+			   WHEN A.MSR_ITEM_ID LIKE 'ITS000102' THEN 'TOT_V'
+			   WHEN A.MSR_ITEM_ID LIKE 'ITS000100_SVC' THEN 'TOT_P'
+			   WHEN A.MSR_ITEM_ID LIKE 'ITS000102_SVC' THEN 'TOT_P'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI015_SMID020' AND B.MSR_SEQ = '1' THEN 'SMI015_SMID020_1'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI015_SMID020' AND B.MSR_SEQ = '2' THEN 'SMI015_SMID020_2'
+			   --WHEN A.MSR_ITEM_ID LIKE 'SMI015_SMID020' THEN 'SMI015_SMID020'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI015_SMID021' AND B.MSR_SEQ = '1' THEN 'SMI015_SMID021_1'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI015_SMID021' AND B.MSR_SEQ = '2' THEN 'SMI015_SMID021_2'
+			   --WHEN A.MSR_ITEM_ID LIKE 'SMI015_SMID021' THEN 'SMI015_SMID021'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI015_SMID022' AND B.MSR_SEQ = '1' THEN 'SMI015_SMID022_1'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI015_SMID022' AND B.MSR_SEQ = '2' THEN 'SMI015_SMID022_2'
+			   --WHEN A.MSR_ITEM_ID LIKE 'SMI015_SMID022' THEN 'SMI015_SMID022'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI016_SMID023' AND B.MSR_SEQ = '1' THEN 'SMI016_SMID023_1'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI016_SMID023' AND B.MSR_SEQ = '2' THEN 'SMI016_SMID023_2'
+			   --WHEN A.MSR_ITEM_ID LIKE 'SMI016_SMID023' THEN 'SMI016_SMID023'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI017_SMID024' AND B.MSR_SEQ = '1' THEN 'SMI017_SMID024_1'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI017_SMID024' AND B.MSR_SEQ = '2' THEN 'SMI017_SMID024_2'
+			   --WHEN A.MSR_ITEM_ID LIKE 'SMI017_SMID024' THEN 'SMI017_SMID024'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI015_SMID025' AND B.MSR_SEQ = '1' THEN 'SMI015_SMID025_1'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI015_SMID025' AND B.MSR_SEQ = '2' THEN 'SMI015_SMID025_2'
+			   --WHEN A.MSR_ITEM_ID LIKE 'SMI015_SMID025' THEN 'SMI015_SMID025'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI015_SMID026' AND B.MSR_SEQ = '1' THEN 'SMI015_SMID026_1'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI015_SMID026' AND B.MSR_SEQ = '2' THEN 'SMI015_SMID026_2'
+			   --WHEN A.MSR_ITEM_ID LIKE 'SMI015_SMID026' THEN 'SMI015_SMID026'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI015_SMID027' AND B.MSR_SEQ = '1' THEN 'SMI015_SMID027_1'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI015_SMID027' AND B.MSR_SEQ = '2' THEN 'SMI015_SMID027_2'
+			   --WHEN A.MSR_ITEM_ID LIKE 'SMI015_SMID027' THEN 'SMI015_SMID027'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI016_SMID028' AND B.MSR_SEQ = '1' THEN 'SMI016_SMID028_1'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI016_SMID028' AND B.MSR_SEQ = '2' THEN 'SMI016_SMID028_2'
+			   --WHEN A.MSR_ITEM_ID LIKE 'SMI016_SMID028' THEN 'SMI016_SMID028'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI017_SMID029' AND B.MSR_SEQ = '1' THEN 'SMI017_SMID029_1'
+			   WHEN B.MSR_ITEM_ID LIKE 'SMI017_SMID029' AND B.MSR_SEQ = '2' THEN 'SMI017_SMID029_2'
+			   --WHEN A.MSR_ITEM_ID LIKE 'SMI017_SMID029' THEN 'SMI017_SMID029'
+	           END
+	      )    AS SVC_SCALE_CD   /* 규모 (기본, 특성, 역량) */
+	      ,(
+	      CASE WHEN A.MSR_ITEM_ID LIKE '%SVS00001' THEN '기본규모'
+	           WHEN A.MSR_ITEM_ID LIKE '%SVS00002' THEN '특성규모'
+	           WHEN A.MSR_ITEM_ID LIKE '%SVS00003' THEN '역량규모'
+			   WHEN A.MSR_ITEM_ID LIKE 'SMI001' THEN '정기업무량'
+	           END
+	      )    AS SVC_SCALE_NAME
+	      , isNULL(A.MSR_VAL, 0) AS SVC_SCALE_VAL        /* 금액 */
+		  , isNULL(B.MSR_VAL, 0) AS SVC_SCALE_VAL_B        /* 금액 */
+	      ,A.REG_ID
+	      ,A.REG_DT 
+	     FROM XBOLTDLM.SVC_ADM_MSR_ITEM A
+		     LEFT JOIN XBOLTDLM.SVC_ADM_MSR_DTL B
+			 ON A.APPLY_YM = B.APPLY_YM
+		AND A.CORP_ID = B.CORP_ID
+		AND A.MSR_ITEM_ID = B.MSR_ITEM_ID
+	    WHERE (
+	          A.MSR_ITEM_ID LIKE 'ITS%SVS00001'
+	          OR A.MSR_ITEM_ID LIKE 'ITS%SVS00002'
+	          --OR A.MSR_ITEM_ID LIKE 'ITS%SVS00003'    
+			  OR A.MSR_ITEM_ID = 'SMI001'
+			  OR A.MSR_ITEM_ID = 'SMI002'
+			  OR A.MSR_ITEM_ID = 'SMI003'
+			  OR A.MSR_ITEM_ID = 'SMI004'
+			  OR A.MSR_ITEM_ID = 'ITS000100'
+			  OR A.MSR_ITEM_ID = 'ITS000102'
+			  OR A.MSR_ITEM_ID = 'ITS000100_SVC'
+			  OR A.MSR_ITEM_ID = 'ITS000102_SVC'
+			  OR A.MSR_ITEM_ID LIKE 'SMI01%_SMID0%'
+	          )
+	    AND   A.SVC_TYPE_CD NOT IN('ITS000101')
+		AND   1 = CASE WHEN A.SVC_TYPE_CD = 'ITS000102' AND A.MSR_ITEM_ID LIKE '%SVS00002' THEN 0 ELSE 1 END
+	    AND   A.APPLY_YM = #{APPLY_YM}
+	    AND   A.CORP_ID  = #{CORP_ID}
+		
+)
+, BS2 AS (
+	SELECT APPLY_YM
+		, CORP_ID
+		, CORP_NAME
+		, SVC_TYPE_CD 
+		, SVC_TYPE_NAME 
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SVS00001' THEN SVC_SCALE_CD END, 0) AS SVS00001
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SVS00001' THEN SVC_SCALE_VAL END, 0) AS SVS00001_VAL
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SVS00002' THEN SVC_SCALE_CD END, 0) AS SVS00002
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SVS00002' THEN SVC_SCALE_VAL END, 0) AS SVS00002_VAL
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI001' THEN SVC_SCALE_CD END, 0) AS SMI001
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI001' THEN SVC_SCALE_VAL END, 0) AS SMI001_VAL
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI002' THEN SVC_SCALE_CD END, 0) AS SMI002
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI002' THEN SVC_SCALE_VAL END, 0) AS SMI002_VAL
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI003' THEN SVC_SCALE_CD END, 0) AS SMI003
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI003_P' THEN SVC_SCALE_VAL_B END, 0) AS SMI003_P
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI003' THEN SVC_SCALE_VAL END, 0) AS SMI003_VAL
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI004' THEN SVC_SCALE_CD END, 0) AS SMI004
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI004_P' THEN SVC_SCALE_VAL_B END, 0) AS SMI004_P
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI004' THEN SVC_SCALE_VAL END, 0) AS SMI004_VAL
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'TOT_V' THEN SVC_SCALE_VAL END, 0) AS TOT_V
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'TOT_P' THEN SVC_SCALE_VAL END, 0) AS TOT_P
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI015_SMID020_1' THEN SVC_SCALE_VAL_B END, 0) AS SMI015_SMID020_1
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI015_SMID020_2' THEN SVC_SCALE_VAL_B END, 0) AS SMI015_SMID020_2
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI015_SMID020_1' THEN SVC_SCALE_VAL END, 0) AS SMI015_SMID020
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI015_SMID021_1' THEN SVC_SCALE_VAL_B END, 0) AS SMI015_SMID021_1
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI015_SMID021_2' THEN SVC_SCALE_VAL_B END, 0) AS SMI015_SMID021_2
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI015_SMID021_1' THEN SVC_SCALE_VAL END, 0) AS SMI015_SMID021
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI015_SMID022_1' THEN SVC_SCALE_VAL_B END, 0) AS SMI015_SMID022_1
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI015_SMID022_2' THEN SVC_SCALE_VAL_B END, 0) AS SMI015_SMID022_2
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI015_SMID022_1' THEN SVC_SCALE_VAL END, 0) AS SMI015_SMID022
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI016_SMID023_1' THEN SVC_SCALE_VAL_B END, 0) AS SMI016_SMID023_1
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI016_SMID023_2' THEN SVC_SCALE_VAL_B END, 0) AS SMI016_SMID023_2
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI016_SMID023_1' THEN SVC_SCALE_VAL END, 0) AS SMI016_SMID023
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI017_SMID024_1' THEN SVC_SCALE_VAL_B END, 0) AS SMI017_SMID024_1
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI017_SMID024_2' THEN SVC_SCALE_VAL_B END, 0) AS SMI017_SMID024_2
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI017_SMID024_1' THEN SVC_SCALE_VAL END, 0) AS SMI017_SMID024
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI015_SMID025_1' THEN SVC_SCALE_VAL_B END, 0) AS SMI015_SMID025_1
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI015_SMID025_2' THEN SVC_SCALE_VAL_B END, 0) AS SMI015_SMID025_2
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI015_SMID025_1' THEN SVC_SCALE_VAL END, 0) AS SMI015_SMID025
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI015_SMID026_1' THEN SVC_SCALE_VAL_B END, 0) AS SMI015_SMID026_1
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI015_SMID026_2' THEN SVC_SCALE_VAL_B END, 0) AS SMI015_SMID026_2
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI015_SMID026_1' THEN SVC_SCALE_VAL END, 0) AS SMI015_SMID026
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI015_SMID027_1' THEN SVC_SCALE_VAL_B END, 0) AS SMI015_SMID027_1
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI015_SMID027_2' THEN SVC_SCALE_VAL_B END, 0) AS SMI015_SMID027_2
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI015_SMID027_1' THEN SVC_SCALE_VAL END, 0) AS SMI015_SMID027
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI016_SMID028_1' THEN SVC_SCALE_VAL_B END, 0) AS SMI016_SMID028_1
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI016_SMID028_2' THEN SVC_SCALE_VAL_B END, 0) AS SMI016_SMID028_2
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI016_SMID028_1' THEN SVC_SCALE_VAL END, 0) AS SMI016_SMID028
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI017_SMID029_1' THEN SVC_SCALE_VAL_B END, 0) AS SMI017_SMID029_1
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI017_SMID029_2' THEN SVC_SCALE_VAL_B END, 0) AS SMI017_SMID029_2
+		, ISNULL(CASE WHEN SVC_SCALE_CD = 'SMI017_SMID029_1' THEN SVC_SCALE_VAL END, 0) AS SMI017_SMID029
+  FROM BS
+  )
+  SELECT  APPLY_YM
+	      ,CORP_ID
+	      ,CORP_NAME
+	      ,SVC_TYPE_CD    /* 관리 (운영, 장애, 개선, 지원)*/
+	      ,SVC_TYPE_NAME
+		  , (MAX(SMI001_VAL)) AS SMI001_VAL
+		  , (MAX(SMI002_VAL)) AS SMI002_VAL
+		  , (MAX(SMI003_P)) AS SMI003_P
+		  , (MAX(SMI003_VAL)) AS SMI003_VAL
+		  , (MAX(SMI004_P)) AS SMI004_P
+		  , (MAX(SMI004_VAL)) AS SMI004_VAL
+		  , (MAX(SVS00001_VAL)) AS SVS00001_VAL
+		  , (MAX(SVS00002_VAL)) AS SVS00002_VAL
+		, (MAX(SMI015_SMID020_1)) AS SMI015_SMID020_1
+		, (MAX(SMI015_SMID020_2)) AS SMI015_SMID020_2
+		, (MAX(SMI015_SMID020)) AS SMI015_SMID020
+		, (MAX(SMI015_SMID021_1)) AS SMI015_SMID021_1
+		, (MAX(SMI015_SMID021_2)) AS SMI015_SMID021_2
+		, (MAX(SMI015_SMID021)) AS SMI015_SMID021
+		, (MAX(SMI015_SMID022_1)) AS SMI015_SMID022_1
+		, (MAX(SMI015_SMID022_2)) AS SMI015_SMID022_2
+		, (MAX(SMI015_SMID022)) AS SMI015_SMID022
+		, (MAX(SMI016_SMID023_1)) AS SMI016_SMID023_1
+		, (MAX(SMI016_SMID023_2)) AS SMI016_SMID023_2
+		, (MAX(SMI016_SMID023)) AS SMI016_SMID023
+		, (MAX(SMI017_SMID024_1)) AS SMI017_SMID024_1
+		, (MAX(SMI017_SMID024_2)) AS SMI017_SMID024_2
+		, (MAX(SMI017_SMID024)) AS SMI017_SMID024
+		, (MAX(SMI015_SMID025_1)) AS SMI015_SMID025_1
+		, (MAX(SMI015_SMID025_2)) AS SMI015_SMID025_2
+		, (MAX(SMI015_SMID025)) AS SMI015_SMID025
+		, (MAX(SMI015_SMID026_1)) AS SMI015_SMID026_1
+		, (MAX(SMI015_SMID026_2)) AS SMI015_SMID026_2
+		, (MAX(SMI015_SMID026)) AS SMI015_SMID026
+		, (MAX(SMI015_SMID027_1)) AS SMI015_SMID027_1
+		, (MAX(SMI015_SMID027_2)) AS SMI015_SMID027_2
+		, (MAX(SMI015_SMID027)) AS SMI015_SMID027
+		, (MAX(SMI016_SMID028_1)) AS SMI016_SMID028_1
+		, (MAX(SMI016_SMID028_2)) AS SMI016_SMID028_2
+		, (MAX(SMI016_SMID028)) AS SMI016_SMID028
+		, (MAX(SMI017_SMID029_1)) AS SMI017_SMID029_1
+		, (MAX(SMI017_SMID029_2)) AS SMI017_SMID029_2
+		, (MAX(SMI017_SMID029)) AS SMI017_SMID029
+		  , (MAX(TOT_V)) AS TOT_V
+		  , ((SELECT UNIT_PRICE_B FROM PRICE X WHERE X.SVC_TYPE_CD = BS2.SVC_TYPE_CD)) PRICE
+	      , (MAX(TOT_P)) AS TOT_P
+	      , (
+			CASE WHEN SVC_TYPE_CD IN('ITS000100') 
+			     THEN '정기업무량 : ' + CAST(MAX(SMI001_VAL) AS VARCHAR) + ' 비정기업무량 : ' + CAST(MAX(SMI002_VAL) AS VARCHAR) + ' 정규시간외 : ' + CAST(MAX(SMI003_VAL) AS VARCHAR) + ' 정기일수외 : ' + CAST(MAX(SMI004_VAL) AS VARCHAR)
+				 WHEN SVC_TYPE_CD IN('ITS000102') 
+			     THEN '신규(1) 화면 : ' + CAST(MAX(SMI015_SMID020_1) AS VARCHAR) + 'x' + CAST(MAX(SMI015_SMID020_2) AS VARCHAR) + '=' + CAST(MAX(SMI015_SMID020) AS VARCHAR)
+				           + ' 배치 : ' + CAST(MAX(SMI015_SMID021_1) AS VARCHAR) + 'x' + CAST(MAX(SMI015_SMID021_2) AS VARCHAR) + '=' + CAST(MAX(SMI015_SMID021) AS VARCHAR)
+						 + ' CONFIG : ' + CAST(MAX(SMI015_SMID022_1) AS VARCHAR) + 'x' + CAST(MAX(SMI015_SMID022_2) AS VARCHAR) + '=' + CAST(MAX(SMI015_SMID022) AS VARCHAR)
+						    + ' SQL : ' + CAST(MAX(SMI016_SMID023_1) AS VARCHAR) + 'x' + CAST(MAX(SMI016_SMID023_2) AS VARCHAR) + '=' + CAST(MAX(SMI016_SMID023) AS VARCHAR)
+						 + ' 테이블 : ' + CAST(MAX(SMI017_SMID024_1) AS VARCHAR) + 'x' + CAST(MAX(SMI017_SMID024_2) AS VARCHAR) + '=' + CAST(MAX(SMI017_SMID024) AS VARCHAR)
+			     + ' 변경(0.7) 화면 : ' + CAST(MAX(SMI015_SMID025_1) AS VARCHAR) + 'x' + CAST(MAX(SMI015_SMID025_2) AS VARCHAR) + '=' + CAST(MAX(SMI015_SMID025) AS VARCHAR)
+				           + ' 배치 : ' + CAST(MAX(SMI015_SMID026_1) AS VARCHAR) + 'x' + CAST(MAX(SMI015_SMID026_2) AS VARCHAR) + '=' + CAST(MAX(SMI015_SMID026) AS VARCHAR)
+						 + ' CONFIG : ' + CAST(MAX(SMI015_SMID027_1) AS VARCHAR) + 'x' + CAST(MAX(SMI015_SMID027_2) AS VARCHAR) + '=' + CAST(MAX(SMI015_SMID027) AS VARCHAR)
+						    + ' SQL : ' + CAST(MAX(SMI016_SMID028_1) AS VARCHAR) + 'x' + CAST(MAX(SMI016_SMID028_2) AS VARCHAR) + '=' + CAST(MAX(SMI016_SMID028) AS VARCHAR)
+						 + ' 테이블 : ' + CAST(MAX(SMI017_SMID029_1) AS VARCHAR) + 'x' + CAST(MAX(SMI017_SMID029_2) AS VARCHAR) + '=' + CAST(MAX(SMI017_SMID029) AS VARCHAR)
+		     END
+		  ) AS REMARK
+    FROM BS2
+   GROUP BY  APPLY_YM
+	      ,CORP_ID
+	      ,CORP_NAME
+	      ,SVC_TYPE_CD
+	      ,SVC_TYPE_NAME
+	</select>
+	<select id="zDlm_selectServiceCalExcel_list2" resultType="java.util.HashMap">
+					WITH P_PARAM AS (
+				SELECT
+			             'ITS000102' 	 AS P_SVC_TYPE_CD
+			            ,#{APPLY_YM}    AS P_APPLY_YM
+			            ,#{CORP_ID}     AS P_CORP_ID			     
+			)
+			SELECT
+					       Z.APPLY_YM
+					      ,Z.CORP_ID
+					      ,(SELECT TOP(1) X.NAME FROM XBOLTADM.TB_TEAM_TXT X WHERE X.TeamCode = z.CORP_ID AND X.LanguageID = '1042') AS CORP_NAME
+					      ,Z.SVC_TYPE_CD
+					      ,Z.SVC_CI_ID
+					      ,ISNULL( CC.PlainText , Z.SVC_CI_ID)	AS SVC_CI_NAME 
+						  ,ISNULL(SUM(SMI015_SMID020),0) AS SMI015_SMID020	/* 트랜잭션 기능점수_신규 트랜잭션 기능-화면기능 1 */
+						  ,ISNULL(SUM(SMI015_SMID021),0) AS SMI015_SMID021	/* 트랜잭션 기능점수_신규 트랜잭션 기능-배치프로그램 1 */
+						  ,ISNULL(SUM(SMI015_SMID022),0) AS SMI015_SMID022	/* 트랜잭션 기능점수_신규 트랜잭션 기능-Config 화면 1 */
+						  ,ISNULL(SUM(SMI015_SMID025),0) AS SMI015_SMID025	/* 트랜잭션 기능점수_변경 트랜잭션 기능-화면기능 1 */
+						  ,ISNULL(SUM(SMI015_SMID026),0) AS SMI015_SMID026	/* 트랜잭션 기능점수_변경 트랜잭션 기능-배치프로그램 1 */
+						  ,ISNULL(SUM(SMI015_SMID027),0) AS SMI015_SMID027	/* 트랜잭션 기능점수_변경 트랜잭션 기능-Config 화면 1 */
+						  ,ISNULL(SUM(SMI016_SMID023),0) AS SMI016_SMID023	/* DATA(SQL) 프로그램 기능 점수_신규 DATA(SQL) 프로그램 기능  1 */
+						  ,ISNULL(SUM(SMI016_SMID028),0) AS SMI016_SMID028	/* DATA(SQL) 프로그램 기능 점수_변경 DATA(SQL) 프로그램 기능  1 */
+						  ,ISNULL(SUM(SMI017_SMID024),0) AS SMI017_SMID024	/* 데이터 기능 점수_신규 데이터기능 1 */
+						  ,ISNULL(SUM(SMI017_SMID029),0) AS SMI017_SMID029	/* 데이터 기능 점수_변경 데이터기능 1 */
+						  ,ISNULL(SUM(SMI018	     ),0) AS SMI018	        /* 개선  사이즈  보정계수_ V */
+						  ,ISNULL(SUM(SMI019	     ),0) AS SMI019	        /* 애플리케이션 유형  보정계수_ V */
+						  ,ISNULL(SUM(SMI020	     ),0) AS SMI020	        /* 프로그래밍 언어 보정계수_ V */
+						  ,ISNULL(SUM(SMI021	     ),0) AS SMI021	        /* 구현품질  보정계수_  */
+						  ,ISNULL(SUM(SMI022	     ),0) AS SMI022	        /* 긴급 개선요청 비율_ 1 */
+						  ,ISNULL(SUM(SMI023	     ),0) AS SMI023	        /* 최초 합의 납기일 준수율_ 1 */
+						  ,ISNULL(SUM(SMI024	     ),0) AS SMI024	        /* 성능향상비율_ 1 */
+						  ,ISNULL(SUM(SMI025	     ),0) AS SMI025	        /* 개선-품질역량수준_ 1 */
+					      
+			FROM (
+					SELECT
+					       A.APPLY_YM
+					      ,A.CORP_ID
+					      ,A.SVC_TYPE_CD
+					      ,A.SVC_CI_ID
+					      ,0 AS SMI015_SMID020	/* 트랜잭션 기능점수_신규 트랜잭션 기능-화면기능 1 */
+						  ,0 AS SMI015_SMID021	/* 트랜잭션 기능점수_신규 트랜잭션 기능-배치프로그램 1 */
+						  ,0 AS SMI015_SMID022	/* 트랜잭션 기능점수_신규 트랜잭션 기능-Config 화면 1 */
+						  ,0 AS SMI015_SMID025	/* 트랜잭션 기능점수_변경 트랜잭션 기능-화면기능 1 */
+						  ,0 AS SMI015_SMID026	/* 트랜잭션 기능점수_변경 트랜잭션 기능-배치프로그램 1 */
+						  ,0 AS SMI015_SMID027	/* 트랜잭션 기능점수_변경 트랜잭션 기능-Config 화면 1 */
+						  ,0 AS SMI016_SMID023	/* DATA(SQL) 프로그램 기능 점수_신규 DATA(SQL) 프로그램 기능  1 */
+						  ,0 AS SMI016_SMID028	/* DATA(SQL) 프로그램 기능 점수_변경 DATA(SQL) 프로그램 기능  1 */
+						  ,0 AS SMI017_SMID024	/* 데이터 기능 점수_신규 데이터기능 1 */
+						  ,0 AS SMI017_SMID029	/* 데이터 기능 점수_변경 데이터기능 1 */
+						  
+						  ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI018' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END	     ) AS SMI018	        /* 개선  사이즈  보정계수_ V */
+						  ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI019' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END	     ) AS SMI019	        /* 애플리케이션 유형  보정계수_ V */
+						  ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI020' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END	     ) AS SMI020	        /* 프로그래밍 언어 보정계수_ V */
+						  
+						  ,0 AS SMI021	        /* 구현품질  보정계수_  */
+						  ,0 AS SMI022	        /* 긴급 개선요청 비율_ 1 */
+						  ,0 AS SMI023	        /* 최초 합의 납기일 준수율_ 1 */
+						  ,0 AS SMI024	        /* 성능향상비율_ 1 */
+						  ,0 AS SMI025	        /* 개선-품질역량수준_ 1 */
+					FROM XBOLTDLM.SVC_ADM_MSR_ITEM_2 A
+					     ,P_PARAM
+					WHERE A.SVC_TYPE_CD = P_SVC_TYPE_CD
+					AND   A.APPLY_YM    = P_APPLY_YM
+					AND   A.CORP_ID     = P_CORP_ID
+					AND   A.MSR_ITEM_ID IN (  'SMI018'
+											, 'SMI019'
+											, 'SMI020'
+											)
+					GROUP BY   A.APPLY_YM
+					          ,A.CORP_ID
+					          ,A.SVC_TYPE_CD
+					          ,A.SVC_CI_ID
+					UNION ALL
+					SELECT
+					       A.APPLY_YM
+					      ,A.CORP_ID 
+					      ,A.SVC_TYPE_CD
+					      ,A.SVC_CI_ID
+						  
+					      ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI015_SMID020' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END	     ) AS SMI015_SMID020	/* 트랜잭션 기능점수_신규 트랜잭션 기능-화면기능 1 */
+						  ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI015_SMID021' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END	     ) AS SMI015_SMID021	/* 트랜잭션 기능점수_신규 트랜잭션 기능-배치프로그램 1 */
+						  ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI015_SMID022' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END	     ) AS SMI015_SMID022	/* 트랜잭션 기능점수_신규 트랜잭션 기능-Config 화면 1 */
+						  ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI015_SMID025' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END	     ) AS SMI015_SMID025	/* 트랜잭션 기능점수_변경 트랜잭션 기능-화면기능 1 */
+						  ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI015_SMID026' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END	     ) AS SMI015_SMID026	/* 트랜잭션 기능점수_변경 트랜잭션 기능-배치프로그램 1 */
+						  ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI015_SMID027' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END	     ) AS SMI015_SMID027	/* 트랜잭션 기능점수_변경 트랜잭션 기능-Config 화면 1 */
+						  ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI016_SMID023' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END	     ) AS SMI016_SMID023	/* DATA(SQL) 프로그램 기능 점수_신규 DATA(SQL) 프로그램 기능  1 */
+						  ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI016_SMID028' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END	     ) AS SMI016_SMID028	/* DATA(SQL) 프로그램 기능 점수_변경 DATA(SQL) 프로그램 기능  1 */
+						  ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI017_SMID024' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END	     ) AS SMI017_SMID024	/* 데이터 기능 점수_신규 데이터기능 1 */
+						  ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI017_SMID029' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END	     ) AS SMI017_SMID029	/* 데이터 기능 점수_변경 데이터기능 1 */
+						  
+						  ,0 AS SMI018	        /* 개선  사이즈  보정계수_ V */
+						  ,0 AS SMI019	        /* 애플리케이션 유형  보정계수_ V */
+						  ,0 AS SMI020	        /* 프로그래밍 언어 보정계수_ V */
+						  
+						  ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI021' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END	     ) AS SMI021	        /* 구현품질  보정계수_  */
+						  ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI022' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END	     ) AS SMI022	        /* 긴급 개선요청 비율_ 1 */
+						  ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI023' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END	     ) AS SMI023	        /* 최초 합의 납기일 준수율_ 1 */
+						  ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI024' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END	     ) AS SMI024	        /* 성능향상비율_ 1 */
+						  ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI025' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END	     ) AS SMI025	        /* 개선-품질역량수준_ 1 */
+					FROM XBOLTDLM.SVC_ADM_MSR_DTL_2 A
+					     ,P_PARAM
+					WHERE A.SVC_TYPE_CD = P_SVC_TYPE_CD
+					AND   A.APPLY_YM    = P_APPLY_YM
+					AND   A.CORP_ID     = P_CORP_ID
+					AND   A.MSR_ITEM_ID IN (
+					                         'SMI015_SMID020'
+					                        ,'SMI015_SMID021'
+					                        ,'SMI015_SMID022'
+					                        ,'SMI015_SMID025'
+					                        ,'SMI015_SMID026'
+					                        ,'SMI015_SMID027'
+					                        ,'SMI016_SMID023'
+					                        ,'SMI016_SMID028'
+					                        ,'SMI017_SMID024' 
+					                        ,'SMI017_SMID029' 
+					                        ,'SMI021'
+					                        ,'SMI022'
+					                        ,'SMI023'
+					                        ,'SMI024'
+					                        ,'SMI025'
+					                       )
+					AND  A.MSR_SEQ         = '1'
+					GROUP BY   A.APPLY_YM
+					          ,A.CORP_ID 
+					          ,A.SVC_TYPE_CD
+					          ,A.SVC_CI_ID
+				) Z
+				Left outer join XBOLTADM.TB_ITEM_ATTR CC 
+				  on  CC.ItemID = (SELECT TOP(1) ITEMID FROM XBOLTADM.TB_ITEM WHERE Identifier = z.SVC_CI_ID)
+				  and CC.LanguageID = '1042' 
+				  and CC.AttrTypeCode = 'AT00001'				  
+				GROUP BY
+ 							Z.APPLY_YM
+					       ,Z.CORP_ID
+					       ,Z.SVC_TYPE_CD
+					       ,Z.SVC_CI_ID
+					       ,ISNULL( CC.PlainText , Z.SVC_CI_ID)
+	</select>
+	<select id="zDlm_selectServiceCalExcel_list1" resultType="java.util.HashMap">
+					WITH P_PARAM AS (
+				SELECT
+			             'ITS000100' 	 AS P_SVC_TYPE_CD
+			            ,#{APPLY_YM}    AS P_APPLY_YM
+			            ,#{CORP_ID}     AS P_CORP_ID	
+			)
+			SELECT
+					       Z.APPLY_YM
+					      ,Z.CORP_ID
+					      ,(SELECT TOP(1) X.NAME FROM XBOLTADM.TB_TEAM_TXT X WHERE X.TeamCode = z.CORP_ID AND X.LanguageID = '1042') AS CORP_NAME
+					      ,Z.SVC_TYPE_CD
+					      ,Z.SVC_CI_ID
+					      ,ISNULL( CC.PlainText , Z.SVC_CI_ID)	AS SVC_CI_NAME 
+					      ,ISNULL(SUM(Z.SMI001),0)				AS SMI001 /* 정기업무량             V */
+					      ,ISNULL(SUM(Z.SMI002),0)				AS SMI002 /* 비정기업무량          V */
+					      ,ISNULL(SUM(Z.SMI003),0)				AS SMI003 /* 정규시간외 서비스   2 */
+					      ,ISNULL(SUM(Z.SMI004),0)				AS SMI004 /* 정기일수 외 서비스  2 */
+					      ,ISNULL(SUM(Z.SMI005),0)				AS SMI005 /* 서비스 가용성         1 */
+					      ,ISNULL(SUM(Z.SMI006),0)				AS SMI006 /* 장애복구 시간         1 */
+					      ,ISNULL(SUM(Z.SMI007),0)				AS SMI007 /* 장애보고 시간         1 */
+					      ,ISNULL(SUM(Z.SMI008),0)				AS SMI008 /* 정기작업적정처리율 1 */
+					      ,ISNULL(SUM(Z.SMI009),0)				AS SMI009 /* 운영-품질역량수준  1 */
+					      ,ISNULL(SUM(Z.SMI010),0)				AS SMI010 /* 가치제안효과           1 */
+			FROM (
+					SELECT
+					       A.APPLY_YM
+					      ,A.CORP_ID
+					      ,A.SVC_TYPE_CD
+					      ,A.SVC_CI_ID
+					      ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI001' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END) AS SMI001 /* 정기업무량        V */
+					      ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI002' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END) AS SMI002 /* 비정기업무량      V */					
+					      ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI003' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END) AS SMI003 /* 정규시간외 서비스  2 */
+					      ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI004' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END) AS SMI004 /* 정기일수 외 서비스 2 */
+					      ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI005' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END) AS SMI005 /* 서비스 가용성     1 */
+					      ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI006' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END) AS SMI006 /* 장애복구 시간     1 */
+					      ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI007' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END) AS SMI007 /* 장애보고 시간     1 */
+					      ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI008' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END) AS SMI008 /* 정기작업적정처리율 1 */
+					      ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI009' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END) AS SMI009 /* 운영-품질역량수준  1 */
+					      ,SUM(CASE WHEN A.MSR_ITEM_ID ='SMI010' THEN ISNULL(A.MSR_VAL,0) ElSE 0 END) AS SMI010 /* 가치제안효과      1 */
+					FROM XBOLTDLM.SVC_ADM_MSR_ITEM_2 A
+					     ,P_PARAM
+					WHERE A.SVC_TYPE_CD = P_SVC_TYPE_CD
+					AND   A.APPLY_YM    = P_APPLY_YM
+					AND   A.CORP_ID     = P_CORP_ID
+					AND   A.MSR_ITEM_ID IN ( 'SMI001', 'SMI002', 'SMI003', 'SMI004')
+					GROUP BY   A.APPLY_YM
+					          ,A.CORP_ID
+					          ,A.SVC_TYPE_CD
+					          ,A.SVC_CI_ID
+				) Z
+				Left outer join XBOLTADM.TB_ITEM_ATTR CC 
+				  on  CC.ItemID = (SELECT TOP(1) ITEMID FROM XBOLTADM.TB_ITEM WHERE Identifier = z.SVC_CI_ID)
+				  and CC.LanguageID = '1042' 
+				  and CC.AttrTypeCode = 'AT00001'		
+				GROUP BY
+ 							Z.APPLY_YM
+					       ,Z.CORP_ID
+					       ,Z.SVC_TYPE_CD
+					       ,Z.SVC_CI_ID
+					       ,ISNULL( CC.PlainText , Z.SVC_CI_ID)
+                           ORDER BY SVC_CI_ID
+	</select>
+	
+	<select id="zDlm_selectServiceCalExcel2_list1" resultType="java.util.HashMap">
+	<![CDATA[
+	SELECT 
+	A.RefTeamCode AS cd_company 
+	, A.CORP_NAME AS cd_company_nm
+	, A.SRTypeName AS tbl_nm
+	, A.svc_ci_id AS svc_ci_id
+	, A.SVC_CI_NAME AS name_lv1
+	, A.SRCODE AS id
+	, A.CategoryName AS cat_name
+	, A.LOGINID AS usr_id
+	, A.NAME AS user_nm
+	, '' AS nm_dept
+	, (A.msr_val + A.mng_sps) as totalSum
+	, FORMAT(A.work_date, 'yyyy-MM-dd') AS work_date
+	, A.holyday AS holyday
+	, A.business_hours AS business_hour
+	, A.overtime AS overtime
+	, A.regular_work_val
+	, A.casual_work_val
+	, A.msr_val
+	, A.mng_sps1
+	, A.mng_sps2
+	, A.mng_sps
+	, A.REQ_USER_ID AS req_usr_id
+	, A.REQ_NAME AS req_usr_name
+	, A.REQ_TEAM_NAME AS req_usr_dept_name
+	, A.SpeCode AS status_id
+	, A.SpeCode_NAME AS status_name
+	, A.LOGINID AS step_mng_id
+	, A.NAME AS step_mng_nm
+	, LEFT(A.Subject, 2000) AS title
+	, LEFT(A.Description, 2000) AS notice
+	, LEFT(A.solvnt, 2000) AS solvnt
+	, FORMAT(A.RegDT, 'yyyy-MM-dd') AS reg_date
+	, FORMAT(isNull(A.rcptDATE, A.RegDT), 'yyyy-MM-dd') AS rcpt_date
+	, FORMAT(isNull(isNull(A.closeDATE, A.CompletionDT), A.WORK_DATE), 'yyyy-MM-dd') AS close_date
+  FROM (
+	SELECT 
+		BB.Srid
+		, BB.SRCODE
+		, CC.RefTeamCode
+		, (SELECT TOP(1) X.NAME FROM XBOLTADM.TB_TEAM_TXT X WHERE X.TeamCode = CC.RefTeamCode AND X.LanguageID = '1042') AS CORP_NAME
+		, BB.SRType
+		, (SELECT NAME FROM XBOLTADM.TB_DICTIONARY WHERE CATEGORY = 'SRTP' AND TYPECODE = BB.SRType and LanguageID = '1042') AS SRTypeName
+		, (CASE WHEN BB.SRArea2 IS NULL OR BB.SRArea2 = 0 THEN BB.SRArea1 END) AS SRArea
+		, (SELECT TOP(1) X.Identifier FROM XBOLTADM.TB_ITEM X WHERE X.ITEMID = (CASE WHEN BB.SRArea2 IS NULL OR BB.SRArea2 = 0 THEN BB.SRArea1 ELSE BB.SRArea2 END)) AS SVC_CI_ID
+		, (SELECT CC.PlainText FROM XBOLTADM.TB_ITEM_ATTR CC WHERE CC.LanguageID = '1042' and CC.AttrTypeCode = 'AT00001' AND CC.ItemID = (CASE WHEN BB.SRArea2 IS NULL OR BB.SRArea2 = 0 THEN BB.SRArea1 ELSE BB.SRArea2 END)) AS SVC_CI_NAME
+		, BB.Category
+		, BB.SubCategory
+		, (SELECT X.Name FROM XBOLTADM.TB_DICTIONARY X WHERE x.TypeCode = BB.Category And x.Category = 'SRCAT' And x.LanguageID = '1042')
+		  + ' > ' + (SELECT X.Name FROM XBOLTADM.TB_DICTIONARY X WHERE x.TypeCode = BB.SubCategory And x.Category = 'SRCAT' And x.LanguageID = '1042') AS CategoryName
+		, AA.EmpNo
+		, (SELECT TOP(1) X.LOGINID FROM XBOLTADM.TB_MEMBER X WHERE X.MemberID = AA.MemberID OR X.LoginID = AA.EmpNo) AS LOGINID
+		, AA.MemberID
+		, (SELECT X.Name FROM XBOLTADM.TB_MEMBER X WHERE X.MemberID = AA.MemberID OR X.LoginID = AA.EmpNo) AS NAME
+		, '' AS DEPT_NAME
+		, BB.RequestUserID
+		, (SELECT X.LoginID FROM XBOLTADM.TB_MEMBER X WHERE X.MemberID = BB.RequestUserID) AS REQ_USER_ID
+		, (SELECT X.Name FROM XBOLTADM.TB_MEMBER X WHERE X.MemberID = BB.RequestUserID) AS REQ_NAME
+		, BB.RequestTeamID
+		, (SELECT X.NAME FROM XBOLTADM.TB_TEAM_TXT X WHERE X.TeamID = BB.RequestTeamID And x.LanguageID = '1042') AS REQ_TEAM_NAME
+		, AA.SpeCode
+		, (SELECT x.itemId FROM XBOLTADM.TB_ITEM X WHERE X.Identifier = AA.SpeCode) AS process_step_id
+		, (SELECT CC.PlainText FROM XBOLTADM.TB_ITEM_ATTR CC WHERE CC.LanguageID = '1042' and CC.AttrTypeCode = 'AT00001' AND CC.ItemID = (SELECT x.itemId FROM XBOLTADM.TB_ITEM X WHERE X.Identifier = AA.SpeCode)) AS SpeCode_NAME
+		, BB.Subject
+		, BB.Description
+		, CASE WHEN BB.SRType IN('WRK')
+			   THEN (SELECT TOP(1) X.value FROM XBOLTAPP.ESM_WKS_ATTR X WHERE X.AttrTypeCode IN ('SRAT0001') AND X.SRID = BB.SRID) 
+			   ELSE (SELECT X.value FROM XBOLTAPP.ESM_SR_ATTR X WHERE X.AttrTypeCode IN ('SRAT0005', 'SRAT0071') AND X.SRID = BB.SRID AND X.SEQ = (SELECT MAX(X.SEQ) FROM XBOLTAPP.ESM_SR_ATTR X WHERE X.AttrTypeCode IN ('SRAT0005', 'SRAT0071') AND X.SRID = BB.SRID)) 
+		   END AS solvnt
+		, BB.RegDT
+		, AA.WORK_DATE
+		, BB.CompletionDT
+		, (SELECT X.EndTime FROM XBOLTAPP.ESM_ACTIVITY_LOG X WHERE X.PID = BB.srid AND x.SpeCode = AA.specode AND X.SEQ = (SELECT MAX(X.SEQ) FROM XBOLTAPP.ESM_ACTIVITY_LOG X WHERE X.PID = BB.srid AND x.SpeCode = AA.specode)) closeDATE
+		, (SELECT X.StartTime FROM XBOLTAPP.ESM_ACTIVITY_LOG X WHERE X.PID = BB.srid AND x.SpeCode = AA.specode AND X.SEQ = (SELECT MAX(X.SEQ) FROM XBOLTAPP.ESM_ACTIVITY_LOG X WHERE X.PID = BB.srid AND x.SpeCode = AA.specode)) rcptDATE
+		, holyday
+		, aa.business_hours
+		, aa.overtime
+		, ( aa.business_hours + aa.overtime ) AS msr_val  				/*	16.규모산정          */
+		, ( ( aa.business_hours + aa.overtime ) *
+									CASE WHEN holyday = 'N' 
+										THEN ROUND(
+													CASE 
+														WHEN aa.overtime = 0 THEN 0
+														WHEN aa.overtime IS NULL THEN 0
+														ELSE aa.overtime / (aa.business_hours + aa.overtime)
+													END * 0.5, 
+												2)
+										ELSE 0 END ) +
+									( ( aa.business_hours + aa.overtime ) *
+									CASE WHEN holyday = 'Y' 
+										THEN ( CASE WHEN ( aa.business_hours + aa.overtime ) > 0 THEN ( ( aa.business_hours + aa.overtime ) / ( aa.business_hours + aa.overtime ) * 0.5 ) ELSE 0 END )
+										ELSE 0 END ) AS mng_sps                                    /* 	19.운영특성최종계산값	*/
+		, ISNULL(
+			CASE
+				WHEN
+					BB.SubCategory IN(
+											SELECT TypeCode
+											FROM XBOLTADM.TB_DICTIONARY
+											WHERE TypeCode IN(
+															SELECT SRCatID
+																FROM XBOLTAPP.ESM_SR_CAT
+																WHERE SRType IN('WRK', 'REQ', 'DCM', 'ACM')
+															)
+												AND SUBSTRING(description, 1, 3) = 'RE_'
+				) THEN (aa.business_hours + aa.overtime)
+			END, 0) AS regular_work_val  /*  14.정기업무량        */
+			, ISNULL(
+			CASE
+				WHEN
+					BB.SubCategory IN(
+											SELECT TypeCode
+											FROM XBOLTADM.TB_DICTIONARY
+											WHERE TypeCode IN(
+															SELECT SRCatID
+																FROM XBOLTAPP.ESM_SR_CAT
+																WHERE SRType IN('WRK', 'REQ', 'DCM', 'ACM')
+															)
+												AND SUBSTRING(description, 1, 3) not in ('RE_') 
+				) OR BB.SRType IN('DCM') THEN (aa.business_hours + aa.overtime)
+			END, 0) AS casual_work_val /*  15.비정기업무량      */
+			, CASE WHEN holyday = 'N' 
+				THEN ROUND(
+							CASE 
+								WHEN aa.overtime = 0 THEN 0
+								WHEN aa.overtime IS NULL THEN 0
+								ELSE aa.overtime / (aa.business_hours + aa.overtime)
+							END * 0.5, 
+						2)
+				ELSE 0 END AS mng_sps1  									/*  17.정규시간외        */
+			, CASE WHEN holyday = 'Y' 
+				THEN ( CASE WHEN ( aa.business_hours + aa.overtime ) > 0 THEN ( ( aa.business_hours + aa.overtime ) / ( aa.business_hours + aa.overtime ) * 0.5 ) ELSE 0 END )
+				ELSE 0 END AS mng_sps2 									/*  18.정규일수외        */
+		FROM XBOLTAPP.ESM_MBR_RCD AA
+			, XBOLTAPP.ESM_SR_MST BB
+			, XBOLTADM.TB_TEAM CC
+		WHERE 1 = 1
+			AND ( aa.business_hours + aa.overtime ) > 0
+			AND BB.SubCategory IS NOT NULL
+			AND FORMAT(aa.work_date, 'yyyyMM') = #{APPLY_YM}
+			AND AA.srID = BB.Srid
+			AND (
+				BB.SRType IN('REQ', 'WRK', 'DCM')
+					OR 1 = CASE WHEN BB.SRType IN('ACM') AND AA.SpeCode LIKE 'REQ%'
+								THEN 1
+							END
+				)
+			AND BB.ClientID = CC.ClientID
+			AND CC.RefTeamCode = #{CORP_ID}
+			AND (BB.SRArea1 IS NOT NULL AND BB.SRArea1 <> 0)
+) A
+ORDER BY A.SRCode, A.WORK_DATE
+]]>
+	</select>
+	
+		
+	<select id="zDlm_selectServiceCalExcel2_list2" resultType="java.util.HashMap">
+	<![CDATA[
+	SELECT A.CORP_ID AS cd_company   					/* 	0.관계사코드	*/
+	 , A.CORP_NAME AS cd_company_nm 					/* 	1.관계사명		*/
+	 , A.svc_ci_id AS svc_ci_id						/*	2.서비스ID		*/
+	 , A.SVC_CI_NAME AS name_lv1					/*	3.서비스명		*/
+	 , A.SRCode AS id								/*	4.티켓ID		*/
+	 , LEFT(A.Subject, 2000)                     AS title							/*	5.제목			*/
+	 , LEFT(A.Description, 2000)                     AS notice							/*	6.내용			*/
+	 , A.req_user_id                AS req_usr_id						/*  7.요청자사번	*/
+	 , A.req_name              AS req_usr_name					/*	8.요청자명		*/
+	 , A.req_team_name         AS req_usr_dept_name				/*	9.요청부서명	*/
+	 , FORMAT(A.regDt, 'yyyy-MM-dd') AS reg_date					/*	10.등록일자		*/
+	 , A.reg_user_id                AS usr_id							/*	11.등록자사번	*/
+	 , A.reg_name              AS user_nm						/*	12.등록자명		*/
+     , A.reg_team_name         AS nm_dept						/*	13.등록자부서명	*/
+	 , FORMAT(A.rcptdate, 'yyyy-MM-dd') AS rcpt_date				/*	14.접수일자		*/
+	 , FORMAT(A.CompletionDT, 'yyyy-MM-dd') AS close_date				/*	15.종료일자		*/
+	 , A.new_scrin_output_qy       AS new_scrin_output_qy				/*	16.신규화면기능산출물수			*/
+	 , A.new_batch_output_qy       AS new_batch_output_qy				/*	17.신규배치프로그램산출물수		*/
+	 , A.new_config_output_qy      AS new_config_output_qy				/*	18.신규Config화면패키지산출물수	*/
+	 , A.new_data_output_qy        AS new_data_output_qy			/*	19.신규DataSQL프로그램산출물수	*/
+	 , A.new_table_output_qy       AS new_table_output_qy				/*	20.신규테이블산출물수			*/
+	 , A.change_scrin_output_qy    AS change_scrin_output_qy			/*	21.변경화명기능산출물수			*/
+	 , A.change_batch_output_qy    AS change_batch_output_qy			/*	22.변경배치프로그램산출물수		*/
+	 , A.change_config_output_qy   AS change_config_output_qy			/*	23.변경Config화면패키지산출물수	*/
+	 , A.change_data_output_qy     AS change_data_output_qy				/*	24.변경DataSQL프로그램산출물수	*/
+	 , A.change_table_output_qy    AS change_table_output_qy			/*	25.변경테이블산출물수			*/
+	 , A.ap_impro_manage_cal AS ap_impro_manage_cal						/* 26.개선기본최종계산값 */
+	 , A.new_scrin_output_dtl       AS new_scrin_output_dtl				/*	27.신규화면기능산출물_상세			  	 */
+	 , A.new_batch_output_dtl       AS new_batch_output_dtl				/*	28.신규배치프로그램산출_상세			 */
+	 , A.new_config_output_dtl      AS new_config_output_dtl			/*	29.신규Config화면패키지산출물_상세		 */
+	 , A.new_data_output_dtl        AS new_data_output_dtl				/*	30.신규DataSQL프로그램산출물_상세		 */
+	 , A.new_table_output_dtl       AS new_table_output_dtl				/*	31.신규테이블산출물_상세				 */
+	 , A.change_scrin_output_dtl    AS change_scrin_output_dtl			/*	32.변경화명기능산출물수_상세			 */
+	 , A.change_batch_output_dtl    AS change_batch_output_dtl			/*	33.변경배치프로그램산출물수_상세		 */
+	 , A.change_config_output_dtl   AS change_config_output_dtl			/*	34.변경Config화면패키지산출물수_상세	 */
+	 , A.change_data_output_dtl     AS change_data_output_dtl			/*	35.변경DataSQL프로그램산출물수_상세	     */
+     , A.change_table_output_dtl    AS change_table_output_dtl			/*	36.변경테이블산출물수_상세			     */
+  FROM ( 
+	SELECT FORMAT(BB.CompletionDT, 'yyyyMM') AS APPLY_YM
+			,CC.RefTeamCode AS CORP_ID
+			,(SELECT TOP(1) X.NAME FROM XBOLTADM.TB_TEAM_TXT X WHERE X.TeamCode = CC.RefTeamCode AND X.LanguageID = '1042') AS CORP_NAME
+			,BB.Srid
+		, BB.SRCODE
+		, CC.RefTeamCode
+		, BB.SRType
+		, (SELECT NAME FROM XBOLTADM.TB_DICTIONARY WHERE CATEGORY = 'SRTP' AND TYPECODE = BB.SRType and LanguageID = '1042') AS SRTypeName
+		, (CASE WHEN BB.SRArea2 IS NULL OR BB.SRArea2 = 0 THEN BB.SRArea1 ELSE BB.SRArea2 END) AS SRArea
+		, (SELECT TOP(1) X.Identifier FROM XBOLTADM.TB_ITEM X WHERE X.ITEMID = (CASE WHEN BB.SRArea2 IS NULL OR BB.SRArea2 = 0 THEN BB.SRArea1 ELSE BB.SRArea2 END)) AS SVC_CI_ID
+		, (SELECT CC.PlainText FROM XBOLTADM.TB_ITEM_ATTR CC WHERE CC.LanguageID = '1042' and CC.AttrTypeCode = 'AT00001' AND CC.ItemID = (CASE WHEN BB.SRArea2 IS NULL OR BB.SRArea2 = 0 THEN BB.SRArea1 ELSE BB.SRArea2 END)) AS SVC_CI_NAME
+		, BB.Category
+		, BB.SubCategory
+		, (SELECT X.Name FROM XBOLTADM.TB_DICTIONARY X WHERE x.TypeCode = BB.Category And x.Category = 'SRCAT' And x.LanguageID = '1042')
+		  + ' > ' + (SELECT X.Name FROM XBOLTADM.TB_DICTIONARY X WHERE x.TypeCode = BB.SubCategory And x.Category = 'SRCAT' And x.LanguageID = '1042') AS CategoryName
+		, BB.RegUserID
+		--, (SELECT X.LoginID FROM XBOLTADM.TB_MEMBER X WHERE X.MemberID = BB.RegUserID) AS REG_USER_ID
+		--, (SELECT X.Name FROM XBOLTADM.TB_MEMBER X WHERE X.MemberID = BB.RegUserID) AS REG_NAME
+		, BB.RegTeamID
+		--, (SELECT X.NAME FROM XBOLTADM.TB_TEAM_TXT X WHERE X.TeamID = BB.RegTeamID And x.LanguageID = '1042') AS REG_TEAM_NAME
+		, BB.RequestUserID
+		, (SELECT X.LoginID FROM XBOLTADM.TB_MEMBER X WHERE X.MemberID = BB.RequestUserID) AS REQ_USER_ID
+		, (SELECT X.Name FROM XBOLTADM.TB_MEMBER X WHERE X.MemberID = BB.RequestUserID) AS REQ_NAME
+		, BB.RequestTeamID
+		, (SELECT X.NAME FROM XBOLTADM.TB_TEAM_TXT X WHERE X.TeamID = BB.RequestTeamID And x.LanguageID = '1042') AS REQ_TEAM_NAME
+		, BB.Subject
+		, BB.Description
+		--, BB.RegDT
+		, BB.CompletionDT
+		, (SELECT X.StartTime FROM XBOLTAPP.ESM_ACTIVITY_LOG X WHERE X.PID = BB.srid AND x.SpeCode = 'ACM0002' AND X.SEQ = (SELECT MAX(X.SEQ) FROM XBOLTAPP.ESM_ACTIVITY_LOG X WHERE X.PID = BB.srid AND x.SpeCode = 'ACM0002')) rcptDATE
+		, ISNULL((SELECT X.StartTime FROM XBOLTAPP.ESM_ACTIVITY_LOG X WHERE X.PID = BB.srid AND x.SpeCode = 'ACM0001' AND X.SEQ = (SELECT MAX(X.SEQ) FROM XBOLTAPP.ESM_ACTIVITY_LOG X WHERE X.PID = BB.srid AND x.SpeCode = 'ACM0001')), BB.RegDT) RegDT
+		, (SELECT X.LoginID FROM XBOLTADM.TB_MEMBER X WHERE X.MemberID = ISNULL((SELECT X.ActorID FROM XBOLTAPP.ESM_ACTIVITY_LOG X WHERE X.PID = BB.srid AND x.SpeCode = 'ACM0001' AND X.SEQ = (SELECT MAX(X.SEQ) FROM XBOLTAPP.ESM_ACTIVITY_LOG X WHERE X.PID = BB.srid AND x.SpeCode = 'ACM0001')), BB.RegUserID)) REG_USER_ID
+		, (SELECT X.NAME FROM XBOLTADM.TB_MEMBER X WHERE X.MemberID = ISNULL((SELECT X.ActorID FROM XBOLTAPP.ESM_ACTIVITY_LOG X WHERE X.PID = BB.srid AND x.SpeCode = 'ACM0001' AND X.SEQ = (SELECT MAX(X.SEQ) FROM XBOLTAPP.ESM_ACTIVITY_LOG X WHERE X.PID = BB.srid AND x.SpeCode = 'ACM0001')), BB.RegUserID)) REG_NAME
+		, (SELECT X.NAME FROM XBOLTADM.TB_TEAM_TXT X WHERE X.TeamID = ISNULL((SELECT X.TeamID FROM XBOLTAPP.ESM_ACTIVITY_LOG X WHERE X.PID = BB.srid AND x.SpeCode = 'ACM0001' AND X.SEQ = (SELECT MAX(X.SEQ) FROM XBOLTAPP.ESM_ACTIVITY_LOG X WHERE X.PID = BB.srid AND x.SpeCode = 'ACM0001')), BB.RegTeamID) And x.LanguageID = '1042') REG_TEAM_NAME
+		          , CASE WHEN ISNULL(new_scrin_output_qy, '0') = '' THEN '0' ELSE ISNULL(new_scrin_output_qy, '0') END       AS new_scrin_output_qy,				/*	16.신규화면기능산출물수			*/
+					CASE WHEN ISNULL(new_batch_output_qy, '0') = '' THEN '0' ELSE ISNULL(new_batch_output_qy, '0') END       AS new_batch_output_qy,				/*	17.신규배치프로그램산출물수		*/
+					CASE WHEN ISNULL(new_config_output_qy, '0') = '' THEN '0' ELSE ISNULL(new_config_output_qy, '0') END      AS new_config_output_qy,				/*	18.신규Config화면패키지산출물수	*/
+					CASE WHEN ISNULL(new_data_output_qy, '0') = '' THEN '0' ELSE ISNULL(new_data_output_qy, '0') END        AS new_data_output_qy,				/*	19.신규DataSQL프로그램산출물수	*/
+					CASE WHEN ISNULL(new_table_output_qy, '0') = '' THEN '0' ELSE ISNULL(new_table_output_qy, '0') END       AS new_table_output_qy,				/*	20.신규테이블산출물수			*/
+					CASE WHEN ISNULL(change_scrin_output_qy, '0') = '' THEN '0' ELSE ISNULL(change_scrin_output_qy, '0') END    AS change_scrin_output_qy,			/*	21.변경화명기능산출물수			*/
+					CASE WHEN ISNULL(change_batch_output_qy, '0') = '' THEN '0' ELSE ISNULL(change_batch_output_qy, '0') END    AS change_batch_output_qy,			/*	22.변경배치프로그램산출물수		*/
+					CASE WHEN ISNULL(change_config_output_qy, '0') = '' THEN '0' ELSE ISNULL(change_config_output_qy, '0') END   AS change_config_output_qy,			/*	23.변경Config화면패키지산출물수	*/
+					CASE WHEN ISNULL(change_data_output_qy, '0') = '' THEN '0' ELSE ISNULL(change_data_output_qy, '0') END     AS change_data_output_qy,				/*	24.변경DataSQL프로그램산출물수	*/
+					CASE WHEN ISNULL(change_table_output_qy, '0') = '' THEN '0' ELSE ISNULL(change_table_output_qy, '0') END    AS change_table_output_qy,			/*	25.변경테이블산출물수			*/
+					ISNULL(TRY_CAST( ( ( ( ISNULL(TRY_CAST(new_scrin_output_qy AS DECIMAL(15, 2)), 0)  * 4.3 ) + 
+						  ( ISNULL(TRY_CAST(new_batch_output_qy AS DECIMAL(15, 2)), 0)  * 4.3 ) + 
+						  ( ISNULL(TRY_CAST(new_config_output_qy AS DECIMAL(15, 2)), 0) * 4.3 ) +
+						  ( ISNULL(TRY_CAST(new_data_output_qy AS DECIMAL(15, 2)), 0)   * 1.4 ) + 
+						  ( ISNULL(TRY_CAST(new_table_output_qy AS DECIMAL(15, 2)), 0)  * 6.8 ) ) * 1 ) + 
+					  ( ( ( ISNULL(TRY_CAST(change_scrin_output_qy AS DECIMAL(15, 2)), 0)  * 4.3 ) + 
+						  ( ISNULL(TRY_CAST(change_batch_output_qy AS DECIMAL(15, 2)), 0)  * 4.3 ) + 
+						  ( ISNULL(TRY_CAST(change_config_output_qy AS DECIMAL(15, 2)), 0) * 4.3 ) + 
+						  ( ISNULL(TRY_CAST(change_data_output_qy AS DECIMAL(15, 2)), 0)   * 1.4 ) + 
+						  ( ISNULL(TRY_CAST(change_table_output_qy AS DECIMAL(15, 2)), 0) * 6.8 ) ) * 0.7 )  AS DECIMAL(15, 2)), 0) AS ap_impro_manage_cal, 		 	/* 26.개선기본최종계산값 */
+					new_scrin_output_dtl       AS new_scrin_output_dtl,				/*	27.신규화면기능산출물_상세			  	 */
+					new_batch_output_dtl       AS new_batch_output_dtl,				/*	28.신규배치프로그램산출_상세			 */
+					new_config_output_dtl      AS new_config_output_dtl,			/*	29.신규Config화면패키지산출물_상세		 */
+					new_data_output_dtl        AS new_data_output_dtl,				/*	30.신규DataSQL프로그램산출물_상세		 */
+					new_table_output_dtl       AS new_table_output_dtl,				/*	31.신규테이블산출물_상세				 */
+					change_scrin_output_dtl    AS change_scrin_output_dtl,			/*	32.변경화명기능산출물수_상세			 */
+					change_batch_output_dtl    AS change_batch_output_dtl,			/*	33.변경배치프로그램산출물수_상세		 */
+					change_config_output_dtl   AS change_config_output_dtl,			/*	34.변경Config화면패키지산출물수_상세	 */
+					change_data_output_dtl     AS change_data_output_dtl,			/*	35.변경DataSQL프로그램산출물수_상세	     */
+					change_table_output_dtl    AS change_table_output_dtl			/*	36.변경테이블산출물수_상세			     */
+		FROM (SELECT DISTINCT x.srID FROM XBOLTAPP.ESM_MBR_RCD x WHERE ( x.business_hours + x.overtime ) > 0)AA
+			, XBOLTAPP.ESM_SR_MST  BB
+			, XBOLTADM.TB_TEAM CC
+			, XBOLTAPP.ESM_SCR_OUTPUT_RCD DD
+		WHERE 1 = 1
+		AND FORMAT(BB.CompletionDT, 'yyyyMM') = #{APPLY_YM}
+		AND AA.srID = BB.Srid
+		AND BB.srID = DD.Srid
+		AND BB.SRType = 'ACM'
+		AND BB.ClientID = CC.ClientID
+		AND CC.RefTeamCode = #{CORP_ID}
+) A
+ORDER BY A.SRCode, A.CompletionDT
+	
+	]]>
+	</select>
+	
+	
+	
+	<select id="zDlm_selectServiceCalExcel3_list" resultType="java.util.HashMap">
+	<![CDATA[
+		
+		SELECT BB.SRCODE AS Id
+		       , CASE
+					WHEN BB.SRType = 'REQ' THEN
+						'운영관리'
+					WHEN BB.SRType = 'ACM' THEN
+						'개선관리'
+					WHEN BB.SRType = 'WRK' THEN
+						'운영관리'
+					WHEN BB.SRType = 'DCM' THEN
+						'운영관리'
+				END AS Service_name
+		       , (SELECT NAME FROM XBOLTADM.TB_DICTIONARY WHERE CATEGORY = 'SRTP' AND TYPECODE = BB.SRType and LanguageID = '1042') AS Proc_name
+			   --, (SELECT TOP(1) X.Identifier FROM XBOLTADM.TB_ITEM X WHERE X.ITEMID = (CASE WHEN BB.SRArea2 IS NULL OR BB.SRArea2 = 0 THEN BB.SRArea1 ELSE BB.SRArea2 END)) AS SVC_CI_ID
+			   , (SELECT CC.PlainText FROM XBOLTADM.TB_ITEM_ATTR CC WHERE CC.LanguageID = '1042' and CC.AttrTypeCode = 'AT00001' AND CC.ItemID = (CASE WHEN BB.SRArea2 IS NULL OR BB.SRArea2 = 0 THEN BB.SRArea1 ELSE BB.SRArea2 END)) AS Svc_ci_name
+			   --, (SELECT X.LoginID FROM XBOLTADM.TB_MEMBER X WHERE X.MemberID = BB.RequestUserID) AS REQ_USER_ID
+			   , (SELECT X.Name FROM XBOLTADM.TB_MEMBER X WHERE X.MemberID = BB.RequestUserID) AS Req_usr_name
+			   --, (SELECT X.LoginID FROM XBOLTADM.TB_MEMBER X WHERE X.MemberID = BB.RegUserID) AS REG_USER_ID
+			   , (SELECT X.Name FROM XBOLTADM.TB_MEMBER X WHERE X.MemberID = BB.RegUserID) AS Reg_usr_name
+			   , FORMAT(BB.RegDT, 'yyyy-MM-dd') AS Reg_date
+			   , LEFT(BB.Subject, 2000) AS Title
+			   --, (SELECT X.LoginID FROM XBOLTADM.TB_MEMBER X WHERE X.MemberID = BB.ReceiptUserID) AS assignee_id
+			   --, (SELECT X.Name FROM XBOLTADM.TB_MEMBER X WHERE X.MemberID = BB.ReceiptUserID) AS assignee_name
+			   --, BB.status
+			   , (SELECT CC.PlainText FROM XBOLTADM.TB_ITEM_ATTR CC WHERE CC.LanguageID = '1042' and CC.AttrTypeCode = 'AT00001' AND CC.ItemID = (SELECT x.itemId FROM XBOLTADM.TB_ITEM X WHERE X.Identifier = BB.status)) AS Status_name
+			   --, (SELECT X.Name FROM XBOLTADM.TB_DICTIONARY X WHERE x.TypeCode = BB.Category And x.Category = 'SRCAT' And x.LanguageID = '1042')
+			   --  + ' > ' + (SELECT X.Name FROM XBOLTADM.TB_DICTIONARY X WHERE x.TypeCode = BB.SubCategory And x.Category = 'SRCAT' And x.LanguageID = '1042') AS CategoryName
+			   , '진행중' AS Close_status
+			   , isnull((SELECT X.Name FROM XBOLTADM.TB_MEMBER X WHERE X.MemberID = BB.ReceiptUserID), (SELECT X.Name FROM XBOLTADM.TB_MEMBER X WHERE X.MemberID = BB.RegUserID)) AS Assignee
+		  FROM XBOLTAPP.ESM_SR_MST  BB
+			 , XBOLTADM.TB_TEAM CC
+		 WHERE 1 = 1
+		   AND BB.CompletionDT IS NULL
+		   AND BB.SRType IN ( 'WRK', 'DCM', 'ACM', 'REQ' )
+		   AND BB.ClientID = CC.ClientID
+		   AND CC.RefTeamCode = #{CORP_ID}
+		   AND FORMAT(BB.RegDT, 'yyyyMM') BETWEEN #{F_APPLY_YM} AND #{T_APPLY_YM}
+		 ORDER BY BB.RegDT DESC
+	
+	]]>
+	</select>
+	
+	
+	
+</mapper>

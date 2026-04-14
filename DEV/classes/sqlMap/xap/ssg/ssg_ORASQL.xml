@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="ssg_ORASQL">	
+	<select id="ssg_selectRole_gridList" resultType="java.util.HashMap">
+		Select RES_CODE, RES_NAME, ROLE_CODE, ROLE_NAME From iamadm.VI_IAM_ROLE
+		Where RES_CODE = 'S4Hana'
+	</select>
+	
+	<select id="ssg_selectUserRole_gridList" resultType="java.util.HashMap">
+		Select USER_CODE, USER_NAME, AUTH_CODE, AUTH_NAME From iamadm.VI_IAM_USER_ROLE UR
+		Where RES_CODE = 'S4Hana'
+	</select>
+	
+	<select id="ssg_selectTcode_gridList" resultType="java.util.HashMap">
+		Select RES_CODE, RES_NAME, MENU_CODE, MENU_NAME From iamadm.VI_IAM_MENU
+	</select>
+	
+	<select id="ssg_selectTcodeRole_gridList" resultType="java.util.HashMap">
+		Select RES_CODE, RES_NAME, ROLE_CODE, ROLE_NAME, MENU_CODE, MENU_NAME From iamadm.VI_IAM_ROLE_MENU
+	</select>
+</mapper>

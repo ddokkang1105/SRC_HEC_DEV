@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="AttributeType_SQL">
+
+
+	<select id="getDefineAttrList_gridList" resultType="java.util.HashMap">
+	SELECT
+		Row_Number()OVER(ORDER BY TAT.AttrTypeCode ASC) as RNUM
+		, 0 AS CHK
+		, TAT.AttrTypeCode
+		, TD.Name
+		, CASE TAT.IsComLang WHEN '1' THEN TD2.Category ELSE TD.Category END Category
+		, CASE TAT.IsComLang WHEN '1' THEN TD2.LanguageID ELSE TD.LanguageID END LanguageID
+		, TAT.DataType
+		, TD.Description
+		, TAT.Customizable
+		, TAT.HTML
+		, TAT.IsComLang
+		, TAT.Creator
+		, TM.Name AS CreateName
+		, CONVERT(varchar(20),TAT.CreationTime, 111) AS  CreationTime
+		, CONVERT(varchar(20),TAT.LastUpdated, 111) AS  LastUpdated
+		, TAT.Editable
+		, TLAN.IsDefault
+		, (SELECT Count(AttrTypeCode) FROM XBOLTADM.TB_ATTR_TYPE_ALLOCATION WHERE AttrTypeCode = TAT.AttrTypeCode) AS CNT
+		FROM XBOLTADM.TB_ATTR_TYPE TAT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD on TAT.AttrTypeCode = TD.TypeCode AND TD.LanguageID = #{LanguageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 on TAT.AttrTypeCode = TD2.TypeCode AND TD2.LanguageID = (SELECT LanguageID FROM XBOLTADM.TB_LANGUAGE WHERE IsDefault = 1)
+		Left Outer Join XBOLTADM.TB_MEMBER TM on TAT.Creator = TM.MemberID
+		Left Outer join XBOLTADM.TB_LANGUAGE AS TLAN	on TD.LanguageID = TLAN.LanguageID
+ 		ORDER BY TAT.AttrTypeCode ASC
+	</select>
+
+	<insert id="insertAttributeType">
+	INSERT INTO
+		XBOLTADM.TB_ATTR_TYPE(
+		AttrTypeCode
+		, DataType	
+		, Creator
+		, CreationTime
+		, LastUpdated
+		)
+
+		VALUES(
+
+		#{AttrTypeCode}
+		, #{DataType}
+		, #{Creator}
+		, GETDATE() 
+		, GETDATE() 
+		)
+	</insert>
+
+	<insert id="insertAttrDictonary">
+		INSERT INTO
+			XBOLTADM.TB_DICTIONARY(
+	
+			TypeCode
+			, Name
+			, LanguageID
+			, Category
+			, Description
+		
+			)
+			VALUES(
+	
+			#{TypeCode}
+			, #{Name}
+			, #{LanguageID}
+			, #{Category}
+			, #{Description}	
+			)
+	</insert>
+
+	<select id="selectDictionary" resultType="String">
+		
+		SELECT
+			TypeCode
+		FROM 
+			XBOLTADM.TB_DICTIONARY
+		WHERE 
+			1=1
+			<if test="TypeCode != null and TypeCode != ''">
+				AND TypeCode = #{TypeCode}
+			</if>
+			<if test="LanguageID != null and LanguageID != ''">
+				AND LanguageID = #{LanguageID}
+			</if>
+		
+	</select>
+
+	<update id="updateAttributeType">
+		Update XBOLTADM.TB_ATTR_TYPE Set
+			DataType = #{DataType}
+			, Creator = #{Creator}
+			, LastUpdated = GETDATE()
+			, HTML = #{HTML}
+			, IsComLang = #{IsComLang}
+			, SubAttrTypeCode = #{subAttrTypeCode}
+			, Editable = #{Editable}
+			, Category = #{attrCategory}
+		Where AttrTypeCode = #{AttrTypeCode}
+	</update>
+
+	<update id="updateAttrDictonary">
+	update
+		XBOLTADM.TB_DICTIONARY
+	set
+		Name = #{Name}
+		
+		, Description = #{Description}
+
+	where
+		TypeCode = #{TypeCode}
+		and LanguageID = #{LanguageID}
+	</update>
+
+	<delete id="deleteAttributeType">
+		DELETE
+			XBOLTADM.TB_ATTR_TYPE
+		WHERE
+			AttrTypeCode = #{AttrTypeCode}
+	</delete>
+	
+	<select id="maxAttrTypeCode" resultType="String">
+
+		select
+			MAX(at.AttrTypeCode) as MaxAttrTypeCode
+		from
+			XBOLTADM.TB_ATTR_TYPE as at
+		
+	</select>
+	
+	<select id="MaxLovCode" resultType="String">
+		select
+			ISNULL(MAX(TL.LovCode), 0) as MaxLovCode 
+		from
+			XBOLTADM.TB_ATTR_TYPE_LOV as TL
+		where AttrTypeCode = #{AttrTypeCode}
+			
+	</select>
+	
+	<select id="lovIdEqualCount" resultType="String">
+		SELECT 
+			COUNT(LovCode) As CNT
+		FROM
+			XBOLTADM.TB_ATTR_TYPE_LOV
+		WHERE
+			LovCode = N''+#{LovCode} and AttrTypeCode =	#{AttrTypeCode}
+	</select>
+	
+	<insert id="insertLOV">
+		INSERT INTO
+			XBOLTADM.TB_ATTR_TYPE_LOV(
+				LovCode,
+				AttrTypeCode,
+				LanguageID,
+				Value,
+				RefLovCode,
+				LinkFilter
+			)
+		VALUES(
+			#{LovCode},
+			#{AttrTypeCode},
+			#{LanguageID},
+			#{Value},
+			#{RefLovCode},
+			#{LinkFilter}
+		)
+	</insert>
+
+	<delete id="deleteLOV">
+		DELETE
+			XBOLTADM.TB_ATTR_TYPE_LOV
+		WHERE
+			LovCode = #{LovCode}
+			AND AttrTypeCode = #{AttrTypeCode}
+			AND LanguageID = #{languageID}
+	</delete>
+	
+	<update id="updateLOV">
+		UPDATE
+			XBOLTADM.TB_ATTR_TYPE_LOV
+		SET
+			Value = #{Value}, RefLovCode = #{RefLovCode}, LinkFilter = #{LinkFilter}
+		Where LovCode = #{LovCode}
+			And LanguageID = #{LanguageID}
+			And AttrTypeCode = #{AttrTypeCode}
+	</update>
+	
+	
+	<select id="selectLov" resultType="String">		
+	SELECT
+			Value
+	  FROM 
+			XBOLTADM.TB_ATTR_TYPE_LOV
+	  WHERE 
+			1=1			
+			<if test="AttrTypeCode != null and AttrTypeCode != ''">
+				AND AttrTypeCode = #{AttrTypeCode}
+			</if>
+			<if test="LovCode != null and LovCode != ''">
+				AND LovCode = #{LovCode}
+			</if>
+			<if test="LanguageID != null and LanguageID != ''">
+				AND LanguageID = #{LanguageID}
+			</if>			
+	</select>
+		
+	<select id="AttrReloadName" resultType="String">
+		select
+			TD.Name
+			
+		from 
+			XBOLTADM.TB_DICTIONARY TD
+			
+		where 
+			TypeCode = #{TypeCode}
+			and LanguageID = #{LanguageID}
+		</select>
+		
+	<select id="AttrReloadDescription" resultType="String">
+		select
+			TD.Description			
+		from 
+			XBOLTADM.TB_DICTIONARY TD
+			
+		where 
+			TypeCode = #{TypeCode}
+			and LanguageID = #{LanguageID}
+	</select>
+	
+	<select id="ReloadLoveCode" resultType="String">
+		select
+			ATL.LovCode
+		from
+			XBOLTADM.TB_ATTR_TYPE_LOV ATL
+			
+			where
+				AttrTypeCode = #{AttrTypeCode}
+				and LanguageID = #{LanguageID}
+	</select>
+	
+	<select id="ReloadLoveValue" resultType="String">
+		select
+			ATL.Value
+		from
+			XBOLTADM.TB_ATTR_TYPE_LOV ATL
+			
+			where
+				AttrTypeCode = #{AttrTypeCode}
+				and LanguageID = #{LanguageID}
+	</select>
+	
+	<select id="AttrReload" resultType="java.util.HashMap">
+		SELECT
+			 TAT.AttrTypeCode
+			, TD.Name
+			, TAT.DataType
+			, TD.Description
+			, TAT.Customizable
+			, TAT.HTML
+			, TAT.IsComLang
+			, TAT.Creator
+			, TM.Name AS CreateName
+			, CONVERT(varchar(20),TAT.CreationTime, 111) AS  CreationTime
+			, CONVERT(varchar(20),TAT.LastUpdated, 111) AS  LastUpdated
+			, TD.Category
+			, TD.LanguageID
+			, TAT.Editable
+			, TAT.Category AS AttrCategory
+			, TAT.SubAttrTypeCode
+		FROM
+			XBOLTADM.TB_ATTR_TYPE TAT
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD
+			on	TAT.AttrTypeCode = TD.TypeCode 
+			AND TD.LanguageID = #{LanguageID}
+	
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+			on TAT.Creator = TM.MemberID
+			
+		where 
+			TAT.AttrTypeCode = #{AttrTypeCode}
+	</select>
+	
+	<select id="getMaxCountLovValueLang" resultType="java.util.HashMap">
+		SELECT TOP 1 Count(LanguageID) AS CNT, LanguageID
+  			FROM XBOLTADM.TB_ATTR_TYPE_LOV
+ 		 WHERE AttrTypeCode = #{s_itemID}
+  		AND LanguageID IN (SELECT LanguageID FROM XBOLTADM.TB_LANGUAGE WHERE Deactivated IS NULL)	
+		Group by LanguageID	
+		Order by Count(LanguageID) DESC 
+	</select>
+	
+</mapper>

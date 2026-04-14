@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	로그인 관련	-->
+<mapper namespace="login_SQL">
+	<select id="login_id_select" resultType="java.util.HashMap">
+	<![CDATA[
+		SELECT Top 1 A.LoginId		/*사용자ID*/
+		, A.MemberID
+		FROM XBOLTADM.TB_MEMBER A
+		WHERE 1=1
+		AND LoginId = #{LOGIN_ID}
+	]]>
+		<if test="companyID != null and companyID != ''">
+			AND CompanyID = #{companyID}
+		</if>
+		<if test="teamID != null and teamID != ''">
+			AND TeamID = #{teamID}
+		</if>
+		Order By Active DESC, MemberID DESC
+	</select>
+	
+	<select id="login_active_select" resultType="String">
+	<![CDATA[
+		SELECT CASE Active WHEN 1 THEN 'Y' ELSE 'N' END AS Active
+		FROM XBOLTADM.TB_MEMBER
+		WHERE LoginId = #{LOGIN_ID} And Active = 1
+	]]>
+	</select>
+	
+	<select id="login_select" resultType="xbolt.cmm.framework.util.LoginMap">
+		SELECT 
+			A.MemberID as USER_ID		/*사용자ID*/
+			,A.Name as USER_NM		/*사용자명*/
+			,A.LoginId as LOGIN_ID		/*로그인ID*/
+			,A.MemberID as AUTH_ID		/* 권한 */
+			,A.CompanyID as COMPANY_ID	/*업체ID*/
+			,A.CompanyID as SEL_CMPNY_ID	/*업체ID*/
+			,B.Name as COMPANY_NM	/*업체명*/
+			,ISNULL(A.TeamID, 0) as TEAM_ID	/*상위업체ID*/
+			,ISNULL(A.EmployeeNum, 0) as EMPLOYEE_NM	/*사원번호*/
+			,A.Authority as AUTH_LEV		/*권한레벨*/
+			,ISNULL(D.Name, '') as TEAM_NAME
+		    ,ISNULL(UE.LanguageID,#{LANGUAGE}) AS CURR_LANG_TYPE 
+		    ,ISNULL(UE.Name,ISNULL(E.Name, #{LANGUAGE})) AS CURR_LANG_NM
+		    ,ISNULL(UE.LanguageCode,ISNULL(E.LanguageCode, #{LANGUAGE})) AS CURR_LANG_CODE /*LanguageCode*/
+		    ,A.ClientID AS CLIENT_ID
+		    ,A.MLVL, ISNULL(E.FontFamily, 'Malgun Gothic') AS DEF_FONT
+		    ,ISNULL(E.FontSize,14) AS DEF_FONT_SIZE
+		    ,ISNULL(E.FontStyle,'1') AS DEF_FONT_STYLE
+		    ,ISNULL(E.FontColor,'black') AS DEF_FONT_COLOR
+		    ,ISNULL(A.Email,'') AS EMAIL
+		    ,ISNULL(A.DefLanguageID,(Select LanguageID From XBOLTADM.TB_LANGUAGE Where IsDefault = 1)) As DEF_LANGUAGE_ID /*Defult LanguageID*/
+		    ,A.State AS STATE
+		    ,A.TimeZone AS USER_TIME_ZONE
+		FROM XBOLTADM.TB_MEMBER A
+			Left Outer Join XBOLTADM.TB_TEAM_TXT B on A.CompanyID = B.TeamID AND B.LanguageID = #{LANGUAGE}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT D on A.TeamID = D.TeamID AND D.LanguageID = #{LANGUAGE}
+			LEFT OUTER JOIN XBOLTADM.TB_LANGUAGE UE ON UE.LanguageID = A.DefLanguageID
+			LEFT OUTER JOIN XBOLTADM.TB_LANGUAGE E ON E.LanguageID = #{LANGUAGE}
+		WHERE LoginId = #{LOGIN_ID}
+		<if test='IS_CHECK != null and IS_CHECK.equalsIgnoreCase("Y")'>
+			AND Password = #{PASSWORD}
+		</if>
+		<if test="active != null and active != ''">
+			AND Active = #{active}
+		</if>
+		<if test='companyID != null and companyID != ""'>
+			AND A.CompanyID = #{companyID}
+		</if>
+		<if test='teamID != null and teamID != ""'>
+			AND A.teamID = #{teamID}
+		</if>
+		<if test='clientID != null and clientID != ""'>
+			AND A.ClientID = #{clientID}
+		</if>
+		<if test='"Y".equals(isActive)'>
+			And ISNULL(A.Active,'') != '0'
+		</if>
+	</select>
+	
+	<select id="login_id_selectFromEmpNo" resultType="java.util.HashMap">
+	<![CDATA[
+		SELECT A.LoginId, A.EmployeeNum		/*사용자ID*/
+		FROM XBOLTADM.TB_MEMBER A
+		WHERE 1=1
+		AND EmployeeNum = #{LOGIN_ID}  
+		And ISNULL(A.Active,'') != '0'
+		Order by A.Active DESC
+	]]>
+	</select>	
+	
+	<select id="getUserTeamList" resultType="java.util.HashMap">
+		Select A.MemberID AS CODE,
+			ISNULL(E.Name,'')+'-'+ ISNULL(B.Name,'') AS NAME,
+			C.TeamID AS TeamID,
+			C.CompanyID AS CompanyID,
+			C.ClientID AS ClientID,
+			A.MLVL AS MLVL,
+			A.Authority AS Authority	
+		From XBOLTADM.TB_MEMBER A, XBOLTADM.TB_TEAM_TXT B, XBOLTADM.TB_TEAM C, XBOLTADM.TB_TEAM D, XBOLTADM.TB_TEAM_TXT E
+		Where A.TeamID = B.TeamID And B.LanguageID = #{languageID} 
+		And C.TeamID = A.TeamID 
+		And C.Deleted != 1
+		And ISNULL(A.Active,'') != '0'
+		And D.Deleted != 1
+		And D.TeamID = A.CompanyID
+		And D.TeamID = E.TeamID 
+		And E.LanguageID = #{languageID}
+		<if test='loginID != null and loginID != ""'>
+			And A.LoginID = #{loginID}
+		</if>
+		<if test='memberID != null and memberID != ""'>
+			AND A.MemberID = #{memberID}
+		</if>
+		<if test='employeeNum != null and employeeNum != ""'>
+			AND A.EmployeeNum = #{employeeNum}
+		</if>
+	</select>
+	
+</mapper>

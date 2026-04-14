@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	instanceFile 관련 관련	-->
+<mapper namespace="instanceFile_SQL">
+	<select id="getInstanceFile" resultType="java.util.HashMap">
+		SELECT 
+			  TOP 500 Row_Number() OVER (order by TF.FltpCode, TF.FileName) AS RNUM 
+			  ,TF.FileID
+			  ,TF.RefFileID
+			  ,0 as CHK
+		      ,TF.InstanceNo 
+		      ,TF.InstanceClass
+		      ,TF.LinkType
+		      ,TF.FileName
+		      ,TF.FltpCode AS FltpCode
+		      ,TF.FileFormat
+		      ,TF.FileRealName
+		      ,TF.FileSize
+		      ,TF.FileMgt
+		      ,TF.RegMemberID
+		      ,CONVERT(CHAR(10),CONVERT(datetime,TF.CreationTime),21) as CreationTime
+		      ,CONVERT(CHAR(10),CONVERT(datetime,TF.LastUpdated),21) as LastUpdated
+		      ,TF.LastUser
+		      ,TF.Version
+		      ,TF.DownCNT
+		      ,ISNULL(TM.Name, '') WriteUserNM
+		      ,TFT.FilePath+TF.FileName as SysFile
+		      ,TFT.FilePath+TF.FileRealName as OrigFile
+		      ,TFT.FilePath
+		      ,TFT.FilePath as ExtFileURL
+		      ,TD.Name AS FltpName
+		      ,TFT.FileOption
+		      ,TF.Description
+  		FROM XBOLTAPP.PIM_INSTANCE_FILE TF
+  			LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TF.RegMemberID = TM.MemberID
+  			LEFT OUTER JOIN XBOLTADM.TB_FLTP TFT ON TF.FltpCode = TFT.FltpCode
+  			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TF.FltpCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+		Where TF.InstanceClass = #{instanceClass}
+		And TF.InstanceNo = #{instanceNo}
+		<if test="refFileID != null and refFileID != ''">
+			And TF.RefFileID = #{refFileID}
+		</if>
+	</select>
+	
+	<delete id="deleteInstanceFile" parameterType="java.util.HashMap">
+		DELETE XBOLTAPP.PIM_INSTANCE_FILE WHERE FileID = #{fileID}
+	</delete>
+	
+	<update id="updateInstanceFileDownCNT" parameterType="java.util.HashMap">
+		UPDATE XBOLTAPP.PIM_INSTANCE_FILE SET DownCNT = ISNULL(DownCNT,0)+1 Where FileID = #{fileID}
+	</update>
+	
+	<select id="selectDownInstanceFile" resultType="java.util.HashMap">
+		SELECT TF.FileName AS filename
+			, TF.FileRealName AS original
+			, ISNULL(TDF.FilePath,TF.FilePath) + TF.FileName AS downFile
+		FROM XBOLTAPP.PIM_INSTANCE_FILE TF
+		Left Outer Join XBOLTADM.TB_FLTP TDF On TF.FltpCode = TDF.FltpCode
+		WHERE TF.FileID = #{fileID}
+	</select>
+	
+	<select id="getInstanceFileDetail" resultType="java.util.HashMap">
+		Select
+			TF.FileID
+			, TF.FileID As Seq
+			, TM.Name AS WriterName
+			, TTT.Name AS TeamName
+			, TF.FltpCode AS FltpCode 
+			, CONVERT(CHAR(10),CONVERT(datetime,TF.LastUpdated),21) AS LastUpdated
+			, CONVERT(CHAR(10),CONVERT(datetime,TF.CreationTime),21) AS CreationTime
+			, TIA.PlainText AS Path 
+			, TF.Description, TF.FilePath + TF.FileName As SysFile
+			, TF.InstanceNo As InstanceNo
+			, TF.InstanceNo As DocumentID
+			, TF.FileName, TF.FileRealName, TF.FilePath
+			, TD.Name As FltpName
+			, '' AS ProjectID, '' As ParentID, '' AS ProjectName, '' As CsrName
+			, TF.FileMgt As FileMgt
+		From XBOLTAPP.PIM_INSTANCE_FILE TF
+		 Left Outer Join XBOLTADM.TB_MEMBER TM On TM.MemberID = TF.RegMemberID
+		 Left Outer Join XBOLTADM.TB_TEAM_TXT TTT ON TTT.TeamID = TM.TeamID And TTT.LanguageID = #{languageID}
+		 Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TF.ItemID And TIA.LanguageID = #{languageID} And TIA.AttrTypeCode = 'AT00001' 
+		 Left Outer Join XBOLTADM.TB_FLTP TDFT ON TDFT.FltpCode = TF.FltpCode  
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TD On TF.FltpCode = TD.TypeCode And TD.LanguageID = #{languageID} And TD.Category = 'FLTP'
+		 Where TF.FileID = #{fileID}
+	</select>
+	
+	<select id="getInstanceFileName" resultType="String">
+		SELECT FileRealName FROM XBOLTAPP.PIM_INSTANCE_FILE WHERE FileID = #{fileID}
+	</select>
+	
+	<select id="getInstanceFileSysName" resultType="String">
+		SELECT FileName FROM XBOLTAPP.PIM_INSTANCE_FILE WHERE FileID = #{fileID}
+	</select>	
+
+	<select id="getInstanceFileList_gridList" resultType="java.util.HashMap">
+		SELECT 
+		  TOP 500 Row_Number() OVER (Order By TF.FltpCode, TF.FileName) AS RNUM 
+		  ,TF.FileID
+		  ,0 AS CHK
+	      ,TF.InstanceNo AS DocumentID 
+	      ,'' AS DocCategory
+	      ,TF.LinkType
+	      ,TF.FileName
+	      ,TF.FltpCode As FltpCode
+	      ,TF.FileFormat
+	      ,TF.FileRealName
+	      ,TF.FileSize
+	      ,TF.FileMgt
+	      ,TF.RegMemberID
+	      ,CONVERT(CHAR(10),CONVERT(datetime,TF.CreationTime),21) AS CreationTime
+	      ,CONVERT(CHAR(10),CONVERT(datetime,TF.LastUpdated),21) AS LastUpdated
+	      ,TF.LastUser
+	      ,TF.Version
+	      ,TF.DownCNT
+	      ,ISNULL(TM.Name, '') WriteUserNM
+	      ,TDFT.FilePath+TF.FileName AS SysFile
+	      ,TDFT.FilePath+TF.FileRealName AS OrigFile
+	      ,TDFT.FilePath
+	      ,TF.FilePath AS ExtFileURL
+	      ,TD.Name AS FltpName
+	      ,TDFT.fileOption
+	      ,'' As ItemTypeCode
+	      ,( select t2.name from XBOLTADM.TB_MEMBER t1 left outer join XBOLTADM.TB_TEAM_TXT t2 
+	       on t1.teamId = t2.teamId where t1.memberId = TF.RegMemberID and t2.LanguageID = #{languageID} ) as TeamName
+	     ,'' AS Path
+	     ,'' AS ClassCode
+	     ,TL.LanguageCode
+	     ,TF.Description
+ 		FROM XBOLTAPP.PIM_INSTANCE_FILE TF
+ 			LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TF.RegMemberID = TM.MemberID
+ 			LEFT OUTER JOIN XBOLTADM.TB_FLTP TDFT ON TDFT.FltpCode = TF.FltpCode
+ 			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TF.FltpCode AND TD.LanguageID = #{languageID} And TD.Category ='FLTP'
+ 			Left Outer Join XBOLTADM.TB_LANGUAGE TL On TL.LanguageID = TF.LanguageID 
+		Where InstanceNo = #{instanceNo}
+		And instanceClass = #{instanceClass}
+		<if test="searchValue != null and searchValue != ''">
+			<choose>
+				<when test="searchKey.equals('Name')">
+					AND TF.fileRealName like N'%'+#{searchValue}+'%'
+				</when>
+				<when test="searchKey.equals('Info')">
+					AND TF.Description like N'%'+#{searchValue}+'%'
+				</when>
+			</choose>
+		</if>
+	</select>
+	
+	<insert id="insertInstanceFile"  parameterType="java.util.HashMap">
+	 INSERT INTO XBOLTAPP.PIM_INSTANCE_FILE
+           (FileID
+           ,RefFileID
+           ,FltpCode
+           ,InstanceClass
+           ,InstanceNo
+           ,ItemID
+           ,LinkType
+           ,FileName
+           ,FileRealName
+           ,FileSize
+           ,FileMgt
+           ,FileFormat
+           ,RegMemberID
+           ,DownCNT
+           ,FilePath
+           ,LanguageID
+           ,Description
+           ,CreationTime
+           ,LastUpdated
+           ,LastUser)
+     VALUES
+           (#{fileID}
+           ,#{refFileID}
+           ,#{FltpCode}
+           ,#{instanceClass}
+           ,#{instanceNo}
+           ,#{itemID}         
+           ,#{linkType}
+           ,#{fileName}
+           ,#{fileRealName}
+           ,#{fileSize}
+           ,#{fileMgt}
+           ,#{fileFormat}
+           ,#{userID}
+           ,0
+           ,#{filePath}
+           ,#{languageID}
+           ,#{Description}
+		   ,GetDate()
+           ,GetDate()
+           ,#{userID}
+		   )
+	</insert>
+	
+	<update id="updateInstanceFile"  parameterType="java.util.HashMap">
+		UPDATE XBOLTAPP.PIM_INSTANCE_FILE
+		SET        
+			FileName = #{fileName}
+			,FileRealName = #{fileRealName}
+			,FltpCode = #{FltpCode}
+			,FileSize = #{fileSize}
+			,FileMgt = #{fileMgt}
+			,FileFormat = #{fileFormat}
+			,DownCNT = 0
+			,FilePath = #{filePath}
+			,LanguageID = #{languageID}
+			,Description = #{Description}
+			,LastUpdated = GetDate()
+			,LastUser = #{userID}
+		WHERE 
+			FileID = #{fileID}
+	</update>
+
+	<select id="getInstanceFilePath" resultType="String">
+		Select ISNULL(TDFT.FilePath, TF.FilePath) AS FilePath From XBOLTADM.TB_FLTP TDFT
+		Left Outer Join XBOLTAPP.PIM_INSTANCE_FILE TF ON TF.FltpCode = TDFT.FltpCode
+		Where TF.FileID = #{fileID}
+	</select>
+	
+	<select id="getInstancFileID" resultType="String">
+		SELECT ISNULL(MAX(FileID)+1,'1') AS FILEID_NEXTVAL FROM XBOLTAPP.PIM_INSTANCE_FILE
+	</select>
+	
+	<select id="getCxnItemFileList" resultType="java.util.HashMap">
+		Select 
+			Distinct Row_Number()OVER(ORDER BY TI.Identifier ) as RNUM 
+			, TI.ItemID , TI.Identifier , TIA.PlainText AS ItemName  
+			, TI.ClassCode , TM2.Name AS LastUser 
+			, Convert(nvarchar(20),TF.LastUpdated, 111) AS LastUpdated 
+			, TF.DocumentID , TF.Seq , TF.FileRealName  
+			, TD.Name As FltpName , TL.LanguageCode , TM.Name As RegUserName  
+			, TF.DownCNT , TFTP.FilePath+TF.FileName as SysFile 
+			, TFTP.FilePath+TF.FileRealName as OrigFile 
+			, TFTP.FilePath  
+			, TF.FltpCode
+		  
+		From XBOLTADM.TB_FILE TF  
+		Left Outer Join XBOLTADM.TB_ITEM TI ON TI.ItemID = TF.DocumentID 
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA ON TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID} AND TIA.ItemID = TI.ItemID  
+		Left outer join XBOLTADM.TB_MEMBER TM on TF.RegMemberID = TM.MemberID 
+		Left outer join XBOLTADM.TB_MEMBER TM2 on TF.LastUser = TM2.MemberID  
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TF.FltpCode And TD.LanguageID = #{languageID} 
+		Left Outer Join XBOLTADM.TB_LANGUAGE TL On TL.LanguageID = TF.LanguageID  
+		Left Outer Join XBOLTADM.TB_FLTP TFTP ON TFTP.FltpCode = TF.FltpCode  
+		    
+		Where TF.DocumentID IN( 
+			Select ItemID from XBOLTADM.TB_ITEM where ItemID in (Select ToItemID from xboltadm.TB_ITEM Where FromItemID = #{elmItemID} ) and ItemTypeCode= 'OJ00006' 
+		) AND TF.LanguageID = #{languageID}
+	</select>
+</mapper>

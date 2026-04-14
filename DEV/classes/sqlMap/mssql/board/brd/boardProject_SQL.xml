@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	project Item 관련 관련	-->
+<mapper namespace="boardProject_SQL">
+ 
+	<!-- 프로젝트 ChangeSet 리스트 -->
+	<select id="getBoardProjectList_gridList" resultType="java.util.HashMap">
+		SELECT 
+			 Row_Number()OVER(ORDER BY  TP.CreationTime DESC ) as RNUM 
+			, 0 AS CHK 
+			, TP.ProjectID
+			, XBOLTADM.fn_GetMyAbsPathForProject(TP.ProjectID, #{languageID}) AS Name
+			, TP.ProjectCode
+			, TPT.Name AS ProjectName
+			, TPT.Description
+			, ISNULL(TM.Name,'') AS CreatorName
+			, ISNULL(CONVERT(char(10),TP.CreationTime, 120),'') as CreationTime
+			, TD.Name AS StatusName
+			, TP.ProjectType
+		FROM 
+			XBOLTADM.TB_PROJECT TP
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT
+				on TP.ProjectID = TPT.ProjectID AND TPT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+				on TP.AuthorID = TM.MemberID
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD
+				on TP.Status = TD.TypeCode AND TD.LanguageID = 	#{languageID}
+				AND TD.Category = 'PJTSTS'
+		<where>		
+			<if test="filter != null and filter != ''">
+				TP.ProjectType = #{filter}
+			</if>		
+			<if test="ParentID != null and ParentID != ''">
+				AND TP.RefPjtID = #{ParentID}
+			</if>		
+			<if test="Category != null and Category != ''">
+				AND TP.PJCategory = #{Category}
+			</if>	
+			<if test="scStartDt != null and scStartDt != '' and scEndDt != null and scEndDt != ''">
+				AND CONVERT(VARCHAR, TP.CreationTime, 112) BETWEEN #{scStartDt} AND #{scEndDt}
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+				<choose>
+					<when test="searchKey.equals('Name')">
+						AND TPT.Name like N'%'+#{searchValue}+'%'
+					</when>
+					<when test="searchKey.equals('Info')">
+						AND TPT.Description like N'%'+#{searchValue}+'%'
+					</when>
+				</choose>
+			</if>
+		</where>
+	ORDER BY
+		TP.CreationTime DESC
+	</select>
+
+	
+ 	
+</mapper>

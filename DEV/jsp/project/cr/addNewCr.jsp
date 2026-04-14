@@ -1,0 +1,307 @@
+<%@ page language="java" contentType="text/html; charset=utf-8"  pageEncoding="utf-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jstl/fmt_rt" %>
+<%@ taglib uri="http://www.springframework.org/tags" prefix="spring" %>
+<c:url value="/" var="root"/>
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+<%@ include file="/WEB-INF/jsp/template/tagInc.jsp"%>
+<%@ include file="/WEB-INF/jsp/template/loadingInc.jsp"%>
+
+<!-- 화면 표시 메세지 취득  -->
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00025" var="WM00025_1" arguments="${menu.LN00274}"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00025" var="WM00025_2" arguments="${menu.LN00185}"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00025" var="WM00025_3" arguments="${menu.LN00067}"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.CM00026" var="CM00026" arguments="${menu.LN00082}"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.CM00001" var="CM00001"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.CM00028" var="CM00028"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00049" var="WM00049"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00131" var="WM00131"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.CM00002" var="CM00002"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.CM00051" var="CM00051"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.CM00015" var="CM00015"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00015" var="WM00015" arguments="${menu.LN00222}"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00034" var="WM00034_1" arguments="${menu.LN00002}"/> <!-- 제목 입력 체크  -->
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00034" var="WM00034_2" arguments="${menu.LN00003}"/> <!-- 개요 입력 체크  -->
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00034" var="WM00034_3" arguments="${menu.LN00004}"/> <!-- 개요 입력 체크  -->
+
+<script type="text/javascript" src="${root}cmm/js/xbolt/tinyEditorHelper.js"></script>
+
+<script type="text/javascript">
+	
+	$(document).ready(function(){
+		$("input.datePicker").each(generateDatePicker);
+		
+		var data = "languageID=${sessionScope.loginInfo.sessionCurrLangType}&userID=${sessionScope.loginInfo.sessionUserId}&srType=${srType}";
+		fnSelect('crArea1', data, 'getSrArea1', '${getMap.SRArea1}', 'Select');
+		fnSelect('priority', data+"&category=PRT", 'getDictionaryOrdStnm', '', 'Select');
+		
+		//Setting SR Area Info
+		var crArea1 = "${getMap.SRArea1}";
+		var crArea2 = "${getMap.SRArea2}";
+		
+		if(crArea1 != "" & crArea1 != null){ 
+			fnGetCRArea2(crArea1, crArea2);
+		}		
+	});
+
+	function fnCheckValidation(){
+		var isCheck = true;		
+		
+		var crArea1 = $("#crArea1").val();
+		var crArea2 = $("#crArea2").val();
+		var priority = $("#priority").val();
+		var subject = $("#subject").val();
+		var description = $("#description").val();
+		var receiptName = $("#receiptName").val();
+		if(crArea1 == ""){ alert("${WM00025_1}"); isCheck = false; return isCheck;}
+		if(crArea2 == ""){ alert("${WM00025_2}"); isCheck = false; return isCheck;}
+		if(priority == ""){ alert("${WM00025_3}"); isCheck = false; return isCheck;}
+		if(subject == ""){ alert("${WM00034_1}"); isCheck = false; return isCheck;}
+		if(description == "" ){ alert("${WM00034_2}"); isCheck = false; return isCheck;}
+		if(receiptName == "" ){ alert("${WM00034_3}"); isCheck = false; return isCheck;}
+		
+		return isCheck;
+	}
+	
+	// [Save]
+	function saveNewCr() {
+		// 프로젝트, 변경오더, 완료요청일  필수 Check
+		var crMode = "${crMode}";
+		if(crMode != "SR"){
+			if ($('#ProjectID').val() == "") {
+				alert("${WM00025_1}");
+				return;
+			}
+			if ($('#csrID').val() == "") {
+				alert("${WM00025_2}");
+				return;
+			}
+		}
+		if ($('#ReqDueDate').val() == "") {
+			alert("${WM00025_3}");
+			return;
+		} 
+		
+		//완료요청일 check : 시스템 날짜보다과거 이면 안됨
+		var sysDate = "${thisYmd}"; 
+		var reqdueDate = $('#ReqDueDate').val();
+		if (fnDateCompare(reqdueDate, sysDate) > 0) {
+			alert("${WM00015}");
+			return;
+		}
+		
+		if(!fnCheckValidation()){return;}
+		if(confirm("${CM00001}")){
+			var url = "saveNewCr.do";
+			ajaxSubmit(document.addCrFrm, url);
+		}
+	}
+	
+	// [List]
+	function goBack() {
+		var isCrEdit = "${isCrEdit}";
+		// issue 목록 화면으로 [등록]
+		var url = "crMstList.do";
+		var data = "ProjectID=${ProjectID}&isNew=${isNew}&mainMenu=${mainMenu}" 
+				+ "&isItemInfo=${isItemInfo}&seletedTreeId=${seletedTreeId}"
+				+ "&Creator=${Creator}&ParentID=${ParentID}&issueMode=${issueMode}"
+				+ "&currPageI=${currPageI}"
+				+ "&screenType=${screenType}";
+		if (isCrEdit == "Y") {
+			// Cr 상세 화면으로 이동[편집]
+			url = "crInfoDetail.do";
+			data = "issueMode=${issueMode}&issueId=${getMap.IssueID}"
+					+ "&currPageI=${currPageI}"
+					+ "&ParentID=${ParentID}"
+					+ "&screenType=${screenType}";
+		} 
+		var target = "createCRDiv";
+		ajaxPage(url, data, target);
+	}
+	
+	function fnGetCRArea2(CRArea1ID, CRArea2ID){
+		if( CRArea2ID == 'undefined'){CRArea2ID="";}
+		if(CRArea2ID != ""){
+			fnGetReceipt(CRArea2ID);
+		}
+		var data = "languageID=${sessionScope.loginInfo.sessionCurrLangType}&userID=${sessionScope.loginInfo.sessionUserId}&srType=${srType}&parentID="+CRArea1ID;
+		fnSelect('crArea2', data, 'getSrArea2', CRArea2ID, 'Select');
+	}
+	
+	function fnGetReceipt(crArea2){
+		var url = "getReceipt.do";
+		var data = "crArea2="+crArea2;
+		var target = "saveFrame";
+		
+		ajaxPage(url, data, target);
+	}
+	
+	function fnSetReceipt(receiptID,receiptName,receiptTeamID,ITSMType){
+		var checkObj = document.all("assigned");
+		if( checkObj.checked == true){ 
+			$("#receiptID").val(receiptID);
+			$("#receiptName").val(receiptName);
+			$("#receiptTeamID").val(receiptTeamID);
+		}
+		$("#ITSMType").val(ITSMType);
+	}
+	
+	function fnGoBack(){		
+		var url = "csrDetail.do";
+		var data = "s_itemID=" + $("#ProjectID").val() 
+					+ "&isNew=R"
+					+ "&ProjectID="+$("#csrID").val()					
+					+ "&srID="+$("#srID").val()
+					+ "&mainMenu="+$("#mainMenu").val();	
+		var target = "createCRDiv";
+		ajaxPage(url, data, target);
+	}
+	
+	function fnGoBackSR(){
+		opener.fnCallBackSR();
+		self.close();
+	}
+	
+	function fnCheckReceipt(){
+		var checkObj = document.all("assigned");
+		if( checkObj.checked == false){ 
+			$("#searchReceiptBtn").attr('style', 'display: done');
+			$("#receiptID").val("");
+			$("#receiptName").val("");
+			$("#receiptTeamID").val("");
+		} else {
+			$("#searchReceiptBtn").attr('style', 'display: none');
+		}
+	}
+	
+	function searchPopupWf(avg){	
+		var url = avg + "&searchValue=" + encodeURIComponent($('#receiptName').val()) 
+					+ "&languageID=${sessionScope.loginInfo.sessionCurrLangType}";
+		window.open(url,'window','width=340, height=300, left=300, top=300,scrollbar=yes,resizble=0');
+	}
+	
+	function setSearchNameWf(avg1,avg2,avg3,avg4){
+		$("#receiptName").val(avg2+"("+avg3+")");
+		$("#receiptID").val(avg1);
+		$("#receiptTeamID").val(avg4);
+	}
+	
+</script>
+</head>
+<body>
+<div id="createCRDiv" name="createCRDiv" style="padding: 0 6px 6px 6px;">
+<form name="addCrFrm" id="addCrFrm" enctype="multipart/form-data" action="" method="post" onsubmit="return false;">
+	<input type="hidden" id="languageID" name="languageID" value="${sessionScope.loginInfo.sessionCurrLangType}" />
+	<input type="hidden" id="isCrEdit" name="isCrEdit" value="${isCrEdit}" />	
+	<input type="hidden" id="crID" name="crID" value="${getMap.CrID}" />
+	<input type="hidden" id="crMode" name="crMode" value="${crMode}" />
+	<input type="hidden" id="srID" name="srID" value="${getMap.SRID}" />
+	<input type="hidden" id="ProjectID" name="ProjectID" value="${ProjectID}" />
+	<input type="hidden" id="csrID" name="csrID" value="${CSRID}" />
+	<input type="hidden" id="ITSMType" name="ITSMType" value="" />	
+	<input type="hidden" id="mainMenu" name="mainMenu" value="${mainMenu}" />
+	<input type="hidden" id="screenType" name="screenType" value="${screenType}" />	
+	
+	<div class="cop_hdtitle" style="border-bottom:1px solid #ccc">
+		<h3 style="padding: 6px 0 6px 0"><img src="${root}${HTML_IMG_DIR}/icon_csr.png">&nbsp;${menu.LN00240}</h3>
+	</div>
+	<div id="crDiv" class="hidden" style="width:100%;height:400px;">
+		<table class="tbl_blue01 mgT10" style="table-layout:fixed;" width="98%" border="0" cellpadding="0" cellspacing="0">	
+			<colgroup>
+				<col width="15%">
+				<col width="35%">
+				<col width="15%">
+				<col width="35%">			
+			</colgroup>
+			 <tr>
+		   		<!-- 도메인 -->
+			    <th class=" alignL pdL10">${menu.LN00274}</th>
+			    <td class=" alignL pdL10">     
+				  	<select id="crArea1" Name="crArea1" OnChange="fnGetCRArea2(this.value);" style="width:80%">
+				    </select>
+			    </td>
+		       	<!-- 시스템 -->
+		        <th class=" alignL pdL10" last>${menu.LN00185}</th>
+		        <td class=" alignL pdL10 last">     
+		        <select id="crArea2" Name="crArea2" style="width:80%" OnChange="fnGetReceipt(this.value);">
+		        </select>
+		        </td>
+			</tr>
+			 <tr>
+      		    <!-- 담당자 -->
+		       <th class=" alignL pdL10">${menu.LN00004}(&nbsp;<input type="checkbox" id="assigned" name="assigned" OnClick="fnCheckReceipt()" checked>&nbsp; Assigned)</th>
+		       <td class=" alignL pdL10">  
+		           <input type="text" class="text" id="receiptName" name="receiptName" value="" style="ime-mode:active;width:80%;" />
+		       	   <input type="hidden" id="receiptID" name="receiptID" value="" style="ime-mode:active;width:80%;" />
+		       	   <input type="hidden" id="receiptTeamID" name="receiptTeamID" value="" />	
+		       	   <input type="image" class="image" id="searchReceiptBtn" name="searchReceiptBtn" style="display:none;" src="${root}${HTML_IMG_DIR}/btn_icon_search.png" onclick="searchPopupWf('searchPluralNamePop.do?objId=resultID&objName=resultName')" value="검색">
+		       </td>
+		       <!-- 요청자 -->
+		       <th class="alignL pdL10">  ${menu.LN00025}</th>
+		       	<td class=" alignL pdL10 last" >${sessionScope.loginInfo.sessionUserNm}(${sessionScope.loginInfo.sessionTeamName})
+		       		<input type="hidden" class="text" id="requestUserID" name="requestUserID" value="${sessionScope.loginInfo.sessionUserId}" style="ime-mode:active;width:80%;" />
+		       </td>
+		    </tr> 
+			
+			<tr>	
+				<!-- 완료요청일 -->
+				<th class=" alignL pdL10">${menu.LN00222}</th>
+				<td class=" alignL pdL10">   
+					<input type="text" id="ReqDueDate" name="ReqDueDate" value="${getMap.DueDate}" class="text datePicker" style="width: 70px;" onchange="this.value = makeDateType(this.value);" maxlength="10">
+				</td>
+				<!-- Priority -->
+		        <th class=" alignL pdL10 ">  ${menu.LN00067}</th>
+	        	<td class="alignL pdL10 last">			        
+			        <select id="priority" Name="priority"  style="width:100px;">
+			            <option value=''>Select</option>
+			        </select>
+		        </td>
+			</tr>
+			<tr>
+				<!-- 제목  -->
+				<th class=" alignL pdL10 ">${menu.LN00002}</th>
+				<td class=" alignL pdL10 last" colspan="3">
+					<c:if test="${crMode != 'SR'}" >
+					<input type="text" class="text" id="Subject" name="Subject" value="${getCSRMap.ProjectName}"/> 
+					</c:if>
+					<c:if test="${crMode == 'SR'}" >
+					<input type="text" class="text" id="Subject" name="Subject" value="${getMap.Subject}"/> 
+					</c:if>
+				</td>
+			</tr>
+			<!-- 개요 -->			
+			<tr>
+				<th class=" alignL pdL10 ">${menu.LN00035}</th>
+				<td colspan="4" class="alignL pdL10 last">
+					<c:if test="${crMode != 'SR'}" >
+						<div style="width:100%;height:200px;">
+							<textarea class="tinymceText"  id="Description" name="Description" >${getCSRMap.Description}</textarea>
+						</div>
+					</c:if>
+					<c:if test="${crMode == 'SR'}" >
+						<div style="width:100%;height:200px;">
+							<textarea class="tinymceText"  id="Description" name="Description" >${getMap.Comment}</textarea>
+						</div>
+					</c:if>
+				</td>
+			</tr>		
+			 <tr>
+	       	<td colspan="4" class="alignR pdR20 last" bgcolor="#f9f9f9">  
+				<span id="viewList" class="btn_pack medium icon"><span class="confirm"></span><input value="Submit" onclick="saveNewCr()" type="button"></span> 
+				<c:if test="${crMode != 'SR'}" >
+				<span class="btn_pack medium icon"><span class="pre"></span><input value="Cancel" onclick="fnGoBack()" type="button"></span>
+				</c:if>
+			</tr>
+		</table>
+	</div>
+</form>
+</div>
+<div style="display:none;">
+<iframe id="saveFrame" name="saveFrame" style="width:0px;height:0px;display:none;"></iframe>
+</div>
+</body>
+</html>

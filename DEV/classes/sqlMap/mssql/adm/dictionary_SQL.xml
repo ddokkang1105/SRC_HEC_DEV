@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	Item 관련 관련	-->
+<mapper namespace="dictionary_SQL">
+	
+	<select id="selectDictionaryCode_gridList" resultType="java.util.HashMap">
+		SELECT 
+			Row_Number()OVER(ORDER BY TD.Category ASC, TD.SortNum ASC , TD.TypeCode ASC ) as RNUM
+			, 0 AS CHK
+			, TD.Category as Category
+			, TD.TypeCode as CODE 
+			, ISNULL(TS.Name, TD.Name) as NAME 
+			, TDM.Name AS CategoryName
+			, CASE WHEN TS.Name IS NULL THEN TBS.LanguageCode ELSE TB.LanguageCode END LanguageCode
+			, CASE WHEN TS.Name IS NULL THEN TBS.LanguageID ELSE TB.LanguageID END LanguageID
+			, ISNULL(TS.Description, '') AS Description
+			, TD.SortNum
+			, TD.Editable
+		FROM XBOLTADM.TB_DICTIONARY TD
+			Left Outer Join XBOLTADM.TB_DIC_MASTER TDM ON TD.Category = TDM.DicCategory			
+			Left Outer Join XBOLTADM.TB_DICTIONARY TS ON TD.Category = TS.Category AND TD.TypeCode = TS.TypeCode AND TS.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_LANGUAGE TB ON TB.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_LANGUAGE TBS ON TBS.LanguageID= (SELECT LanguageID FROM XBOLTADM.TB_LANGUAGE WHERE IsDefault = 1)			
+ 		WHERE TD.LanguageID = (SELECT LanguageID FROM XBOLTADM.TB_LANGUAGE WHERE IsDefault = 1)
+ 		<if test="CategoryCode != null and CategoryCode != ''">
+			AND TD.Category = #{CategoryCode}
+		</if>
+		<if test="searchValue != null and searchValue != ''">
+			<choose>
+				<when test="searchKey.equals('CODE')">
+					AND TD.TypeCode like N'%'+#{searchValue}+'%'
+				</when>
+				<when test="searchKey.equals('NAME')">
+					AND ISNULL(TS.Name, TD.Name) like N'%'+#{searchValue}+'%'
+				</when>
+			</choose>
+		</if>
+ 		Order By TD.Category ASC, TD.SortNum ASC , TD.TypeCode ASC
+	</select>
+	
+	<select id="selectDictionary" resultType="String">
+		SELECT
+			TypeCode
+		FROM 
+			XBOLTADM.TB_DICTIONARY
+		<where>
+			<if test="Category != null and Category != ''">
+				Category = #{Category}
+			</if>
+			<if test="TypeCode != null and TypeCode != ''">
+				AND TypeCode = #{TypeCode}
+			</if>
+			<if test="languageID != null and languageID != ''">
+				AND LanguageID = #{languageID}
+			</if>
+		</where>
+	</select>
+	
+	<insert id="insertDictionary">
+		INSERT INTO
+			XBOLTADM.TB_DICTIONARY(
+			TypeCode
+			, LanguageID
+			, Category
+			, Name
+			, Description			
+			<if test="SortNum != null and SortNum != ''">
+			, SortNum
+			</if>		
+			<if test="Editable != null and Editable != ''">
+			, Editable
+			</if>
+		) VALUES(
+			#{TypeCode}
+			, #{languageID}
+			, #{Category}
+			, #{Name}
+			, #{Description}	
+			<if test="SortNum != null and SortNum != ''">
+			, #{SortNum}
+			</if>
+			<if test="Editable != null and Editable != ''">
+			, #{Editable}
+			</if>
+		)
+	</insert>
+	
+	<update id="updateDictionary">
+		UPDATE
+			XBOLTADM.TB_DICTIONARY
+		SET
+			Name =  #{Name}
+			, Description = #{Description}
+			<if test="SortNum != null and SortNum != ''">
+			, SortNum = #{SortNum} 
+			</if>
+			, VarFilter = #{VarFilter} 
+			<if test="Editable != null and Editable != ''">
+			, Editable = #{Editable}
+			</if>
+		WHERE
+			TypeCode = #{TypeCode}
+			AND LanguageID = #{languageID}
+			<if test="Category != null and Category != ''">
+			AND Category = #{Category}
+			</if>
+	</update>
+	
+	<delete id="deleteDictionary">
+		Delete From XBOLTADM.TB_DICTIONARY
+		WHERE TypeCode = #{typeCode}
+			AND LanguageID = #{languageID}
+			AND Category = #{categoryCode}	
+	</delete>
+	
+</mapper>

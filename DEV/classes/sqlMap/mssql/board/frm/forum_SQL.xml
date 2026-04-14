@@ -1,0 +1,566 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="forum_SQL">
+
+	<select id="forumTotalCnt" parameterType="java.util.HashMap" resultType="String">
+	    <![CDATA[
+		SELECT Count(*) totalCnt 
+		FROM XBOLTADM.TB_BOARD 
+		WHERE BoardMgtID = #{BoardMgtID}
+		]]>		
+		<if test="!'-1'.equals(s_itemID)">
+			AND ItemID = #{s_itemID}
+		</if>
+	</select>
+	
+	<select id="forumGridList_gridList" resultType="java.util.HashMap">
+		SELECT 
+		 		TOP 1000 
+		 		Row_number() OVER( ORDER BY brd.RefID DESC, brd.BoardID DESC ) as RNUM, 
+				brd.*,
+				CASE  WHEN brd.Blocked = '0' THEN 
+				        (SELECT Name FROM XBOLTADM.TB_DICTIONARY WHERE LanguageID = #{languageID} AND Category = 'BRDCAT'  AND TypeCode = 'BRDSTS102')
+				   	 WHEN brd.Blocked = '1' THEN 
+				        (SELECT Name FROM XBOLTADM.TB_DICTIONARY WHERE LanguageID = #{languageID} 
+				           AND Category = 'BRDCAT' 
+				           AND TypeCode = 'BRDSTS101')
+				    WHEN brd.Blocked IS NULL THEN 
+				        ''  
+				    ELSE NULL
+				END AS BlockedStatus
+		FROM (
+			SELECT
+				 brd.BoardID AS BoardID
+				, ISNULL(brd.ItemID, '') AS ItemID
+				, brd.BoardMgtID
+				, brd.Subject
+				<!-- , brd.Content -->
+				, brd.RegUserID As RegID
+				, ISNULL(att.AttchCnt,'0') AS AttchCnt
+				, CASE WHEN ISNULL(att.AttchCnt,'0') = 0 THEN 'blank.png' ELSE 'icon_attach.png' END AS AttechImg
+				, (Select COUNT(*) From XBOLTADM.TB_BOARD Where BoardMgtID = brd.BoardMgtID And ParentID = brd.BoardID And ReplyLev != 0) AS CommentCNT
+				, ISNULL(mbr.Name,'') + Case When ISNULL(mbr.NameEN,'') != '' Then '(' + ISNULL(mbr.NameEN,'') + ')' Else '' End AS WriteUserNM
+				, ISNULL(mbr2.Name,'') + Case When ISNULL(mbr2.NameEN,'') != '' Then '(' + ISNULL(mbr2.NameEN,'') + ')' Else '' End AS ItemMgtUserID
+				, ISNULL(CONVERT(char(10),brd.ModDT, 120),'') AS ModDT
+				, ISNULL(mbr.Name, '') +'>>'+CONVERT(VARCHAR, brd.RegDT, 120) AS Written
+				, ISNULL((SELECT Name FROM  XBOLTADM.TB_DICTIONARY WHERE TypeCode = brd.ItemTypeCode AND LanguageID = #{languageID}), 'General') AS ItemTypeNM
+				, brd.Category As CategoryCode
+				, ISNULL(brd.ReadCNT, '0') AS ReadCNT
+				, CASE WHEN DATEDIFF( day, brd.RegDT, getDate() ) > 7 THEN 'blank.png' ELSE 'icon_new.png' END AS IsNew
+				, brd.RefID
+				, brd.ItemTypeCode
+				, ISNULL((SELECT Name FROM  XBOLTADM.TB_DICTIONARY WHERE TypeCode = brd.Category AND LanguageID = #{languageID}), '-') AS BrdCategory		
+				, ISNULL(TIA.PlainText, '-') AS itemName
+				, TI.Identifier
+				, ISNULL(CONVERT(char(10),TSC.EndDT, 120),'') AS EndDT
+				<choose>
+					<when test="'Y'.equals(LikeYN)">
+						, (select count(*) from XBOLTADM.TB_BOARD_SCORE WHERE BoardMgtID = brd.BoardMgtID AND BoardID = brd.BoardID) AS LikeCNT
+					</when>
+					<otherwise>
+						, '' AS LikeCNT
+					</otherwise>
+				</choose>
+				,brd.Blocked
+				,TTT.Name AS TeamNM
+				,CS.Version
+				,( SELECT Top 1 ISNULL(CONVERT(char(10),RegDT, 120),'') FROM XBOLTADM.TB_BOARD WHERE ReplyLev = 1 AND ParentID = brd.BoardID ORDER BY RegDT Desc ) AS ReplyDT
+			FROM XBOLTADM.TB_BOARD brd
+				LEFT OUTER JOIN XBOLTADM.TB_MEMBER mbr ON brd.RegUserID=mbr.MemberID
+				LEFT OUTER JOIN ( SELECT BoardID, COUNT(*) AS AttchCnt
+					FROM XBOLTADM.TB_BOARD_ATTCH
+					GROUP By BoardID
+				) att ON brd.BoardID = att.BoardID
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM TI ON TI.ItemID = brd.ItemID
+				LEFT OUTER JOIN XBOLTADM.TB_MEMBER mbr2 ON mbr2.MemberID = brd.ItemMgtUserID
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA on brd.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+				LEFT OUTER JOIN XBOLTADM.TB_SCHEDULER TSC on TSC.DocumentID = brd.BoardID
+				LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT AS TTT ON TTT.TeamID =  mbr.TeamID AND TTT.LanguageID = #{languageID}
+			    LEFT OUTER JOIN XBOLTADM.TB_CHANGE_SET CS ON CS.ChangeSetID = brd.ChangeSetID
+			WHERE brd.BoardMgtID=#{BoardMgtID} And brd.ReplyLev = 0
+			<if test="scStartDt != null and scStartDt != '' and scEndDt != null and scEndDt != ''">
+				AND CONVERT(VARCHAR, brd.ModDT, 112) BETWEEN #{scStartDt} AND #{scEndDt}
+			</if>
+			<if test="projectID != null and projectID != ''">
+				AND (brd.projectID = #{projectID} or brd.projectID = 0)
+			</if>
+			<if test='"Y".equals(myBoard) or (myID != null and myID != "")'>
+				AND 
+				(brd.RegUserID = #{sessionUserId}
+					OR brd.ItemID in (Select ItemID FROM XBOLTADM.TB_ITEM WHERE AuthorID =#{sessionUserId})
+					OR brd.ItemID in (select TTR.ItemID From XBOLTADM.TB_TEAM_ROLE TTR where RoleManagerID = #{sessionUserId} AND ItemID = brd.ItemID)
+					OR brd.BoardID in(select SCD.DocumentID from XBOLTADM.TB_SCHEDULER SCD LEFT JOIN XBOLTADM.TB_MY_SCHEDULE MSCD ON SCD.ScheduleID = MSCD.ScheduleID
+									WHERE 'BRD' = DocCategory AND MSCD.MemberID = #{sessionUserId} )
+				)
+			</if>
+			<if test="itemTypeCode != null and itemTypeCode != ''">
+				<choose>
+					<when test="itemTypeCode.equals('General')">AND brd.ItemTypeCode IS NULL</when>
+					<otherwise>AND brd.ItemTypeCode = #{itemTypeCode}</otherwise>
+				</choose>
+			</if>
+			<if test="itemID != null and itemID != ''">
+				AND brd.itemID = #{itemID}
+			</if>
+			<if test="category != null and category != ''">
+				AND brd.Category = #{category}
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+				AND (brd.Subject LIKE N'%'+#{searchValue}+'%' OR brd.Content LIKE N'%'+#{searchValue}+'%' AND brd.ReplyLev = 0)
+			</if>
+			<if test="regUserName != null and regUserName != ''">
+				AND mbr.Name LIKE N'%'+#{regUserName}+'%'
+			</if>
+			<if test="authorName != null and authorName != ''">
+				AND mbr2.Name LIKE N'%'+#{authorName}+'%'
+			</if>
+			<if test="srID != null and srID != ''">
+				AND brd.SRID = #{srID}
+			</if>
+			<if test="instanceNo != null and instanceNo != ''">
+				AND brd.InstanceNo = #{instanceNo}
+			</if>
+			<if test="beforeEndDT != null and beforeEndDT != ''">
+				<![CDATA[ AND	CONVERT(date, TSC.EndDT, 121) >= getDate() ]]>
+			</if>   
+			<if test="content != null and content != ''">
+				AND brd.Content LIKE N'%'+#{content}+'%'
+			</if>
+			<if test="subjectName != null and subjectName != ''">
+				AND brd.Subject LIKE N'%'+#{subjectName}+'%'
+			</if>
+				<if test="TeamNM != null and TeamNM != ''">
+				AND TTT.Name LIKE N'%'+#{TeamNM}+'%'
+			</if>
+				<if test="statusCode != null and statusCode != ''">
+				AND brd.Blocked = #{statusCode}
+			</if>
+			
+			UNION
+			
+			SELECT
+				 brd.BoardID AS BoardID
+				, ISNULL(brd.ItemID, '') AS ItemID
+				, brd.BoardMgtID
+				, brd.Subject
+				<!-- , brd.Content -->
+				, brd.RegUserID As RegID
+				, ISNULL(att.AttchCnt,'0') AS AttchCnt
+				, CASE WHEN ISNULL(att.AttchCnt,'0') = 0 THEN 'blank.png' ELSE 'icon_attach.png' END AS AttechImg
+				, (Select COUNT(*) From XBOLTADM.TB_BOARD Where BoardMgtID = brd.BoardMgtID And ParentID = brd.BoardID And ReplyLev != 0) AS CommentCNT
+				, ISNULL(mbr.Name,'') + Case When ISNULL(mbr.NameEN,'') != '' Then '(' + ISNULL(mbr.NameEN,'') + ')' Else '' End AS WriteUserNM
+				, ISNULL(mbr2.Name,'') + Case When ISNULL(mbr2.NameEN,'') != '' Then '(' + ISNULL(mbr2.NameEN,'') + ')' Else '' End AS ItemMgtUserID
+				, CONVERT(char(10), brd.ModDT, 120) AS ModDT
+				, ISNULL(mbr.Name, '') +'>>'+CONVERT(VARCHAR, brd.RegDT, 120) AS Written
+				, ISNULL((SELECT Name FROM  XBOLTADM.TB_DICTIONARY WHERE TypeCode = brd.ItemTypeCode AND LanguageID = #{languageID}), 'General') AS Category
+				, brd.Category As CategoryCode
+				, ISNULL(brd.ReadCNT, '0') AS ReadCNT
+				, CASE WHEN DATEDIFF( day, brd.RegDT, getDate() ) > 7 THEN 'blank.png' ELSE 'icon_new.png' END AS IsNew
+				, brd.RefID
+				, brd.ItemTypeCode	
+				, ISNULL((SELECT Name FROM  XBOLTADM.TB_DICTIONARY WHERE TypeCode = brd.Category AND LanguageID = #{languageID}), '-') AS BrdCategory			
+				, ISNULL(TIA.PlainText, '-') AS itemName
+				, TI.Identifier
+				, ISNULL(CONVERT(char(10),TSC.EndDT, 120),'') AS EndDT
+				<choose>
+					<when test="'Y'.equals(LikeYN)">
+						, (select count(*) from XBOLTADM.TB_BOARD_SCORE WHERE BoardMgtID = brd.BoardMgtID AND BoardID = brd.BoardID) AS LikeCNT
+					</when>
+					<otherwise>
+						, '' AS LikeCNT
+					</otherwise>
+				</choose>
+				,brd.Blocked
+				,TTT.Name AS TeamNM
+				,CS.Version
+				,( SELECT Top 1 ISNULL(CONVERT(char(10),RegDT, 120),'') FROM XBOLTADM.TB_BOARD WHERE ReplyLev = 1 AND ParentID = brd.BoardID ORDER BY RegDT Desc ) AS ReplyDT
+			FROM XBOLTADM.TB_BOARD brdR ,
+			      XBOLTADM.TB_BOARD brd
+				LEFT OUTER JOIN XBOLTADM.TB_MEMBER mbr ON brd.RegUserID=mbr.MemberID
+				LEFT OUTER JOIN ( SELECT BoardID, COUNT(*) AS AttchCnt
+					FROM XBOLTADM.TB_BOARD_ATTCH
+					GROUP By BoardID
+				) att ON brd.BoardID = att.BoardID
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM TI ON TI.ItemID = brd.ItemID
+				LEFT OUTER JOIN XBOLTADM.TB_MEMBER mbr2 ON mbr2.MemberID = brd.ItemMgtUserID
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA on brd.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+				LEFT OUTER JOIN XBOLTADM.TB_SCHEDULER TSC on TSC.DocumentID = brd.BoardID
+				LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT AS TTT ON TTT.TeamID =  mbr.TeamID AND TTT.LanguageID = #{languageID}
+				LEFT OUTER JOIN XBOLTADM.TB_CHANGE_SET CS ON CS.ChangeSetID = brd.ChangeSetID
+			WHERE brdR.BoardMgtID=#{BoardMgtID} And brdR.ReplyLev != 0 AND brdR.RefID = brd.BoardID 
+			<if test="scStartDt != null and scStartDt != '' and scEndDt != null and scEndDt != ''">
+					AND CONVERT(VARCHAR, brd.ModDT, 112) BETWEEN #{scStartDt} AND #{scEndDt}
+				</if>
+			<if test="projectID != null and projectID != ''">
+				AND (brd.projectID = #{projectID} or brd.projectID = 0)
+			</if>	
+			<if test='"Y".equals(myBoard) or (myID != null and myID != "") '>
+				AND 
+				(brd.RegUserID = #{sessionUserId}
+					OR brd.ItemID in (Select ItemID FROM XBOLTADM.TB_ITEM WHERE AuthorID = #{sessionUserId})
+					OR brd.ItemID in (select TTR.ItemID From XBOLTADM.TB_TEAM_ROLE TTR where RoleManagerID = #{sessionUserId} AND ItemID = brd.ItemID)
+					OR brd.BoardID in(select SCD.DocumentID from XBOLTADM.TB_SCHEDULER SCD LEFT JOIN XBOLTADM.TB_MY_SCHEDULE MSCD ON SCD.ScheduleID = MSCD.ScheduleID
+									WHERE 'BRD' = DocCategory AND MSCD.MemberID = #{sessionUserId} )
+				)
+			</if>
+			<if test="itemTypeCode != null and itemTypeCode != ''">
+				<choose>
+					<when test="itemTypeCode.equals('General')">AND brd.ItemTypeCode IS NULL</when>
+					<otherwise>AND brd.ItemTypeCode = #{itemTypeCode}</otherwise>
+				</choose>
+			</if>
+			<if test="itemID != null and itemID != ''">
+				AND brd.itemID = #{itemID}
+			</if>
+			<if test="category != null and category != ''">
+				AND brdR.Category = #{category}
+			</if>		
+			<if test="searchValue != null and searchValue != ''">
+				AND (brd.Subject LIKE N'%'+#{searchValue}+'%' OR brd.Content LIKE N'%'+#{searchValue}+'%' AND brd.ReplyLev = 0)
+			</if>
+			<if test="regUserName != null and regUserName != ''">
+				AND mbr.Name LIKE N'%'+#{regUserName}+'%'
+			</if>
+			<if test="authorName != null and authorName != ''">
+				AND mbr2.Name LIKE N'%'+#{authorName}+'%'
+			</if>
+			<if test="srID != null and srID != ''">
+				AND brd.SRID = #{srID}
+			</if>
+			<if test="instanceNo != null and instanceNo != ''">
+				AND brd.InstanceNo = #{instanceNo}
+			</if>
+			<if test="content != null and content != ''">
+				AND brd.Content LIKE N'%'+#{content}+'%'
+			</if>
+	
+			<if test="beforeEndDT != null and beforeEndDT != ''">
+				<![CDATA[ AND	CONVERT(date, TSC.EndDT, 121) >= getDate() ]]>
+			</if>  
+			<if test="subjectName != null and subjectName != ''">
+				AND brd.Subject LIKE N'%'+#{subjectName}+'%'
+			</if>
+			<if test="TeamNM != null and TeamNM != ''">
+				AND TTT.Name LIKE N'%'+#{TeamNM}+'%'
+			</if>
+			<if test="statusCode != null and statusCode != ''">
+				AND brd.Blocked = #{statusCode}
+			</if>
+		
+			
+		) brd		
+		<where>
+			<if test="pageNo != null and pageNo != ''">
+				brd.RNUM BETWEEN ((#{pageNo}-1)*#{listCnt} + 1) AND (#{pageNo}*#{listCnt})
+			</if>
+		</where>
+		ORDER BY RNUM,brd.RefID DESC, brd.BoardID DESC
+	</select>
+	
+	<update id="commentInc">
+	    UPDATE XBOLTADM.TB_BOARD SET
+	    	CommentCNT=ISNULL(CommentCNT,'0')+1
+	    WHERE BoardID=#{privateId}
+	</update>
+	
+	<update id="commentDec">
+	    UPDATE XBOLTADM.TB_BOARD SET
+	    	CommentCNT=ISNULL(CommentCNT,'0')-1
+	    WHERE BoardID=#{parentID}
+	</update>
+	
+	<select id="boardNextVal" resultType="String">
+		SELECT
+			ISNULL(MAX(BoardID)+1,'1') as BoardID
+		FROM
+			XBOLTADM.TB_BOARD
+	</select>
+	
+	<update id="forumReadCntUpdate" parameterType="java.util.HashMap">
+	      <![CDATA[
+		UPDATE XBOLTADM.TB_BOARD SET
+			ReadCNT = ISNULL(ReadCNT,0) + 1
+		WHERE BoardID = #{boardID}
+						]]>
+		
+	</update>
+	
+	<select id="commentCount" resultType="String">
+	    SELECT COUNT(*) AS count
+	    FROM XBOLTADM.TB_BOARD_COMMENT
+	    WHERE BoardID=#{privateId}
+	</select>
+	
+	<insert id="forumInsert" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_BOARD (
+			BoardMgtID
+			, BoardID
+			, Subject
+			, Content
+			, RegUserID
+			, RegDT
+			, ItemID
+			<if test="s_itemID != null and s_itemID != ''">
+				, ItemTypeCode
+			</if>		
+			<if test="instanceNo != null and instanceNo != ''">
+				, InstanceNo
+			</if>
+			, ProjectID
+			, ParentID
+			, ReplyLev
+			, RefID
+			, ModDT
+			, ModUserID
+			, ItemMgtUserID
+			<if test="Category != null and Category != ''">
+				, Category
+			</if>
+			<if test="srID != null and srID != ''">
+				, SRID
+			</if>
+			<if test="changeSetID != null and changeSetID != ''">
+				, ChangeSetID
+			</if>
+			<if test="blocked != null and blocked != ''">
+				, Blocked
+			</if>
+			
+			) VALUES (
+				#{BoardMgtID}
+				, #{boardID}
+				, #{subject}
+				, #{content}
+				, #{userId}
+				, getDate()
+				, #{s_itemID}
+				<if test="s_itemID != null and s_itemID != ''">
+					, (Select ItemTypeCode From XBOLTADM.TB_ITEM WHERE ItemID = #{s_itemID})
+				</if>
+				<if test="instanceNo != null and instanceNo != ''">
+					, #{instanceNo}
+				</if>
+				, #{projectID}
+				, #{parentID}
+				, #{replyLev}
+				, #{refID}
+				, getDate()
+				,#{userId}
+				,#{ItemMgtUserID}
+				<if test="Category != null and Category != ''">
+					,#{Category}
+				</if>
+				<if test="srID != null and srID != ''">
+					,#{srID}
+				</if>
+				<if test="changeSetID != null and changeSetID != ''">
+					,#{changeSetID}
+				</if>
+				<if test="blocked != null and blocked != ''">
+				, #{blocked}
+				</if>
+			)
+	</insert>
+	
+	<update id="forumUpdate" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_BOARD 
+		SET Subject = #{subject}
+			, Content = #{content}
+			, ModUserID = #{userId}
+			, ModDT = GetDate()
+			, Category = #{Category}
+		WHERE
+		  BoardID = #{boardID}
+				
+	</update>
+	
+	<delete id="forumDelete" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_BOARD_SCORE WHERE BoardID=#{boardID}
+		DELETE FROM XBOLTADM.TB_BOARD_ATTCH WHERE BoardID=#{boardID}
+		DELETE FROM XBOLTADM.TB_BOARD_ATTCH WHERE BoardID IN (Select BoardID From XBOLTADM.TB_BOARD Where ParentID = #{boardID})		
+		DELETE FROM XBOLTADM.TB_BOARD WHERE BoardID=#{boardID}
+		DELETE FROM XBOLTADM.TB_BOARD WHere ParentID=#{boardID}
+
+	</delete>
+	
+	<select id="forumSelect" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+		SELECT 
+			TIT.ItemTypeCode, TD.Name
+		FROM 
+			XBOLTADM.TB_ITEM_TYPE TIT
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD
+			on TIT.ItemTypeCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+		WHERE
+			TIT.Category = 'OJ'	
+			AND TIT.ItemTypeCode in (Select Distinct ItemTypeCode FROM XBOLTADM.TB_BOARD WHERE ItemTypeCode Is Not Null )
+	</select>
+	
+	<select id="getForumEditInfo" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+		Select TB.BoardID, 
+			TB.BoardMgtID, 
+			TB.SortNum,
+			TB.Subject, 
+			TB.Content, 
+			TB.ItemID, 
+			TB.ItemTypeCode,
+			CONVERT(VARCHAR, TB.RegDT, 120) AS RegDT,
+			CONVERT(VARCHAR, TB.ModDT, 120) AS LastUpdated,
+			ISNULL(TM.Name,'') + Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')' Else '' End AS WriteUserNM,
+			TTT.Name TeamName,
+			TB.RegUserID,
+			(Select LoginID From XBOLTADM.TB_MEMBER Where MemberID = TB.RegUserID) As LoginID,
+			ISNULL(XBOLTADM.fn_GetMyAbsPathForList( TB.ItemID, #{languageID}),'') AS Path,
+			TIA.PlainText As ItemName,
+			TB.RefID
+			, (CASE BS.SCORE WHEN 1 THEN 'Y' ELSE 'N' END) AS LikeInfo
+			, TB.Category As CategoryCode
+			, ISNULL(BRDCAT.Name,'-') As Category
+			, CONVERT(CHAR(10),CONVERT(datetime,schdl.EndDT),21) AS SC_END_DT
+			, STUFF((	SELECT ','+ TM.Name+'('+ISNULL(TTT.Name,'')+')'
+							FROM XBOLTADM.TB_MY_SCHEDULE TMS 
+							left join XBOLTADM.TB_MEMBER TM on TMS.MemberID = TM.MemberID
+							left join XBOLTADM.TB_TEAM_TXT TTT on TM.TeamID = TTT.TeamID and TTT.LanguageID = #{languageID}
+							where TMS.ScheduleID = schdl.ScheduleID
+							AND TMS.MemberID != schdl.RegUserID 
+							FOR XML PATH('') ), 1, 1, '') 
+				AS sharerNames
+			, STUFF((	SELECT ','+ CAST(TM.MemberID AS varchar(5000))
+							FROM XBOLTADM.TB_MY_SCHEDULE TMS 
+							left join XBOLTADM.TB_MEMBER TM on TMS.MemberID = TM.MemberID
+							left join XBOLTADM.TB_TEAM_TXT TTT on TM.TeamID = TTT.TeamID and TTT.LanguageID = #{languageID}
+							where TMS.ScheduleID = schdl.ScheduleID
+							AND TMS.MemberID != schdl.RegUserID 
+							FOR XML PATH('') ), 1, 1, '') 
+				AS sharerIDs
+			, case when (select count(memberID) FROM XBOLTADM.TB_MY_SCHEDULE TMS where TMS.ScheduleID = schdl.ScheduleID AND MemberID = #{sessionUserId}) > 0 then 'T' else 'F' end ReplyFlag
+		    , ISNULL(TB.ChangeSetID , '') AS BrdChangeSetID
+			, TB.ReadCNT
+			, TIC.Icon AS ClassIcon
+			, schdl.ScheduleID
+			, TB.Blocked
+			, schdl.etc AS reviewDept
+			, TI.AuthorID as itemAuthorID
+		From XBOLTADM.TB_BOARD TB
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TM.MemberID = TB.RegUserID
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA on TB.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_BOARD_SCORE BS ON BS.BoardID = TB.BoardID AND BS.BoardMgtID = TB.BoardMgtID AND BS.RegUserID = #{sessionUserId}
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY BRDCAT ON BRDCAT.TypeCode = TB.Category And BRDCAT.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_SCHEDULER schdl ON schdl.DocCategory = 'BRD' AND schdl.DocumentID = TB.BoardID
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TTT ON TM.TeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_CLASS TIC ON TIC.ItemClassCode = TIA.ClassCode
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM TI ON TI.ItemID = TB.ItemID
+		Where TB.BoardID = #{boardID}	
+		<if test='"Y".equals(myBoard)'>
+			AND 
+			(TB.RegUserID = #{sessionUserId}
+			OR TB.ItemID in (Select ItemID FROM XBOLTADM.TB_ITEM WHERE AuthorID = #{sessionUserId})
+			OR TB.ItemID in (select TTR.ItemID From XBOLTADM.TB_TEAM_ROLE TTR where RoleManagerID = #{myID} AND ItemID = TB.ItemID)
+			OR TB.BoardID in(select SCD.DocumentID from XBOLTADM.TB_SCHEDULER SCD LEFT JOIN XBOLTADM.TB_MY_SCHEDULE MSCD ON SCD.ScheduleID = MSCD.ScheduleID
+						WHERE 'BRD' = DocCategory AND MSCD.MemberID = #{sessionUserId} )
+			)
+		</if>
+	</select>
+	
+	<select id="getReplyList" resultType="java.util.HashMap">
+		Select TB.BoardID, 
+			TB.BoardMgtID, 
+			TB.SortNum,
+			TB.Subject, 
+			TB.Content, 
+			TB.ItemID, 
+			TB.ItemTypeCode,
+			CONVERT(VARCHAR, TB.RegDT, 120) AS RegDT,
+			CONVERT(VARCHAR, TB.ModDT, 120) AS LastUpdated,
+			TM.Name WriteUserNM,
+			TB.RegUserID,
+			(Select LoginID From XBOLTADM.TB_MEMBER Where MemberID = TB.RegUserID) As LoginID,
+			ISNULL(XBOLTADM.fn_GetMyAbsPathForList( TB.ItemID, #{languageID}),'') AS Path,
+			TIA.PlainText As ItemName,
+			TM.NameEN
+		From XBOLTADM.TB_BOARD TB
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TM.MemberID = TB.RegUserID
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA on TB.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+		Where TB.ParentID = #{boardID}	And ReplyLev = 1
+		Order by TB.BoardID Desc
+	</select>	
+	
+	<select id="getProjectIDFromItem" resultType="String">
+		Select RefPjtID AS ParentID From XBOLTADM.TB_PROJECT Where ProjectID = (Select ProjectID From XBOLTADM.TB_ITEM Where ItemID = #{itemID})
+	</select>
+	
+	<select id="getItemAuthorName" resultType="java.util.HashMap">
+		<!-- Select TM.Name As Name From XBOLTADM.TB_MEMBER TM LEFT OUTER JOIN XBOLTADM.TB_ITEM TI ON TM.MemberID = TI.AuthorID WHERE TI.ItemID = #{itemID} -->
+		Select TI.AuthorID,TM.Name,TM.NameEN,TT.Name As teamName From XBOLTADM.TB_ITEM TI 
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TM.MemberID = TI.AuthorID
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TT ON TM.TeamID = TT.TeamID AND TT.LanguageID = #{languageID}
+		WHERE TI.ItemID = #{s_itemID}
+	</select>
+	
+	<select id="getBoardMgtName" resultType="String">
+		<!-- Select TM.Name As Name From XBOLTADM.TB_MEMBER TM LEFT OUTER JOIN XBOLTADM.TB_BOARD_MGT TBM ON TM.MemberID = TBM.MgtUserID WHERE TBM.BoardMgtID = #{BoardMgtID} -->
+		Select MgtUserID From XBOLTADM.TB_BOARD_MGT WHERE BoardMgtID = #{BoardMgtID}
+	</select>
+	
+	<select id="getBoardMgtGRID" resultType="String">
+		<!-- Select TM.Name As Name From XBOLTADM.TB_MEMBER TM LEFT OUTER JOIN XBOLTADM.TB_BOARD_MGT TBM ON TM.MemberID = TBM.MgtUserID WHERE TBM.BoardMgtID = #{BoardMgtID} -->
+		Select MgtGRID From XBOLTADM.TB_BOARD_MGT WHERE BoardMgtID = #{BoardMgtID}
+	</select>
+	
+	<select id="getBoardMgtGRUserID" resultType="String">
+		SELECT MemberID
+		FROM XBOLTADM.TB_MEMBER_GR 
+		WHERE GroupID = (Select MgtGRID From XBOLTADM.TB_BOARD_MGT WHERE BoardMgtID = #{BoardMgtID})
+	</select>
+	
+	<update id="changeForumItem" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_BOARD 
+		SET ItemID = #{s_itemID}
+			, ItemMgtUserID = #{ItemMgtUserID}
+			<if test="itemTypeCode != null and itemTypeCode != ''">
+		  	, ItemTypeCode = #{itemTypeCode}
+		  	</if>
+			, ModDT = GetDate()
+		WHERE
+		  BoardID = #{BoardID} 
+		  <if test="ItemID != null and ItemID != ''">
+		  AND ItemID = #{ItemID}
+		  </if>
+	</update>
+	
+	<select id="getCategory" resultType="java.util.HashMap">
+	   	Select TypeCode As CODE, NAME
+		From XBOLTADM.TB_Dictionary		
+		Where Category = #{category} And LanguageID = #{languageID}
+		<if test="editable != null and editable != ''">
+			And Editable = #{editable}
+		</if>
+			And TypeCode IN (select distinct ItemTypeCode from XBOLTADM.TB_BOARD WHERE BoardMgtID=#{BoardMgtID})
+		order by Name, SortNum
+	  </select>
+	  
+	  
+	<select id="getBoardAlertCnt" resultType="String">
+	  SELECT COUNT(*)
+	    FROM (
+			  Select BRD.BoardID
+			  From XBOLTADM.TB_BOARD BRD
+			       LEFT OUTER JOIN XBOLTADM.TB_BOARD CHD ON BRD.BoardMgtID = CHD.BoardMgtID And CHD.ParentID = BRD.BoardID AND CHD.ReplyLev != 0
+			  Where BRD.RegUserID = #{sessionUserId} AND BRD.BoardMgtID = '4' AND BRD.ReplyLev = 0
+			  GROUP BY BRD.BoardID
+			  HAVING COUNT(CHD.BoardID) = 0
+	 		)A 
+	</select>
+	
+	<select id="getForumRegID" resultType="String">
+	  SELECT RegUserID
+	    FROM XBOLTADM.TB_BOARD
+	   WHERE BoardID = #{boardID}
+	</select>
+	
+	<update id="updateBlocked">
+	    UPDATE XBOLTADM.TB_BOARD Set Blocked = #{blocked} Where BoardID=#{boardID}
+	</update>
+</mapper>

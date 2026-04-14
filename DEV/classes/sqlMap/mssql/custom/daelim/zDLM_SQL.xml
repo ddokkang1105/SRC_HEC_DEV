@@ -1,0 +1,3755 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="zDLM_SQL">	
+	<select id="getCCUserInfo" resultType="java.util.HashMap">
+		Select STATUS_CD, TelNum From XBOLTDLM.CC_USER_STS Where MemberID = #{memberID}
+	</select>
+	
+	<update id="updateCCUserSts" parameterType="java.util.HashMap">
+		Update XBOLTDLM.CC_USER_STS SET
+			<if test="STATUS_CD != null and STATUS_CD != ''">STATUS_CD = #{STATUS_CD},</if>
+			<if test="STATUS_NAME != null and STATUS_NAME != ''">STATUS_NAME = #{STATUS_NAME},</if>
+			<if test="PBX_CC_USER_STATUS_CD != null and PBX_CC_USER_STATUS_CD != ''">PBX_CC_USER_STATUS_CD = #{PBX_CC_USER_STATUS_CD},</if>
+			<if test="TelNum != null and TelNum != ''">TelNum = #{TelNum},</if>
+			<if test="useYN != null and useYN != ''">useYN = #{useYN},</if>
+			<if test="isManager != null and isManager != ''">isManager = #{isManager},</if>
+			MOD_DATE = GETDATE()
+		Where MemberID = #{memberID}
+	</update>
+	
+	<select id="selectCCUserStatus" resultType="java.util.HashMap">
+		SET ANSI_WARNINGS OFF;
+		SET ARITHIGNORE ON;
+		SET ARITHABORT OFF;
+
+		  Select
+		  (Select count(*) From XBOLTDLM.CC_USER_STS WITH(NOLOCK) Where STATUS_CD = '4' and useYN = 'Y') as 'callings',
+		  (Select count(*) From XBOLTDLM.CC_USER_STS WITH(NOLOCK) Where STATUS_CD in ('13','21') and useYN = 'Y') as 'working',
+		  (Select count(*) From XBOLTDLM.CC_USER_STS WITH(NOLOCK) Where STATUS_CD = '3' and useYN = 'Y') as 'standby',
+		  /*(Select count(*) From XBOLTDLM.CC_USER_STS WITH(NOLOCK) Where STATUS_CD NOT in ('4','15') and useYN = 'Y') as 'others',*/
+		  (Select count(*) From XBOLTDLM.CC_USER_STS WITH(NOLOCK) Where STATUS_CD NOT in ('3','4','13','21') and useYN = 'Y') as 'others', /*20250424 기타상태 기준 변경*/ 
+		  (Select count(*) From XBOLTDLM.CC_USER_STS WITH(NOLOCK) Where useYN = 'Y') as 'total',
+		  (Select CONCAT(CAST(ROUND(CAST(B.complete as float)/CAST(A.total as float)*100 , 0) as VARCHAR), '%')
+			From (
+				Select count(*) as 'total'
+				From XBOLTAPP.ESM_SR_MST WITH(NOLOCK)
+				Where SRID in ( Select  PID FROM XBOLTAPP.ESM_ACTIVITY_LOG WITH(NOLOCK) Where PID in (Select SRID From XBOLTAPP.ESM_SR_MST Where srType = 'REQ') And SpeCode = 'REQ0002')
+				AND RegDT BETWEEN CAST(format(GETDATE(), 'yyyyMMdd') AS DATETIME) AND DATEADD(MS, -2, DATEADD(DAY,1,CAST(format(GETDATE(), 'yyyyMMdd')  AS DATETIME))) /*20250424 오늘 일자 기준*/
+			) A, (
+				Select count(*) as 'complete'
+				From XBOLTAPP.ESM_SR_MST ESM WITH(NOLOCK)
+				Left outer join XBOLTAPP.ESM_SR_ATTR ESA WITH(NOLOCK) on ESM.SRID = ESA.SRID and ESA.AttrTypeCode= 'SRAT0098' and ESA.Value between '03' and '06'
+				Where srType = 'REQ' And status = 'REQ0002' And Blocked = 2
+				AND RegDT BETWEEN CAST(format(GETDATE(), 'yyyyMMdd') AS DATETIME) AND DATEADD(MS, -2, DATEADD(DAY,1,CAST(format(GETDATE(), 'yyyyMMdd')  AS DATETIME))) /*20250424 오늘 일자 기준*/
+			) B) as 'endper',
+		(Select CONCAT(ISNULL(CAST(ROUND(CAST(B.complete as float)/CAST(A.total as float)*100 , 0) as VARCHAR),0), '%')
+			From (
+				Select count(*) as 'total'
+				From XBOLTAPP.ESM_SR_MST WITH(NOLOCK)
+				Where SRID in ( Select  PID FROM XBOLTAPP.ESM_ACTIVITY_LOG WITH(NOLOCK) Where PID in (Select SRID From XBOLTAPP.ESM_SR_MST WITH(NOLOCK) Where srType = 'REQ') And SpeCode = 'REQ0002')
+				And ReceiptUserID = #{memberID}
+				AND RegDT BETWEEN CAST(format(GETDATE(), 'yyyyMMdd') AS DATETIME) AND DATEADD(MS, -2, DATEADD(DAY,1,CAST(format(GETDATE(), 'yyyyMMdd')  AS DATETIME))) /*20250424 오늘 일자 기준*/
+			) A, (
+				Select count(*) as 'complete'
+				From XBOLTAPP.ESM_SR_MST  ESM WITH(NOLOCK)
+				Left outer join XBOLTAPP.ESM_SR_ATTR ESA WITH(NOLOCK) on ESM.SRID = ESA.SRID and ESA.AttrTypeCode= 'SRAT0098' and ESA.Value between '03' and '06'
+				Where srType = 'REQ' And status = 'REQ0002' And Blocked = 2 And ReceiptUserID = #{memberID}
+				AND RegDT BETWEEN CAST(format(GETDATE(), 'yyyyMMdd') AS DATETIME) AND DATEADD(MS, -2, DATEADD(DAY,1,CAST(format(GETDATE(), 'yyyyMMdd')  AS DATETIME))) /*20250424 오늘 일자 기준*/
+			) B) as 'ftper'
+	</select>
+
+	<select id="getCCUserSTS_gridList" resultType="java.util.HashMap">
+		SELECT 
+		  Row_Number()OVER(ORDER BY CC_USR_EMP_NO ASC) as RNUM 
+		  ,CC_USR_EMP_NO as CEMPNO
+		  ,CC_USER_NAME as CNAME
+	      ,STATUS_CD as STSCD
+	      ,STATUS_NAME as STSNAME
+	      ,PBX_CC_USER_STATUS_CD as PCUSTSCD
+	      ,REG_DATE as REGDATE
+	      ,MOD_DATE as MODDATE
+	      ,MemberID as MEMBERID
+	      ,ISNULL(TelNum, '') as TELNUM
+	      ,useYN  as USEYN
+       	  ,isManager  as ISMANAGER
+		FROM XBOLTDLM.CC_USER_STS 
+	</select>
+	
+	<select id="selectUserByMemberID" resultType="java.util.HashMap">
+		    SELECT count(*) as count
+		    FROM XBOLTDLM.CC_USER_STS 
+		    WHERE MemberID = #{MemberID}
+	</select>
+	
+	<delete id="DeleteCCUser">
+		delete
+		XBOLTDLM.CC_USER_STS
+		where
+		MemberID = #{memberId} and STATUS_CD = #{statusCD}
+	</delete>
+	
+	
+	<select id="getCCUserList" resultType="java.util.HashMap"> 
+		SELECT Distinct
+			TM.MemberID
+			, ISNULL(TM.Name,'')+ Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')' Else '' End  AS Name			
+			, TM.LoginID, ISNULL(TM.Email,'') AS Email, ISNULL(TTC.Name, '') as CompanyName, ISNULL(TTT.Name,'') AS TeamName
+			, TM.Authority, TM.RetireDate  AS RetireDate, ISNULL(TM.Position,'') AS Position
+		FROM 
+			XBOLTADM.TB_MEMBER TM WITH(NOLOCK)
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTC WITH(NOLOCK) on TM.CompanyID = TTC.TeamID AND TTC.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT WITH(NOLOCK) on TM.TeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER_GR TMG WITH(NOLOCK) on TM.MemberID = TMG.MemberID AND TTT.LanguageID = #{languageID}
+		Where TM.UserType = 1 And TM.Active = 1 And TMG.GroupID = 122
+		<if test="'editor'.equals(authority)">
+			<![CDATA[ And TM.Authority < 4 ]]> 
+		</if>
+		Order by Name
+	</select>
+	
+	<insert id="InsertCCUser" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTDLM.CC_USER_STS
+           (CC_USR_EMP_NO
+           ,CC_USER_NAME
+           ,STATUS_CD
+           ,STATUS_NAME
+           ,MOD_DATE
+           ,MemberID
+           ,TelNum
+           ,useYN
+           ,isManager
+           )
+     	VALUES
+           (#{CCUserEmpNo}
+           ,#{CCUserName}
+           ,#{statusCD}
+           ,#{statusName}
+           ,GETDATE()
+           ,#{memberID}
+           ,#{telNum}
+           ,#{useYN}
+           ,#{isManager}
+           )
+		
+	</insert>
+	
+	<!-- ITO 부서 -->
+	<select id="getITODeptList_gridList" resultType="java.util.HashMap"> 
+		SELECT
+			TTX2.Name CompanyNM, 
+			XBOLTADM.fn_GetMyAbsPathForOrg(TT.TeamID,${languageID}) + '/' + NM_DEPT AS NM_DEPT, 
+			TTX3.Name VernderNM, 
+			ISNULL(YN_MANAGER,'-') AS YN_MANAGER,
+			IDI.DEPT_FLAG,
+			IDI.CD_DEPT,
+			IDI.ID_USER
+		FROM [XBOLTDLM].[ITUSER_DEPT_INFO] IDI
+		<!-- item -->
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM TT ON TT.TeamCode = IDI.CD_DEPT AND TT.Deleted = 0
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TTX ON TTX.TeamID = TT.TeamID AND TTX.LanguageID = #{languageID}
+		<!-- company -->
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM TT2 ON TT2.RefTeamCode = IDI.CORP_ID and TT2.TeamType = 2
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TTX2 ON TTX2.TeamID = TT2.TeamID AND TTX2.LanguageID = #{languageID}
+		<!-- vender -->
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM TT3 ON TT3.TeamCode = IDI.BIZ_KEY and TT3.TeamType = 54
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TTX3 ON TTX3.TeamID = TT3.TeamID AND TTX3.LanguageID = #{languageID}
+		<!-- member -->
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TM.LoginID = IDI.ID_USER
+		WHERE TM.MemberID = ${memberID} 
+	</select>
+	
+	<delete id="deleteITODept" parameterType="java.util.HashMap">
+	  	Delete FROM XBOLTDLM.ITUSER_DEPT_INFO
+		<where>
+			<if test="ID_USER != null and ID_USER != '' " >
+				AND ID_USER = #{ID_USER} 
+			</if>
+			<if test="CD_DEPT != null and CD_DEPT != ''">
+				AND CD_DEPT = #{CD_DEPT} 
+			</if>
+		</where>	 
+	</delete>
+	
+	<insert id="insertITODept" parameterType="java.util.HashMap">		
+		INSERT INTO XBOLTDLM.ITUSER_DEPT_INFO
+		 (
+		 ID_USER,
+		 USER_NM,
+		 CD_DEPT,
+		 NM_DEPT,
+		 DEPT_FLAG,
+		 <if test="YN_MANAGER != null and YN_MANAGER != ''">YN_MANAGER,</if>
+		 CORP_ID,
+		 CORP_NAME,
+		 <if test="BIZ_KEY != null and BIZ_KEY != ''">BIZ_KEY,</if>
+		 MemberID
+		 )
+		 VALUES(
+		 (SELECT LoginID From XBOLTADM.TB_MEMBER WHERE memberID = #{memberID}),
+		 (SELECT Name From XBOLTADM.TB_MEMBER WHERE memberID = #{memberID}),
+		 #{CD_DEPT},
+		 #{NM_DEPT},
+		 #{DEPT_FLAG},
+		 <if test="YN_MANAGER != null and YN_MANAGER != ''">#{YN_MANAGER},</if>
+		 #{CORP_ID},
+		 #{CORP_NAME},
+		 <if test="BIZ_KEY != null and BIZ_KEY != ''">#{BIZ_KEY},</if>
+		 #{memberID}
+		 )
+	</insert>
+	
+	<update id="updateITODept" parameterType="java.util.HashMap">		
+		Update XBOLTDLM.ITUSER_DEPT_INFO SET
+			<if test="YN_MANAGER != null and YN_MANAGER != ''">
+				YN_MANAGER = #{YN_MANAGER},
+			</if>
+			<if test="YN_MANAGER == null or YN_MANAGER == ''">
+				YN_MANAGER = NULL,
+			</if>
+			<if test="BIZ_KEY != null and BIZ_KEY != ''">
+				BIZ_KEY = #{BIZ_KEY},
+			</if>
+			<if test="BIZ_KEY == null or BIZ_KEY == ''">
+				BIZ_KEY = NULL,
+			</if>
+		MemberID = #{memberID} 
+		Where MemberID = #{memberID} AND CD_DEPT = #{CD_DEPT} 
+	</update>
+	
+	<select id="getMyITODeptCNT" resultType="String">
+	  	SELECT Count(*) FROM XBOLTDLM.ITUSER_DEPT_INFO
+		<where>
+			<if test="memberID != null and memberID != ''">
+				MemberID = #{memberID} 
+			</if>
+			<if test="CD_DEPT != null and CD_DEPT != ''">
+				AND CD_DEPT = #{CD_DEPT}
+			</if>
+		</where>
+	</select>
+	
+	<!-- 배치  -->
+	<!-- 배치 메일 -->
+	<select id="getBatchMail" resultType="java.util.HashMap">
+		SELECT ReportCode, BatchName, SenderAcc, SenderName, SenderPwd, EmailSvrDomain, Subject, Body, Receiver, CC, DocumentID
+		FROM XBOLTDLM.SEND_BATCH_MAIL
+	</select>
+	
+	<delete id="truncateBatchMail" parameterType="java.util.HashMap">
+		TRUNCATE TABLE XBOLTDLM.SEND_BATCH_MAIL
+	</delete>
+	
+	<!-- 완료지연 -->
+	<select id="getDelayBatch" resultType="java.util.HashMap">
+		SELECT SRCode, SRID, SRType, Status FROM XBOLTAPP.ESM_SR_MST ESM
+	    WHERE DATEDIFF(DAY, CAST(ESM.Duedate AS DATE), GETDATE()) > 15
+		<!-- ACM : 고객테스트 / ICM : 사전배포 / SCM : 사전배포   -->
+	    AND Status IN ('ACM0009', 'ICM0007', 'SCM0008')
+	    AND ESM.CompletionDT IS NULL 
+	    AND ESM.ClientID != '0000000008' <!-- 이앤씨 제외 -->
+	    AND ESM.Blocked = 0
+	</select>
+	
+	<!-- 프로세스별 통계 현황 -->
+	<select id="getProcessStatisticsReportList_gridList" resultType="java.util.HashMap"> 
+ 		SELECT
+			 TAB.CORP_ID
+			 ,MAX(TAB.CORP_NAME) DS_DEPT
+			 ,TAB.svc_ci_id1
+			 ,TAB.svc_ci_id2
+			 ,MAX(TAB.svc_ci_name1) svc_ci_name1
+			 ,MAX(TAB.svc_ci_name) svc_ci_name
+			 , TAB.REQ_companycode              <!--   /* 추가 요청자 회사 추가*/         --> 
+       		 ,MAX(TAB.REQ_companyNAME) REQ_companyNAME        <!--   /* 추가 요청자 회사 추가*/ -->
+       		 ,MAX(TAB.RequestTeamID) AS RequestTeamID
+			 ,SUM(TAB.DS_REQ1)+SUM(TAB.DS_REQ2)+SUM(TAB.DS_REQ3)+SUM(TAB.DS_APP) +SUM(TAB.DS_DATA)+SUM(TAB.DS_INFRA)+SUM(TAB.DS_SCM)+SUM(TAB.DS_INC)+SUM(TAB.DS_WORK)  AS TOT
+			,SUM(TAB.DS_REQ1)  DS_REQ1 <!-- /* '단순문의'*/ -->
+			, SUM(TAB.DS_REQ2) DS_REQ2 <!-- /*'서비스요청' */ -->
+			, SUM(TAB.DS_REQ3) DS_REQ3 <!-- /* '오류*/ -->
+			, SUM(TAB.DS_APP)  DS_APP
+			, SUM(TAB.DS_DATA) DS_DATA
+			,SUM(TAB.DS_INFRA) DS_INFRA
+			,SUM(TAB.DS_SCM) DS_SECURITY
+			,SUM(TAB.DS_INC) DS_INC
+			,SUM(TAB.DS_WORK)   DS_WORK
+			,SUM(TAB.CNTCOMPLETE) CNTCOMPLETE
+			,SUM(TAB.CNTCOMPLETE_DUE) CNTCOMPLETE_DUE
+			,SUM(TAB.FIRST_RCPT) FIRST_RCPT
+			,SUM(TAB.FIRST_SOLVE) FIRST_SOLVE
+			,(CASE 
+				   WHEN SUM(TAB.FIRST_RCPT) > 0 AND SUM(TAB.FIRST_SOLVE) > 0
+				   THEN ROUND((CAST(SUM(TAB.FIRST_SOLVE) AS FLOAT) / CAST(SUM(TAB.FIRST_RCPT) AS FLOAT)) * 100, 0)
+				   ELSE 0 
+				END) AS FIRST_RATE
+			 FROM ( 
+				SELECT 
+					A.ClientID AS CORP_ID, MAX(A.ClientName) AS CORP_NAME
+				    , A.SRArea1 AS svc_ci_id1
+				    , A.SRArea2 AS svc_ci_id2
+				    , MAX(A.SRArea2Name) AS svc_ci_name
+				    , MAX(A.SRArea1Name) AS svc_ci_name1
+				    , A.ReqCompanyID AS REQ_companycode
+				    , MAX(A.ReqCompanyName) AS REQ_companyNAME
+				    , MAX(A.RequestTeamID) AS RequestTeamID
+					, SUM(CASE WHEN A.Category = 'RCP000' THEN 1 ELSE 0 END ) DS_REQ1 <!-- /* '단순문의'*/ -->
+					, SUM(CASE WHEN A.Category = 'RCP010' THEN 1 ELSE 0 END ) DS_REQ2 <!-- /*'서비스요청' */  -->
+					, SUM(CASE  WHEN A.Category IN( 'RCP020','RCP030') THEN 1 ELSE 0 END ) DS_REQ3 <!-- /* '오류*/ -->
+					,0 DS_APP
+					,0 DS_DATA
+					,0 DS_INFRA
+					,0 DS_SCM
+					,0 DS_INC
+					,0 DS_WORK                    
+					,SUM(CASE WHEN A.ActivityLastStatus NOT IN ('04','06','08','09','07') AND ISNULL(A.CompletionDT, '') != '' THEN 1 ELSE 0 END) AS CNTCOMPLETE 
+					,SUM(CASE WHEN A.ActivityLastStatus NOT IN ('04','06','08','09','07') AND ISNULL(A.CompletionDT, '') != '' THEN    
+							                CASE  WHEN A.DueDate IS NULL THEN 1
+							                    ELSE
+							                      CASE 
+													WHEN DATEDIFF(DAY, ISNULL(A.DueDate, A.CompletionDT), 
+																	  ISNULL(A.WORK_DATE, '1900-01-01')) <![CDATA[ < ]]> 0 
+														THEN 0 
+														ELSE 1 
+												END
+							                END
+							                    ELSE 0
+							                    END)  CNTCOMPLETE_DUE  <!--  /* 기한내 완료 건수*/ -->
+					,SUM(CASE WHEN A.REQ0002ActorID is not null  THEN 1 ELSE 0 END) AS FIRST_RCPT <!-- /* 1차 접수건*/ --> 
+					,SUM(CASE WHEN A.REQ0002ActorID is not null AND  A.REQ0004ActorID IS  NULL THEN 1 ELSE 0 END) AS FIRST_SOLVE <!-- /* 1차 해결건*/ -->                  
+					
+					FROM XBOLTAPP.VW_ESM_SR_REQUEST A WITH(NOLOCK)
+					where CONVERT(DATE, A.RegDT) BETWEEN #{stSRReqDT} AND #{endSRReqDT} 
+					AND NOT EXISTS (SELECT 'x' FROM XBOLTDLM.RELATIONS b WITH(NOLOCK) WHERE  b.HIGH_ID = A.SRCode )		
+					AND A.ActivityLastStatus NOT IN ('04','06','08','09','07')  <!-- /* 종료와 진행중인 티켓만 */ -->
+					AND A.SVC_CI_ID NOT IN ('ALL_SVC_001')  <!-- /* 1선 접수되지 않은 티켓은 제외 */ -->
+					<choose>
+						<when test="customerNo != null and customerNo != ''">
+							AND A.ClientID = #{customerNo}
+						</when>
+						<otherwise>
+							AND A.ClientID in ( SELECT ClientID
+												FROM XBOLTADM.TB_PROJECT TP
+												left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR on TP.ProjectID = TPMR.ProjectID
+												Where TPMR.MemberID = #{userID}
+												And TP.ProjectType = 'CSR'
+												)
+						</otherwise>
+					</choose>				
+					<if test="srArea1 != null and srArea1 != ''">
+						AND A.SRArea1 = #{srArea1}
+					</if>
+					<if test="srArea2 != null and srArea2 != ''">
+						AND A.SRArea2 = #{srArea2}
+					</if>
+					
+					<if test='"fl".equals(compType)'>
+					<!-- /* 1선처리한 티켓*/ -->
+						AND A.REQ0004ActorID IS NULL 
+						AND A.REQ0002ActorID IS NOT null
+					</if>
+					<if test='"sl".equals(compType)'>
+					<!-- /* 2선처리한 티켓*/ -->
+						AND REQ0004ActorID IS NOT NULL
+					</if>
+					<if test="myCSR != null and myCSR != ''">
+						And A.ProjectID in (
+							SELECT TP.ProjectID
+							FROM XBOLTADM.TB_PROJECT TP WITH(NOLOCK)
+							left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR WITH(NOLOCK) on TP.ProjectID = TPMR.ProjectID
+							Where TPMR.MemberID = #{userID}
+							And TP.ProjectType = 'CSR'
+						)
+				 	</if>
+					<!-- 
+					<isEqual property="compType" compareValue="fl">	
+					/* 1선처리한 티켓*/
+						AND   SL_USR_ID IS  NULL 
+						AND FL_USR_ID is not null
+					</isEqual>
+					<isEqual property="compType" compareValue="sl">
+					/* 2선처리한 티켓*/
+						AND   SL_USR_ID IS NOT NULL
+					</isEqual> -->
+					
+					GROUP  BY A.ClientID, A.SRArea1, A.SRArea2,A.ReqCompanyID /* 추가 요청자 회사 추가*/
+				
+				
+					UNION ALL
+					
+					SELECT
+				    VSP.ClientID AS CORP_ID, MAX(VSP.ClientName) AS CORP_NAME,
+				    VSP.SRArea1 AS svc_ci_id1,
+				    VSP.SRArea2 AS svc_ci_id2,
+				    MAX(VSP.SRArea2Name) AS svc_ci_name,
+				    MAX(VSP.SRArea1Name) AS svc_ci_name1,
+				    VSP.ReqCompanyID AS REQ_companycode,
+				    VSP.ReqCompanyName AS REQ_companyNAME,
+				    MAX(VSP.RequestTeamID) AS RequestTeamID,
+				    0, 0, 0,
+				
+				    SUM(CASE WHEN VSP.SRType = 'ACM' THEN 1 ELSE 0 END) AS DS_APP, 
+				    SUM(CASE WHEN VSP.SRType = 'DCM' THEN 1 ELSE 0 END) AS DS_DATA, 
+				    SUM(CASE WHEN VSP.SRType = 'ICM' THEN 1 ELSE 0 END) AS DS_INFRA,
+				    SUM(CASE WHEN VSP.SRType = 'SCM' THEN 1 ELSE 0 END) AS DS_SCM, 
+				    SUM(CASE WHEN VSP.SRType = 'INC' THEN 1 ELSE 0 END) AS DS_INC, 
+				    SUM(CASE WHEN VSP.SRType = 'WRK' THEN 1 ELSE 0 END) AS DS_WORK, 
+				    SUM(CASE WHEN VSP.ActivityLastStatus NOT IN ('04','06','08','09','07') AND ISNULL(VSP.CompletionDT, '') != '' THEN 1 ELSE 0 END) AS CNTCOMPLETE,
+				    
+					SUM(CASE WHEN VSP.SRTYPE = 'WRK' THEN 1
+							        ELSE   CASE WHEN  VSP.ActivityLastStatus NOT IN ('04','06','08','09','07') AND ISNULL(VSP.CompletionDT, '') != '' THEN  
+													CASE 
+														WHEN DATEDIFF(DAY, ISNULL(VSP.DueDate, VSP.CompletionDT), 
+																	  ISNULL(VSP.WORK_DATE, '1900-01-01')) <![CDATA[ < ]]> 0 
+														THEN 0 
+														ELSE 1 
+													END                                                               
+							                        ELSE 0
+							                        END END )  CNTCOMPLETE_DUE,   /* 기한내 완료 건수*/   
+				    
+				    0, 0
+				FROM 
+				    XBOLTAPP.VW_ESM_SR_MST VSP WITH(NOLOCK)
+				WHERE CONVERT(DATE, VSP.RegDT) BETWEEN #{stSRReqDT} AND #{endSRReqDT}
+				    AND VSP.SRType NOT IN ('REQ')
+				    AND NOT EXISTS (
+				        SELECT 1 
+				        FROM XBOLTDLM.RELATIONS b WITH(NOLOCK)
+				        WHERE b.HIGH_ID = VSP.SRCode 
+				        AND VSP.SRType = 'REQ'
+				    )
+				    AND VSP.ActivityLastStatus NOT IN ('04','06','08','09','07'	)			   
+				    <choose>
+						<when test="customerNo != null and customerNo != ''">
+							AND VSP.ClientID = #{customerNo}
+						</when>
+						<otherwise>
+							AND VSP.ClientID in (SELECT ClientID
+												FROM XBOLTADM.TB_PROJECT TP
+												left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR on TP.ProjectID = TPMR.ProjectID
+												Where TPMR.MemberID = #{userID}
+												And TP.ProjectType = 'CSR')
+						</otherwise>
+					</choose>						
+				    <if test="srArea1 != null and srArea1 != ''">
+						AND VSP.SRArea1 = #{srArea1}
+					</if>
+					<if test="srArea2 != null and srArea2 != ''">
+						AND VSP.SRArea2 = #{srArea2}
+					</if>
+				    <if test="myCSR != null and myCSR != ''">
+						And VSP.ProjectID in (
+							SELECT TP.ProjectID
+							FROM XBOLTADM.TB_PROJECT TP WITH(NOLOCK)
+							left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR WITH(NOLOCK) on TP.ProjectID = TPMR.ProjectID
+							Where TPMR.MemberID = #{userID}
+							And TP.ProjectType = 'CSR'
+						)
+				 	</if>
+		 	
+				GROUP BY 
+				    VSP.ClientID, VSP.SRArea1, VSP.SRArea2, VSP.ReqCompanyID, VSP.ReqCompanyName
+				
+					) TAB
+					GROUP  BY TAB.corp_id,TAB.svc_ci_id1, TAB.svc_ci_id2,TAB.REQ_companycode /* 추가 요청자 회사 추가*/
+				    ORDER BY TAB.corp_id,TAB.svc_ci_id1, TAB.svc_ci_id2,TAB.REQ_companycode /* 추가 요청자 회사 추가*/
+	</select>
+	
+		<!-- 프로세스별 통계현솽상세 -->
+	<select id="getProcessStatisticsDetailList_gridList" resultType="java.util.HashMap">
+		Select 
+			ROW_NUMBER() OVER (ORDER BY TAB.RegDT) AS RNUM 
+			, TAB.SRID, TAB.SRCode 
+			, TAB.ClientName, TAB.SRTypeNM 
+			, TAB.Subject, TAB.SRArea1Name, TAB.SRArea2Name, TAB.CategoryNM, TAB.SubCategoryNM
+			, TAB.RequestUserNM, TAB.ReqCompanyName
+			, TAB.RCPT_USERID, CONVERT(char(10),TAB.RCPT_DATE, 120) AS RCPT_DATE
+			, TAB.RCPT_NM, CONVERT(char(10),TAB.RegDT, 120) AS RegDT, CONVERT(char(10),TAB.DueDate, 120) AS DueDate
+			, CONVERT(char(10),TAB.CompletionDT,120) AS CompletionDT
+	   		, TAB.StatusName AS StatusName
+	   		, DATEDIFF(DAY, TAB.DueDate, TAB.CompletionDT) AS DelayCNT
+		 From (
+			Select A.SRID,A.SRcode
+				, A.ClientName, TD.Name AS SRTypeNM 
+				, A.Subject, A.SRArea1Name, A.SRArea2Name, TD2.Name AS CategoryNM, TD3.Name AS SubCategoryNM
+				, TM.Name AS RequestUserNM, A.ReqCompanyName
+				, A.REQ0002ActorID AS RCPT_USERID, A.RCPT_DATE AS RCPT_DATE
+				, TM2.Name AS RCPT_NM, A.RegDT, A.DueDate, A.CompletionDT, A.StatusName
+			 FROM 
+				XBOLTAPP.VW_ESM_SR_REQUEST A WITH(NOLOCK)
+				INNER JOIN XBOLTADM.TB_MEMBER TM WITH(NOLOCK) ON TM.MemberID = A.RequestUserID 
+				Left Outer JOIN XBOLTADM.TB_MEMBER TM2 WITH(NOLOCK) ON TM2.MemberID = A.REQ0002ActorID 
+				INNER JOIN XBOLTADM.TB_DICTIONARY TD WITH(NOLOCK) ON TD.TypeCode = A.SRType AND TD.Category = 'SRTP' AND TD.LanguageID = #{languageID} 
+				Left Outer JOIN XBOLTADM.TB_DICTIONARY TD2 WITH(NOLOCK) ON TD2.TypeCode = A.Category AND TD2.Category = 'SRCAT' AND TD2.LanguageID = #{languageID} 
+				Left Outer JOIN XBOLTADM.TB_DICTIONARY TD3 WITH(NOLOCK) ON TD3.TypeCode = A.SubCategory AND TD3.Category = 'SRCAT' AND TD3.LanguageID = #{languageID} 
+			 WHERE CONVERT(DATE, A.RegDT) BETWEEN #{regStartDate} AND #{regEndDate}
+	         AND NOT EXISTS (
+	            SELECT 'x' 
+	            FROM XBOLTDLM.RELATIONS b WITH(NOLOCK) 
+	            WHERE b.HIGH_ID = A.SRCode
+	         ) 
+	         AND A.ClientID = #{clientID} 
+	         AND A.ActivityLastStatus NOT IN ('04', '06', '08', '09','07') 
+	         AND A.SVC_CI_ID NOT IN ('ALL_SVC_001') 
+			 AND A.SRArea1 = #{srArea1} 
+			 AND A.SRArea2 = #{srArea2}
+			 <if test="reqCompanyID != null and reqCompanyID != ''">
+			 	AND A.ReqCompanyID = #{reqCompanyID}
+			 </if>
+			 <!-- AND A.RequestTeamID = #{requestTeamID} -->
+			 AND A.ProjectID IN (
+				SELECT TP.ProjectID 
+				FROM XBOLTADM.TB_PROJECT TP WITH(NOLOCK) 
+				LEFT OUTER JOIN XBOLTADM.TB_PJT_MEMBER_REL TPMR WITH(NOLOCK) ON TP.ProjectID = TPMR.ProjectID 
+				WHERE TPMR.MemberID = #{sessionUserID}
+				AND TP.ProjectType = 'CSR'
+			) 
+			 
+			UNION ALL 
+	
+			Select VSP.SRID, VSP.SRCODE 
+			    , VSP.ClientName, TD.Name AS SRTypeNM 
+				, VSP.Subject, VSP.SRArea1Name, VSP.SRArea2Name, TD2.Name AS CategoryNM, TD3.Name AS SubCategoryNM
+				, TM.Name AS RequestUserNM, VSP.ReqCompanyName
+				, VSP.RCPT_USERID AS RCPT_USERID, VSP.RCPT_DATE AS RCPT_DATE
+				, TM2.Name AS RCPT_NM, VSP.RegDT,VSP.DueDate, VSP.CompletionDT, VSP.StatusName
+			
+			From XBOLTAPP.VW_ESM_SR_MST VSP
+			INNER JOIN XBOLTADM.TB_MEMBER TM WITH(NOLOCK) ON TM.MemberID = VSP.RequestUserID 
+			Left Outer JOIN XBOLTADM.TB_MEMBER TM2 WITH(NOLOCK) ON TM2.MemberID = VSP.RCPT_USERID 
+			INNER JOIN XBOLTADM.TB_DICTIONARY TD WITH(NOLOCK) ON TD.TypeCode = VSP.SRType AND TD.Category = 'SRTP' AND TD.LanguageID = #{languageID} 
+			Left Outer JOIN XBOLTADM.TB_DICTIONARY TD2 WITH(NOLOCK) ON TD2.TypeCode = VSP.Category AND TD2.Category = 'SRCAT' AND TD2.LanguageID = #{languageID} 
+			Left Outer JOIN XBOLTADM.TB_DICTIONARY TD3 WITH(NOLOCK) ON TD3.TypeCode = VSP.SubCategory AND TD3.Category = 'SRCAT' AND TD3.LanguageID = #{languageID} 
+			Where CONVERT(DATE, VSP.RegDT) BETWEEN #{regStartDate} AND #{regEndDate}
+			 AND VSP.SRType NOT IN ('REQ') 
+			 AND NOT EXISTS (
+	            SELECT 1 
+	            FROM XBOLTDLM.RELATIONS b WITH(NOLOCK) 
+	            WHERE b.HIGH_ID = VSP.SRCode AND VSP.SRType = 'REQ'
+	         ) 
+	          AND VSP.ActivityLastStatus NOT IN ('04', '06', '08', '09','07') 
+			  AND VSP.SRArea1 = #{srArea1}
+			  AND VSP.SRArea2 = #{srArea2}
+			  <!-- AND VSP.RequestTeamID = #{requestTeamID} -->
+			  
+			  <if test="reqCompanyID != null and reqCompanyID != ''">
+			  	AND VSP.ReqCompanyID = #{reqCompanyID}
+			  </if>
+			  AND VSP.ClientID = #{clientID} 
+			  AND VSP.ProjectID IN (
+				SELECT TP.ProjectID 
+				FROM XBOLTADM.TB_PROJECT TP WITH(NOLOCK) 
+				LEFT OUTER JOIN XBOLTADM.TB_PJT_MEMBER_REL TPMR WITH(NOLOCK) ON TP.ProjectID = TPMR.ProjectID 
+				WHERE TPMR.MemberID = #{sessionUserID}
+				AND TP.ProjectType = 'CSR'
+			) 
+		) TAB
+			
+	</select>
+	
+	
+	<select id="getMHStatList_gridList" resultType="java.util.HashMap"> 
+		
+		SELECT TOP 0 MemberID,Name
+		INTO #TB_MEMBER_tmp
+		FROM XBOLTADM.TB_MEMBER
+		 
+		CREATE CLUSTERED INDEX ix ON #TB_MEMBER_tmp(MemberID)
+		 
+		INSERT INTO #TB_MEMBER_tmp
+		SELECT MemberID,Name
+		FROM XBOLTADM.TB_MEMBER
+		 
+		 
+		SELECT 
+      		ROW_NUMBER() OVER (ORDER BY TSM.ClientID, EMR.WORK_DATE DESC) AS RowNum
+      		,TSM.ClientID
+			, TXT.Name ClientName
+			, TSM.SRCode
+			, TD.Name TypeName
+			, TD1.Name + '>' + TD2.Name As CategoryNM
+			, TSM.Subject
+			, TSM.Description
+			, EMR.SpeCode
+			, TIA.PlainText SRStatusName
+			, EMR.MemberID ReceiptUserID
+			, TM.Name ReceiptUserName
+			, CONVERT(varchar(10), EMR.WORK_DATE, 120) WORK_DATE
+			, CONVERT(varchar(10), TSM.DueDate, 120) DueDate 
+               , TSM.CompletionDT
+               , EMR.BUSINESS_HOURS as BUSINESS_HOUR
+               , EMR.OVERTIME
+			, ( EMR.BUSINESS_HOURS + EMR.OVERTIME ) AS WORK_TIME_MM
+			, CONVERT(VARCHAR(50), EMR.BUSINESS_HOURS) + '/' + CONVERT(VARCHAR(50), EMR.OVERTIME) AS PROCESS_DATE
+		FROM XBOLTAPP.ESM_MBR_RCD EMR WITH(NOLOCK)
+		LEFT OUTER JOIN XBOLTAPP.ESM_SR_MST TSM WITH(NOLOCK)  ON EMR.SRID = TSM.SRID
+		--LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM WITH(NOLOCK) ON TM.MemberID = EMR.MemberID
+		LEFT OUTER JOIN #TB_MEMBER_tmp TM WITH(NOLOCK) ON TM.MemberID = EMR.MemberID
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM TT WITH(NOLOCK) ON TT.ClientID = TSM.ClientID AND TT.TeamType = 2
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TXT WITH(NOLOCK) ON TXT.TeamID = TT.TeamID And TXT.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD WITH(NOLOCK) ON TD.TypeCode = TSM.SRType AND TD.LanguageID = #{languageID} AND TD.Category = 'SRTP'
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM TI WITH(NOLOCK) ON EMR.SpeCode = TI.Identifier
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA WITH(NOLOCK) ON TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID  =  #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD1 WITH(NOLOCK) On TD1.TypeCode = TSM.Category AND TD1.Category = 'SRCAT' And TD1.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD2 WITH(NOLOCK) On TD2.TypeCode = TSM.SubCategory And TD2.Category = 'SRCAT' And TD2.LanguageID = #{languageID}
+
+		WHERE (EMR.BUSINESS_HOURS + EMR.OVERTIME) > 0
+			<if test="customerNo != '' and customerNo != null" >
+				AND TSM.ClientID = #{customerNo}
+			</if>
+			<if test="myCSR != null and myCSR != ''">
+				And TSM.ProjectID in (
+					SELECT TP.ProjectID
+					FROM XBOLTADM.TB_PROJECT TP WITH(NOLOCK)
+					left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR WITH(NOLOCK) on TP.ProjectID = TPMR.ProjectID
+					Where TPMR.MemberID = #{userID}
+					And TP.ProjectType = 'CSR'
+				)
+		 	</if>
+			<if test="startDate != null and startDate != '' and endDate != null and endDate != ''">
+				And EMR.WORK_DATE BETWEEN CAST(#{startDate} AS DATETIME) AND DATEADD(MS, -2, DATEADD(DAY,1,CAST(#{endDate} AS DATETIME)))
+			</if>
+			<if test="receiptUserID != '' and receiptUserID != null" >
+				AND EMR.MemberID = #{receiptUserID}
+			</if>
+		 
+		DROP TABLE #TB_MEMBER_tmp
+	</select>
+	
+	<!-- 개인별MH 통계현황조회_1.개인별 [individualMHDAO.selectStatMhTypeList]-->
+	<select id="getStatMhTypeList_gridList" resultType="java.util.HashMap">
+		SELECT ROW_NUMBER() OVER (ORDER BY ClientName, TeamName, BIZName, MemberName ) AS RowNum		
+		      , CORP_ID		
+		      , ClientName		
+		      , TeamName		
+		      , BIZ_KEY		
+		      , BIZName		
+		      , MemberID		
+		      , EmployeeNum		
+		      , MemberName		
+		      , SUM(TicketCount) AS TicketCount		
+		      <!-- , SUM(MSR_VAL        ) AS MSR_VAL    -->
+		      , CAST(SUM(MSR_VAL) AS DECIMAL(10, 2)) AS MSR_VAL
+		      , MAX(AVG_YN         ) AS AVG_YN   
+		      , SUM(ACMTicketCount ) AS ACMTicketCount 		
+		      , SUM(DCMTicketCount ) AS DCMTicketCount 		
+		      , SUM(ICMTicketCount ) AS ICMTicketCount 		
+		      , SUM(SCMTicketCount ) AS SCMTicketCount 		
+		      , SUM(INCTicketCount ) AS INCTicketCount 		
+		      , SUM(WRKTicketCount ) AS WRKTicketCount 		
+		      , SUM(DPLTicketCount ) AS DPLTicketCount 		
+		      , SUM(REQTicketCount1) AS REQTicketCount1		
+		      , SUM(REQTicketCount2) AS REQTicketCount2
+		      , SUM(REQTicketCount3) AS REQTicketCount3		
+		      , SUM(ACMTime        ) AS ACMTime        		
+		      , SUM(DCMTime        ) AS DCMTime    
+		      , SUM(ICMTime        ) AS ICMTime 
+		      , SUM(INCTime        ) AS INCTime 
+		      , SUM(SCMTime        ) AS SCMTime 
+		      , SUM(WRKTime        ) AS WRKTime  
+		      , SUM(DPLTime        ) AS DPLTime  
+		      , SUM(REQTime1       ) AS REQTime1  
+		      , SUM(REQTime2       ) AS REQTime2  
+		      , SUM(REQTime3       ) AS REQTime3      
+		
+		FROM
+		
+		(<!-- 
+		    SELECT CORP_ID		
+		         , ClientName		
+		         , TeamName		
+		         , BIZ_KEY		
+		         , BIZName		
+		         , MemberID		
+		         , EmployeeNum		
+		         , MemberName		
+		         , TicketCount		
+		         , MSR_VAL		
+		         , AVG_YN		
+		         , ACMTicketCount		
+		         , DCMTicketCount		
+		         , ICMTicketCount		
+		         , SCMTicketCount		
+		         , INCTicketCount		
+		         , WRKTicketCount		
+		         , DPLTicketCount		
+		         , REQTicketCount1		
+		         , REQTicketCount2		
+		         , REQTicketCount3		
+		         , ACMTime		
+		         , DCMTime		
+		         , ICMTime		
+		         , INCTime		
+		         , SCMTime		
+		         , WRKTime		
+		         , DPLTime		
+		         , REQTime1		
+		         , REQTime2		
+		         , REQTime3		
+		    FROM XBOLTDLM.TW_StatMhTypeList_STAT		
+		    WHERE WORK_MNTH BETWEEN LEFT(CONVERT(NVARCHAR, DATEADD(MONTH,1,CAST(#{startDate} AS DATETIME)), 112),6)     
+		                        AND LEFT(CONVERT(NVARCHAR, DATEADD(MONTH,-1,CAST(#{endDate} AS DATETIME)), 112),6)
+			<if test="myCSR != null and myCSR != ''">
+			  AND ProjectID IN ( SELECT TP.ProjectID 
+			                           FROM XBOLTADM.TB_PROJECT TP WITH(NOLOCK) 
+			                           LEFT OUTER JOIN XBOLTADM.TB_PJT_MEMBER_REL TPMR WITH(NOLOCK) 
+			                           ON TP.ProjectID = TPMR.ProjectID 
+			                           WHERE TPMR.MemberID = #{userID}
+			                           AND TP.ProjectType = 'CSR'    
+			                         )
+			</if>
+			<if test="customerNo != '' and customerNo != null" >
+				And CORP_ID IN( select RefTeamCode From XBOLTADM.TB_TEAM WITH(NOLOCK) WHERE TeamID IN (select TeamID from XBOLTAPP.CRM_CUST_MST Where CustomerNo = #{customerNo} ))
+			</if>
+			<if test="teamID != '' and teamID != null" >
+				And TeamID = #{teamID}
+			</if>
+			
+		    UNION ALL
+		   	-->
+		    SELECT TAB.CORP_ID, 		
+		           TAB.CORP_NAME AS ClientName, 		
+		           TAB.NM_DEPT AS TeamName, 		
+		           TAB.BIZ_KEY, 		
+		           TAB.BIZName AS BIZName, 		
+		           TAB.MemberID, 		
+		           TAB.EmployeeNum, 		
+		           TAB.MemberName, 		
+		           SUM(TAB.TicketCount) AS TicketCount, 		
+		           SUM(TAB.MSR_VAL) AS MSR_VAL, 		
+		           CASE 		
+		               <![CDATA[ WHEN (ISNULL(SUM(TAB.MSR_VAL), 0) < ROUND(AVG(ISNULL(SUM(TAB.MSR_VAL), 0)) OVER(), 2) 		
+		                     AND ISNULL(SUM(TAB.TicketCount), 0) < ROUND(AVG(ISNULL(SUM(TAB.TicketCount), 0)) OVER(), 2)) ]]>		
+		               THEN 'Y' 		
+		               ELSE 'N' 		
+		           END AS AVG_YN, 		
+		           COUNT(TAB.ACMTicketCount) AS ACMTicketCount, 		
+		           COUNT(TAB.DCMTicketCount) AS DCMTicketCount, 		
+		           COUNT(TAB.ICMTicketCount) AS ICMTicketCount, 		
+		           COUNT(TAB.SCMTicketCount) AS SCMTicketCount, 		
+		           COUNT(TAB.INCTicketCount) AS INCTicketCount, 		
+		           COUNT(TAB.WRKTicketCount) AS WRKTicketCount, 		
+		           COUNT(TAB.DPLTicketCount) AS DPLTicketCount, 		
+		           COUNT(TAB.REQTicketCount1) AS REQTicketCount1, 		
+		           COUNT(TAB.REQTicketCount2) AS REQTicketCount2, 		
+		           COUNT(TAB.REQTicketCount3) AS REQTicketCount3, 		
+		           SUM(TAB.ACMTIME) AS ACMTime, 		
+		           SUM(TAB.DCMTIME) AS DCMTime, 		
+		           SUM(TAB.ICMTIME) AS ICMTime, 		
+		           SUM(TAB.INCTIME) AS INCTime, 		
+		           SUM(TAB.SCMTIME) AS SCMTime, 		
+		           SUM(TAB.WRKTIME) AS WRKTime, 		
+		           SUM(TAB.DPLTIME) AS DPLTime, 		
+		           SUM(TAB.REQTIME1) AS REQTime1, 		
+		           SUM(TAB.REQTIME2) AS REQTime2, 		
+		           SUM(TAB.REQTIME3) AS REQTime3 		
+		    FROM 		
+		        (SELECT IDI.CORP_ID,		
+		                IDI.CORP_NAME, 		
+		                IDI.CD_DEPT, 		
+		                IDI.NM_DEPT, 		
+		                TEAM1.TeamID, 		
+		                IDI.BIZ_KEY, 		
+		                TMT2.Name AS BIZName, 		
+		                EMR.MemberID, 		
+		                IDI.ID_USER, 		
+		                TM.EmployeeNum, 		
+		                TM.Name AS MemberName, 		
+		                1 AS TicketCount, 		
+		                SUM(EMR.BUSINESS_HOURS) + SUM(EMR.OVERTIME) AS MSR_VAL, 		
+		                CASE WHEN MAX(EMR.SRType) = 'ACM' THEN 1 ELSE NULL END AS ACMTicketCount, 		
+		                CASE WHEN MAX(EMR.SRType) = 'DCM' THEN 1 ELSE NULL END AS DCMTicketCount, 		
+		                CASE WHEN MAX(EMR.SRType) = 'ICM' THEN 1 ELSE NULL END AS ICMTicketCount, 		
+		                CASE WHEN MAX(EMR.SRType) = 'SCM' THEN 1  ELSE NULL END AS SCMTicketCount, 		
+		                CASE WHEN MAX(EMR.SRType) = 'INC' THEN 1 ELSE NULL END AS INCTicketCount,		
+		                CASE WHEN MAX(EMR.SRType) = 'WRK' THEN 1 ELSE NULL END AS WRKTicketCount, 		
+		                CASE WHEN MAX(EMR.SRType) = 'DPL' THEN 1 ELSE NULL END AS DPLTicketCount, 
+						
+						CASE WHEN MAX(EMR.SRType) = 'REQ' AND EMR.Category IN ('RCP000', 'RDT100') THEN 1  ELSE NULL END AS REQTicketCount1, 
+		                CASE WHEN MAX(EMR.SRType) = 'REQ' AND EMR.Category IN ('RCP010', 'RDT110') THEN 1 ELSE NULL END AS REQTicketCount2, 		
+		                CASE WHEN MAX(EMR.SRType) = 'REQ' AND EMR.Category IN ('RCP020', 'RCP030', 'RDT120') THEN 1 ELSE NULL END AS REQTicketCount3, 		
+		               
+		                CASE WHEN MAX(EMR.SRType) = 'ACM' THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME) ELSE 0 END AS ACMTIME, 		
+		                CASE WHEN MAX(EMR.SRType) = 'DCM' THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME) ELSE 0 END AS DCMTIME, 		
+		                CASE WHEN MAX(EMR.SRType) = 'ICM' THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME) ELSE 0 END AS ICMTIME,		
+		                CASE WHEN MAX(EMR.SRType) = 'INC' THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME) ELSE 0 END AS INCTIME,		
+		                CASE WHEN MAX(EMR.SRType) = 'SCM' THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME) ELSE 0 END AS SCMTIME, 		
+		                CASE WHEN MAX(EMR.SRType) = 'WRK' THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME) ELSE 0 END AS WRKTIME, 		
+		                CASE WHEN MAX(EMR.SRType) = 'DPL' THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME) ELSE 0 END AS DPLTIME, 		
+		                CASE WHEN MAX(EMR.SRType) = 'REQ' AND EMR.Category IN ('RCP000', 'RDT100') THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME) ELSE 0 END AS REQTIME1, 
+				                CASE WHEN MAX(EMR.SRType) = 'REQ' AND EMR.Category IN ('RCP010', 'RDT110') THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME) ELSE 0 END AS REQTIME2, 		
+		                CASE WHEN MAX(EMR.SRType) = 'REQ' AND EMR.Category IN ('RCP020', 'RCP030', 'RDT120')  THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME) ELSE 0 END AS REQTIME3, 		
+		                EMR.SRType	 
+		        FROM XBOLTAPP.VW_ESM_MBR_RCD EMR WITH(NOLOCK)		
+		       <!--  INNER JOIN XBOLTAPP.ESM_SR_MST ESM WITH(NOLOCK)	ON ESM.SRID = EMR.SRID -->
+		
+		        INNER JOIN XBOLTDLM.ITUSER_DEPT_INFO IDI WITH(NOLOCK) ON EMR.MemberID = IDI.MemberID
+		        
+		        <if test="customerNo != '' and customerNo != null" >
+				And IDI.CORP_ID IN( select RefTeamCode From XBOLTADM.TB_TEAM WITH(NOLOCK) WHERE TeamID IN (select TeamID from XBOLTAPP.CRM_CUST_MST Where CustomerNo = #{customerNo} ))
+				</if>
+				
+		        INNER JOIN XBOLTADM.TB_TEAM TEAM1 WITH(NOLOCK) 		<!-- ITORG 51 52 53  -->
+		        ON TEAM1.TeamCode = IDI.CD_DEPT		
+		        AND TEAM1.Deleted != 1 		        
+		        <if test="teamID != '' and teamID != null" >
+					And TEAM1.TeamID = #{teamID}
+				</if>		
+		        LEFT JOIN XBOLTADM.TB_TEAM TEAM2 WITH(NOLOCK) 		<!-- TEST_TB01 54 -->
+		        ON TEAM2.TeamCode = IDI.BIZ_KEY 		
+		        AND TEAM2.TeamType = 54
+		
+		        Left Outer JOIN XBOLTADM.TB_TEAM_TXT TMT2 WITH(NOLOCK) 		
+		        ON TMT2.TeamID = TEAM2.TeamID 		
+		        AND TMT2.LanguageID = #{languageID}
+		
+		        LEFT OUTER HASH JOIN XBOLTADM.TB_MEMBER TM WITH(NOLOCK) 		
+		        ON TM.MemberID = EMR.MemberID
+		        
+		        WHERE WORK_DATE  BETWEEN CAST(#{startDate} AS DATETIME) 
+                      AND DATEADD(MS, -2, DATEADD(DAY, 1, CAST(#{endDate} AS DATETIME)))
+               
+                 <!--   
+       		    <![CDATA[   
+       		                      
+				 WHERE ( LEFT(#{startDate},7) = LEFT(#{endDate},7)  
+		            AND EMR.WORK_DATE BETWEEN CAST(#{startDate} AS DATETIME)                                    
+		                                  AND DATEADD(MS, -2, DATEADD(DAY, 1, CAST(#{endDate} AS DATETIME)))   
+		              )
+		           OR ( LEFT(#{startDate},7) <> LEFT(#{endDate},7) 
+		            AND ( EMR.WORK_DATE BETWEEN CAST(#{startDate} AS DATETIME)                   
+		                                    AND DATEADD(ms,-2,CAST(LEFT(CONVERT(NVARCHAR, DATEADD(MONTH,1,CAST(#{startDate} AS DATETIME) ), 112),6)+'01' AS DATETIME))
+		               OR EMR.WORK_DATE BETWEEN CAST(LEFT(#{endDate},8)+'01' AS DATETIME)            
+		                                    AND DATEADD(MS, -2, DATEADD(DAY, 1, CAST(#{endDate} AS DATETIME))) 
+		                )
+		              )
+		         ]]> 
+		           -->   
+		         <!-- 2024-02-01 ~2025-02-22		         
+		         	첫 번째 조건은 **2024년 2월 1일**부터 2025년 2월 22일 23:59:59.998 사이에 있는 WORK_DATE를 선택.
+		         	두 번째 조건은 2024년 2월과 2025년 2월이 다를 경우,
+				    **2024년 2월 1일**부터 2024년 3월 1일 사이의 WORK_DATE
+					**2025년 2월 1일**부터 2025년 2월 22일 23:59:59.998 사이의 WORK_DATE 를 선택.		         
+		          -->
+		         AND ( EMR.business_hours + EMR.overtime ) > 0
+		         AND ISNULL(EMR.SRArea1,'') != ''
+		         AND TM.Active = 1 <!-- /*퇴사자제외 로직추가*/ -->
+		         
+		         <if test="myCSR != null and myCSR != ''">		        
+				  AND EMR.ProjectID IN ( SELECT TP.ProjectID 
+				                           FROM XBOLTADM.TB_PROJECT TP WITH(NOLOCK) 
+				                           LEFT OUTER JOIN XBOLTADM.TB_PJT_MEMBER_REL TPMR WITH(NOLOCK) 
+				                           ON TP.ProjectID = TPMR.ProjectID 
+				                           WHERE TPMR.MemberID = #{userID}
+				                           AND TP.ProjectType = 'CSR'    
+				                         )
+				 </if>
+		        GROUP BY EMR.MemberID, 		
+		                 EMR.SRType, 		
+		                 TM.Name, 		
+		                 EMR.Category, 		
+		                 IDI.CORP_ID, 		
+		                 IDI.CORP_NAME, 		
+		                 IDI.CORP_ID, 		
+		                 IDI.CD_DEPT, 		
+		                 IDI.NM_DEPT, 		
+		                 TEAM1.TeamID, 		
+		                 IDI.ID_USER, 		
+		                 TM.EmployeeNum, 		
+		                 IDI.BIZ_KEY, 		
+		                 TMT2.Name, 		
+		                 EMR.SRID		
+		        ) TAB		
+		    GROUP BY 		
+		        TAB.MemberID,		
+		        TAB.MemberName,		
+		        TAB.CORP_NAME,		
+		        TAB.CORP_ID,		
+		        TAB.NM_DEPT,		
+		        TAB.BIZ_KEY,		
+		        TAB.EmployeeNum,		
+		        TAB.BIZName		
+		) rslt		
+		GROUP BY rslt.MemberID,		
+		         rslt.MemberName,		
+		         rslt.ClientName,		
+		         rslt.CORP_ID,		
+		         rslt.TeamName,		
+		         rslt.BIZ_KEY,		
+		         rslt.EmployeeNum,		
+		         rslt.BIZName
+		ORDER BY rslt.ClientName, rslt.TeamName, rslt.BIZName, rslt.MemberName		
+	</select>
+	
+	<!-- 개인별MH 통계현황조회_2.시스템별 [individualMHDAO.selectStatMhSystemList]-->
+	<select id="getStatMhUserSystemList_gridList" resultType="java.util.HashMap"> 
+		Select 
+				ROW_NUMBER() OVER (ORDER BY TAB.SRAreaName,TAB.BIZName,TAB.MemberName ) AS RowNum,
+				TAB.BIZ_KEY,
+				TAB.BIZName AS BIZName,
+				TAB.MemberID,
+				TAB.EmployeeNum,
+				TAB.MemberName,
+				TAB.SRArea2,
+				TAB.SRAreaName,
+				TAB.Inhouse,
+				Count(TAB.DaeCoTicketCount) AS DaeCoTicketCount,
+				Count(TAB.NoDaeCoTicketCount) AS NoDaeCoTicketCount,
+				SUM(TAB.DaeCoTime) AS DaeCoTime,
+				SUM(TAB.NoDaeCoTime) AS NoDaeCoTime,
+				SUM(TAB.TicketCount) AS TicketCount,
+				SUM(TAB.MSR_VAL) AS MSR_VAL,
+				Count(TAB.ACMTicketCount) AS ACMTicketCount,
+				Count(TAB.DCMTicketCount) AS DCMTicketCount,
+				Count(TAB.ICMTicketCount) AS ICMTicketCount,
+				Count(TAB.SCMTicketCount) AS SCMTicketCount,
+				Count(TAB.INCTicketCount) AS INCTicketCount,
+				Count(TAB.WRKTicketCount) AS WRKTicketCount,
+				Count(TAB.DPLTicketCount) AS DPLTicketCount,
+				Count(TAB.REQTicketCount1) AS REQTicketCount1,
+				Count(TAB.REQTicketCount2) AS REQTicketCount2,
+				Count(TAB.REQTicketCount3) AS REQTicketCount3,
+				SUM(TAB.ACMTIME) AS ACMTime,
+				SUM(TAB.DCMTIME) AS DCMTime,
+				SUM(TAB.ICMTIME) AS ICMTime,
+				SUM(TAB.INCTIME) AS INCTime,	
+				SUM(TAB.SCMTIME) AS SCMTime,
+				SUM(TAB.WRKTIME) AS WRKTime,
+				SUM(TAB.DPLTIME) AS DPLTime,
+				SUM(TAB.REQTIME1) AS REQTime1,
+				SUM(TAB.REQTIME2) AS REQTime2,
+				SUM(TAB.REQTIME3) AS REQTime3	
+			From (
+				SELECT  
+					IDI.BIZ_KEY,
+					TMT2.Name AS BIZName,
+					
+					EMR.MemberID,IDI.ID_USER,TM.EmployeeNum,
+					TM.Name AS MemberName,
+					EMR.SRArea2, TIA.PlainText+'/'+TIA2.PlainText AS SRAreaName, TEAM2.Inhouse,
+					CASE WHEN TEAM2.Inhouse = 'Y' THEN 1  ELSE NULL END AS  DaeCoTicketCount,
+					CASE WHEN TEAM2.Inhouse != 'Y' THEN 1  ELSE NULL END AS  NoDaeCoTicketCount,
+	
+					CASE WHEN TEAM2.Inhouse = 'Y' THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME)  ELSE 0 END AS  DaeCoTime,
+					CASE WHEN TEAM2.Inhouse != 'Y' THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME)  ELSE 0 END AS  NoDaeCoTime,
+	
+					(select COUNT(*) From XBOLTAPP.ESM_SR_MST WHERE SRID = EMR.SRID ) AS TicketCount,
+					SUM(EMR.BUSINESS_HOURS) + SUM(EMR.OVERTIME) AS MSR_VAL,  
+	
+					CASE WHEN (select COUNT(*) From XBOLTAPP.ESM_SR_MST WHERE SRID = EMR.SRID And SRType='ACM') = 1 THEN 1 ELSE NULL END AS  ACMTicketCount,
+					CASE WHEN (select COUNT(*) From XBOLTAPP.ESM_SR_MST WHERE SRID = EMR.SRID And SRType='DCM') = 1 THEN 1 ELSE NULL END AS  DCMTicketCount,
+					CASE WHEN (select COUNT(*) From XBOLTAPP.ESM_SR_MST WHERE SRID = EMR.SRID And SRType='ICM') = 1 THEN 1 ELSE NULL END AS  ICMTicketCount,
+					CASE WHEN (select COUNT(*) From XBOLTAPP.ESM_SR_MST WHERE SRID = EMR.SRID And SRType='SCM') = 1 THEN 1 ELSE NULL END AS  SCMTicketCount,
+					CASE WHEN (select COUNT(*) From XBOLTAPP.ESM_SR_MST WHERE SRID = EMR.SRID And SRType='INC') = 1 THEN 1 ELSE NULL END AS  INCTicketCount,
+					CASE WHEN (select COUNT(*) From XBOLTAPP.ESM_SR_MST WHERE SRID = EMR.SRID And SRType='WRK') = 1 THEN 1 ELSE NULL END AS  WRKTicketCount,
+					CASE WHEN (select COUNT(*) From XBOLTAPP.ESM_SR_MST WHERE SRID = EMR.SRID And SRType='DPL') = 1 THEN 1 ELSE NULL END AS  DPLTicketCount,
+					CASE WHEN (select COUNT(*) From XBOLTAPP.ESM_SR_MST WHERE SRID = EMR.SRID And SRType='REQ' And EMR.Category = 'RCP000' ) = 1 THEN 1 ELSE NULL END AS  REQTicketCount1,
+					CASE WHEN (select COUNT(*) From XBOLTAPP.ESM_SR_MST WHERE SRID = EMR.SRID And SRType='REQ' And EMR.Category = 'RCP010') = 1 THEN 1 ELSE NULL END AS  REQTicketCount2,
+					CASE WHEN (select COUNT(*) From XBOLTAPP.ESM_SR_MST WHERE SRID = EMR.SRID And SRType='REQ' And EMR.Category IN('RCP020','RCP030') ) = 1 THEN 1 ELSE NULL END AS  REQTicketCount3,
+					
+					CASE WHEN EMR.SRType = 'ACM' THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME)  ELSE 0 END AS  ACMTIME,
+					CASE WHEN EMR.SRType = 'DCM' THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME)  ELSE 0 END AS  DCMTIME,
+					CASE WHEN EMR.SRType = 'ICM' THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME)  ELSE 0 END AS  ICMTIME,
+					CASE WHEN EMR.SRType = 'INC' THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME)  ELSE 0 END AS  INCTIME,		
+					CASE WHEN EMR.SRType = 'SCM' THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME)  ELSE 0 END AS  SCMTIME,
+					CASE WHEN EMR.SRType = 'WRK' THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME)  ELSE 0 END AS  WRKTIME,
+					CASE WHEN EMR.SRType = 'DPL' THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME)  ELSE 0 END AS  DPLTIME,
+			
+					CASE WHEN EMR.SRType = 'REQ' And EMR.Category IN('RCP000','RDT100')  THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME)  ELSE 0 END AS  REQTIME1, <!--  단순 문의 -->
+					CASE WHEN EMR.SRType = 'REQ' And EMR.Category IN('RCP010','RDT110')  THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME)  ELSE 0 END AS  REQTIME2, <!--  서비스 요청 -->
+					CASE WHEN EMR.SRType = 'REQ' And EMR.Category IN( 'RCP020','RCP030','RDT120') THEN SUM(BUSINESS_HOURS) + SUM(OVERTIME)  ELSE 0 END AS  REQTIME3,<!--  오류 신고/ 오류 신고 -->
+					EMR.SRType
+				
+				FROM XBOLTAPP.VW_ESM_MBR_RCD EMR WITH(NOLOCK)
+				JOIN XBOLTDLM.ITUSER_DEPT_INFO IDI WITH(NOLOCK) ON EMR.MemberID = IDI.MemberID  
+				LEFT OUTER Join XBOLTADM.TB_TEAM TEAM2 WITH(NOLOCK) ON TEAM2.TeamCode = IDI.BIZ_KEY And TeamType = 54
+				LEFT OUTER Join XBOLTADM.TB_TEAM_TXT TMT2 WITH(NOLOCK) ON TMT2.TeamID = TEAM2.TeamID And TMT2.LanguageID = #{languageID}			
+				Left Outer Join XBOLTAPP.ESM_SR_MST ESM WITH(NOLOCK) ON ESM.SRID = EMR.SRID 
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA WITH(NOLOCK) ON TIA.ItemID = ESM.SRArea1 And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 WITH(NOLOCK) ON TIA2.ItemID = ESM.SRArea2 And TIA2.AttrTypeCode = 'AT00001' And TIA2.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_MEMBER TM WITH(NOLOCK) ON TM.MemberID = EMR.MemberID
+				Left Outer Join XBOLTADM.TB_TEAM TEAM1 WITH(NOLOCK) ON TEAM1.TeamCode = IDI.CD_DEPT 
+				
+				Where CONVERT(varchar(10), EMR.WORK_DATE , 120) BETWEEN #{startDate} AND #{endDate}
+				And EMR.MemberID = IDI.MemberID
+				and TEAM1.Deleted != 1
+				And ISNULL(EMR.SRArea2,'') != ''
+				<if test="customerNo != '' and customerNo != null" >
+					And IDI.CORP_ID IN( select RefTeamCode From XBOLTADM.TB_TEAM WITH(NOLOCK) WHERE TeamID IN (select TeamID from XBOLTAPP.CRM_CUST_MST Where CustomerNo = #{customerNo} ))
+				</if>
+				<if test="teamID != '' and teamID != null" >
+					And TEAM1.TeamID = #{teamID}
+				</if>
+				
+				<if test="myCSR != null and myCSR != ''">
+			    	AND ESM.ProjectID IN ( SELECT TP.ProjectID 
+			                           FROM XBOLTADM.TB_PROJECT TP WITH(NOLOCK) 
+			                           LEFT OUTER JOIN XBOLTADM.TB_PJT_MEMBER_REL TPMR WITH(NOLOCK) 
+			                           ON TP.ProjectID = TPMR.ProjectID 
+			                           WHERE TPMR.MemberID = #{userID}
+			                           AND TP.ProjectType = 'CSR'    
+			        				  )
+			    </if>
+				GROUP BY 
+					EMR.MemberID,  EMR.SRType, TM.Name, EMR.Category, IDI.CORP_ID,IDI.CORP_NAME,
+					IDI.CORP_ID,IDI.CD_DEPT, IDI.NM_DEPT, TEAM1.TeamID,IDI.ID_USER,TM.EmployeeNum,
+					IDI.BIZ_KEY<!-- , BZ.VAL_COL -->
+					,EMR.SRID,TMT2.Name,EMR.SRArea1,EMR.SRArea2,TIA.PlainText,TIA2.PlainText,TEAM2.Inhouse
+			) TAB
+			Group By TAB.MemberID,TAB.MemberName,TAB.BIZ_KEY
+					 ,TAB.EmployeeNum,TAB.BIZName, TAB.SRArea2, TAB.SRAreaName,TAB.Inhouse
+			ORDER BY TAB.SRAreaName,TAB.BIZName,TAB.MemberName
+	
+	</select>
+	
+	<!-- 개인별MH 통계현황 사용자 지연률 [individualMHDAO.selectStatMhUserDelayList]-->
+	<select id="getStatMhUserDelayList_gridList" resultType="java.util.HashMap"> 
+		Select
+			ROW_NUMBER() OVER (ORDER BY B.CORP_ID, B.USER_NM) AS RowNum, 
+			B.CORP_ID     AS CORP_ID,
+			B.CODE_NM     AS CODE_NM,
+			B.CD_DEPT     AS CD_DEPT,
+			B.DS_DEPT     AS DS_DEPT,
+			A.USR_ID      AS STEP_MNG_ID,
+			B.EmployeeNum AS EmployeeNum,
+			B.USER_NM     AS STEP_MNG_NM,
+			A.TOT_CNT     AS TOT_CNT,
+			A.DELAY_CNT   AS DELAY_CNT,
+			CASE WHEN A.TOT_CNT = 0 OR A.DELAY_CNT = 0 THEN 0 ELSE ROUND((CAST(A.DELAY_CNT AS FLOAT) / CAST(A.TOT_CNT AS FLOAT)) * 100, 2) END AS DELAY_RATE, 
+			B.BIZ_NM      AS BIZ_NM,
+			B.DAECO_YN    AS DAECO_YN
+		From 
+		(
+			Select 
+				<!-- EAL.ActorID AS USR_ID, -->
+				EMR.MemberID AS USR_ID,
+				EMR.ProjectID,
+				COUNT(*) AS TOT_CNT,
+				<![CDATA[  SUM(CASE WHEN CAST(CONVERT(varchar(10), ESA.Value, 120) AS DATE) < CAST(CONVERT(varchar(10), EAL.EndTime, 120) AS DATE) THEN 1 ELSE 0 END) ]]> AS DELAY_CNT		
+			From ( Select SRID,SpeCode,MemberID,ProjectID
+				FROM XBOLTAPP.VW_ESM_MBR_RCD  WITH(NOLOCK)
+				WHERE CONVERT(varchar(10), WORK_DATE , 120) BETWEEN #{startDate} AND #{endDate}
+				<if test="customerNo != '' and customerNo != null" >
+				And ClientID = #{customerNo}
+				</if>
+				<!-- And SRID IS NOT NULL -->
+				GROUP BY SRID,SpeCode,MemberID,ProjectID
+			) EMR
+			Left Outer Join XBOLTAPP.ESM_ACTIVITY_LOG EAL WITH(NOLOCK) ON EAL.PID = EMR.SRID And EAL.SpeCode =  EMR.SpeCode <!-- And EAL.ActorID = EMR.MemberID -->
+			Left Outer Join XBOLTAPP.ESM_SR_ATTR ESA WITH(NOLOCK) ON ESA.AttrTypeCode ='SRAT0069' And ESA.SRID = EMR.SRID And ESA.SpeCode = EMR.SpeCode 
+			<!-- Join (
+					SELECT SRID
+					FROM XBOLTAPP.VW_ESM_MBR_RCD WITH(NOLOCK) WHERE SRID IS NOT NULL
+					GROUP BY SRID
+				) VP ON VP.SRID = ESA.SRID -->
+		
+				Group By EMR.MEMBERID, EMR.ProjectID
+				) A
+		Left Outer Join (
+			SELECT
+				IDI.MemberID AS USR_ID,
+				MAX(TT.Inhouse) AS DAECO_YN,
+				MAX(TMT.Name) AS BIZ_NM,
+				MAX(IDI.USER_NM) AS USER_NM,
+				MAX(IDI.CD_DEPT) AS CD_DEPT,
+				MAX(IDI.NM_DEPT) AS DS_DEPT,
+				MAX(IDI.CORP_ID) AS CORP_ID,
+				MAX(TRIM(CORP_NAME)) AS CODE_NM,
+				MAX(TM.EmployeeNum) AS EmployeeNum,
+				MAX(T.TeamID) AS TeamID
+			FROM XBOLTDLM.ITUSER_DEPT_INFO IDI WITH(NOLOCK)
+			LEFT Outer JOIN XBOLTADM.TB_TEAM TT WITH(NOLOCK) ON IDI.BIZ_KEY = TT.TeamCode And TT.TeamType = 54 
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT WITH(NOLOCK) ON TMT.TeamID = TT.TeamID And TMT.LanguageID=#{languageID}
+			Left Outer JOIN XBOLTADM.TB_TEAM T WITH(NOLOCK) ON IDI.CD_DEPT = T.TeamCode And T.Deleted != 1
+			Left Outer Join XBOLTADM.TB_MEMBER TM WITH(NOLOCK) ON TM.MemberID = IDI.MemberID
+			GROUP BY IDI.MemberID
+		) B ON A.USR_ID = B.USR_ID
+		WHERE 1 = 1  
+		AND NOT EXISTS ( SELECT 1 FROM XBOLTADM.TB_MEMBER WITH(NOLOCK) WHERE MemberID = A.USR_ID AND ISNULL(Active, '') = '0' )
+		And A.USR_ID IS NOT NULL
+		<if test="customerNo != '' and customerNo != null" >
+			And B.CORP_ID IN( select RefTeamCode From XBOLTADM.TB_TEAM WITH(NOLOCK) WHERE TeamID IN (select TeamID from XBOLTAPP.CRM_CUST_MST Where CustomerNo = #{customerNo} ))
+		</if>
+		<if test="teamID != '' and teamID != null" >
+			And B.TeamID = #{teamID}
+		</if>
+		<if test="myCSR != null and myCSR != ''">
+	    	AND A.ProjectID IN ( SELECT TP.ProjectID 
+	                           FROM XBOLTADM.TB_PROJECT TP WITH(NOLOCK) 
+	                           LEFT OUTER JOIN XBOLTADM.TB_PJT_MEMBER_REL TPMR WITH(NOLOCK) 
+	                           ON TP.ProjectID = TPMR.ProjectID 
+	                           WHERE TPMR.MemberID = #{userID}
+	                           AND TP.ProjectType = 'CSR'    
+	        				  )
+	    </if>
+			    
+	</select>
+	
+	<!-- 테켓/상태별  작업시간 상세조회 -->
+	<select id="selectIndividualMHWorkList_gridList" resultType="java.util.HashMap"> 
+		SELECT 
+			ROW_NUMBER() OVER (ORDER BY VWPWDB.SRType,VWPWDB.SRcode,VWPWDB.SpeCode,VWPWDB.WORK_DATE ) AS RowNum
+			, VWPWDB.SRType AS TBL
+			, TD.Name AS TBL_NM
+			, VWPWDB.SRcode AS ID 
+			, VWPWDB.Subject AS TITLE
+			, VWPWDB.SpeCode AS PROCESS_STEP_ID
+			, TIA.PlainText AS PROCESS_STEP_NM
+			, ISNULL(CONVERT(char(10),VWPWDB.WORK_DATE, 120),'') AS WORK_DATE
+			, VWPWDB.WEEKEND
+			, ( VWPWDB.BUSINESS_HOURS + VWPWDB.OVERTIME ) AS WORK_TIME_MM
+			, VWPWDB.HOLYDAY
+			, VWPWDB.Description
+		FROM XBOLTAPP.VW_ESM_MBR_RCD VWPWDB WITH(NOLOCK)
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD WITH(NOLOCK) On TD.TypeCode = VWPWDB.SRType And TD.Category = 'SRTP' And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_ITEM TI WITH(NOLOCK) ON VWPWDB.SpeCode = TI.Identifier
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA WITH(NOLOCK) ON TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+		WHERE (VWPWDB.BUSINESS_HOURS + VWPWDB.OVERTIME) > 0
+			AND VWPWDB.MemberID = #{memberID}
+			AND CONVERT(varchar(10), VWPWDB.WORK_DATE , 120) BETWEEN #{startDate} AND #{endDate}
+			AND ISNULL(VWPWDB.SRArea1,'') != '' 
+			<if test="srArea2 != null and srArea2 != ''">
+				And VWPWDB.SRArea2 = #{srArea2}
+			</if>
+			<if test="myCSR != null and myCSR != ''">
+		    	AND VWPWDB.ProjectID IN ( SELECT TP.ProjectID 
+		                           FROM XBOLTADM.TB_PROJECT TP WITH(NOLOCK) 
+		                           LEFT OUTER JOIN XBOLTADM.TB_PJT_MEMBER_REL TPMR WITH(NOLOCK) 
+		                           ON TP.ProjectID = TPMR.ProjectID 
+		                           WHERE TPMR.MemberID = #{userID}
+		                           AND TP.ProjectType = 'CSR'    
+		        				  )
+		    </if>
+			
+			<!-- ASIS 
+			SELECT 
+				VWPWDB.TBL
+				, VWPWDB.TBL_NM
+				, VWPWDB.ID
+				, VWPWDB.TITLE
+				, VWPWDB.DESCR
+				, VWPWDB.CORP_ID
+				, VWPWDB.PROCESS_STEP_ID
+				, VWPWDB.PROCESS_STEP_NM
+				, VWPWDB.STEP_MNG_ID
+				, VWPWDB.STEP_MNG_NM
+				, VWPWDB.WORK_DATE
+				, VWPWDB.WEEKEND
+				, ( VWPWDB.BUSINESS_HOURS + VWPWDB.OVERTIME ) AS WORK_TIME_MM
+				, VWPWDB.HOLYDAY
+			FROM VW_PROCESS_WORK_DATE_BIZ VWPWDB
+			WHERE 1 = 1
+			   AND (VWPWDB.BUSINESS_HOURS + VWPWDB.OVERTIME) > 0
+			   AND VWPWDB.STEP_MNG_ID = #usrId#
+			   AND VWPWDB.WORK_DATE BETWEEN #startDt# AND #endDt#
+			ORDER BY VWPWDB.TBL ASC, VWPWDB.ID ASC, VWPWDB.PROCESS_STEP_ID ASC, VWPWDB.WORK_DATE ASC
+		
+			 -->
+			
+	</select>
+	
+	<select id="getSubsidiaryTotal_gridList" resultType="java.util.HashMap"> 
+		SELECT ISNULL(SUM(cntAll),0 ) AS TOTCNT, <!--  * 총등록건수 -->
+		       			ISNULL(SUM(frCnt),0)     AS FIRSTCNT, <!--  * 1차 접수 건 -->
+		       			ISNULL(SUM(frSolCnt),0)  AS FIRSTCOMPCNT, <!--  * 1차 해결 건 -->
+		       			ISNULL(SUM(custoCnt),0)  AS WKRREGCNT,  <!--  * 현업 등록건 -->
+		CASE 
+		    WHEN ISNULL(SUM(cntall), 0) = 0 THEN 0 
+		    ELSE Round(SUM(frCnt) * 100 / SUM(cntAll), 2) 
+		END            AS FIRSTRCPTRATE, <!--  * 1차 접수율 (%) -->
+		ISNULL( 
+		CASE 
+		    WHEN SUM(frCnt) = 0 THEN 0 
+		    ELSE Round(SUM(frSolCnt) * 100 / SUM(frCnt), 2) 
+		END ,0) AS FIRSTCOMPRATE,  <!--  * 1차 해결율 (%) -->
+		
+		ISNULL(SUM(seCnt),0)     AS SECONDCNT,  <!--  * 2차 접수 건 -->
+		CASE  WHEN ISNULL(SUM(cntAll),0) = 0 then 0 else  round( SUM(seCnt)*100/SUM(cntAll),2) end     AS SECONDRCPTRATE,  <!--  * 2차 접수율 (%) -->
+		
+		RefTeamCode,
+		Max(Name) AS CORPNAME
+		
+		FROM ( 
+
+		SELECT  TT.RefTeamCode
+				, TTT.Name
+                    ,ISNULL(COUNT(ESM.SRID),0) cntAll -- TOTAL
+                    
+					,ISNULL(COUNT(EAL1.ActivityLogID),0) frCnt <!-- 1차 접수 건 (1선처리자가 존재하는 모든 건) -->
+					, ISNULL(COUNT(EAL2.ActivityLogID),0) AS frSolCnt <!-- 1차 해결건 (2선 처리자가 없고, 1선에서 완료된건 ) -->
+                    , ISNULL(COUNT(EAL4.ActivityLogID),0) custoCnt <!--  현업 직접 등록 (고객 서비스요청 only) -->
+                   
+				   ,ISNULL(COUNT(EAL3.ActivityLogID),0) seCnt   <!--  2선으로 직접 접수된 서비스요청(서비스요청 ITO only) -->
+            from XBOLTADM.TB_TEAM TT WITH(NOLOCK)
+			left outer join XBOLTADM.TB_TEAM_TXT TTT WITH(NOLOCK) ON TTT.TeamID = TT.TeamID AND TTT.LanguageID = #{languageID}
+			left outer join XBOLTAPP.ESM_SR_MST ESM WITH(NOLOCK) ON ESM.ClientID = TT.ClientID AND TT.TeamType = 2
+			AND ESM.SRType = 'REQ' 
+			AND ESM.IsPublic = '1' <!--  임시등록x / 삭제 x -->
+			And ESM.RegDT BETWEEN CAST(#{startDate} AS DATETIME) AND DATEADD(MS, -2, DATEADD(DAY,1,CAST(#{endDate} AS DATETIME)))
+			<!-- 현재 티켓 상테 -->
+			left outer join XBOLTAPP.ESM_ACTIVITY_LOG EAL ON EAL.PID = ESM.SRID AND EAL.ActivityLogID = ( SELECT MAX(ActivityLogID) FROM XBOLTAPP.ESM_ACTIVITY_LOG WHERE PID = ESM.SRID )
+			AND EAL.Status NOT IN ('04','06','08') <!--  기각/강제종료/반려 제외 -->
+			
+			<!-- 1선 처리 -->
+			left outer join XBOLTAPP.ESM_ACTIVITY_LOG EAL1 WITH(NOLOCK) ON EAL1.PID = ESM.SRID AND EAL1.SpeCode = 'REQ0002' AND EAL1.Seq = ( SELECT MAX(Seq) FROM XBOLTAPP.ESM_ACTIVITY_LOG WHERE SpeCode = 'REQ0002' AND PID = ESM.SRID)
+			<!-- only 1선 처리 (완료)-->
+			left outer join XBOLTAPP.ESM_ACTIVITY_LOG EAL2 WITH(NOLOCK) ON EAL2.PID = ESM.SRID AND EAL2.SpeCode = 'REQ0002' AND EAL2.Seq = ( SELECT MAX(Seq) FROM XBOLTAPP.ESM_ACTIVITY_LOG WHERE SpeCode = 'REQ0002' AND PID = ESM.SRID)
+															  AND ESM.Status = 'REQ0002' AND ESM.CompletionDT IS NOT NULL
+			<!-- only 2선 처리 -->
+			left outer join XBOLTAPP.ESM_ACTIVITY_LOG EAL3 WITH(NOLOCK) ON EAL3.PID = ESM.SRID AND EAL3.SpeCode = 'REQ0004' AND EAL3.Seq = ( SELECT MAX(Seq) FROM XBOLTAPP.ESM_ACTIVITY_LOG WHERE SpeCode = 'REQ0004' AND PID = ESM.SRID)
+															  AND EAL3.PID NOT IN ( SELECT PID FROM XBOLTAPP.ESM_ACTIVITY_LOG WHERE SpeCode = 'REQ0002' AND PID = ESM.SRID )
+			<!-- only 현업 고객 등록 -->
+			left outer join XBOLTAPP.ESM_ACTIVITY_LOG EAL4 WITH(NOLOCK) ON EAL4.PID = ESM.SRID AND EAL4.SpeCode = 'REQ0001' AND EAL4.Seq = ( SELECT MAX(Seq) FROM XBOLTAPP.ESM_ACTIVITY_LOG WHERE SpeCode = 'REQ0001' AND PID = ESM.SRID)
+            
+			WHERE 
+			TT.TeamType = 2 AND TT.Deleted = 0
+			AND TT.RefTeamCode != 'ALL'
+			<if test="myCSR != null and myCSR != ''">
+				And TT.ClientID in (
+					SELECT TP.ClientID
+					FROM XBOLTADM.TB_PROJECT TP WITH(NOLOCK)
+					left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR WITH(NOLOCK) on TP.ProjectID = TPMR.ProjectID
+					Where TPMR.MemberID = #{userID}
+					And TP.ProjectType = 'CSR'
+				)
+			</if>
+			GROUP BY TT.RefTeamCode , TTT.Name
+          
+		union all
+
+
+		SELECT  TT.RefTeamCode
+				, TTT.Name
+                    , ISNULL(COUNT(ESM.SRID),0) cntAll
+                    ,0 frCnt
+                    ,0 frSolCnt
+                    ,0 custocnt
+                    ,ISNULL(COUNT(ESM.SRID),0) seCnt
+            from XBOLTADM.TB_TEAM TT WITH(NOLOCK)
+			left outer join XBOLTADM.TB_TEAM_TXT TTT WITH(NOLOCK) ON TTT.TeamID = TT.TeamID AND TTT.LanguageID = #{languageID}
+			left outer join XBOLTAPP.ESM_SR_MST ESM WITH(NOLOCK) ON ESM.ClientID = TT.ClientID AND TT.TeamType = 2
+			AND ESM.SRType NOT IN ('WRK','REQ') 
+			AND ESM.IsPublic = '1'
+			And ESM.RegDT BETWEEN CAST(#{startDate} AS DATETIME) AND DATEADD(MS, -2, DATEADD(DAY,1,CAST(#{endDate} AS DATETIME)))
+			<!-- 현재 티켓 상테 -->
+			left outer join XBOLTAPP.ESM_ACTIVITY_LOG EAL ON EAL.PID = ESM.SRID AND EAL.ActivityLogID = ( SELECT MAX(ActivityLogID) FROM XBOLTAPP.ESM_ACTIVITY_LOG WHERE PID = ESM.SRID )
+            AND EAL.Status NOT IN ('04','06','08') <!-- 기각/강제종료/반려 제외  -->
+            
+            WHERE
+			TT.TeamType = 2 AND TT.Deleted = 0
+			AND TT.RefTeamCode != 'ALL'
+			<if test="myCSR != null and myCSR != ''">
+				And TT.ClientID in (
+					SELECT TP.ClientID
+					FROM XBOLTADM.TB_PROJECT TP WITH(NOLOCK)
+					left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR  WITH(NOLOCK)on TP.ProjectID = TPMR.ProjectID
+					Where TPMR.MemberID = #{userID}
+					And TP.ProjectType = 'CSR'
+				)
+			</if>
+            GROUP BY TT.RefTeamCode , TTT.Name
+		) A
+		GROUP BY RefTeamCode
+		ORDER BY RefTeamCode
+	</select>
+	
+	<select id="getStatisticsOfAcceptanceAndFirstResolutionRat_gridList" resultType="java.util.HashMap"> 
+	
+		WITH P_PARAM AS (
+		    SELECT ISNULL('', '*') AS P_CORP_ID, <!-- #corpId# 값이 NULL이면 '*'으로 설정 -->
+		    #{startDate} AS P_START_DATE, <!-- 시작일 -->
+		    #{endDate} AS P_END_DATE <!-- 종료일 -->
+		), 
+		DateRange AS (
+		    SELECT 
+		        CAST(P_START_DATE + '-01' AS DATE) AS SDT, <!-- P_START_DATE로 변환 -->
+		        DATEADD(DAY, -1, DATEADD(MONTH, 1, CAST(P_END_DATE + '-01' AS DATE))) AS EDT <!-- P_END_DATE -> 1개월 더하고 1일 빼기 -->
+		    FROM P_PARAM
+		), 
+		DateSeries AS (
+		    <!-- 재귀 CTE를 사용하여 날짜를 생성 -->
+		    SELECT SDT, EDT, 0 AS rn 
+		    FROM DateRange
+		    UNION ALL 
+		    SELECT DATEADD(DAY, 1, SDT), EDT, rn + 1
+		    FROM DateSeries
+		    WHERE <![CDATA[ DATEADD(DAY, 1, SDT) <= EDT ]]>
+		)
+		SELECT *
+		INTO #DateSeries
+		FROM DateSeries
+		OPTION (MAXRECURSION 0);
+		 
+		 
+		WITH REQDATA AS 
+		(
+		    SELECT conDate,
+		           SUM(frCnt) - SUM(custoCnt) AS callCnt,
+		           SUM(custoCnt) AS eClickCnt,
+		           ROUND(CASE WHEN ISNULL(SUM(frCnt), 0) = 0 THEN 0 ELSE SUM(seCnt) * 100.0 / SUM(frCnt) END, 2) AS firstCompRate,
+		           SUM(CNTCALL) AS userCnt,
+		           ROUND(CASE WHEN ISNULL(SUM(CNTCALL), 0) = 0 THEN 0 ELSE SUM(frCnt) * 1.0 / SUM(CNTCALL) END, 2) AS callPerUser,
+		           ROUND(CASE WHEN ISNULL(SUM(WORKDAY1), 0) = 0 THEN 0 ELSE ROUND(CASE WHEN ISNULL(SUM(CNTCALL), 0) = 0 THEN 0 ELSE SUM(frCnt) * 1.0 / SUM(CNTCALL) END, 2) / SUM(WORKDAY1) END, 2) AS dayCnt
+		    FROM 
+		    (
+		        <!-- 1 -->
+		        SELECT FORMAT(VESM.RegDT, 'yyyy-MM') AS conDate,
+		               COUNT(1) AS frCnt, <!-- 정상종료,진행중인것, FL_USER_ID가 있고, --> 
+		               SUM(CASE WHEN ISNULL(VESM.REQ0004ActorID, '') = '' THEN 1 ELSE 0 END) AS seCnt, <!-- seCnt는 SL_USR_ID가 NULL인 레코드의 수 -->
+		               SUM(CASE WHEN ISNULL(VESM.YN_PORTAL, 'N') = 'Y' THEN 1 ELSE 0 END) AS custoCnt,
+		               0 AS WORKDAY1,
+		               0 AS CNTCALL
+		        FROM XBOLTAPP.VW_ESM_SR_REQUEST VESM
+		        LEFT JOIN XBOLTDLM.RELATIONS b
+		        ON b.HIGH_ID = VESM.SRCODE
+		        WHERE VESM.SRType = 'REQ'
+		        AND b.HIGH_ID IS NULL
+		        AND VESM.REQ0002ActorID != ''
+		        <if test="customerNo != '' and customerNo != null" >
+				AND VESM.ClientID = #{customerNo} <!-- 관계사 옵션 --> 
+				</if>
+		        AND VESM.RegDT BETWEEN CAST(#{startDate} + '-01' AS DATETIME) AND DATEADD(MS,-2,DATEADD(MONTH,1,CAST(#{endDate} + '-01'AS DATETIME)))
+		        GROUP BY FORMAT(VESM.RegDT, 'yyyy-MM')
+		
+		 
+		        UNION ALL
+		        <!-- 2. -->
+		        SELECT 
+		            SUBSTRING(B.WORKDAY, 1, 7) AS conDate,
+		            0, 0, 0, SUM(B.workday1), 0
+		        FROM (
+		            SELECT 
+		                FORMAT(VESM.RegDT, 'yyyy-MM-dd') AS WORKDAY,
+		                1 AS workday1
+		            FROM XBOLTAPP.VW_ESM_SR_REQUEST VESM
+		            WHERE VESM.SRType = 'REQ'
+		            AND VESM.REQ0002ActorID != ''
+		            AND VESM.RegDT BETWEEN CAST(#{startDate} + '-01' AS DATETIME) AND DATEADD(MS,-2,DATEADD(MONTH,1,CAST(#{endDate} + '-01'AS DATETIME)))
+		            GROUP BY FORMAT(VESM.RegDT, 'yyyy-MM-dd')
+		        ) B
+		        GROUP BY SUBSTRING(B.WORKDAY, 1, 7)
+		 
+		        UNION ALL
+		 
+		        <!-- 3. -->
+		        SELECT 
+		            conDate, 
+		            0, 0, 0, 0, SUM(C.callCnt)
+		        FROM (
+		            SELECT 
+		                FORMAT(VESM.regDT, 'yyyy-MM') AS conDate,
+		                VESM.REQ0002ActorID, 
+		                1 AS callCnt
+		            FROM XBOLTAPP.VW_ESM_SR_REQUEST VESM
+		            LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TM.MemberID = VESM.REQ0002ActorID
+		            WHERE VESM.SRType = 'REQ'
+		            AND VESM.REQ0002ActorID != ''
+		            AND ( TM.LoginID Is NULL
+		               OR TM.LoginID != 'T061115'
+		                )
+		            AND TM.Active = '1'
+		            AND VESM.RegDT BETWEEN CAST(#{startDate} + '-01' AS DATETIME) AND DATEADD(MS,-2,DATEADD(MONTH,1,CAST(#{endDate} + '-01'AS DATETIME)))
+		            GROUP BY FORMAT(VESM.RegDT, 'yyyy-MM'), VESM.REQ0002ActorID
+		        ) C
+		        GROUP BY conDate
+		 
+		        UNION ALL
+		 
+		        <!-- 4. -->
+		        SELECT 
+		            FORMAT(SDT, 'yyyy') + '-' + FORMAT(SDT, 'MM') AS conDate,
+		            0 AS col1, 0 AS col2, 0 AS col3, 0 AS col4, 0 AS col5
+		        FROM #DateSeries
+		        WHERE DATEPART(WEEKDAY, SDT) NOT IN (1, 7) <!-- 일요일(1)과 토요일(7) 제외 -->
+		        GROUP BY FORMAT(SDT, 'yyyy'), FORMAT(SDT, 'MM')
+		    ) REQDATA
+		    GROUP BY conDate
+		)
+		SELECT *
+		INTO #REQDATA
+		FROM REQDATA;
+		 
+		WITH PrevMonthData AS (
+		    SELECT 
+		        conDate, 
+		        callCnt, 
+		        eClickCnt, 
+		        firstCompRate, 
+		        userCnt, 
+		        callPerUser, 
+		        dayCnt, 
+		        LAG(callCnt) OVER (ORDER BY conDate) AS prev_callCnt,
+		        LAG(eClickCnt) OVER (ORDER BY conDate) AS prev_eClickCnt,
+		        LAG(firstCompRate) OVER (ORDER BY conDate) AS prev_firstCompRate,
+		        LAG(userCnt) OVER (ORDER BY conDate) AS prev_userCnt,
+		        LAG(callPerUser) OVER (ORDER BY conDate) AS prev_callPerUserRate,
+		        LAG(dayCnt) OVER (ORDER BY conDate) AS prev_dayCnt
+		    FROM #REQDATA
+		),
+		FinalData AS (
+		    SELECT 
+		        conDate, 
+		        callCnt, 
+		        eClickCnt, 
+		        firstCompRate, 
+		        userCnt, 
+		        callPerUser, 
+		        dayCnt, 
+		        prev_callCnt, 
+		        prev_eClickCnt, 
+		        prev_firstCompRate, 
+		        prev_userCnt, 
+		        prev_callPerUserRate, 
+		        prev_dayCnt 
+		    FROM PrevMonthData
+		)
+		SELECT *
+		INTO #FinalData
+		FROM FinalData
+		OPTION (MAXRECURSION 0);
+		 
+		 
+		 
+		SELECT 
+		    conDate, 
+		    CAST(callCnt AS INT) AS callCnt, 
+		    CAST(eClickCnt AS INT) AS eClickCnt, 
+		    CAST(firstCompRate AS INT) AS firstCompRate, 
+		    CAST(userCnt AS INT) AS userCnt, 
+		    CAST(callPerUser AS INT) AS callPerUser, 
+		    CAST(dayCnt AS INT) AS dayCnt 
+		FROM #FinalData
+		 
+		UNION ALL
+		 
+		SELECT 
+		    '전월 대비 증감률' AS conDate, 
+		    CAST(ROUND(((callCnt - prev_callCnt) * 100.0 / prev_callCnt), 2) AS DECIMAL(10, 2)) AS callCnt, 
+		    CAST(ROUND(((eClickCnt - prev_eClickCnt) * 100.0 / prev_eClickCnt), 2) AS DECIMAL(10, 2)) AS eClickCnt, 
+		    CAST(ROUND(((firstCompRate - prev_firstCompRate) * 100.0 / prev_firstCompRate), 2) AS DECIMAL(10, 2)) AS firstCompRate, 
+		    CAST(ROUND(((userCnt - prev_userCnt) * 100.0 / prev_userCnt), 2) AS DECIMAL(10, 2)) AS userCnt, 
+		    CAST(ROUND(((callPerUser - prev_callPerUserRate) * 100.0 / prev_callPerUserRate), 2) AS DECIMAL(10, 2)) AS callPerUser, 
+		    CAST(ROUND(((dayCnt - prev_dayCnt) * 100.0 / prev_dayCnt), 2) AS DECIMAL(10, 2)) AS dayCnt
+		FROM #FinalData 
+		WHERE conDate = (SELECT MAX(conDate) FROM #FinalData)
+		ORDER BY conDate
+		 
+		 
+		 
+		DROP TABLE #DateSeries
+		DROP TABLE #REQDATA
+		DROP TABLE #FinalData
+	</select>
+	
+	
+	<select id="getReqStatReport_gridList" resultType="java.util.HashMap"> 
+				SELECT 
+				SRCode
+				,CompanyNM
+			   , ISNULL(gubun,' ') as gubun <!--1차해결 / 2차해결 / 1차해결 중 / 2차해결 중 / 완료확인(고객만족도조사) 일 경우 공란, 일반 종료(단순)인 경우엔 1차해결or2차해결 -->
+			   , CASE WHEN Blocked = '2' THEN '종료' ELSE StatusNM END AS StatusNM <!--speCode, 근데 여긴 종료 or 완료확인이 있음. 그래서 만약 2차해결 혹은 1차해결은 '종료' 라고 해야할듯. 완료확인은 그냥 고객만족도조사로.. -->
+			   , CategoryNM <!--의뢰유형>서브의뢰유횽 -->
+			   , ISNULL(fl_cat_name,' ') as fl_cat_name <!--이건 뭔지 확인 필요 -->
+			   , cat_chg_yn <!--엑셀용 : 카테고리를 변경했던 이력인듯 ? -->
+			   , l1_name <!--서비스 ( 서비스의 classCode의 이름을 넣으면 될 듯 ) -->
+			   , l2_name <!--비즈니스 서비스 인지 어플리케이션 서비스인지.. ATTR로 하나 넣어야할듯 --> 
+			   , srAreaNM <!--서비스 / 파트 이름 -->
+			   , Subject <!--티켓 제목 -->
+			   , Description <!--내용 : 엑셀용 -->
+			   , fl_desc <!--1선 조치내역 -->
+			   , sl_desc <!--2선 조치 내역 -->
+			   , regDT <!--요청일 -->
+			   , requestUserNM <!--요청자 -->
+			   , requestUserTeamNM <!--요청부서 -->
+			   , ISNULL(FL_USR_NAME,'-') AS fl_usr_name <!--1선 처리자 -->
+			   , ISNULL(SL_USR_NAME,'-') AS sl_usr_name <!--2선 처리자 --> 
+			   , ISNULL(mng_usr_name,'-') AS mng_usr_name <!--담당자, 1선처리자가있으면 1선처리자, 아니면 2선처리자로 )-->
+			   , regUserNM
+		from (  
+				SELECT ESM.SRCode
+				     , CASE WHEN EAL1.ActivityLogID IS NOT NULL AND ESM.Blocked != 0 AND ESM.completionDT IS NOT NULL THEN '1차해결'
+							WHEN EAL2.ActivityLogID IS NOT NULL AND ESM.Blocked != 0 AND ESM.completionDT IS NOT NULL THEN '2차해결'
+							WHEN ESM.Status = 'REQ0004' AND ESM.Blocked = 2 AND EAL2.Status IN ('06') THEN '2차 종료'
+				            WHEN ESM.Status = 'REQ0004' AND ESM.Blocked = 0 AND EAL2.Status IN ('00','01','09') THEN '2차해결 중'
+				            WHEN ESM.Status = 'REQ0002' AND ESM.Blocked = 0 AND EAL1.Status IN ('00','01','09') THEN '1차해결 중'
+				       END AS gubun
+				     , ESM.Blocked
+					 , TIA3.PlainText AS StatusNM
+				     , TD1.Name + CASE WHEN ISNULL(TD2.Name,'') = '' THEN '' ELSE  ' > ' + TD2.Name END AS CategoryNM
+					 
+					 , CASE WHEN ISNULL(TD5.Name,'') = '' THEN TD4.Name ELSE TD5.Name + ' > ' + TD4.Name END AS fl_cat_name
+				     
+					 , CASE WHEN ( ESM.SubCategory = EAL1.PrevSRCategory OR ESM.Category = EAL1.PrevSRCategory ) THEN 'X'
+				            WHEN ISNULL(EAL1.PrevSRCategory,'') = '' THEN ' '
+				            WHEN ( ESM.SubCategory != EAL1.PrevSRCategory AND ESM.Category != EAL1.PrevSRCategory ) THEN 'Y'
+				            END AS cat_chg_yn
+
+					 , TD3.Name AS l1_name
+				     , ISNULL(TATL2.Value,TATL1.Value) AS l2_name
+
+				     , TIA1.PlainText + CASE WHEN ISNULL(TIA2.PlainText,'') = '' THEN '' ELSE  ' > ' + TIA2.PlainText END AS srAreaNM
+				     
+					 , ESM.Subject
+				     , ESM.Description
+
+				     , ESA1.Value AS fl_desc
+				     , ESA2.Value AS sl_desc
+				     
+					 , FORMAT(ESM.regDT, 'yyyy-MM-dd') regDT
+				     
+					 , TTT1.Name AS requestUserTeamNM
+				     , TM1.Name AS requestUserNM
+				     , TM2.Name AS regUserNM
+				     
+					 , TM3.Name AS fl_usr_name
+				     , TM4.Name AS sl_usr_name
+				     , ISNULL(TM3.Name, TM4.Name ) as mng_usr_name
+				     
+				     , TTT2.Name as CompanyNM
+				
+				FROM XBOLTAPP.ESM_SR_MST ESM WITH(NOLOCK)
+
+				<!--user-->
+				INNER JOIN XBOLTADM.TB_MEMBER TM1 WITH(NOLOCK) ON TM1.MemberID = ESM.RequestUserID <!-- AND TM1.Active = 1 사용자상태조건 제외 -->
+				INNER JOIN XBOLTADM.TB_TEAM_TXT TTT1 WITH(NOLOCK) ON TTT1.TeamID = TM1.TeamID AND TTT1.LanguageID = #{languageID}
+				INNER JOIN XBOLTADM.TB_MEMBER TM2 WITH(NOLOCK) ON TM2.MemberID = ESM.RegUserId
+				
+				<!-- client -->
+				INNER JOIN XBOLTADM.TB_TEAM TT WITH(NOLOCK) ON TT.ClientID = ESM.ClientID AND TT.teamType = 2
+				INNER JOIN XBOLTADM.TB_TEAM_TXT TTT2 WITH(NOLOCK) ON TTT2.TeamID = TT.TeamID AND TTT2.LanguageID = #{languageID}
+				
+				<!--srArea-->
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM TI1 WITH(NOLOCK) ON TI1.ItemID = ESM.SRArea1
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM TI2 WITH(NOLOCK) ON TI2.ItemID = ESM.SRArea2
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA1 WITH(NOLOCK) ON TIA1.ItemID = TI1.ItemID AND TIA1.LanguageID = #{languageID} AND TIA1.AttrTypeCode = 'AT00001'
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA2 WITH(NOLOCK) ON TIA2.ItemID = TI2.ItemID AND TIA2.LanguageID = #{languageID} AND TIA2.AttrTypeCode = 'AT00001'
+				
+				<!--status name-->
+				INNER JOIN XBOLTADM.TB_ITEM TI3 WITH(NOLOCK) ON TI3.Identifier = ESM.Status
+				INNER JOIN XBOLTADM.TB_ITEM_ATTR TIA3 WITH(NOLOCK) ON TIA3.ItemID = TI3.ItemID  AND TIA3.LanguageID = #{languageID} AND TIA3.AttrTypeCode = 'AT00001'
+
+				<!--cat-->
+				LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD1 WITH(NOLOCK) ON TD1.TypeCode = ESM.Category AND TD1.Category = 'SRCAT' AND TD1.LanguageID = #{languageID}
+				LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD2 WITH(NOLOCK) ON TD2.TypeCode = ESM.SubCategory AND TD2.Category = 'SRCAT' AND TD2.LanguageID = #{languageID}
+
+				<!--sr class-->
+				LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD3 WITH(NOLOCK) ON TD3.TypeCode = TI1.ClassCode AND TD3.Category = 'CLS' AND TD3.LanguageID = #{languageID}
+
+				<!-- 1선,2선-->
+				LEFT OUTER JOIN XBOLTAPP.ESM_ACTIVITY_LOG EAL1 WITH(NOLOCK) ON EAL1.PID = ESM.SRID AND EAL1.SpeCode = 'REQ0002' AND EAL1.Seq = ( SELECT MAX(Seq) FROM XBOLTAPP.ESM_ACTIVITY_LOG WHERE SpeCode = 'REQ0002' AND PID = ESM.SRID)
+				LEFT OUTER JOIN XBOLTAPP.ESM_ACTIVITY_LOG EAL2 WITH(NOLOCK) ON EAL2.PID = ESM.SRID AND EAL2.SpeCode = 'REQ0004' AND EAL2.Seq = ( SELECT MAX(Seq) FROM XBOLTAPP.ESM_ACTIVITY_LOG WHERE SpeCode = 'REQ0004' AND PID = ESM.SRID)
+				LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM3 WITH(NOLOCK) ON TM3.MemberID = EAL1.ActorID AND TM3.Active = 1
+				LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM4 WITH(NOLOCK) ON TM4.MemberID = EAL2.ActorID AND TM4.Active = 1
+				LEFT OUTER JOIN XBOLTAPP.ESM_SR_ATTR ESA1 WITH(NOLOCK) ON ESA1.SRID = ESM.SRID AND ESA1.SpeCode = 'REQ0002' AND ESA1.AttrTypeCode = 'SRAT0001'
+				LEFT OUTER JOIN XBOLTAPP.ESM_SR_ATTR ESA2 WITH(NOLOCK) ON ESA2.SRID = ESM.SRID AND ESA2.SpeCode = 'REQ0004' AND ESA2.AttrTypeCode = 'SRAT0071'
+
+				<!--service type-->
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA4 WITH(NOLOCK) ON TIA4.ItemID = TI1.ItemID AND TIA4.AttrTypeCode = 'AT00088' AND TIA4.LanguageID = #{languageID}
+				LEFT OUTER JOIN XBOLTADM.TB_ATTR_TYPE_LOV TATL1 WITH(NOLOCK) ON TIA4.LovCode = TATL1.LovCode AND TATL1.LanguageID = #{languageID} AND TATL1.AttrTypeCode = TIA4.AttrTypeCode
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA5 WITH(NOLOCK) ON TIA5.ItemID = TI2.ItemID AND TIA5.AttrTypeCode = 'AT00088' AND TIA5.LanguageID = #{languageID}
+				LEFT OUTER JOIN XBOLTADM.TB_ATTR_TYPE_LOV TATL2 WITH(NOLOCK) ON TIA5.LovCode = TATL2.LovCode AND TATL2.LanguageID = #{languageID} AND TATL2.AttrTypeCode = TIA5.AttrTypeCode
+				
+				<!-- 1선 카테고리 -->
+				LEFT OUTER JOIN XBOLTAPP.ESM_SR_CAT ESC1 WITH(NOLOCK) ON ESC1.SRCatID = EAL1.PrevSRCategory
+			    LEFT OUTER JOIN XBOLTAPP.ESM_SR_CAT ESC2 WITH(NOLOCK) ON ESC2.SRCatID = ESC1.ParentID
+			    LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD4 WITH(NOLOCK) ON TD4.TypeCode = ESC1.SRCatID AND TD4.LanguageID = #{languageID} AND TD4.Category = 'SRCAT'
+			    LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD5 WITH(NOLOCK) ON TD5.TypeCode = ESC2.SRCatID AND TD5.LanguageID = #{languageID} AND TD5.Category = 'SRCAT' <!-- parent cat -->
+				
+				WHERE
+					ESM.SRType = 'REQ'
+					<choose>
+						<when test="customerNo != null and customerNo != ''">
+							<!-- AND ESM.ClientID = #{customerNo} -->
+							AND ( ESM.ClientID = #{customerNo}
+					         OR ESM.RequestUserId IN(SELECT MemberID FROM XBOLTADM.TB_MEMBER WHERE ClientID = #{customerNo}))   --DL이앤씨 0000000008 DL건설 0000000014 
+						</when>
+						<otherwise>
+							AND ESM.ClientID in ( SELECT ClientID
+												FROM XBOLTADM.TB_PROJECT TP
+												left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR on TP.ProjectID = TPMR.ProjectID
+												Where TPMR.MemberID = #{userID}
+												And TP.ProjectType = 'CSR'
+												)
+						</otherwise>
+					</choose>	
+					
+					<!-- <if test="myCSR != null and myCSR != ''">
+						And ESM.ProjectID in (
+							SELECT TP.ProjectID
+							FROM XBOLTADM.TB_PROJECT TP
+							left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR on TP.ProjectID = TPMR.ProjectID
+							Where TPMR.MemberID = #{userID}
+							And TP.ProjectType = 'CSR'
+						)
+					</if> -->
+				
+					And ESM.RegDT BETWEEN CAST(#{startDate} AS DATETIME) AND DATEADD(MS, -2, DATEADD(DAY,1,CAST(#{endDate} AS DATETIME)))
+		)T 
+		ORDER BY T.regDT desc
+		OPTION (MAXDOP 1)
+	</select>
+	
+	<select id="getErrorReqStatReport_gridList" resultType="java.util.HashMap"> 
+	SELECT
+		   TTT2.Name As CompanyNM,	
+		   ESM.SRCode,
+		   ISNULL(TD1.Name + CASE WHEN ISNULL(TD2.Name,'') = '' THEN '' ELSE  ' > ' + TD2.Name END,'미분류') AS CategoryNM,
+		   TIA2.PlainText AS srAreaNM, <!-- 파트 이름 -->
+		   TM1.Name requestUserNM, <!-- 요청자 -->
+		   ISNULL(TM3.Name,'-') AS fl_usr_name, <!-- 1선처리자 -->
+		   ISNULL(TM4.Name,'-') AS sl_usr_name, <!-- 2선 처리자 -->
+		   ISNULL((select max(nm_dept) from xboltdlm.ituser_dept_info where memberID = EAL2.ActorID),'-') AS cellName, <!-- 쎌명 -->
+		   FORMAT(ESM.regDT, 'yyyy-MM-dd') RegDT,
+		   ISNULL(ESM.Subject,'-') as Subject ,
+		   ISNULL(ESM.Description,'-') as Description ,
+		   ISNULL(ISNULL(ESA1.Value, ESA2.Value),'-') AS dfcontent, <!-- 2선처리 내용 없을경우 1선처리 출력 )-->
+		   CASE WHEN ESM.Blocked = '2' THEN '종료' ELSE TIA3.PlainText END AS StatusNM <!-- 처리상태 , speCode. 종료 시 '종료' 로 출력 -->
+		FROM
+		   XBOLTAPP.ESM_SR_MST ESM WITH(NOLOCK)
+
+		   <!--user-->
+			LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM1 WITH(NOLOCK) ON TM1.MemberID = ESM.RequestUserID AND TM1.Active = 1
+
+			<!--status name-->
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM TI3 WITH(NOLOCK) ON TI3.Identifier = ESM.Status
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA3 WITH(NOLOCK) ON TIA3.ItemID = TI3.ItemID  AND TIA3.LanguageID = #{languageID} AND TIA3.AttrTypeCode = 'AT00001'
+			
+			<!-- client -->
+			LEFT OUTER JOIN XBOLTADM.TB_TEAM TT WITH(NOLOCK) ON TT.ClientID = ESM.ClientID AND TT.teamType = 2
+			LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TTT2 WITH(NOLOCK) ON TTT2.TeamID = TT.TeamID AND TTT2.LanguageID = #{languageID}
+
+		    <!--cat-->
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD1 WITH(NOLOCK) ON TD1.TypeCode = ESM.Category AND TD1.Category = 'SRCAT' AND TD1.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD2 WITH(NOLOCK) ON TD2.TypeCode = ESM.SubCategory AND TD2.Category = 'SRCAT' AND TD2.LanguageID = #{languageID}
+
+			<!--srArea-->
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM TI1 WITH(NOLOCK) ON TI1.ItemID = ESM.SRArea1
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM TI2 WITH(NOLOCK) ON TI2.ItemID = ESM.SRArea2
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA1 WITH(NOLOCK) ON TIA1.ItemID = TI1.ItemID AND TIA1.LanguageID = #{languageID} AND TIA1.AttrTypeCode = 'AT00001'
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA2 WITH(NOLOCK) ON TIA2.ItemID = TI2.ItemID AND TIA2.LanguageID = #{languageID} AND TIA2.AttrTypeCode = 'AT00001'
+
+		   <!-- 1선,2선-->
+		   LEFT OUTER JOIN XBOLTAPP.ESM_ACTIVITY_LOG EAL1 WITH(NOLOCK) ON EAL1.PID = ESM.SRID AND EAL1.SpeCode = 'REQ0002' AND EAL1.Seq = ( SELECT MAX(Seq) FROM XBOLTAPP.ESM_ACTIVITY_LOG WHERE SpeCode = 'REQ0002' AND PID = ESM.SRID)
+				LEFT OUTER JOIN XBOLTAPP.ESM_ACTIVITY_LOG EAL2 WITH(NOLOCK) ON EAL2.PID = ESM.SRID AND EAL2.SpeCode = 'REQ0004' AND EAL2.Seq = ( SELECT MAX(Seq) FROM XBOLTAPP.ESM_ACTIVITY_LOG WHERE SpeCode = 'REQ0004' AND PID = ESM.SRID)
+				LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM3 WITH(NOLOCK) ON TM3.MemberID = EAL1.ActorID AND TM3.Active = 1
+				LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM4 WITH(NOLOCK) ON TM4.MemberID = EAL2.ActorID AND TM4.Active = 1
+				LEFT OUTER JOIN XBOLTAPP.ESM_SR_ATTR ESA1 WITH(NOLOCK) ON ESA1.SRID = ESM.SRID AND ESA1.SpeCode = 'REQ0002' AND ESA1.AttrTypeCode = 'SRAT0001'
+				LEFT OUTER JOIN XBOLTAPP.ESM_SR_ATTR ESA2 WITH(NOLOCK) ON ESA2.SRID = ESM.SRID AND ESA2.SpeCode = 'REQ0004' AND ESA2.AttrTypeCode = 'SRAT0071'
+
+		WHERE
+		    ESM.SRType = 'REQ'
+		    <choose>
+				<when test="customerNo != null and customerNo != ''">
+					AND ESM.ClientID = #{customerNo}
+				</when>
+				<otherwise>
+					AND ESM.ClientID in ( SELECT ClientID
+										FROM XBOLTADM.TB_PROJECT TP
+										left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR on TP.ProjectID = TPMR.ProjectID
+										Where TPMR.MemberID = #{userID}
+										And TP.ProjectType = 'CSR'
+										)
+				</otherwise>
+			</choose>
+			<if test="myCSR != null and myCSR != ''">
+				And ESM.ProjectID in (
+					SELECT TP.ProjectID
+					FROM XBOLTADM.TB_PROJECT TP
+					left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR on TP.ProjectID = TPMR.ProjectID
+					Where TPMR.MemberID = #{userID}
+					And TP.ProjectType = 'CSR'
+				)
+			</if>
+			And ESM.RegDT BETWEEN CAST(#{startDate} AS DATETIME) AND DATEADD(MS, -2, DATEADD(DAY,1,CAST(#{endDate} AS DATETIME)))
+		    AND ESM.SubCategory IN (
+		        'RCP020101',
+		        'RCP020102',
+		        'RCP030101',
+		        'RCP030102',
+		        'RDT120100',
+				'RDT120101',
+				'RDT120102'
+		    )
+		ORDER BY
+		    TTT2.Name,
+		    ESM.RegDT DESC
+	</select>
+	
+	<select id="getCustomerSatisfaction_gridList" resultType="java.util.HashMap"> 
+		select MAX(SRTypeNM) AS GUBUN 
+		     , SRCode AS SRCode 
+		     , MAX(ClientID) AS ClientID 
+		     , MAX(srAreaNM) AS srAreaNM 
+		     , MAX(RequestUserID) as RequestUserID 
+		     , MAX(RequserUserNM) as RequserUserNM 
+		     , MAX(RequestUserEmail) as RequestUserEmail 
+		     , MAX(Subject) AS Subject 
+		     , MAX(RCPTDATE) AS RCPTDATE 
+		     , MAX(ReqDueDate) AS ReqDueDate 
+		     , MAX(CompletionDT) AS CompletionDT  
+		     , ISNULL(MAX(SCORE1),0)  AS SCORE1 
+		     , ISNULL(MAX(SCORE2),0)  AS SCORE2 
+		     , max(instid) as instid
+		     , max(SRID) as SRID , max(SRType) as SRType , max(ESType) as ESType , max(Status) as Status , max(ReceiptUserID) as receiptUserID
+		FROM 
+		(
+		    select TD1.Name AS SRTypeNM
+		         , ESM.SRCode
+		         , ESM.ClientID
+		         , TIA1.PlainText + CASE WHEN ISNULL(TIA2.PlainText,'') = '' THEN '' ELSE  ' > ' + TIA2.PlainText END AS srAreaNM
+		         , TM1.LoginID RequestUserID
+		         , TM1.Name RequserUserNM
+		         , ESM.Subject
+		         , ISNULL(FORMAT(EAL.StartTime, 'yyyy-MM-dd'),' ') RCPTDATE
+		         , ISNULL(FORMAT(ESM.ReqDueDate, 'yyyy-MM-dd'),' ') ReqDueDate
+		         , ISNULL(FORMAT(ESM.CompletionDT, 'yyyy-MM-dd'),' ') AS CompletionDT
+		         , ISNULL(EEIV1.Value,0) as SCORE1
+		         , ISNULL(EEIV2.Value,0) as SCORE2
+		         , '' as instid
+		         , TM1.Email RequestUserEmail
+		         , ESM.SRID , ESM.SRType, ESM.ESType, ESM.Status, ESM.ReceiptUserID 
+		    FROM XBOLTAPP.ESM_SR_MST ESM WITH(NOLOCK)
+		    INNER JOIN XBOLTAPP.ESM_EVAL_SHEET EES WITH(NOLOCK) ON EES.DocumentID = ESM.SRID 
+		    INNER JOIN XBOLTAPP.ESM_EVAL_ITEM_VALUE EEIV1 WITH(NOLOCK) ON EEIV1.EvalSheetID = EES.EvalSheetID AND EEIV1.AttrTypeCode = 'EVAT001'
+		    INNER JOIN XBOLTAPP.ESM_EVAL_ITEM_VALUE EEIV2 WITH(NOLOCK) ON EEIV2.EvalSheetID = EES.EvalSheetID AND EEIV2.AttrTypeCode = 'EVAT002'
+		    INNER JOIN XBOLTADM.TB_MEMBER TM1 WITH(NOLOCK) ON TM1.MemberID = ESM.RequestUserID <!-- AND TM1.Active = 1 -->
+		    INNER JOIN XBOLTADM.TB_TEAM_TXT TTT1 WITH(NOLOCK) ON TTT1.TeamID = TM1.TeamID AND TTT1.LanguageID = #{languageID}
+		    
+<!-- 		    INNER JOIN XBOLTADM.TB_TEAM TT WITH(NOLOCK) ON TT.ClientID = ESM.ClientID AND TT.teamType = 2
+		    INNER JOIN XBOLTADM.TB_TEAM_TXT TTT2 WITH(NOLOCK) ON TTT2.TeamID = TT.TeamID AND TTT2.LanguageID = #{languageID} -->
+		    
+		    INNER JOIN XBOLTADM.TB_DICTIONARY TD1 WITH(NOLOCK) ON TD1.TypeCode = ESM.SRType AND TD1.LanguageID = #{languageID} AND TD1.Category = 'SRTP'
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM TI1 WITH(NOLOCK) ON TI1.ItemID = ESM.SRArea1
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM TI2 WITH(NOLOCK) ON TI2.ItemID = ESM.SRArea2
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA1 WITH(NOLOCK) ON TIA1.ItemID = TI1.ItemID AND TIA1.LanguageID = #{languageID} AND TIA1.AttrTypeCode = 'AT00001'
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA2 WITH(NOLOCK) ON TIA2.ItemID = TI2.ItemID AND TIA2.LanguageID = #{languageID} AND TIA2.AttrTypeCode = 'AT00001'
+		    LEFT OUTER JOIN XBOLTAPP.ESM_MBR_RCD EMR WITH(NOLOCK) ON EMR.SRID = ESM.SRID 
+		    LEFT OUTER JOIN XBOLTAPP.ESM_ACTIVITY_LOG EAL WITH(NOLOCK) ON EAL.PID = ESM.SRID AND EAL.ActivityLogID = ( SELECT MAX(ActivityLogID) FROM XBOLTAPP.ESM_ACTIVITY_LOG WHERE SpeCode != 'ZSPE00' AND PID = ESM.SRID )
+		    WHERE ESM.SRType != 'WRK'
+		      AND ESM.Blocked = '2'
+		      AND ESM.Status = 'ZSPE00'
+		      And EMR.WORK_DATE BETWEEN CAST(#{startDate} AS DATETIME) AND DATEADD(MS, -2, DATEADD(DAY,1,CAST(#{endDate} AS DATETIME)))
+		      <if test="customerNo != null and customerNo != ''">AND ESM.ClientID = #{customerNo}</if>
+			  <if test="myCSR != null and myCSR != ''">
+				And ESM.ProjectID in (
+					SELECT TP.ProjectID
+					FROM XBOLTADM.TB_PROJECT TP
+					left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR on TP.ProjectID = TPMR.ProjectID
+					Where TPMR.MemberID = #{userID}
+					And TP.ProjectType = 'CSR'
+				)
+			  </if>
+			 <if test="happyTypeList != null and happyTypeList != ''">AND (EEIV1.Value IN (${happyTypeList}) OR EEIV2.Value IN (${happyTypeList}))</if>
+		)T  
+		group by SRCode
+	</select>
+	
+	<select id="getCustomerSatisfactionOpinion_gridList" resultType="java.util.HashMap"> 
+		select MAX(SRTypeNM) AS GUBUN 
+		     , SRCode AS SRCode 
+		     , MAX(ClientID) AS ClientID 
+		     , MAX(srAreaNM) AS srAreaNM 
+		     , MAX(RequestUserTeamNM) AS RequestUserTeamNM 
+		     , MAX(RequestUserID) as RequestUserID 
+		     , MAX(RequserUserNM) as RequserUserNM 
+		     , MAX(RequestUserEmail) as RequestUserEmail 
+		     , MAX(Subject) AS Subject 
+		     , MAX(RCPTDATE) AS RCPTDATE 
+		     , MAX(ReqDueDate) AS ReqDueDate 
+		     , MAX(CompletionDT) AS CompletionDT  
+		     , ISNULL(MAX(SCORE1),0)  AS SCORE1 
+		     , ISNULL(MAX(SCORE2),0)  AS SCORE2 
+		     , max(instid) as instid
+		     , MAX(saSurveyDesc) as saSurveyDesc 
+		     , max(SRID) as SRID , max(SRType) as SRType , max(ESType) as ESType , max(Status) as Status , max(ReceiptUserID) as receiptUserID 
+		FROM 
+		(
+		    select TD1.Name AS SRTypeNM
+		               , ESM.SRCode
+		               , ESM.ClientID
+		               , TIA1.PlainText + CASE WHEN ISNULL(TIA2.PlainText,'') = '' THEN '' ELSE  ' > ' + TIA2.PlainText END AS srAreaNM
+		               , TM1.LoginID RequestUserID
+		               , TM1.Name RequserUserNM
+		               , TTT1.Name RequestUserTeamNM
+		               , ESM.Subject
+		               , ISNULL(FORMAT( ( SELECT TOP 1 StartTime
+		                                  FROM XBOLTAPP.ESM_ACTIVITY_LOG WITH (NOLOCK)
+		                                  WHERE SpeCode != 'ZSPE00'
+		                                    AND pid = ESM.SRID
+		                                  ORDER BY ActivityLogID DESC 
+		                               ), 'yyyy-MM-dd'),' ') RCPTDATE
+		               , ISNULL(FORMAT(ESM.ReqDueDate, 'yyyy-MM-dd'),' ') ReqDueDate
+		               , ISNULL(FORMAT(ESM.CompletionDT, 'yyyy-MM-dd'),' ') AS CompletionDT
+		               , ISNULL(EEIV1.Value,0) as SCORE1
+		               , ISNULL(EEIV2.Value,0) as SCORE2
+		               , '' as instid
+		               , TM1.Email RequestUserEmail
+		               , EEIV3.Value as saSurveyDesc
+		               , ESM.SRID , ESM.SRType, ESM.ESType, ESM.Status, ESM.ReceiptUserID
+		    FROM XBOLTAPP.ESM_SR_MST ESM  WITH(NOLOCK)
+		    INNER JOIN XBOLTAPP.ESM_MBR_RCD EMR WITH(NOLOCK) ON EMR.SRID = ESM.SRID 
+		    INNER JOIN XBOLTAPP.ESM_EVAL_SHEET EES WITH(NOLOCK) ON EES.DocumentID = ESM.SRID 
+		    INNER JOIN XBOLTAPP.ESM_EVAL_ITEM_VALUE EEIV1 WITH(NOLOCK) ON EEIV1.EvalSheetID = EES.EvalSheetID AND EEIV1.AttrTypeCode = 'EVAT001'
+		    INNER JOIN XBOLTAPP.ESM_EVAL_ITEM_VALUE EEIV2 WITH(NOLOCK) ON EEIV2.EvalSheetID = EES.EvalSheetID AND EEIV2.AttrTypeCode = 'EVAT002'
+		    INNER JOIN XBOLTAPP.ESM_EVAL_ITEM_VALUE EEIV3 WITH(NOLOCK) ON EEIV3.EvalSheetID = EES.EvalSheetID AND EEIV3.AttrTypeCode = 'EVAT003'  AND EEIV3.Value != ''
+		    INNER HASH JOIN XBOLTADM.TB_MEMBER TM1 WITH(NOLOCK) ON TM1.MemberID = ESM.RequestUserID <!-- AND TM1.Active = 1 -->
+		    INNER JOIN XBOLTADM.TB_TEAM_TXT TTT1 WITH(NOLOCK) ON TTT1.TeamID = TM1.TeamID AND TTT1.LanguageID = #{languageID}
+		   
+<!-- 		    INNER JOIN XBOLTADM.TB_TEAM TT WITH(NOLOCK) ON TT.ClientID = ESM.ClientID AND TT.teamType = 2		    
+		    INNER JOIN XBOLTADM.TB_TEAM_TXT TTT2 WITH(NOLOCK) ON TTT2.TeamID = TT.TeamID AND TTT2.LanguageID = #{languageID} -->
+		    INNER JOIN XBOLTADM.TB_DICTIONARY TD1 WITH(NOLOCK) ON TD1.TypeCode = ESM.SRType AND TD1.LanguageID = #{languageID} AND TD1.Category = 'SRTP'
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM TI1 WITH(NOLOCK) ON TI1.ItemID = ESM.SRArea1
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM TI2 WITH(NOLOCK) ON TI2.ItemID = ESM.SRArea2
+		    LEFT OUTER HASH JOIN XBOLTADM.TB_ITEM_ATTR TIA1 WITH(NOLOCK) ON TIA1.ItemID = TI1.ItemID AND TIA1.LanguageID = #{languageID} AND TIA1.AttrTypeCode = 'AT00001'
+		    LEFT OUTER HASH JOIN XBOLTADM.TB_ITEM_ATTR TIA2 WITH(NOLOCK) ON TIA2.ItemID = TI2.ItemID AND TIA2.LanguageID = #{languageID} AND TIA2.AttrTypeCode = 'AT00001'
+		    WHERE ESM.SRType != 'WRK'
+		      AND ESM.Blocked = '2'
+		      AND ESM.Status = 'ZSPE00'
+		      <if test="customerNo != null and customerNo != ''">AND ESM.ClientID = #{customerNo}</if>
+			  <if test="myCSR != null and myCSR != ''">
+				And ESM.ProjectID in (
+					SELECT TP.ProjectID
+					FROM XBOLTADM.TB_PROJECT TP
+					left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR WITH(NOLOCK) on TP.ProjectID = TPMR.ProjectID
+					Where TPMR.MemberID = #{userID}
+					And TP.ProjectType = 'CSR'
+				)
+			  </if>
+		      And EMR.WORK_DATE BETWEEN CAST(#{startDate} AS DATETIME) AND DATEADD(MS, -2, DATEADD(DAY,1,CAST(#{endDate} AS DATETIME)))
+		) T    
+		group by SRCode
+	</select>
+	
+	<!-- 통계 end -->
+	
+	<insert id="insertOutputRcd" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTAPP.ESM_SCR_OUTPUT_RCD (
+			RCDID
+			,SRID
+			,MemberID
+			,ProcRoleTP
+			,SpeCode
+			,NEW_SCRIN_OUTPUT_QY
+			,NEW_BATCH_OUTPUT_QY
+			,NEW_CONFIG_OUTPUT_QY
+			,NEW_DATA_OUTPUT_QY
+			,NEW_TABLE_OUTPUT_QY
+			,NEW_SCRIN_OUTPUT_DTL
+			,NEW_BATCH_OUTPUT_DTL
+			,NEW_CONFIG_OUTPUT_DTL
+			,NEW_DATA_OUTPUT_DTL
+			,NEW_TABLE_OUTPUT_DTL
+			,CHANGE_SCRIN_OUTPUT_QY
+			,CHANGE_BATCH_OUTPUT_QY
+			,CHANGE_CONFIG_OUTPUT_QY
+			,CHANGE_DATA_OUTPUT_QY
+			,CHANGE_TABLE_OUTPUT_QY
+			,CHANGE_SCRIN_OUTPUT_DTL
+			,CHANGE_BATCH_OUTPUT_DTL
+			,CHANGE_CONFIG_OUTPUT_DTL
+			,CHANGE_DATA_OUTPUT_DTL
+			,CHANGE_TABLE_OUTPUT_DTL
+			,RESPONSE_SPEED
+			,BATCH_SPEED
+			,Creator
+			,CreationTime
+			,LastUser
+			,LastUpdated
+		) 
+		VALUES (
+		#{rcdID}
+		,#{srID}
+		,#{memberID}
+		,#{procRoleTP}
+		,#{speCode}
+		,#{NEW_SCRIN_OUTPUT_QY}
+		,#{NEW_BATCH_OUTPUT_QY}
+		,#{NEW_CONFIG_OUTPUT_QY}
+		,#{NEW_DATA_OUTPUT_QY}
+		,#{NEW_TABLE_OUTPUT_QY}
+		,#{NEW_SCRIN_OUTPUT_DTL}
+		,#{NEW_BATCH_OUTPUT_DTL}
+		,#{NEW_CONFIG_OUTPUT_DTL}
+		,#{NEW_DATA_OUTPUT_DTL}
+		,#{NEW_TABLE_OUTPUT_DTL}
+		,#{CHANGE_SCRIN_OUTPUT_QY}
+		,#{CHANGE_BATCH_OUTPUT_QY}
+		,#{CHANGE_CONFIG_OUTPUT_QY}
+		,#{CHANGE_DATA_OUTPUT_QY}
+		,#{CHANGE_TABLE_OUTPUT_QY}
+		,#{CHANGE_SCRIN_OUTPUT_DTL}
+		,#{CHANGE_BATCH_OUTPUT_DTL}
+		,#{CHANGE_CONFIG_OUTPUT_DTL}
+		,#{CHANGE_DATA_OUTPUT_DTL}
+		,#{CHANGE_TABLE_OUTPUT_DTL}
+		,#{RESPONSE_SPEED}
+		,#{BATCH_SPEED}
+		,#{lastUser}
+		,GETDATE()
+		,#{lastUser}
+		,GETDATE()
+		)
+	</insert>
+	
+	<update id="updateOutputRcd" parameterType="java.util.HashMap">
+		UPDATE XBOLTAPP.ESM_SCR_OUTPUT_RCD SET
+			MemberID = #{memberID},
+			ProcRoleTP = #{procRoleTP},
+			NEW_SCRIN_OUTPUT_QY = #{NEW_SCRIN_OUTPUT_QY},
+			NEW_BATCH_OUTPUT_QY = #{NEW_BATCH_OUTPUT_QY},
+			NEW_CONFIG_OUTPUT_QY = #{NEW_CONFIG_OUTPUT_QY},
+			NEW_DATA_OUTPUT_QY = #{NEW_DATA_OUTPUT_QY},
+			NEW_TABLE_OUTPUT_QY = #{NEW_TABLE_OUTPUT_QY},
+			NEW_SCRIN_OUTPUT_DTL = #{NEW_SCRIN_OUTPUT_DTL},
+			NEW_BATCH_OUTPUT_DTL = #{NEW_BATCH_OUTPUT_DTL},
+			NEW_CONFIG_OUTPUT_DTL = #{NEW_CONFIG_OUTPUT_DTL},
+			NEW_DATA_OUTPUT_DTL = #{NEW_DATA_OUTPUT_DTL},
+			NEW_TABLE_OUTPUT_DTL = #{NEW_TABLE_OUTPUT_DTL},
+			CHANGE_SCRIN_OUTPUT_QY = #{CHANGE_SCRIN_OUTPUT_QY},
+			CHANGE_BATCH_OUTPUT_QY = #{CHANGE_BATCH_OUTPUT_QY},
+			CHANGE_CONFIG_OUTPUT_QY = #{CHANGE_CONFIG_OUTPUT_QY},
+			CHANGE_DATA_OUTPUT_QY = #{CHANGE_DATA_OUTPUT_QY},
+			CHANGE_TABLE_OUTPUT_QY = #{CHANGE_TABLE_OUTPUT_QY},
+			CHANGE_SCRIN_OUTPUT_DTL = #{CHANGE_SCRIN_OUTPUT_DTL},
+			CHANGE_BATCH_OUTPUT_DTL = #{CHANGE_BATCH_OUTPUT_DTL},
+			CHANGE_CONFIG_OUTPUT_DTL = #{CHANGE_CONFIG_OUTPUT_DTL},
+			CHANGE_DATA_OUTPUT_DTL = #{CHANGE_DATA_OUTPUT_DTL},
+			CHANGE_TABLE_OUTPUT_DTL = #{CHANGE_TABLE_OUTPUT_DTL},
+			RESPONSE_SPEED = #{RESPONSE_SPEED},
+			BATCH_SPEED = #{BATCH_SPEED},
+			LastUser = #{lastUser},
+			LastUpdated = GETDATE()
+		Where RCDID = #{rcdID}
+	</update>
+	
+	<select  id="zDaelim_SelectAllFileList" resultType="java.util.HashMap">
+		SELECT 
+			TF.SEQ,
+			TF.FileName,
+			TF.FileRealName,
+			TFT.FilePath + TF.FileName as SysFile,
+			TFT.FilePath + TF.FileRealName as OrigFile,
+			TFT.FilePath,
+			TF.CreationTime,		
+		   '.'+RIGHT(TF.FileRealName, CHARINDEX('.', REVERSE(TF.FileRealName)) - 1) AS FileExtension
+		FROM XBOLTADM.TB_FILE TF WITH(NOLOCK)
+		LEFT OUTER JOIN XBOLTADM.TB_FLTP TFT WITH(NOLOCK) ON TF.FltpCode = TFT.FltpCode
+		Where CONVERT(varchar(10), TF.CreationTime , 120) BETWEEN #{startDate} AND #{endDate}
+	</select>
+	
+	<select id="getEclickWFList_gridList" resultType="java.util.HashMap">
+		SELECT 
+			 ROW_NUMBER() OVER (ORDER BY T1.REG_DATE) AS RNUM
+			 , T1.ID
+		     , T1.TITLE
+		     , T1.REQ_USR_ID
+		     , T1.REQ_USR_NAME
+			 , T1.REG_DATE
+		     , T1.STATUS_ID
+		     , T1.STATUS_NAME
+		     , T1.REQ_DEPT_APPROVE_PCS_ID 
+		     , T1.REQ_DEPT_APPROVE_PCS_NAME
+			 , T1.REQ_DEPT_APPROVE_PID
+		     , T1.RVW_APPROVE_PCS_ID
+		     , T1.RVW_APPROVE_PCS_NAME
+			 , T1.RVW_APPROVE_PID
+		     , T1.REQ_DEPT_APP_OPIN 
+			 , T1.RVW_APP_OPIN
+			 , T1.DocTypeName
+			 , T1.DocTypeID
+			 , T1.SRID
+			 , T1.SpeCode
+			 , T1.ActivityLogID
+			 , T1.Category, T1.SubCategory
+			 , T1.ClientID
+			 , T1.ProjectID
+			 , T1.RequestUserID
+			 , T1.ActorID
+		  FROM 
+		  (
+		
+			SELECT APRV.ID
+				 , APRV.TITLE
+			     , APRV.REQ_USR_ID
+			     , APRV.REQ_USR_NAME
+				 , CONVERT(VARCHAR, APRV.REG_DATE, 120) AS REG_DATE
+			     , APRV.STATUS_ID
+			     , APRV.STATUS_NAME
+			     , APRV.REQ_DEPT_APPROVE_PCS_ID 
+			     , APRV.REQ_DEPT_APPROVE_PCS_NAME
+				 , APRV.REQ_DEPT_APPROVE_PID
+			     , APRV.RVW_APPROVE_PCS_ID
+			     , APRV.RVW_APPROVE_PCS_NAME
+				 , APRV.RVW_APPROVE_PID
+			     , CASE WHEN ISNULL(APRV.REQ_DEPT_APP_OPIN,'') ='' THEN 'N' ELSE 'Y' END AS REQ_DEPT_APP_OPIN
+				 , CASE WHEN ISNULL(APRV.RVW_APP_OPIN,'') = '' THEN 'N' ELSE 'Y' END AS RVW_APP_OPIN
+				 , '요청부서 승인요청' AS DocTypeName
+				 , 1 AS DocTypeID
+				 , ESM.SRID
+				 , EAL.SpeCode
+				 , EAL.ActivityLogID
+				 , ESM.Category, ESM.SubCategory
+				 , ESM.ClientID
+				 , ESM.ProjectID
+				 , ESM.RequestUserID
+				 , EAL.ActorID
+			  FROM 
+			        (SELECT ID
+			        	 , TITLE
+			             , CORP_ID
+			             , CORP_NAME
+						 , REQ_USR_ID
+			             , REQ_USR_NAME
+			             , REG_DATE
+			             , RCPT_USR_ID
+			             , RCPT_USR_NAME
+			             , RCPT_DATE
+			             , CLOSE_DATE
+			             , CLOSE_TYPE_ID
+			             , CLOSE_TYPE_NAME
+			             , PHASE_ID
+			             , PHASE_NAME
+			             , STATUS_ID
+			             , STATUS_NAME
+			             , REQ_DEPT_APPROVE_PCS_ID
+			             , REQ_DEPT_APPROVE_PCS_NAME
+						 , REQ_DEPT_APPROVE_PID
+			             , RVW_APPROVE_PCS_ID
+			             , RVW_APPROVE_PCS_NAME
+						 , RVW_APPROVE_PID
+			             , REQ_DEPT_APP_OPIN
+			             , RVW_APP_OPIN
+			          FROM XBOLTDLM.AP_CHANGE
+					  UNION ALL
+			          SELECT ID
+			          	 , TITLE
+			             , CORP_ID
+			             , CORP_NAME
+			             , REQ_USR_ID
+			             , REQ_USR_NAME
+			             , REG_DATE
+			             , RCPT_USR_ID
+			             , RCPT_USR_NAME
+			             , RCPT_DATE
+			             , CLOSE_DATE
+			             , CLOSE_TYPE_ID
+			             , CLOSE_TYPE_NAME
+			             , PHASE_ID
+			             , PHASE_NAME
+			             , STATUS_ID
+			             , STATUS_NAME
+			             , REQ_DEPT_APPROVE_PCS_ID 
+			             , REQ_DEPT_APPROVE_PCS_NAME
+						 , REQ_DEPT_APPROVE_PID
+			             , NULL RVW_APPROVE_PCS_ID
+			             , NULL RVW_APPROVE_PCS_NAME
+						 , NULL RVW_APPROVE_PID
+			             , REQ_DEPT_APP_OPIN
+			             , NULL RVW_APP_OPIN
+			          FROM XBOLTDLM.DATA_CHANGE
+			          UNION ALL
+			          SELECT ID
+			          	 , TITLE
+			             , CORP_ID
+			             , CORP_NAME
+			             , REQ_USR_ID
+			             , REQ_USR_NAME
+			             , REG_DATE
+			             , RCPT_USR_ID
+			             , RCPT_USR_NAME
+			             , RCPT_DATE
+			             , CLOSE_DATE
+			             , CLOSE_TYPE_ID
+			             , CLOSE_TYPE_NAME
+			             , PHASE_ID
+			             , PHASE_NAME
+			             , STATUS_ID
+			             , STATUS_NAME
+			             , REQ_DEPT_APPROVE_PCS_ID 
+			             , REQ_DEPT_APPROVE_PCS_NAME
+						 , REQ_DEPT_APPROVE_PID
+			             , NULL RVW_APPROVE_PCS_ID
+			             , NULL RVW_APPROVE_PCS_NAME
+						 , NULL RVW_APPRPVE_PID
+			             , REQ_DEPT_APP_OPIN
+			             , NULL RVW_APP_OPIN
+			          FROM XBOLTDLM.INFRA_CHANGE
+			          UNION ALL
+			          SELECT ID
+			             , TITLE
+			             , CORP_ID
+			             , CORP_NAME
+			             , REQ_USR_ID
+			             , REQ_USR_NAME
+			             , REG_DATE
+			             , RCPT_USR_ID
+			             , RCPT_USR_NAME
+			             , RCPT_DATE
+			             , CLOSE_DATE
+			             , CLOSE_TYPE_ID
+			             , CLOSE_TYPE_NAME
+			             , PHASE_ID
+			             , PHASE_NAME
+			             , STATUS_ID
+			             , STATUS_NAME
+			             , REQ_DEPT_APPROVE_PCS_ID 
+			             , REQ_DEPT_APPROVE_PCS_NAME
+						 , REQ_DEPT_APPROVE_PID
+			             , NULL RVW_APPROVE_PCS_ID
+			             , NULL RVW_APPROVE_PCS_NAME
+						 , NULL RVW_APPROVE_PID
+			             , REQ_DEPT_APP_OPIN
+			             , NULL RVW_APP_OPIN
+			          FROM XBOLTDLM.SECURITY_CHANGE
+			          ) APRV
+					  INNER JOIN XBOLTAPP.ESM_SR_MST ESM ON ESM.SRCode = APRV.ID
+					  INNER JOIN XBOLTAPP.ESM_ACTIVITY_LOG EAL ON EAL.PID = ESM.SRID And EAL.SpeCode IN( 'ACM0005', 'DCM0003','ICM0003','SCM0003')
+			 WHERE 
+				ISNULL(REQ_DEPT_APPROVE_PCS_ID,'X') NOT IN('APP000103','APP000104','X') -- 승인/반려 아닌것
+			   AND ISNULL(CLOSE_TYPE_ID, 'X') NOT IN('CLT000104', 'CLT000100')
+			   AND CONVERT(VARCHAR, REG_DATE, 112) >= '20240101'
+			   And NOT EXISTS (
+					Select DocumentNo From XBOLTADM.TB_WF_INST 
+					Where DocumentNo = APRV.ID 
+					And DocumentID = EAL.ActivityLogID
+			   )
+		 UNION ALL
+		 SELECT RVW.ID
+		     , RVW.TITLE
+		     , RVW.REQ_USR_ID
+		     , RVW.REQ_USR_NAME
+			 , CONVERT(VARCHAR, RVW.REG_DATE, 120) AS REG_DATE
+		     , RVW.STATUS_ID
+		     , RVW.STATUS_NAME
+		     , RVW.REQ_DEPT_APPROVE_PCS_ID 
+		     , RVW.REQ_DEPT_APPROVE_PCS_NAME
+			 , RVW.REQ_DEPT_APPROVE_PID
+		     , RVW.RVW_APPROVE_PCS_ID
+		     , RVW.RVW_APPROVE_PCS_NAME
+			 , RVW.RVW_APPROVE_PID
+		     , CASE WHEN ISNULL(RVW.REQ_DEPT_APP_OPIN,'') ='' THEN 'N' ELSE 'Y' END AS REQ_DEPT_APP_OPIN
+			 , CASE WHEN ISNULL(RVW.RVW_APP_OPIN,'') = '' THEN 'N' ELSE 'Y' END AS RVW_APP_OPIN
+			 , '배포부서 승인요청' AS DocTypeName
+			 , 2 AS DocTypeID
+			 , ESM2.SRID
+			 , EAL2.SpeCode
+			 , EAL2.ActivityLogID
+			 , ESM2.Category, ESM2.SubCategory
+			 , ESM2.ClientID
+			 , ESM2.ProjectID
+			 , ESM2.RequestUserID
+			 , EAL2.ActorID
+		  FROM XBOLTDLM.AP_CHANGE RVW     
+		  INNER JOIN XBOLTAPP.ESM_SR_MST ESM2 ON ESM2.SRCODE = RVW.ID
+		  INNER JOIN XBOLTAPP.ESM_ACTIVITY_LOG EAL2 ON EAL2.PID = ESM2.SRID And EAL2.SpeCode = 'ACM0010'
+		 WHERE ISNULL(RVW.RVW_APPROVE_PCS_ID,'X') NOT IN('APP000103','APP000104','X') -- 승인/반려 아닌것
+		   AND ISNULL(RVW.CLOSE_TYPE_ID, 'X') NOT IN('CLT000104', 'CLT000100')
+		   AND CONVERT(VARCHAR, RVW.REG_DATE, 112) >= '20240101'
+		   And NOT EXISTS (
+					Select DocumentNo From XBOLTADM.TB_WF_INST 
+					Where DocumentNo = RVW.ID 
+					And DocumentID = EAL2.ActivityLogID
+			   )
+		) T1
+		ORDER BY T1.REG_DATE  
+
+	</select>
+	
+	<select id="zdlm_getESPSearchList_gridList" resultType="java.util.HashMap">
+	 	Select 
+			Top 1000  Row_Number()OVER(ORDER BY TBD.RegDTOrg DESC ) as RNUM, TBD.*
+		From(
+		 	Select
+		 	 	TSM.SRID, TSM.SRCode, TSM.SRType, TSM.ESType, TD5.Name AS SRTypeNM, TSM.ProcRoleTP,
+				TEAM6.Name AS CompanyName, TSM.ClientID,TSM.ProjectID,
+				TSM.Subject, TSM.Description,
+				TSM.ProcPathID, TSM.SRArea1, TIA.PlainText As SRArea1Name,
+				TSM.SRArea2, TIA2.PlainText As SRArea2Name,
+				TSM.Category,  TD4.Name As CategoryNM,
+				TSM.SubCategory, ISNULL(TD3.Name, TD4.Name) As SubCategoryNM,
+				TSM.Status, TISA.PlainText As StatusName, TSM.RegUserID, TM2.Name As RegUserName,
+				TSM.RegTeamID, TEAM1.Name As RegTeamName,
+				ISNULL(CONVERT(char(10),TSM.RegDT, 120),'') as RegDate,				
+				TSM.RequestUserID, TM3.Name As ReqUserNM,
+				TSM.RequestTeamID, TEAM2.Name As ReqTeamNM,
+				ISNULL(CONVERT(char(10),TSM.DueDate, 120),'') as SRDueDate,				
+				ISNULL(CONVERT(char(10),TSM.ReqDueDate, 120),'') as ReqDueDate,				
+				TSM.ReceiptUserID, TM4.Name As ReceiptName, 
+				TSM.ReceiptTeamID, TEAM3.Name As ReceiptTeamName,
+				TM4.Name + '(' + TEAM3.Name + ')' as ReceiptInfo,
+				TM3.Name + '(' + TEAM2.Name + ')' as RequestInfo,
+				TSM.ResponseUserID, TM5.Name As ResponseUserName,
+				TSM.ResponseTeamID, TEAM4.Name As ResponseTeamName,
+				TM5.Name + '(' + TEAM4.Name + ')' as ResponseInfo,
+				ISNULL(CONVERT(char(10),TSM.CompletionDT, 120),'') as SRCompletionDT,
+				
+				TSM.RegDT As RegDTOrg,
+				TSM.ReqDueDate AS ReqDueDateOrg,
+				TSM.DueDate as DueDateOrg,
+				TSM.CompletionDT As CompletionDTOrg,
+				TSM.CompanyID,
+				TSM.ReceiptTeamID As SRReceiptTeamID,
+				Case When CompletionDT IS NULL Then 'N' Else 'Y' End AS SvcCompl,
+				
+				ReceiptDelay = CASE WHEN TSM.Duedate is null THEN 
+												CASE WHEN CONVERT(INT, DATEDIFF(HH, TSM.RegDT, GETDATE())) >= 12 THEN 'Y'
+														ELSE 'N'
+												END
+											ELSE 'N'
+										END,
+			 	CompletionDelay = CASE WHEN TSM.CompletionDT is null THEN 
+														CASE 
+															<![CDATA[ WHEN TSM.Duedate < GETDATE() THEN 'Y' ]]>
+															ELSE 'N'
+														END
+														WHEN TSM.CompletionDT is not null THEN 
+															CASE 
+																<![CDATA[WHEN TSM.Duedate < tsm.CompletionDT THEN 'Y']]>
+																ELSE 'N'
+															END
+														END,
+				TI.Identifier AS ItemCode,
+				TIA3.PlainText AS ItemName,
+				TSM.ItemTypeCode,
+				ISNULL(TD2.Name, TD6.Name) AS ItemTypeCodeNM,
+				TI.Identifier+' '+TIA3.PlainText+' ('+TIA.PlainText+'/'+TIA2.PlainText+')' AS ItemInfo,
+				TIA.PlainText+'/'+TIA2.PlainText AS SRAreaNM,
+				TD8.Name AS ProcRoleTypeName,
+				XBOLTAPP.fn_GetESPRoleTPMemberList(TSM.ProcRoleTP, 
+					 CASE WHEN (TSM.SRArea2 IS NULL OR TSM.SRArea2 = '' OR TSM.SRArea2 = '0') THEN TSM.SRArea1 ELSE TSM.SRArea2 END
+				)  AS ProcRoleTypeMemberList,
+				TSM.isPublic,
+				TMT.Name AS RequestCompanyName,
+				CASE WHEN ISNULL(TSM.ReceiptUserID,'') != '' THEN 
+					(Select Top 1 ISNULL(CONVERT(char(10),StartTime, 120),'') From XBOLTAPP.ESM_ACTIVITY_LOG Where PID = TSM.SRID ORDER BY ActivityLogID) 
+				ELSE NULL END AS ReceiptDate,
+			    CASE 
+			    <![CDATA[ WHEN TSM.DueDate < GETDATE() AND TSM.CompletionDT IS NULL THEN ]]>
+			        DATEDIFF(DAY, TSM.DueDate, GETDATE())  
+			    WHEN TSM.CompletionDT IS NOT NULL THEN 
+			       Case When DATEDIFF(DAY, TSM.CompletionDT, TSM.DueDate) IS NULL THEN 0 ELSE
+				DATEDIFF(DAY, TSM.CompletionDT, TSM.DueDate) END
+			    ELSE 0 
+			END AS CompletionDelayDays
+			
+			<!-- ,XBOLTAPP.fn_GetStartEventCode(TSM.SRID, TSM.ProcPathID)  AS FirstSpeCode, -->
+			<!-- 
+			TSM.CustGRNo, TSM.ProjectID, TPT.Name As ProjectName, TSM.Comment, ISNULL(TSM.SRArea3,'0') AS SRArea3,
+			TSM.Priority, TD.Name As PriorityName,TD7.Name As SRReasonNM,
+			TSM.Classification As Classification,
+			
+			 -->
+			
+			From XBOLTAPP.ESM_SR_MST TSM WITH(NOLOCK)
+			Left Outer Join XBOLTADM.TB_MEMBER TM2 WITH(NOLOCK) On TM2.MemberID = TSM.RegUserID
+			Left Outer Join XBOLTADM.TB_MEMBER TM3 WITH(NOLOCK) On TM3.MemberID = TSM.RequestUserID
+			Left Outer Join XBOLTADM.TB_MEMBER TM4 WITH(NOLOCK) On TM4.MemberID = TSM.ReceiptUserID
+			Left Outer Join XBOLTADM.TB_MEMBER TM5 WITH(NOLOCK) On TM5.MemberID = TSM.ResponseUserID
+			<!-- Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT ON TPT.ProjectID = TSM.ProjectID And TPT.LanguageID = #{languageID} -->
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD4 WITH(NOLOCK) On TD4.TypeCode = TSM.Category AND TD4.Category = 'SRCAT' And TD4.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD3 WITH(NOLOCK) On TD3.TypeCode = TSM.SubCategory And TD3.Category = 'SRCAT' And TD3.LanguageID = #{languageID}
+			<!-- Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TSM.Priority And TD.Category = 'PRT' And TD.LanguageID = #{languageID} -->
+			Left Outer Join XBOLTADM.TB_ITEM TIS WITH(NOLOCK) ON TSM.Status = TIS.Identifier
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TISA WITH(NOLOCK) ON TISA.ItemID = TIS.ItemID And TISA.AttrTypeCode = 'AT00001' And TISA.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM1 WITH(NOLOCK) ON TEAM1.TeamID = TSM.RegTeamID And TEAM1.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM2 WITH(NOLOCK) ON TEAM2.TeamID = TSM.RequestTeamID And TEAM2.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM3 WITH(NOLOCK) ON TEAM3.TeamID = TSM.ReceiptTeamID And TEAM3.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM4 WITH(NOLOCK) ON TEAM4.TeamID = TSM.ResponseTeamID And TEAM4.LanguageID = #{languageID} 
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA WITH(NOLOCK) ON TIA.ItemID = TSM.SRArea1 And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID  =  #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 WITH(NOLOCK) ON TIA2.ItemID = TSM.SRArea2 And TIA2.AttrTypeCode = 'AT00001' And TIA2.LanguageID  =  #{languageID}
+			<!-- Left Outer Join XBOLTADM.OLM_SRSUMMARY_VIEW SRVIEW ON SRVIEW.SRID = TSM.SRID -->
+			Left Outer Join XBOLTADM.TB_ITEM TI WITH(NOLOCK) ON TSM.SRArea3 = TI.ItemID
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA3 WITH(NOLOCK) ON TIA3.ItemID = TSM.SRArea3 And TIA3.AttrTypeCode = 'AT00001' And TIA3.LanguageID  =  #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD2 WITH(NOLOCK) On TD2.TypeCode = TSM.ItemTypeCode And TD2.Category = 'OJ' And TD2.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD5 WITH(NOLOCK) On TD5.TypeCode = TSM.SRType And TD5.Category = 'SRTP' And TD5.LanguageID = #{languageID}
+			Left Outer Join XBOLTAPP.ESM_SR_TYPE EST WITH(NOLOCK) On EST.srtypecode = TSM.srtype
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD6 WITH(NOLOCK) On TD6.TypeCode = EST.ItemTypeCode And TD6.Category = 'OJ' And TD6.LanguageID = #{languageID}
+			Left Outer Join XBOLTAPP.CRM_CUST_MST CCM WITH(NOLOCK) ON TSM.ClientID = CCM.CustomerNo
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM6 WITH(NOLOCK) ON TEAM6.TeamID = CCM.TeamID And TEAM6.LanguageID = #{languageID}
+			<!-- Left Outer Join XBOLTADM.TB_DICTIONARY TD7 On TD7.TypeCode = TSM.Reason And TD7.Category = 'SRRSN' And TD7.LanguageID = #{languageID} -->
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD8 WITH(NOLOCK) On TD8.TypeCode = TSM.ProcRoleTP And TD8.Category = 'SRROLETP' And TD8.LanguageID = #{languageID}
+			
+			Left Outer Join XBOLTADM.TB_TEAM TM WITH(NOLOCK) ON TM.TeamID = TSM.RequestTeamID 
+			Left Outer Join XBOLTAPP.CRM_CUST_MST CCM2 WITH(NOLOCK) ON CCM2.CustomerNo = TM.ClientID 
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT WITH(NOLOCK) ON TMT.TeamID = CCM2.TeamID And TMT.LanguageID = #{languageID}
+		) AS TBD 
+		<where>
+		    <if test="esType != null and esType != ''">
+				AND TBD.ESType = #{esType}
+			</if>
+			<if test="srType != null and srType != ''">
+				AND TBD.SRType = #{srType}
+			</if>
+			<if test="srMode != null and srMode.equals('mySR')">
+				AND #{sessionUserID} In (RequestUserID, ReceiptUserID , RegUserID)
+			</if>
+			<if test="srMode != null and srMode.equals('myToDo')">
+				AND #{sessionUserID} In ( ReceiptUserID )
+			</if>
+			<if test="srMode != null and srMode.equals('myRes')">
+				AND #{sessionUserID} In ( ReceiptUserID, ResponseUserID )
+			</if>
+			<if test="srMode != null and srMode.equals('myReq')">
+				AND #{sessionUserID} In (RequestUserID)
+			</if>
+			<if test="srMode != null and srMode.equals('myVOC')">
+				AND #{sessionUserID}  In (RequestUserID, ReceiptUserID)
+			</if>
+			<if test="srMode != null and srMode.equals('myClient')">
+				AND TBD.ClientID = (Select ClientID from XBOLTADM.TB_MEMBER Where MemberID = #{sessionUserID} )
+			</if>
+			<if test="srMode != null and srMode.equals('myTR')">
+				AND TBD.SRID In (Select PID from XBOLTADM.TB_PROC_LOG where ActorID = #{sessionUserID} and ActivityID = 'ACTP003')
+			</if>
+			<if test="srMode != null and srMode.equals('myTeam')">
+				AND #{myTeamId}  In (TBD.RequestTeamID, TBD.ReceiptTeamID)
+			</if>
+			<if test="srMode != null and srMode.equals('myRole')">
+				AND #{sessionUserID} In (SELECT MemberID FROM XBOLTADM.TB_MY_ITEM WHERE ItemID = TBD.SRArea2 AND Assigned = '1')
+			</if>		
+			<if test="inProgress != null and inProgress != ''">
+				<choose>
+					<when test="inProgress.equals('ING')">
+						And SvcCompl = 'N' 
+					</when>
+					<when test="inProgress.equals('COMPL')">
+						And SvcCompl = 'Y' 
+					</when>
+					<when test="inProgress.equals('ALL')">
+					</when>
+					<when test="inProgress.equals('TEMP')">
+						And TBD.IsPublic = 0
+					</when>
+				</choose>
+			</if>
+			<if test="srStatus != null and srStatus != ''">
+				AND TBD.Status = #{srStatus}
+			</if>
+			<if test="srStatusArr != null and srStatusArr != ''">
+				AND TBD.Status IN (${srStatusArr})
+			</if>
+			<if test="srMode != null and srMode.equals('PG')">
+				AND TBD.ProjectID IN (Select ProjectID From XBOLTADM.TB_PROJECT Where RefPGID = #{refID} And ProjectType = 'PJT' )
+			</if>	
+			<if test="srMode != null and srMode.equals('PJT')">
+				AND TBD.ProjectID = #{refID} 
+			</if>	
+			<if test="srMode != null and srMode.equals('myPJT')">
+				AND TBD.ProjectID IN (Select ProjectID From XBOLTADM.TB_PJT_MEMBER_REL Where MemberID = #{sessionUserID} AND Involved = '1' )
+			</if>	
+			<if test="requestUserName != null and requestUserName != ''">
+				AND ReqUserNM like N'%'+#{requestUserName}+'%'
+			</if>
+			<if test="regUserName != null and regUserName != ''">
+				AND RegUserName like N'%'+#{regUserName}+'%'
+			</if>
+			<if test="receiptUserName != null and receiptUserName != ''">
+				AND ReceiptName like N'%'+#{receiptUserName}+'%'
+			</if>
+			<if test="regStartDate != null and regStartDate != ''">
+				AND <![CDATA[ CONVERT(varchar(10), TBD.RegDate, 120) BETWEEN #{regStartDate} AND #{regEndDate}  ]]>
+			</if>
+			<if test="srArea1 != null and srArea1 != ''">
+				AND TBD.SRArea1 = #{srArea1}
+			</if>
+			<if test="srArea2 != null and srArea2 != ''">
+				AND TBD.SRArea2 = #{srArea2}
+			</if>
+			<if test="category != null and category != ''">
+				AND TBD.Category = #{category} 
+			</if>
+			<if test="subCategory != null and subCategory != ''">
+				AND TBD.SubCategory = #{subCategory}
+			</if>
+			<if test="priority != null and priority != ''">
+				AND TBD.Priority = #{priority} 
+			</if>
+			<if test="stSRDueDate != null and stSRDueDate != ''">
+				AND <![CDATA[ CONVERT(varchar(10), TBD.SRdueDate, 120) BETWEEN #{stSRDueDate} AND #{endSRDueDate}  ]]>
+			</if>
+			<if test="stSRCompDT != null and stSRCompDT != ''">
+				AND <![CDATA[ CONVERT(varchar(10), TBD.SRCompletionDT, 120) BETWEEN #{stSRCompDT} AND #{endSRCompDT}  ]]>
+			</if>
+			
+			<!-- <if test="stCRDueDate != null and stCRDueDate != ''">
+				AND <![CDATA[ CONVERT(varchar(10), TBD.CRdueDate, 120) BETWEEN #{stCRDueDate} AND #{endCRDueDate}  ]]>
+			</if> -->
+			
+			<if test="completionDT != null and completionDT != ''">
+				AND <![CDATA[ Convert(varchar(10),TBD.CompletionDT, 120)  <= #{completionDT}  ]]>
+			</if>
+			<if test="srCode != null and srCode != ''">
+				AND TBD.SRCode like N'%'+#{srCode}+'%'
+			</if>
+			<if test="srID != null and srID != ''">
+				AND TBD.SrID = #{srID}
+			</if>
+			<if test="requestTeam != null and requestTeam != ''">
+				AND TBD.RequestTeamID = #{requestTeam}
+			</if>
+			<if test="responseTeamID != null and responseTeamID != ''">
+				AND TBD.ResponseTeamID = #{responseTeamID}
+			</if>
+			<if test="srReceiptTeam != null and srReceiptTeam != ''">
+				AND TBD.SRReceiptTeamID = #{srReceiptTeam}
+			</if>
+			<if test="receiptDelay != null and receiptDelay != ''">
+				AND TBD.ReceiptDelay = #{receiptDelay}
+			</if>
+			<if test="completionDelay != null and completionDelay != ''">
+				AND TBD.CompletionDelay = #{completionDelay}
+			</if>
+			<if test="subject != null and subject != ''">
+				AND TBD.Subject like N'%'+#{subject}+'%'
+			</if>
+			<if test="itemID != null and itemID != ''">
+				AND #{itemID}  IN (TBD.SRArea1, TBD.SRArea2, TBD.SRArea3)
+			</if>
+			<if test="classification != null and classification != ''">
+				AND Classification = #{classification}
+			</if>
+			<if test="requestTeamList != '' and requestTeamList != null">
+				AND TBD.RequestTeamID IN (${requestTeamList})
+			</if>
+			<if test="companyList != '' and companyList != null" >
+				AND ( TBD.CompanyID IN (${companyList}) OR TBD.RequestTeamID IN (${companyList}) )
+			</if>
+			<if test="custGRNo != '' and custGRNo != null" >
+				AND TBD.CustGRNo = #{custGRNo}
+			</if>
+			<if test="custNo != '' and custNo != null" >
+				AND TBD.ClientID = #{custNo})
+			</if>
+			<if test="clientID != '' and clientID != null" >
+				AND TBD.ClientID = #{clientID}
+			</if>
+			<if test="companyID != '' and companyID != null" >
+				AND TBD.CompanyID IN (#{companyID})
+			</if>
+			<if test="itemCode != null and itemCode != ''">
+				AND TBD.ItemCode like N'%'+#{itemCode}+'%'
+			</if>
+			<if test="itemName != null and itemName != ''">
+				AND TBD.ItemName like N'%'+#{itemName}+'%'
+			</if>
+			<if test="itemID == null and itemTypeCode != null and itemTypeCode != ''">
+				AND TBD.ItemTypeCode = #{itemTypeCode}
+			</if>
+			<if test="fromSRID != null and fromSRID != ''">
+				AND TBD.SRID in (Select ToSRID From XBOLTAPP.ESM_SR_CXN Where FromSRID = #{fromSRID})
+			</if>
+			
+			<if test="AttrCode != null"> 
+				AND (1=1
+				<foreach collection="AttrCode" index="index" item="item">
+					<choose>
+						<when test="item.searchValue != null and !''.equals(item.searchValue)">
+						${item.selectOption} TBD.SRID IN ( Select SRID From XBOLTAPP.ESM_SR_ATTR 
+										Where AttrTypeCode = #{item.attrCode}
+										And ISNULL(Value,'')
+										<if test='"3".equals(item.constraint)'>NOT</if>
+										Like replace('%'+#{item.searchValue}+'%', ' ','')
+									)
+						</when>
+						
+						<when test="item.lovCode != null and item.lovCode.length > 0">
+							${item.selectOption} TBD.SRID IN ( Select SRID From XBOLTAPP.ESM_SR_ATTR 
+								Where AttrTypeCode = #{item.attrCode}
+								And LovCode 
+								<if test='"3".equals(item.constraint)'>NOT</if>
+								IN (
+								<foreach collection="item.lovCode" index="index2" item="item2" separator=",">
+									#{item2}
+								</foreach>
+								)
+							)
+							
+						</when>
+									
+						<when test="item.constraint != null and item.constraint != ''">
+							<choose>
+								<when test='"1".equals(item.constraint)'>
+								${item.selectOption} TBD.SRID IN ( Select SRID From XBOLTAPP.ESM_SR_ATTR 
+											Where AttrTypeCode = #{item.attrCode}
+										)
+								</when>
+								<when test='"2".equals(item.constraint)'>
+								${item.selectOption} TBD.SRID NOT IN ( Select SRID From XBOLTAPP.ESM_SR_ATTR 
+											Where AttrTypeCode = #{item.attrCode}
+										)
+								</when>
+							</choose>
+						</when>
+					</choose>
+				</foreach>
+				)
+			</if>
+			<if test='"Y".equals(mbrRcdMgt)' >
+				And TBD.SRID IN (Select SRID From XBOLTAPP.ESM_MBR_RCD Where SRID = TBD.SRID And MemberID = #{sessionUserID}  And WORK_DATE IS NULL)
+			</if>
+			<if test='"Y".equals(procRoleTPGroup)' >
+				And TBD.ProcRoleTP IN (Select RoleType From XBOLTADM.TB_MY_ITEM Where ItemID = TBD.SRArea2 AND Assigned = '1' And MemberID = #{sessionUserID})
+			</if>
+			<if test='"Y".equals(completedWork)' >
+				And TBD.SRID IN ( Select PID From XBOLTAPP.ESM_ACTIVITY_LOG Where ActorID = #{sessionUserID} )
+			</if>
+			<if test="myCSR != null and myCSR != ''">
+				And TBD.ProjectID in (
+					SELECT TP.ProjectID
+					FROM XBOLTADM.TB_PROJECT TP WITH(NOLOCK)
+					left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR  WITH(NOLOCK) on TP.ProjectID = TPMR.ProjectID
+					Where TPMR.MemberID = #{sessionUserID}
+					And TP.ProjectType = 'CSR'
+				)
+			</if>
+			</where>
+		Order By  TBD.RegDTOrg DESC
+		<!-- OFFSET #{offset, jdbcType=INTEGER} ROWS
+        FETCH NEXT #{pageSize, jdbcType=INTEGER} ROWS ONLY -->
+	</select>
+	
+	<select id="zdlm_selectDownFile" resultType="java.util.HashMap">
+		SELECT  tif.FileName as filename
+				, tif.FileRealName as original
+				, CASE 
+					WHEN LEFT(FileName, 4) IN ('2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025') THEN
+					 ISNULL(tif.FilePath,tft.FilePath) 
+					ELSE 
+					 ISNULL(tft.FilePath,tif.FilePath)
+					 END
+				+ tif.FileName as downFile
+			    , CASE 
+					WHEN LEFT(FileName, 4) IN ('2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025') THEN
+					 ISNULL(tif.FilePath,tft.FilePath) 
+					ELSE 
+					 ISNULL(tft.FilePath,tif.FilePath)
+					 END AS FilePath
+		FROM XBOLTADM.TB_FILE tif
+		Left Outer Join XBOLTADM.TB_FLTP tft On tif.FltpCode = tft.FltpCode
+		WHERE tif.Seq = #{Seq}
+	</select>	
+	
+	
+	<select id="getITUserManagerProcRoleTPGroupMember" resultType="java.util.HashMap">
+		WITH T AS (
+		  SELECT IDI.CD_DEPT, IDI.DEPT_FLAG , TT1.TeamCode, TT2.TeamCode as SubTeam1, TT3.TeamCode SubTeam2
+		  FROM xboltdlm.ITUSER_DEPT_INFO IDI 
+		  LEFT OUTER JOIN xboltadm.tb_team TT1 on TT1.teamCode = IDI.CD_DEPT 
+		  LEFT OUTER JOIN xboltadm.tb_team TT2 on TT2.parentID = TT1.teamID 
+		  LEFT OUTER JOIN xboltadm.tb_team TT3 on TT3.parentID = TT2.teamID 
+		  WHERE
+		  IDI.CD_DEPT IN ( SELECT CD_DEPT FROM xboltdlm.ITUSER_DEPT_INFO WHERE YN_MANAGER = 'Y' AND MemberID = #{sessionUserId} )
+		  GROUP BY IDI.CD_DEPT, IDI.DEPT_FLAG , TT1.TeamCode, TT2.TeamCode ,TT3.TeamCode
+		)
+		SELECT DISTINCT MemberID From xboltdlm.ITUSER_DEPT_INFO
+		WHERE CD_DEPT IN (SELECT TeamCode FROM T)
+		   OR CD_DEPT IN (SELECT SubTeam1 FROM T)
+		   OR CD_DEPT IN (SELECT SubTeam2 FROM T)
+	</select>
+	
+	<!-- (주)대림 개발 -->
+	<select id="getFaqQnList_gridList" resultType="java.util.HashMap"> 
+		SELECT
+			ROW_NUMBER() OVER (ORDER BY FRST_REGIST_PNTTM DESC) AS RNUM,
+			FAQ_ID,
+			URGNCY_YN,
+			QESTN_SJ,
+			RDCNT,
+			FRST_REGISTER_ID,
+			CONVERT(VARCHAR, FRST_REGIST_PNTTM, 23) AS FRST_REGIST_PNTTM,
+			CONVERT(VARCHAR, LAST_UPDT_PNTTM, 23) AS LAST_UPDT_PNTTM,
+			NAME
+		FROM XBOLTDLM.COMTNFAQINFO AS A
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER As B
+		ON A.FRST_REGISTER_ID = B.LoginID
+		WHERE 1=1
+			<if test="projectID != null and projectID != ''">
+	            AND ORGNZT_ID = #{projectID}
+	        </if>
+			<if test="searchValue != null and searchValue != ''">
+				<choose>
+					<when test="searchKey.equals('Name')">
+						AND QESTN_SJ  like '%'+#{searchValue}+'%'
+					</when>
+					<when test="searchKey.equals('Info')">
+						AND QESTN_CN like '%'+#{searchValue}+'%'
+					</when>
+				</choose>
+			</if>
+	        <if test="category != null and category != ''">
+	            AND URGNCY_YN = 'Y'
+	        </if>
+	        <if test="BoardMgtID != null and BoardMgtID != ''">
+	        	<choose>
+					<when test="BoardMgtID.equals('BRD3001')">
+						AND FAQ_TYPE = 'FAQ00001'
+					</when>
+					<when test="BoardMgtID.equals('BRD3002')">
+						AND FAQ_TYPE = 'FAQ00002'
+					</when>
+					<when test="BoardMgtID.equals('BRD3003')">
+						AND FAQ_TYPE = 'FAQ00003'
+					</when>
+				</choose>
+	        </if>
+	</select>
+		<select id="selectFaqListDetail" resultType="java.util.HashMap">	
+			SELECT FAQ_ID,
+					QESTN_SJ,
+					QESTN_CN,
+					ANSWER_CN,
+					RDCNT,
+					ATCH_FILE_ID,
+					CONVERT(VARCHAR, FRST_REGIST_PNTTM, 23) AS FRST_REGIST_PNTTM,
+					FRST_REGISTER_ID, 
+					CONVERT(VARCHAR, LAST_UPDT_PNTTM, 23) AS LAST_UPDT_PNTTM,
+					LAST_UPDUSR_ID,
+					ORGNZT_ID,
+					FAQ_TYPE,
+					URGNCY_YN			 			  			 			  
+			FROM	XBOLTDLM.COMTNFAQINFO				
+			WHERE	FAQ_ID=#{faqID}
+	</select>
+	
+	<select id="selectFaqListDetailPop" resultType="java.util.HashMap">	
+		SELECT
+				FAQ_ID,
+				QESTN_SJ,
+				QESTN_CN,
+				ANSWER_CN,
+				RDCNT,
+				ATCH_FILE_ID,
+				CONVERT(VARCHAR, FRST_REGIST_PNTTM, 23) AS FRST_REGIST_PNTTM,
+				FRST_REGISTER_ID, 
+				CONVERT(VARCHAR, LAST_UPDT_PNTTM, 23) AS LAST_UPDT_PNTTM,
+				LAST_UPDUSR_ID,
+				ORGNZT_ID,
+				FAQ_TYPE,
+				NAME,
+				URGNCY_YN
+		FROM XBOLTDLM.COMTNFAQINFO AS A
+		INNER JOIN XBOLTADM.TB_MEMBER As B
+		ON A.FRST_REGISTER_ID = B.LoginID
+		WHERE A.FRST_REGISTER_ID = #{FRST_REGISTER_ID}
+		AND A.FAQ_ID = #{FAQ_ID};
+	</select>
+	
+		<insert id="InsertFaqCn" parameterType="java.util.HashMap">
+			INSERT INTO XBOLTDLM.COMTNFAQINFO
+				   (FAQ_ID
+				  , QESTN_SJ
+				  , QESTN_CN
+				  , ANSWER_CN
+				  , RDCNT
+				  , ATCH_FILE_ID
+				  , FRST_REGIST_PNTTM 
+				  , FRST_REGISTER_ID 
+				  , LAST_UPDT_PNTTM 
+				  , LAST_UPDUSR_ID
+				  , ORGNZT_ID
+				  , FAQ_TYPE
+				  , URGNCY_YN) 
+			VALUES ( #{FaqID}
+				  , #{Subject}
+				  , #{Content}
+				  , #{Answer}
+				  , 0
+				  , #{AtchFileId}
+				  , GETDATE()
+				  , #{sessionLoginId}
+				  , GETDATE()
+				  , #{sessionLoginId}
+				  , #{ProjectID}
+				  , #{Division}
+				  , #{UrgncyYn})
+	</insert>
+	<update id="updateFaqCn" parameterType="java.util.HashMap">
+			UPDATE XBOLTDLM.COMTNFAQINFO SET
+				  QESTN_SJ=#{Subject}
+				  , QESTN_CN=#{Content}
+				  , ANSWER_CN=#{Answer}
+				  , ATCH_FILE_ID=#{AtchFileId}			  			
+				  , LAST_UPDT_PNTTM=GETDATE()
+				  , LAST_UPDUSR_ID=#{sessionLoginId}
+				  , ORGNZT_ID=#{ProjectID}
+				  , FAQ_TYPE=#{Division}
+				  , URGNCY_YN=#{UrgncyYn}
+ 			WHERE  FAQ_ID=#{FaqID}
+	</update>
+	<select id="faqNextVal" resultType="String">
+		SELECT
+			ISNULL(MAX(FAQ_ID),'1') as FAQ_ID
+		FROM
+			XBOLTDLM.COMTNFAQINFO
+	</select>
+	
+	<update id="updateFaqInqireCo" parameterType="String">
+			UPDATE	 XBOLTDLM.COMTNFAQINFO	SET
+				    RDCNT = ISNULL(RDCNT, 0) + 1,	  			
+				    LAST_UPDT_PNTTM=GETDATE()
+ 			WHERE  FAQ_ID=#{faqID}
+	</update>
+	
+	<select id="getESPCustomerList" resultType="java.util.HashMap">
+		SELECT 
+			CMST.CustomerNo AS CODE
+			, TMT.Name AS NAME
+		FROM 
+			XBOLTAPP.CRM_CUST_MST  CMST
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT on CMST.TeamID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+		WHERE
+			CMST.CustLvl = 'C'
+			<if test="myCSR != null and myCSR != ''">
+				And CMST.CustomerNo in (
+					SELECT ClientID
+					FROM XBOLTADM.TB_PROJECT TP
+					left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR on TP.ProjectID = TPMR.ProjectID
+					Where TPMR.MemberID = #{userID}
+					And TP.ProjectType = 'CSR'
+				)
+			</if>
+				AND CMST.CustomerNo = #{projectID}
+		ORDER BY NAME			
+	</select>
+	
+	<select id="getForumInfo" resultType="String">
+		SELECT 
+			FRST_REGISTER_ID
+		FROM XBOLTDLM.COMTNFAQINFO
+		WHERE FAQ_ID = #{faqID}
+	</select>
+	
+		<delete id="deleteFaq" parameterType="java.util.HashMap">
+			DELETE XBOLTDLM.COMTNFAQINFO
+			WHERE  FAQ_ID=#{faqID}
+	</delete>
+	
+	<select id="getProjectType" resultType="String">
+		SELECT
+			clientID
+		FROM
+			XBOLTADM.TB_PROJECT
+		WHERE ProjectCode LIKE 'DLM%'
+		AND clientID = #{ProjectID}
+	</select> 	
+
+	<select id="getFaqID" resultType="String">
+		SELECT
+			FRST_REGISTER_ID
+		FROM
+			XBOLTDLM.COMTNFAQINFO
+		WHERE FAQ_ID=#{faqID}
+	</select> 	
+	
+	<select id="getDlmWFStatus" resultType="java.util.HashMap">
+		SELECT 
+			TW1.RETURNEDVALUE PID1, TM1.NAME WFActorName1, ISNULL(CONVERT(VARCHAR(10), TW1.LASTUPDATED, 23), '') WFDate1, TD1.NAME WFStatusNM1, TW1.Status Status1, 
+			TW2.RETURNEDVALUE PID2, TM2.NAME WFActorName2, ISNULL(CONVERT(VARCHAR(10), TW2.LASTUPDATED, 23), '') WFDate2, TD2.NAME WFStatusNM2, TW2.Status Status2, 
+			ESM.REQ_DEPT_APP_OPIN
+		FROM XBOLTAPP.ESM_SR_MST ESM
+		LEFT OUTER JOIN XBOLTADM.TB_WF_INST TW1 ON TW1.DOCUMENTNO = ESM.SRCODE AND ISNULL(TW1.APRVOPTION,'') = 'POST'
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD1 ON TD1.TYPECODE = TW1.STATUS AND TD1.LANGUAGEID = #{languageID} AND TD1.CATEGORY = 'APRVSTS'
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM1 ON TM1.MEMBERID = TW1.LASTUSER
+		
+		LEFT OUTER JOIN XBOLTADM.TB_WF_INST TW2 ON TW2.DOCUMENTNO = ESM.SRCODE AND ISNULL(TW2.APRVOPTION,'') != 'POST'
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD2 ON TD2.TYPECODE = TW2.STATUS AND TD2.LANGUAGEID = #{languageID} AND TD2.CATEGORY = 'APRVSTS'
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM2 ON TM2.MEMBERID = TW2.LASTUSER
+		
+		WHERE ESM.SRID = #{srID}
+		order by   isnull(TW1.Status,'') desc, isnull(TW2.Status,'') desc,  isnull(TW1.ReturnedValue,'') desc, isnull(TW2.Returnedvalue,'') desc,  TW1.LastUpdated desc, TW2.LastUpdated desc
+		
+	</select>
+	
+	<select id="getDlmCustomerList" resultType="java.util.HashMap">
+		SELECT 
+			TT.TeamID AS CODE
+			, TMT.Name AS NAME
+		FROM 
+			XBOLTADM.TB_TEAM TT WITH(NOLOCK)
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT on TT.TeamID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+		WHERE
+			TT.TeamType = 50
+			<if test="myCSR != null and myCSR != ''">
+				And TT.TeamCode in (
+					SELECT T.RefTeamCode
+					FROM XBOLTADM.TB_TEAM T
+					left outer join XBOLTADM.TB_PROJECT TP ON T.ClientID = TP.ClientID
+					left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR on TP.ProjectID = TPMR.ProjectID
+					Where TPMR.MemberID = #{userID} AND T.TeamType = 2
+					And TP.ProjectType = 'CSR'
+				)
+			</if>
+		ORDER BY TT.RefTeamCode, NAME			
+	</select>
+	
+	<select id="getCustomerList" resultType="java.util.HashMap">
+		SELECT 
+			CMST.CustomerNo AS CODE
+			, TMT.Name AS NAME
+		FROM 
+			XBOLTAPP.CRM_CUST_MST  CMST
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT on CMST.TeamID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+		WHERE
+			CMST.CustLvl = 'C'
+			AND CMST.CustomerNo = #{companyNm}
+		ORDER BY NAME				
+	</select>
+	
+	<!-- 개인별MH 상세 EXCEL individualMHDAO.selectReqStatMhExcelList -->
+	<select id="selectReqStatMhExcelList_gridList" resultType="java.util.HashMap">
+		SELECT TOP 0 MemberID,Name,LoginID
+		INTO #TB_MEMBER_tmp
+		FROM XBOLTADM.TB_MEMBER
+		 
+		CREATE CLUSTERED INDEX ix ON #TB_MEMBER_tmp(MemberID)
+		 
+		INSERT INTO #TB_MEMBER_tmp
+		SELECT MemberID,Name,LoginID
+		FROM XBOLTADM.TB_MEMBER
+
+		SELECT BB.CORP_ID AS CD_COMPANY
+				, BB.CODE_NM AS CD_COMPANY_NM
+				, BB.USR_ID AS USR_ID
+				, TM2.Name AS USER_NM
+				, BB.CD_DEPT AS CD_DEPT
+				, BB.DS_DEPT AS NM_DEPT				
+				, TD.Name AS TBL_NM
+				, AA.SRArea2 AS SVC_CI_ID
+				, ISNULL(TIA2.PlainText,'') AS NAME_LV1
+				, CASE WHEN AA.Category != '' And AA.SubCategory != '' THEN ISNULL(TD1.Name,'') +'>'+ ISNULL(TD2.Name,'') ELSE '미분류' END AS CAT_NAME
+				, AA.SRID 				
+				, AA.RequestUserID AS REQ_USR_ID
+				, TM.Name AS REQ_USR_NAME
+				, AA.RequestTeamID AS REQ_USR_DEPT_ID
+				, TXT.Name AS REQ_USR_DEPT_NAME				
+				, AA.SpeCode AS STATUS_ID
+				, ISNULL(TIA.PlainText,'') AS STATUS_NAME				
+				, AA.SRCode AS ID
+				, ISNULL(AA.Subject,'') AS TITLE
+				, ISNULL(AA.Description,'') AS NOTICE				
+				, ISNULL(ESA1.Value,'') AS SOLVNT				
+				, AA.WORK_DATE AS WORK_DATE
+				, ( AA.BUSINESS_HOURS + AA.OVERTIME ) AS MSR_VAL				
+				, TM2.LoginID AS STEP_MNG_ID  
+                , ISNULL(TM2.Name,'') AS STEP_MNG_NM
+				, FORMAT(AA.RegDT, 'yyyy-MM-dd') AS REG_DATE
+				,(select top 1 FORMAT(EndTime,'yyyy-MM-dd')  from XBOLTAPP.ESM_ACTIVITY_LOG WHERE PID = AA.SRID And SpeCode = AA.SpeCode) AS CLOSE_DATE                
+				,(select top 1 FORMAT(DueDate,'yyyy-MM-dd')  from XBOLTAPP.ESM_ACTIVITY_LOG WHERE PID = AA.SRID And SpeCode = AA.SpeCode) AS COMP_CHANGE_DUE_DATE
+                , (CASE WHEN AA.CompletionDT IS NOT NULL 
+				  THEN ISNULL(DATEDIFF(DAY, CAST(AA.DueDate AS DATE), CAST(AA.CompletionDT AS DATE)),0)
+				  ELSE 0 END) AS DELAY_YN
+                , AA.DueDate AS COMP_CHANGE_DUE_DATE_TICKET
+                , FORMAT(AA.CompletionDT, 'yyyy-MM-dd') AS CLOSE_DATE_TICKET
+			    , BUSINESS_HOURS as BUSINESS_HOUR
+                , OVERTIME
+                , HOLYDAY 
+			FROM
+				XBOLTAPP.VW_ESM_MBR_RCD AA
+				RIGHT JOIN
+				(
+					SELECT 
+						ID_USER AS USR_ID
+						, MemberID
+						, MAX(USER_NM) AS USER_NM
+						, MAX(CD_DEPT) AS CD_DEPT
+						, MAX(NM_DEPT) AS DS_DEPT
+						, MAX(CORP_ID) AS CORP_ID
+						, MAX( TRIM(CORP_NAME) ) AS  CODE_NM
+					FROM XBOLTDLM.ITUSER_DEPT_INFO
+					GROUP BY ID_USER, MemberID
+				) BB ON AA.MemberID = BB.MemberID
+				LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD WITH(NOLOCK) ON TD.TypeCode = AA.SRType AND TD.LanguageID = #{languageID} AND TD.Category = 'SRTP'
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 WITH(NOLOCK) ON TIA2.ItemID = AA.SRArea2 And TIA2.AttrTypeCode = 'AT00001' And TIA2.LanguageID = #{languageID}
+				LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD1 WITH(NOLOCK) On TD1.TypeCode = AA.Category AND TD1.Category = 'SRCAT' And TD1.LanguageID = #{languageID}
+				LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD2 WITH(NOLOCK) On TD2.TypeCode = AA.SubCategory And TD2.Category = 'SRCAT' And TD2.LanguageID = #{languageID}
+				LEFT OUTER JOIN #TB_MEMBER_tmp TM WITH(NOLOCK) ON TM.MemberID = AA.RequestUserID
+				LEFT OUTER JOIN #TB_MEMBER_tmp TM2 WITH(NOLOCK) ON TM2.MemberID = AA.MemberID
+				<if test="userType != null and userType.equals('req')">	
+				LEFT OUTER JOIN XBOLTADM.TB_TEAM REQTEAM WITH(NOLOCK) ON REQTEAM.TeamID = AA.RequestTeamID 
+				</if>
+				LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TXT WITH(NOLOCK) ON TXT.TeamID = AA.RequestTeamID And TXT.LanguageID = #{languageID}
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM TI WITH(NOLOCK) ON AA.SpeCode = TI.Identifier
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA WITH(NOLOCK) ON TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+				LEFT OUTER JOIN XBOLTAPP.ESM_SR_ATTR ESA1 ON ESA1.SRID = AA.SRID and  ESA1.SpeCode = AA.SpeCode And ESA1.AttrTypeCode IN ('SRAT0006','SRAT0001','SRAT0087','SRAT0071')
+			WHERE  <![CDATA[ ( AA.BUSINESS_HOURS + AA.OVERTIME ) > 0 ]]>
+				AND AA.WORK_DATE BETWEEN FORMAT(CAST(#{startDate} AS DATE), 'yyyy-MM-dd') AND FORMAT(CAST(#{endDate} AS DATE), 'yyyy-MM-dd')
+				<if test="myCSR != null and myCSR != ''">
+					And AA.ProjectID in (
+						SELECT TP.ProjectID
+						FROM XBOLTADM.TB_PROJECT TP WITH(NOLOCK)
+						INNER join XBOLTADM.TB_PJT_MEMBER_REL TPMR  WITH(NOLOCK) on TP.ProjectID = TPMR.ProjectID
+						Where TPMR.MemberID = #{userID}
+						And TP.ProjectType = 'CSR'
+					)
+				</if>
+				<if test="userType != null and userType.equals('req')">	
+					<if test="customerNo != null and customerNo != ''">			
+					And REQTEAM.CompanyID IN (select Top 1 A.TeamID from XBOLTAPP.CRM_CUST_MST A, XBOLTADM.TB_TEAM B Where A.TeamID = B.TeamID And A.CustomerNo = #{customerNo})
+					</if>
+				</if>
+				<if test="userType != null and userType.equals('mng')">
+					<if test="customerNo != null and customerNo != ''">
+					AND BB.CORP_ID IN ( select Top 1 ISNULL(B.RefTeamCode,'') from XBOLTAPP.CRM_CUST_MST A, XBOLTADM.TB_TEAM B Where A.TeamID = B.TeamID And A.CustomerNo = #{customerNo})
+					</if>
+		    	</if>
+		        <!--  And BB.CORP_ID = #codeLv8# --> <!--  <isEqual property="codeLv7" compareValue="mng">  codeLv8:DCP -->
+				DROP TABLE #TB_MEMBER_tmp
+		</select>
+		
+	<!--상단엑셀버튼 개인별MH [상세조회]통계현황 엑셀 다운로드 상세 individualMHDAO.selectStatMhExcelList-->
+	<select id="selectStatMhExcelList_gridList" resultType="java.util.HashMap">
+		  SELECT TOP 0 MemberID,Name,LoginID
+			INTO #TB_MEMBER_tmp
+			FROM XBOLTADM.TB_MEMBER
+		 
+			CREATE CLUSTERED INDEX ix ON #TB_MEMBER_tmp(MemberID)
+		 
+			INSERT INTO #TB_MEMBER_tmp
+			SELECT MemberID,Name,LoginID
+			FROM XBOLTADM.TB_MEMBER
+			
+			SELECT BB.CORP_ID AS CD_COMPANY
+				, BB.CODE_NM AS CD_COMPANY_NM
+				, BB.USR_ID AS USR_ID
+				, BB.USER_NM AS USER_NM
+				, BB.CD_DEPT AS CD_DEPT
+				, BB.DS_DEPT AS NM_DEPT
+				, AA.SRID 	
+				, TD.Name AS TBL_NM
+				, AA.SRArea2 AS SVC_CI_ID
+				, CASE WHEN ISNULL(TIASRAREA1.PlainText,'') !='' AND ISNULL(TIA2.PlainText,'') != '' 
+    				THEN ISNULL(TIASRAREA1.PlainText,'') + '/' + ISNULL(TIA2.PlainText,'')
+    				ELSE ISNULL(TIASRAREA1.PlainText, '') + ISNULL(TIA2.PlainText, '')
+    				END AS NAME_LV1
+				, CASE WHEN AA.Category != '' And AA.SubCategory != '' THEN ISNULL(TD1.Name,'') +'>'+ ISNULL(TD2.Name,'') ELSE '미분류' END AS CAT_NAME
+				
+				, AA.RequestUserID AS REQ_USR_ID
+				, TM.Name AS REQ_USR_NAME
+				, AA.RequestTeamID AS REQ_USR_DEPT_ID
+				, TXT.Name AS REQ_USR_DEPT_NAME	
+				
+				, AA.SpeCode AS STATUS_ID
+				, ISNULL(TIA.PlainText,'') AS STATUS_NAME				
+				, AA.SRCode AS ID
+				, ISNULL(AA.Subject,'') AS TITLE
+				, CASE WHEN AA.SRType = 'WRK' THEN ISNULL(EWA.Value,'') ELSE ISNULL(AA.Description,'') END AS NOTICE				
+				, ISNULL(ESA1.Value,'') AS SOLVNT		
+				
+				, AA.WORK_DATE AS WORK_DATE
+				, ( AA.BUSINESS_HOURS + AA.OVERTIME ) AS MSR_VAL
+				
+				, TM2.LoginID AS STEP_MNG_ID  
+                , ISNULL(TM2.Name,'') AS STEP_MNG_NM
+				, FORMAT(AA.RegDT, 'yyyy-MM-dd') AS REG_DATE
+				,(select top 1 FORMAT(EndTime,'yyyy-MM-dd')  from XBOLTAPP.ESM_ACTIVITY_LOG WHERE PID = AA.SRID And SpeCode = AA.SpeCode) AS CLOSE_DATE                
+				,(select top 1 FORMAT(DueDate,'yyyy-MM-dd')  from XBOLTAPP.ESM_ACTIVITY_LOG WHERE PID = AA.SRID And SpeCode = AA.SpeCode) AS COMP_CHANGE_DUE_DATE
+                , (CASE WHEN AA.CompletionDT IS NOT NULL 
+				  THEN ISNULL(DATEDIFF(DAY, CAST(AA.DueDate AS DATE), CAST(AA.CompletionDT AS DATE)),0)
+				  ELSE 0 END) AS DELAY_YN
+                , FORMAT(AA.DueDate, 'yyyy-MM-dd') AS COMP_CHANGE_DUE_DATE_TICKET
+                , FORMAT(AA.CompletionDT, 'yyyy-MM-dd') AS CLOSE_DATE_TICKET
+			    , BUSINESS_HOURS as BUSINESS_HOUR
+                , OVERTIME
+                , HOLYDAY 
+			FROM XBOLTAPP.VW_ESM_MBR_RCD AA
+				Left Outer Join 
+				(
+					SELECT 
+						ID_USER AS USR_ID
+						, MemberID
+						, MAX(USER_NM) AS USER_NM
+						, MAX(CD_DEPT) AS CD_DEPT
+						, MAX(NM_DEPT) AS DS_DEPT
+						, MAX(CORP_ID) AS CORP_ID
+						, MAX( TRIM(CORP_NAME) ) AS  CODE_NM
+					FROM XBOLTDLM.ITUSER_DEPT_INFO
+					GROUP BY ID_USER, MemberID
+				) BB ON AA.MemberID = BB.MemberID
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD WITH(NOLOCK) ON TD.TypeCode = AA.SRType AND TD.LanguageID =1042 AND TD.Category = 'SRTP'
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIASRAREA1 WITH(NOLOCK) ON TIASRAREA1.ItemID = AA.SRArea1 And TIASRAREA1.AttrTypeCode = 'AT00001' And TIASRAREA1.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 WITH(NOLOCK) ON TIA2.ItemID = AA.SRArea2 And TIA2.AttrTypeCode = 'AT00001' And TIA2.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD1 WITH(NOLOCK) On TD1.TypeCode = AA.Category AND TD1.Category = 'SRCAT' And TD1.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD2 WITH(NOLOCK) On TD2.TypeCode = AA.SubCategory And TD2.Category = 'SRCAT' And TD2.LanguageID = #{languageID}
+
+			LEFT OUTER JOIN #TB_MEMBER_tmp TM WITH(NOLOCK) ON TM.MemberID = AA.RequestUserID
+			LEFT OUTER JOIN #TB_MEMBER_tmp TM2 WITH(NOLOCK) ON TM2.MemberID = AA.MemberID
+
+			LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TXT WITH(NOLOCK) ON TXT.TeamID = AA.RequestTeamID And TXT.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM TI WITH(NOLOCK) ON AA.SpeCode = TI.Identifier
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA WITH(NOLOCK) ON TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTAPP.ESM_SR_ATTR ESA1 ON ESA1.SRID = AA.SRID and  ESA1.SpeCode = AA.SpeCode And ESA1.AttrTypeCode IN ('SRAT0006','SRAT0001','SRAT0087','SRAT0071')
+			LEFT OUTER JOIN XBOLTApp.ESM_WKS_ATTR EWA ON EWA.SRID = AA.SRID And EWA.SpeCode = AA.SpeCode And EWA.AttrTypeCode = 'SRAT0001'
+
+			WHERE  <![CDATA[ ( AA.BUSINESS_HOURS + AA.OVERTIME ) > 0 ]]>
+				<if test="myCSR != null and myCSR != ''">
+					And AA.ProjectID in (
+						SELECT TP.ProjectID
+						FROM XBOLTADM.TB_PROJECT TP WITH(NOLOCK)
+						INNER join XBOLTADM.TB_PJT_MEMBER_REL TPMR  WITH(NOLOCK) on TP.ProjectID = TPMR.ProjectID
+						Where TPMR.MemberID = #{userID}
+						And TP.ProjectType = 'CSR'
+					)
+				</if>
+				AND AA.WORK_DATE BETWEEN FORMAT(CAST(#{startDate} AS DATE), 'yyyy-MM-dd') AND FORMAT(CAST(#{endDate} AS DATE), 'yyyy-MM-dd')
+				<if test="customerNo != null and customerNo != ''">
+				AND BB.CORP_ID = (select Top 1 ISNULL(B.RefTeamCode,'') from XBOLTAPP.CRM_CUST_MST A, XBOLTADM.TB_TEAM B Where A.TeamID = B.TeamID And A.CustomerNo = #{customerNo})
+				</if>
+				<if test="teamID != null and teamID != ''">
+				And BB.CD_DEPT = (Select TeamCode From XBOLTADM.TB_TEAM Where TeamID = #{teamID} )
+				</if>
+			
+			DROP TABLE #TB_MEMBER_tmp
+		
+	</select>
+	
+	<!-- 개인별MH [사용자지연율(상세)]통계현황 엑셀 다운로드 상세 id="individualMHDAO.selectStatMhUserDelayDtlList"-->
+	<select id="selectStatMhUserDelayDtlList_gridList" resultType="java.util.HashMap">
+	   SELECT TOP 0 MemberID,Name,LoginID
+			INTO #TB_MEMBER_tmp
+			FROM XBOLTADM.TB_MEMBER
+		 
+			CREATE CLUSTERED INDEX ix ON #TB_MEMBER_tmp(MemberID)
+		 
+			INSERT INTO #TB_MEMBER_tmp
+			SELECT MemberID,Name,LoginID
+			FROM XBOLTADM.TB_MEMBER
+
+		SELECT MAX(BB.CORP_ID) AS CD_COMPANY
+			, MAX(BB.CODE_NM) AS CD_COMPANY_NM
+			, MAX(BB.USR_ID)  AS USR_ID
+			, MAX(BB.USER_NM) AS USER_NM
+			, MAX(BB.CD_DEPT) AS CD_DEPT
+			, MAX(BB.DS_DEPT) AS NM_DEPT
+			
+			, MAX(AA.SRID) AS SRID	
+			, MAX(TD.Name) AS TBL_NM
+			, MAX(AA.SRArea2) AS SVC_CI_ID
+			, MAX(ISNULL(TIA2.PlainText,'')) AS NAME_LV1
+			, MAX(CASE WHEN AA.Category != '' And AA.SubCategory != '' THEN ISNULL(TD1.Name,'') +'>'+ ISNULL(TD2.Name,'') ELSE '미분류' END) AS CAT_NAME
+			, MAX(AA.RequestUserID) AS REQ_USR_ID
+			, MAX(TM.Name) AS REQ_USR_NAME
+			, MAX(AA.RequestTeamID) AS REQ_USR_DEPT_ID
+			, MAX(TXT.Name) AS REQ_USR_DEPT_NAME	
+
+			, MAX(AA.SpeCode) AS STATUS_ID
+			, MAX(ISNULL(TIA.PlainText,'')) AS STATUS_NAME				
+			, MAX(AA.SRCode) AS ID
+			, MAX(ISNULL(AA.Subject,'')) AS TITLE
+			, MAX(ISNULL(AA.Description,'')) AS NOTICE				
+			, MAX(ISNULL(ESA1.Value,'')) AS SOLVNT		
+			
+			, SUM(( AA.BUSINESS_HOURS + AA.OVERTIME )) AS MSR_VAL
+
+			, MAX(TM2.LoginID) AS STEP_MNG_ID  
+            , MAX(ISNULL(TM2.Name,'')) AS STEP_MNG_NM
+			, MAX(FORMAT(AA.RegDT, 'yyyy-MM-dd')) AS REG_DATE
+			, MAX(FORMAT(EAL.EndTime, 'yyyy-MM-dd')) AS CLOSE_DATE
+			, MAX(FORMAT(EAL.DueDate, 'yyyy-MM-dd')) AS COMP_CHANGE_DUE_DATE
+              
+			, MAX((CASE WHEN AA.CompletionDT IS NOT NULL 
+			  THEN ISNULL(DATEDIFF(DAY, CAST(AA.DueDate AS DATE), CAST(AA.CompletionDT AS DATE)),0)
+			  ELSE 0 END)) AS DELAY_YN
+            , MAX(FORMAT(AA.DueDate, 'yyyy-MM-dd')) AS COMP_CHANGE_DUE_DATE_TICKET
+            , MAX(FORMAT(AA.CompletionDT, 'yyyy-MM-dd')) AS CLOSE_DATE_TICKET
+		FROM XBOLTAPP.VW_ESM_MBR_RCD AA
+			Left Outer Join 
+			(
+				SELECT 
+					ID_USER AS USR_ID
+					, MemberID
+					, MAX(USER_NM) AS USER_NM
+					, MAX(CD_DEPT) AS CD_DEPT
+					, MAX(NM_DEPT) AS DS_DEPT
+					, MAX(CORP_ID) AS CORP_ID
+					, MAX( TRIM(CORP_NAME) ) AS  CODE_NM
+				FROM XBOLTDLM.ITUSER_DEPT_INFO
+				GROUP BY ID_USER, MemberID
+			) BB ON AA.MemberID = BB.MemberID
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD WITH(NOLOCK) ON TD.TypeCode = AA.SRType AND TD.LanguageID = #{languageID} AND TD.Category = 'SRTP'
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 WITH(NOLOCK) ON TIA2.ItemID = AA.SRArea2 And TIA2.AttrTypeCode = 'AT00001' And TIA2.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD1 WITH(NOLOCK) On TD1.TypeCode = AA.Category AND TD1.Category = 'SRCAT' And TD1.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD2 WITH(NOLOCK) On TD2.TypeCode = AA.SubCategory And TD2.Category = 'SRCAT' And TD2.LanguageID = #{languageID}
+
+			LEFT OUTER JOIN #TB_MEMBER_tmp TM WITH(NOLOCK) ON TM.MemberID = AA.RequestUserID
+			LEFT OUTER JOIN #TB_MEMBER_tmp TM2 WITH(NOLOCK) ON TM2.MemberID = AA.MemberID
+
+			LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TXT WITH(NOLOCK) ON TXT.TeamID = AA.RequestTeamID And TXT.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM TI WITH(NOLOCK) ON AA.SpeCode = TI.Identifier
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA WITH(NOLOCK) ON TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTAPP.ESM_SR_ATTR ESA1 ON ESA1.SRID = AA.SRID and  ESA1.SpeCode = AA.SpeCode And ESA1.AttrTypeCode IN ('SRAT0006','SRAT0001','SRAT0087','SRAT0071')
+			
+			LEFT JOIN XBOLTAPP.ESM_ACTIVITY_LOG EAL ON EAL.PID = AA.SRID AND EAL.SpeCode = AA.SpeCode <!-- ESM_ACTIVITY_LOG 테이블을 JOIN하여 EndTime을 가져옴-->
+
+		WHERE <![CDATA[ ( AA.BUSINESS_HOURS + AA.OVERTIME ) > 0 ]]>
+			<if test="myCSR != null and myCSR != ''">
+				And AA.ProjectID in (
+					SELECT TP.ProjectID
+					FROM XBOLTADM.TB_PROJECT TP WITH(NOLOCK)
+					INNER join XBOLTADM.TB_PJT_MEMBER_REL TPMR  WITH(NOLOCK) on TP.ProjectID = TPMR.ProjectID
+					Where TPMR.MemberID = #{userID}
+					And TP.ProjectType = 'CSR'
+				)
+			</if>
+			AND AA.WORK_DATE BETWEEN FORMAT(CAST(#{startDate} AS DATE), 'yyyy-MM-dd') AND FORMAT(CAST(#{endDate} AS DATE), 'yyyy-MM-dd')
+			<if test="customerNo != null and customerNo != ''">
+			AND BB.CORP_ID = (select Top 1 ISNULL(B.RefTeamCode,'') from XBOLTAPP.CRM_CUST_MST A, XBOLTADM.TB_TEAM B Where A.TeamID = B.TeamID And A.CustomerNo = #{customerNo})
+			</if>
+			<if test="teamID != null and teamID != ''">
+			And BB.CD_DEPT = (Select TeamCode From XBOLTADM.TB_TEAM Where TeamID = #{teamID} )
+			</if>
+				
+		GROUP BY AA.SRCode, AA.SpeCode, BB.USR_ID
+		ORDER BY 1, AA.SRCode, AA.SpeCode, BB.USR_ID
+		
+		DROP TABLE #TB_MEMBER_tmp
+	</select>
+	
+	<!-- MH실적집계 일자별 엑셀 조회 쿼리  -->
+	<select id="selectMhStatDailyList" resultType="java.util.HashMap">
+		Select B.LoginID AS STEP_MNG_ID,
+			   B.Name AS STEP_MNG_NM,
+			   Format(A.WORK_DATE,'yyyy-MM-dd')  AS WORK_DATE,
+			   SUM(A.BUSINESS_HOURS + A.OVERTIME) AS WORK_TIME_MM
+		From XBOLTAPP.VW_ESM_MBR_RCD A
+		left outer join XBOLTADM.TB_MEMBER B ON B.MemberID = A.MemberID 
+		Where A.WORK_DATE BETWEEN #{startDate} and #{endDate}
+		AND A.ClientID = #{customerNo}
+		<if test="receiptUserID != null and receiptUserID != ''">
+			And A.MemberID = #{receiptUserID}	
+		</if>
+		AND A.ProjectID IN ( SELECT TP.ProjectID 
+		                           FROM XBOLTADM.TB_PROJECT TP WITH(NOLOCK) 
+		                           LEFT OUTER JOIN XBOLTADM.TB_PJT_MEMBER_REL TPMR WITH(NOLOCK) 
+		                           ON TP.ProjectID = TPMR.ProjectID 
+		                           WHERE TPMR.MemberID = #{userID}
+		                           AND TP.ProjectType = 'CSR'    
+		                         ) 
+		GROUP BY B.LoginID, B.Name, A.WORK_DATE
+	    ORDER BY B.LoginID, B.Name, A.WORK_DATE
+	</select>
+	
+	<!-- 전체프로세스 통계 -->
+	<select id="getESPSearchExcelTotalList" resultType="java.util.HashMap">
+	 	<!-- 임시테이블 생성 -->
+	 	Select Row_Number()OVER(ORDER BY TBD.RegDTOrg DESC ) as RNUM, TBD.*
+		INTO #temp_result
+		From
+		(
+			Select TSM.SRID         TSM_SRID
+		         , TSM.RegDT         RegDTOrg
+		         , TIS.ItemID       TIS_ItemID
+		         , TISA.seq         TISA_seq
+		         , TIA.Seq          TIA_Seq
+		         , SRArea1ATR.seq   SRArea1ATR_seq 
+		         , SRArea２ATR.seq  SRArea２ATR_seq
+			From XBOLTAPP.ESM_SR_MST TSM WITH(NOLOCK)      
+		    Left Outer Join XBOLTADM.TB_ITEM TIS WITH(NOLOCK) 
+			ON TSM.Status = TIS.Identifier
+		    Left Outer Join XBOLTADM.TB_ITEM_ATTR TISA WITH(NOLOCK) 
+			ON TISA.ItemID = TIS.ItemID And TISA.AttrTypeCode = 'AT00001' And TISA.LanguageID = #{languageID}
+		    Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA WITH(NOLOCK)  
+			ON TIA.ItemID = TSM.SRArea1 And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID  =  #{languageID}
+		    Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 WITH(NOLOCK)  
+			ON TIA2.ItemID = TSM.SRArea2 And TIA2.AttrTypeCode = 'AT00001' And TIA2.LanguageID  =  #{languageID}
+		    Left Outer Join XBOLTADM.TB_ITEM_ATTR SRArea1ATR WITH(NOLOCK) 
+			ON SRArea1ATR.ItemID = TSM.SRArea1 AND SRArea1ATR.AttrTypeCode = 'AT00035' AND SRArea1ATR.LanguageID = #{languageID}
+		    Left Outer Join XBOLTADM.TB_ITEM_ATTR SRArea２ATR WITH(NOLOCK) 
+			ON SRArea２ATR.ItemID = TSM.SRArea1 AND SRArea２ATR.AttrTypeCode = 'AT00035' AND SRArea２ATR.LanguageID = #{languageID}
+		    <where>
+		    <if test="esType != null and esType != ''">
+				AND TSM.ESType = #{esType}
+			</if>
+			<if test="srType != null and srType != ''">
+				AND TSM.SRType = #{srType}
+			</if>
+			<if test="srMode != null and srMode.equals('mySR')">
+				AND #{sessionUserID} In (TSM.RequestUserID, TSM.ReceiptUserID , TSM.RegUserID)
+			</if>
+			<if test="srMode != null and srMode.equals('myToDo')">
+				AND #{sessionUserID} In ( TSM.ReceiptUserID )
+			</if>
+			<if test="srMode != null and srMode.equals('myRes')">
+				AND #{sessionUserID} In ( TSM.ResponseUserID ) AND ( TSM.ReceiptUserID IS NULL OR TSM.ReceiptUserID = #{sessionUserID})
+			</if>
+			<if test="srMode != null and srMode.equals('myReq')">
+				AND #{sessionUserID} In (TSM.RequestUserID)
+			</if>
+			<if test="srMode != null and srMode.equals('myVOC')">
+				AND #{sessionUserID}  In (TSM.RequestUserID, TSM.ReceiptUserID)
+			</if>
+			<if test="srMode != null and srMode.equals('myClient')">
+				AND TSM.ClientID = (Select ClientID from XBOLTADM.TB_MEMBER Where MemberID = #{sessionUserID} )
+			</if>
+			<if test="srMode != null and srMode.equals('myTR')">
+				AND TSM.SRID In (Select PID from XBOLTADM.TB_PROC_LOG where ActorID = #{sessionUserID} and ActivityID = 'ACTP003')
+			</if>
+			<if test="srMode != null and srMode.equals('myTeam')">
+				AND #{myTeamId}  In (TSM.RequestTeamID, TSM.ReceiptTeamID)
+			</if>
+			<if test="srMode != null and srMode.equals('myRole')">
+				AND #{sessionUserID} In (SELECT MemberID FROM XBOLTADM.TB_MY_ITEM WHERE ItemID = TSM.SRArea2 AND Assigned = '1')
+			</if>		
+			<if test="srStatus != null and srStatus != ''">
+				AND TSM.Status = #{srStatus}
+			</if>
+			<if test="srStatusArr != null and srStatusArr != ''">
+				AND TSM.Status IN (${srStatusArr})
+			</if>
+			<if test="srMode != null and srMode.equals('PG')">
+				AND TSM.ProjectID IN (Select ProjectID From XBOLTADM.TB_PROJECT Where RefPGID = #{refID} And ProjectType = 'PJT' )
+			</if>	
+			<if test="srMode != null and srMode.equals('PJT')">
+				AND TSM.ProjectID = #{refID} 
+			</if>	
+			<if test="srMode != null and srMode.equals('myPJT')">
+				AND TSM.ProjectID IN (Select ProjectID From XBOLTADM.TB_PJT_MEMBER_REL Where MemberID = #{sessionUserID} AND Involved = '1' )
+			</if>
+			<if test="myCSR != null and myCSR != ''">
+				And TSM.ProjectID in (
+					SELECT TP.ProjectID
+					FROM XBOLTADM.TB_PROJECT TP
+					left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR on TP.ProjectID = TPMR.ProjectID
+					Where TPMR.MemberID = #{sessionUserID}
+					And TP.ProjectType = 'CSR'
+				)
+			</if>		
+			<if test="requestUserName != null and requestUserName != ''">
+				AND TM3.Name like N'%'+#{requestUserName}+'%'
+			</if>
+			<if test="regUserName != null and regUserName != ''">
+				AND TM2.Name like N'%'+#{regUserName}+'%'
+			</if>
+			<if test="receiptUserName != null and receiptUserName != ''">
+				AND TM4.Name like N'%'+#{receiptUserName}+'%'
+			</if>
+			<if test="regStartDate != null and regStartDate != ''">
+				AND TSM.RegDT BETWEEN CAST(#{regStartDate} AS DATETIME) AND DATEADD(MS, -2, DATEADD(DAY,1,CAST(#{regEndDate} AS DATETIME)))
+			</if>
+			<if test="srArea1 != null and srArea1 != ''">
+				AND TSM.SRArea1 = #{srArea1}
+			</if>
+			<if test="srArea2 != null and srArea2 != ''">
+				AND TSM.SRArea2 = #{srArea2}
+			</if>
+			<if test="category != null and category != ''">
+				AND TSM.Category = #{category} 
+			</if>
+			<if test="subCategory != null and subCategory != ''">
+				AND TSM.SubCategory = #{subCategory}
+			</if>
+			<if test="priority != null and priority != ''">
+				AND TSM.Priority = #{priority} 
+			</if>
+			<if test="stSRDueDate != null and stSRDueDate != ''">
+				AND TSM.DueDate BETWEEN CAST(#{stSRDueDate} AS DATETIME) AND DATEADD(MS, -2, DATEADD(DAY,1,CAST(#{endSRDueDate} AS DATETIME)))
+			</if>
+			<if test="stSRCompDT != null and stSRCompDT != ''">
+				AND TSM.CompletionDT BETWEEN CAST(#{stSRCompDT} AS DATETIME) AND DATEADD(MS, -2, DATEADD(DAY,1,CAST(#{endSRCompDT} AS DATETIME)))
+			</if>
+			<if test="srCode != null and srCode != ''">
+				AND TSM.SRCode = #{srCode}
+			</if>
+			<if test="srID != null and srID != ''">
+				AND TSM.SrID = #{srID}
+			</if>
+			<if test="requestTeam != null and requestTeam != ''">
+				AND TSM.RequestTeamID = #{requestTeam}
+			</if>
+			<if test="responseTeamID != null and responseTeamID != ''">
+				AND TSM.ResponseTeamID = #{responseTeamID}
+			</if>
+			<if test="srReceiptTeam != null and srReceiptTeam != ''">
+				AND TSM.ReceiptTeamID = #{srReceiptTeam}
+			</if>
+			<if test="subject != null and subject != ''">
+				AND TSM.Subject like N'%'+#{subject}+'%'
+			</if>
+			<if test="itemID != null and itemID != ''">
+				AND #{itemID}  IN (TSM.SRArea1, TSM.SRArea2, TSM.SRArea3)
+			</if>
+			<if test="requestTeamList != '' and requestTeamList != null">
+				AND TSM.RequestTeamID IN (${requestTeamList})
+			</if>
+			<if test="companyList != '' and companyList != null" >
+				AND ( TSM.CompanyID IN (${companyList}) OR TSM.RequestTeamID IN (${companyList}) )
+			</if>
+			<if test="clientID != '' and clientID != null" >
+				AND TSM.ClientID = #{clientID}
+			</if>
+			<if test="companyID != '' and companyID != null" >
+				AND TSM.CompanyID IN (#{companyID})
+			</if>
+			<if test="isPublic != '' and isPublic != null" >
+				AND TSM.isPublic = #{isPublic}
+			</if>
+			<if test="fromSRID != null and fromSRID != ''">
+				AND TSM.SRID in (Select ToSRID From XBOLTAPP.ESM_SR_CXN Where FromSRID = #{fromSRID})
+			</if>
+			
+			<if test="AttrCode != null"> 
+				AND (1=1
+				<foreach collection="AttrCode" index="index" item="item">
+					<choose>
+						<when test="item.searchValue != null and !''.equals(item.searchValue)">
+						${item.selectOption} TSM.SRID IN ( Select SRID From XBOLTAPP.ESM_SR_ATTR 
+										Where AttrTypeCode = #{item.attrCode}
+										And ISNULL(Value,'')
+										<if test='"3".equals(item.constraint)'>NOT</if>
+										Like replace('%'+#{item.searchValue}+'%', ' ','')
+									)
+						</when>
+						
+						<when test="item.lovCode != null and item.lovCode.length > 0">
+							${item.selectOption} TSM.SRID IN ( Select SRID From XBOLTAPP.ESM_SR_ATTR 
+								Where AttrTypeCode = #{item.attrCode}
+								And LovCode 
+								<if test='"3".equals(item.constraint)'>NOT</if>
+								IN (
+								<foreach collection="item.lovCode" index="index2" item="item2" separator=",">
+									#{item2}
+								</foreach>
+								)
+							)
+							
+						</when>
+									
+						<when test="item.constraint != null and item.constraint != ''">
+							<choose>
+								<when test='"1".equals(item.constraint)'>
+								${item.selectOption} TSM.SRID IN ( Select SRID From XBOLTAPP.ESM_SR_ATTR 
+											Where AttrTypeCode = #{item.attrCode}
+										)
+								</when>
+								<when test='"2".equals(item.constraint)'>
+								${item.selectOption} TSM.SRID NOT IN ( Select SRID From XBOLTAPP.ESM_SR_ATTR 
+											Where AttrTypeCode = #{item.attrCode}
+										)
+								</when>
+							</choose>
+						</when>
+					</choose>
+				</foreach>
+				)
+			</if>
+			<if test='"Y".equals(mbrRcdMgt)' >
+				And (
+					TSM.SRID IN (Select SRID From XBOLTAPP.ESM_MBR_RCD Where SRID = TSM.SRID And MemberID = #{sessionUserID} AND SpeCode = TSM.Status ) 
+					OR ( #{sessionUserID} In ( TSM.ReceiptUserID ) AND TSM.Blocked = 0 AND TSM.ProcRoleTP != 'CLIENT' AND TSM.ProcRoleTP IS NOT NULL )
+				)
+			</if>
+			<if test='"Y".equals(procRoleTPGroup)' >
+				And TSM.ProcRoleTP IN (Select RoleType From XBOLTADM.TB_MY_ITEM Where (ItemID = TSM.SRArea2 OR ItemID = TSM.SRArea1) AND Assigned = '1' And MemberID IN (${procRoleTPGroupMemberIDs}))
+			</if>
+			<if test='"Y".equals(completedWork)' >
+				And TSM.SRID IN ( Select PID From XBOLTAPP.ESM_ACTIVITY_LOG Where ActorID = #{sessionUserID} )
+			</if>
+			<if test="requestUserID != null and requestUserID != ''">
+				AND TSM.RequestUserID = #{requestUserID}
+			</if>
+			</where>
+			<if test="actorID != null and actorID != ''">
+				And (TSM.SRID in ( SELECT distinct srid FROM XBOLTAPP.ESM_MBR_RCD Where MemberID = #{actorID}) or TSM.SRID IN (SELECT distinct DocumentID from XBOLTAPP.esm_activity_log where actorid = #{actorID}))
+			</if>
+			<if test="inProgress != null and inProgress != ''">
+				<choose>
+					<when test="inProgress.equals('ING')">
+						And TSM.CompletionDT iS NULL
+					</when>
+					<when test="inProgress.equals('COMPL')">
+						And TSM.CompletionDT iS NOT NULL
+					</when>
+					<when test="inProgress.equals('ALL')">
+					</when>
+					<when test="inProgress.equals('TEMP')">
+						And TSM.IsPublic = 0
+					</when>
+				</choose>
+			</if>
+			<if test="svcType != null and svcType != ''">
+				AND ISNULL(SRArea2ATR.PlainText,SRArea1ATR.PlainText) = #{svcType}
+			</if>
+			<if test='"Y".equals(receiptDelay)'>
+				AND <![CDATA[ TSM.Duedate < ISNULL(tsm.CompletionDT,GETDATE()) ]]>
+			</if>
+			<if test='"Y".equals(completionDelay)'>
+				AND <![CDATA[ TSM.Duedate < ISNULL(tsm.CompletionDT,GETDATE()) ]]>
+			</if>
+		) AS TBD
+ 
+ 		<!-- 조회 -->
+		SELECT
+			TXT.Name,
+			count(TSM1.srID) 'ACM',
+			count(TSM2.srID) 'DCM',
+			count(TSM3.srID) 'ICM',
+			count(TSM4.srID) 'SCM',
+			count(TSM5.srID) 'DPL',
+			count(TSM6.srID) 'WRK1',
+			count(TSM7.srID) 'WRK2',
+			count(TSM8.srID) 'REQ1',
+			count(TSM9.srID) 'REQ2'
+		From #temp_result tmp
+		inner join xboltapp.esm_sr_mst TSM WITH(NOLOCK) ON TSM.SRID = tmp.TSM_SRID
+		inner join xboltadm.tb_team TT WITH(NOLOCK)  ON TT.ClientID = TSM.ClientID AND TT.TeamType = '2'
+		inner join xboltadm.tb_team_txt TXT WITH(NOLOCK)  ON TXT.TeamID = TT.TeamID AND TXT.LanguageID = #{languageID}
+		left outer join xboltapp.esm_sr_mst TSM1 WITH(NOLOCK)  ON TSM1.SRID = tmp.TSM_SRID AND TSM1.SRType = 'ACM'
+		left outer join xboltapp.esm_sr_mst TSM2 WITH(NOLOCK)  ON TSM2.SRID = tmp.TSM_SRID AND TSM2.SRType = 'DCM'
+		left outer join xboltapp.esm_sr_mst TSM3 WITH(NOLOCK)  ON TSM3.SRID = tmp.TSM_SRID AND TSM3.SRType = 'ICM'
+		left outer join xboltapp.esm_sr_mst TSM4 WITH(NOLOCK)  ON TSM4.SRID = tmp.TSM_SRID AND TSM4.SRType = 'SCM'
+		left outer join xboltapp.esm_sr_mst TSM5 WITH(NOLOCK)  ON TSM5.SRID = tmp.TSM_SRID AND TSM5.SRType = 'DPL'
+		left outer join xboltapp.esm_sr_mst TSM6 WITH(NOLOCK)  ON TSM6.SRID = tmp.TSM_SRID AND TSM6.SRType = 'WRK' AND TSM6.Status != 'WRK0003'
+		left outer join xboltapp.esm_sr_mst TSM7 WITH(NOLOCK)  ON TSM7.SRID = tmp.TSM_SRID AND TSM7.SRType = 'WRK' AND TSM7.Status = 'WRK0003'
+		left outer join xboltapp.esm_sr_mst TSM8 WITH(NOLOCK)  ON TSM8.SRID = tmp.TSM_SRID AND TSM8.SRType = 'REQ' AND TSM8.ProcPathID != '500039'
+		left outer join xboltapp.esm_sr_mst TSM9 WITH(NOLOCK)  ON TSM9.SRID = tmp.TSM_SRID AND TSM9.SRType = 'REQ' AND TSM9.ProcPathID = '500039'
+		where TSM.srType != '' and TSM.srType is not null and TSM.ClientID != '' and TSM.ClientID is not null
+		group by TSM.ClientID , TXT.Name
+		order by TXT.Name
+ 
+		<!-- 임시테이블 삭제 -->
+		DROP TABLE #temp_result
+	</select>
+	
+	<!-- 타입별 엑셀 header 설정 -->
+	<select id="getESPSearchExcelHeaderList" resultType="java.util.HashMap">
+		
+		CREATE TABLE #temp_result (
+		    headerkey varchar(100),
+			headerValue varchar(200),
+		);
+		
+		INSERT INTO #temp_result (headerkey,headerValue)
+		VALUES ('_startTime', '_시작일시'), ('_endTime', '_완료일시'), ('_MH1', '_실적(업무내)'), ('_MH2', '_실적(업무외)'),
+	   		   ('_procRoleInfo', '_담당그룹'), ('_actorInfo', '_담당자'),('_actorTeamInfo', '_담당 부서');
+		
+		
+		SELECT 
+			TI.Identifier + tmp.headerkey HeaderKey, REPLACE(TIA.PlainText + tmp.headerValue,',','/') HeaderName
+		FROM XBOLTADM.TB_ITEM TI
+		INNER JOIN XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID =  TI.ItemID AND TIA.LanguageID =  #{languageID} AND TIA.AttrTypeCode = 'AT00001'
+		CROSS JOIN #temp_result tmp
+	    <where>
+	    	TI.ClassCode = 'CL03004'
+	    	AND TI.Identifier IS NOT NULL AND TI.Deleted != 1
+			<if test="srType != null and srType != ''">
+				AND TI.Identifier LIKE N'%'+#{srType}+'%'
+			</if>
+			AND TI.Identifier NOT IN ('REQ0003','REQ0005','REQ0006')
+			AND TI.Identifier NOT LIKE '%0001%'
+		</where>
+		
+		UNION
+	
+		SELECT 
+			TI.Identifier + '_' + EAAT.AttrTypeCode HeaderKey, REPLACE(TIA.PlainText + '_' + TD.Name,',','/') HeaderName
+		FROM XBOLTADM.TB_ITEM TI
+		INNER JOIN XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID =  TI.ItemID AND TIA.LanguageID =  #{languageID} AND TIA.AttrTypeCode = 'AT00001'
+		INNER JOIN XBOLTAPP.ESM_ACTIVITY_ATTR_TYPE EAAT ON EAAT.SpeCode = TI.Identifier
+		INNER JOIN XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = EAAT.AttrTypeCode AND TD.LanguageID = #{languageID}
+	    <where>
+	    	TI.ClassCode = 'CL03004'
+	    	AND TI.Identifier IS NOT NULL AND TI.Deleted != 1
+			<if test="srType != null and srType != ''">
+				AND TI.Identifier LIKE N'%'+#{srType}+'%'
+			</if>
+			AND TI.Identifier NOT IN ('REQ0003','REQ0005','REQ0006')
+		</where>
+		
+		ORDER BY HeaderKey
+		
+		DROP TABLE #temp_result
+	</select>
+	
+	<!-- 타입별 엑셀 리스트 -->
+	<select id="getESPSearchExcelSubList" resultType="java.util.HashMap">
+		CREATE TABLE #temp_result (
+		    SRID bigint
+		);
+		
+		 INSERT INTO #temp_result (SRID)
+	     VALUES
+	    <foreach collection="srIdList" item="srid" separator=",">
+	        (#{srid})
+	    </foreach>
+		
+		SELECT
+			TSM.SRID, 'Description' AS HeaderKey, TSM.Description AS Value
+		FROM XBOLTAPP.ESM_SR_MST TSM
+		INNER JOIN #temp_result tmp ON tmp.SRID = TSM.SRID
+		
+		UNION 
+		
+		SELECT
+			ESA.SRID, ESA.SpeCode + '_' + ESA.AttrTypeCode AS HeaderKey, ISNULL(TATL.Value,ESA.Value) AS Value
+		<choose>
+			<when test="srType != null and srType != '' and srType != 'WRK'">
+			FROM XBOLTAPP.ESM_SR_ATTR ESA
+			</when>
+			<otherwise>
+			FROM XBOLTAPP.ESM_WKS_ATTR ESA
+			</otherwise>
+		</choose>
+		INNER JOIN #temp_result tmp ON tmp.SRID = ESA.SRID
+		LEFT OUTER JOIN XBOLTADM.TB_ATTR_TYPE_LOV TATL ON TATL.AttrTypeCode = ESA.AttrTypeCode AND TATL.LovCode = ESA.LovCode AND ESA.LovCode IS NOT NULL AND TATL.LanguageID = #{languageID}
+		
+		UNION
+		
+		SELECT EAL.PID AS SRID, SpeCode + '_startTime' AS HeaderKey, CONVERT(VARCHAR(10), StartTime, 23) AS Value FROM XBOLTAPP.ESM_ACTIVITY_LOG EAL
+		INNER JOIN #temp_result tmp ON tmp.SRID = EAL.PID 
+		WHERE Status != '07' AND SpeCode != 'ZSPE00'
+		
+		UNION
+		
+		SELECT EAL.PID AS SRID, SpeCode + '_endTime' AS HeaderKey, CONVERT(VARCHAR(10), EndTime, 23) AS Value FROM XBOLTAPP.ESM_ACTIVITY_LOG EAL
+		INNER JOIN #temp_result tmp ON tmp.SRID = EAL.PID
+		WHERE Status != '07' AND SpeCode != 'ZSPE00'
+		
+		UNION
+		
+		SELECT EAL.PID AS SRID, SpeCode + '_procRoleInfo' AS HeaderKey, TD.Name AS Value FROM XBOLTAPP.ESM_ACTIVITY_LOG EAL
+		INNER JOIN #temp_result tmp ON tmp.SRID = EAL.PID
+		Inner Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = EAL.ProcRoleTP
+		WHERE Status != '07' AND SpeCode != 'ZSPE00'
+		
+		UNION
+		
+		SELECT EAL.PID AS SRID, SpeCode + '_actorInfo' AS HeaderKey, TM.Name + '(' + TM.LoginID + ')' AS Value FROM XBOLTAPP.ESM_ACTIVITY_LOG EAL
+		INNER JOIN #temp_result tmp ON tmp.SRID = EAL.PID
+		Inner Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = EAL.ActorID
+		WHERE Status != '07' AND SpeCode != 'ZSPE00'
+		
+		UNION
+		
+		SELECT EAL.PID AS SRID, SpeCode + '_actorTeamInfo' AS HeaderKey, TXT.Name + '(' + TXT.TeamCode + ')' AS Value FROM XBOLTAPP.ESM_ACTIVITY_LOG EAL
+		INNER JOIN #temp_result tmp ON tmp.SRID = EAL.PID
+		Inner Join XBOLTADM.TB_TEAM_TXT TXT ON TXT.TeamID = EAL.TeamID AND TXT.LanguageID = #{languageID}
+		WHERE Status != '07' AND SpeCode != 'ZSPE00'
+		
+		UNION
+		
+		SELECT EMR.SRID, SpeCode + '_MH1' as HeaderKey, CAST(SUM(BUSINESS_HOURS) AS VARCHAR) AS Value from XBOLTAPP.ESM_MBR_RCD EMR
+		INNER JOIN #temp_result tmp ON tmp.SRID = EMR.SRID
+		GROUP BY BUSINESS_HOURS, SpeCode, EMR.SRID
+		
+		UNION
+		
+		SELECT EMR.SRID, SpeCode + '_MH2' as HeaderKey, CAST(SUM(OVERTIME) AS VARCHAR) AS Value from XBOLTAPP.ESM_MBR_RCD EMR
+		INNER JOIN #temp_result tmp ON tmp.SRID = EMR.SRID
+		GROUP BY BUSINESS_HOURS, SpeCode, EMR.SRID
+		
+		UNION
+		
+		SELECT EES.DocumentID,  'ZSPE00_' + EEIV.AttrTypeCode as HeaderKey, EEIV.Value
+		FROM XBOLTAPP.ESM_EVAL_SHEET EES
+		INNER JOIN #temp_result tmp ON tmp.SRID = EES.DocumentID
+		INNER JOIN XBOLTAPP.ESM_EVAL_ITEM_VALUE EEIV ON EES.EvalSheetID = EEIV.EvalSheetID
+		
+		DROP TABLE #temp_result
+	</select>
+	
+	
+	<!-- 20250424 CTI 콜이력 가져오기 시작 -->
+	<insert id="InsertCtiCdrList" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTDLM.CDR
+           (CallID,
+			LineType,
+			SliNum,
+			GrpName,
+			AgtID,
+			AgtName,
+			TrkNum,
+			SDate,
+			STime,
+			SWeek,
+			SangdamSec,
+			CustWaitSec,
+			TotalUseSec,
+			IO,
+			CallResult,
+			GrpType,
+			SMDR,
+			TelNum,
+			DNIS,
+			TransferNum,
+			AgtCnt,
+			TransferCnt,
+			ConferenceCnt,
+			Reserved_1,
+			Reserved_2,
+			Reserved_3,
+			Reserved_4,
+			Reserved_5
+           )
+     	VALUES
+        <foreach collection="list" item="cti" separator=",">
+			(
+			#{cti.CallID},
+			#{cti.LineType},
+			#{cti.SliNum},
+			#{cti.GrpName},
+			#{cti.AgtID},
+			#{cti.AgtName},
+			#{cti.TrkNum},
+			#{cti.SDate},
+			#{cti.STime},
+			#{cti.SWeek},
+			#{cti.SangdamSec},
+			#{cti.CustWaitSec},
+			#{cti.TotalUseSec},
+			#{cti.IO},
+			#{cti.CallResult},
+			#{cti.GrpType},
+			#{cti.SMDR},
+			#{cti.TelNum},
+			#{cti.DNIS},
+			#{cti.TransferNum},
+			#{cti.AgtCnt},
+			#{cti.TransferCnt},
+			#{cti.ConferenceCnt},
+			#{cti.Reserved_1},
+			#{cti.Reserved_2},
+			#{cti.Reserved_3},
+			#{cti.Reserved_4},
+			#{cti.Reserved_5}
+			)
+		</foreach>
+	</insert>
+	<!-- 20250424 CTI 콜이력 가져오기 끝 -->
+	
+	<select id="getWFStatusInfo" resultType="java.util.HashMap">
+		WITH WF_ROWS AS (
+		    SELECT 
+		        ROW_NUMBER() OVER (ORDER BY TWI.DocumentID ASC) AS RN, 	
+		        ISNULL(TWI.ReturnedValue,'') AS ReturnedValue,			
+				ISNULL(TM.Name,'') AS WFActorName,
+				ISNULL(CONVERT(VARCHAR(10), TWI.LASTUPDATED, 23), '') AS WFDate,
+				ISNULL(TD.Name,'') AS StatusName,
+				ISNULL(TWI.Status,'') AS Status,
+				ESM.REQ_DEPT_APP_OPIN,
+				'Read' AS Mode,
+				ISNULL(TWI.GWProcessID,'') AS ProcessID,
+				CASE WHEN TWI.Status IN ('-1','0','4') THEN 'N' ELSE 'Y' END AS HasLink,
+				CASE WHEN TWI.Status = '0' THEN (select Top 1 Name From XBOLTADM.TB_DICTIONARY Where TypeCode ='ZLN0030' and LanguageID = #{languageID} And Category ='ERRTP') 
+					 WHEN TWI.Status = '4' THEN (select Top 1 Name From XBOLTADM.TB_DICTIONARY Where TypeCode ='ZLN0030' and LanguageID = #{languageID} And Category ='ERRTP') 
+					 ELSE '' END AS WFMsg
+		    FROM XBOLTADM.TB_WF_INST TWI
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TD.TYPECODE = TWI.STATUS AND TD.LANGUAGEID = #{languageID} AND TD.CATEGORY = 'APRVSTS'
+			LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TM.MEMBERID = TWI.LASTUSER
+		    LEFT OUTER JOIN XBOLTAPP.ESM_SR_MST ESM ON TWI.DocumentNo = ESM.SRCode
+		    WHERE TWI.DocumentNo = #{srCode}
+		)
+		SELECT
+		    MAX(CASE WHEN RN = 1 THEN ReturnedValue END) AS PID1,
+		    MAX(CASE WHEN RN = 2 THEN ReturnedValue END) AS PID2,
+			MAX(CASE WHEN RN = 1 THEN WFActorName END) AS WFActorName1,
+		    MAX(CASE WHEN RN = 2 THEN WFActorName END) AS WFActorName2,
+			MAX(CASE WHEN RN = 1 THEN WFDate END) AS WFDate1,
+		    MAX(CASE WHEN RN = 2 THEN WFDate END) AS WFDate2,
+			MAX(CASE WHEN RN = 1 THEN StatusName END) AS WFStatusNM1,
+   			MAX(CASE WHEN RN = 2 THEN StatusName END) AS WFStatusNM2,
+			MAX(CASE WHEN RN = 1 THEN Status END) AS Status1,
+		    MAX(CASE WHEN RN = 2 THEN Status END) AS Status2,
+		    MAX(CASE WHEN RN = 1 THEN Mode END) AS Mode1,
+		    MAX(CASE WHEN RN = 2 THEN Mode END) AS Mode2,
+		    MAX(CASE WHEN RN = 1 THEN ProcessID END) AS ProcessID1,
+		    MAX(CASE WHEN RN = 2 THEN ProcessID END) AS ProcessID2,
+		    MAX(CASE WHEN RN = 1 THEN HasLink END) AS HasLink1,
+		    MAX(CASE WHEN RN = 2 THEN HasLink END) AS HasLink2,
+		    MAX(CASE WHEN RN = 1 THEN WFMsg END) AS WFMsg1,
+		    MAX(CASE WHEN RN = 2 THEN WFMsg END) AS WFMsg2,
+		    MAX(CASE WHEN RN = 1 THEN REQ_DEPT_APP_OPIN END) AS REQ_DEPT_APP_OPIN,
+		    MAX(CASE WHEN RN = 2 THEN REQ_DEPT_APP_OPIN END) AS REQ_DEPT_APP_OPIN
+		    
+		FROM WF_ROWS
+		WHERE <![CDATA[ RN <= 2 ]]>
+	</select>
+	
+	<select id="zDlm_getESPRoleMemberList_gridList" resultType="java.util.HashMap">
+		
+		SELECT T.SRAreaName, T.RoleName, T.SRTypeName, T.RoleMemberName, T.ClassCode , T.ProcessType FROM (
+		SELECT ROW_NUMBER() OVER (ORDER BY TIA.PlainText, ORT.ProcessType COLLATE Latin1_General_BIN) AS id
+			, TIA.PlainText SRAreaName
+			, TD.Name RoleName
+			, TD2.Name SRTypeName
+			, TI.ClassCode
+			, ORT.ProcessType
+			, STRING_AGG(
+					CASE 
+						WHEN ORT.RoleTypeCode = 'WGRICM102' THEN IDI.USER_NM
+						ELSE TM.NAME
+					END, 
+					','
+				) WITHIN GROUP (ORDER BY 
+					CASE 
+						WHEN ORT.RoleTypeCode = 'WGRICM102' THEN IDI.USER_NM
+						ELSE TM.NAME
+					END) AS RoleMemberName
+		FROM XBOLTADM.TB_ITEM TI WITH(NOLOCK)
+		
+		INNER JOIN XBOLTADM.TB_ITEM_ATTR TIA WITH(NOLOCK) ON TIA.ItemID = TI.ItemID AND TIA.LanguageID = #{languageID} AND TIA.AttrTypeCode = 'AT00001'
+		INNER JOIN XBOLTADM.TB_TEAM TT1 WITH(NOLOCK) ON TT1.TeamID = TI.CompanyID AND TT1.TeamType = 2
+		INNER JOIN XBOLTADM.TB_TEAM TT2 WITH(NOLOCK) ON TT1.RefTeamCode = TT2.TeamCode AND TT2.TeamType = 50
+
+		CROSS JOIN XBOLTADM.TB_OLM_ROLE_TYPE ORT WITH(NOLOCK)
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD WITH(NOLOCK) ON TD.TypeCode = ORT.RoleTypeCode AND TD.LanguageID = #{languageID} AND TD.Category = 'SRROLETP'
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD2 WITH(NOLOCK) ON TD2.TypeCode = ORT.ProcessType AND TD2.LanguageID = #{languageID} AND TD2.Category = 'SRTP'
+
+		LEFT OUTER JOIN XBOLTADM.TB_MY_ITEM TMI WITH(NOLOCK) ON TMI.ItemID = TI.ItemID AND TMI.RoleType = ORT.RoleTypeCode AND TMI.Assigned = 1
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM WITH(NOLOCK) ON TM.MemberID = TMI.MemberID AND TM.Active = 1
+		LEFT OUTER JOIN XBOLTDLM.ITUSER_DEPT_INFO IDI WITH(NOLOCK) ON IDI.memberID = TMI.MemberID
+
+		WHERE TI.Deleted = 0
+		AND ORT.AssignmentType = 'SRROLETP'
+		AND ORT.RoleTypeCode != 'WGRREQ100'
+		AND ORT.ProcessType != 'PBM'
+		AND TI.ItemTypeCode = 'OJ00004' AND TI.ClassCode IN ( 'CL04001','CL04002')
+
+		<if test="companyID != '' and companyID != null">AND TT2.TeamID = #{companyID}</if>
+		<if test="deptID != '' and deptID != null">
+			AND TI.ItemID IN ( SELECT DISTINCT ItemID FROM XBOLTADM.TB_MY_ITEM WHERE MemberID IN ( 
+								SELECT MemberID FROM XBOLTDLM.ITUSER_DEPT_INFO IDI
+								INNER JOIN XBOLTADM.TB_TEAM TT ON IDI.CD_DEPT = TT.TeamCode And  TT.TeamID=#{deptID}) )
+		</if>
+		<if test="srArea != '' and srArea != null">AND TI.ItemID = #{srArea}</if>
+		<if test="roleType != '' and roleType != null">AND TMI.RoleType = #{roleType}</if>
+		<if test="srType != '' and srType != null">AND ORT.ProcessType = #{srType}</if>
+		
+		And TT1.ClientID in (
+					SELECT ClientID
+					FROM XBOLTADM.TB_PROJECT TP
+					left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR on TP.ProjectID = TPMR.ProjectID
+					Where TPMR.MemberID = #{userID}
+					And TP.ProjectType = 'CSR')
+
+		GROUP BY TMI.RoleType, TIA.PlainText ,  TD2.Name, TD.Name , TI.ItemID, TT1.refTeamCode , ORT.ProcessType , TI.ClassCode
+		) T
+		WHERE (T.ClassCode != 'CL04001' OR T.RoleMemberName IS NOT NULL )
+		ORDER BY T.SRAreaName, T.ClassCode, T.ProcessType COLLATE Latin1_General_BIN
+	</select>
+	
+	<select id="getIsMyProcRoleTPGroup" resultType="String">
+		Select 
+			Case When Count(*) > 0 Then 'Y' Else 'N' END  AS isMyProcRoleTPGroup 
+		From XBOLTADM.TB_MY_ITEM TMI
+		Inner Join XBOLTAPP.ESM_SR_MST ESM ON ESM.SRArea2 = TMI.ItemID
+		Where ESM.SRID = #{srID}
+		And TMI.AssignmentType = 'SRROLETP'
+		And TMI.Assigned = 1
+		And TMI.MemberID = #{sessionUserID}
+	</select> 	
+	
+	<select id="getIsMyRegion" resultType="String">
+		Select
+			Case When Count(*) > 0 Then 'Y' Else 'N' END  AS isMyRegion
+		From XBOLTAPP.ESM_ACTIVITY_LOG EAL 
+		Inner Join XBOLTAPP.ESM_SR_MST TSM ON TSM.SRID = EAL.PID 
+		Where EAL.PID = #{srID}
+		AND TSM.CustGRNO in (
+					SELECT TP2.ClientID
+					FROM XBOLTADM.TB_PROJECT TP
+					left outer join XBOLTADM.TB_PJT_MEMBER_REL TPMR on TP.ProjectID = TPMR.ProjectID
+					left outer join XBOLTADM.TB_PROJECT TP2 ON TP2.ProjectID = TP.ParentID
+					Where TPMR.MemberID = #{sessionUserID}
+					And TP.ProjectType = 'PJT' AND TP2.ProjectType = 'PG'
+				)
+	</select> 	
+</mapper>

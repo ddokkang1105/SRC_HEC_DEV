@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="forumScore_SQL">
+
+	<select id="totalScore" resultType="java.util.HashMap">
+		SELECT Score FROM XBOLTADM.TB_BOARD_SCORE WHERE BoardMgtID = 4 AND BoardID=#{privateId}
+	</select>
+	
+	<select id="isExistScore" resultType="String">
+		<![CDATA[
+			SELECT Count(*) FROM XBOLTADM.TB_BOARD_SCORE WHERE BoardMgtID = 4 AND BoardID=#{boardID} AND RegUserID=#{userId}
+		]]>
+	</select>	
+	
+	<select id="editScore" resultType="String">
+		SELECT Score
+		FROM XBOLTADM.TB_BOARD_SCORE 
+		WHERE BoardMgtID = 4 
+		AND BoardID=#{boardID} 
+		AND RegUserID=#{userId}
+	</select>
+	
+	<insert id="scoreInsert" parameterType="java.util.HashMap">
+	    <![CDATA[
+		INSERT INTO XBOLTADM.TB_BOARD_SCORE (
+			BoardID
+			, BoardMgtID
+      		, Score
+      		, RegUserID
+			, RegDT
+		) VALUES (
+			#{boardID}
+			, #{boardMgtId}
+			, #{score}
+			, #{userId}
+			, getdate()
+		)
+]]>	
+	</insert>
+	
+	<update id="scoreUpdate" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_BOARD_SCORE 
+		SET Score = #{score}
+		WHERE
+			BoardID = #{boardID}
+			AND RegUserID = #{userId}
+	</update>
+	
+</mapper>

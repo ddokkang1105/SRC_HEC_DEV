@@ -1,0 +1,786 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="esmReport_SQL">
+	
+	<select id="getValidSrTypeCodeName" resultType="java.util.HashMap">
+	   SELECT SRTP.SRTypeCode AS 'srTypeCode', DIC.Name as 'srTypeName'
+
+		FROM XBOLTAPP.ESM_SR_TYPE SRTP WITH(NOLOCK)
+		
+		INNER JOIN XBOLTADM.TB_DICTIONARY DIC on DIC.TypeCode = SRTP.SRTypeCode
+		
+		WHERE SRTP.Deactivated = '0' AND SRTP.ProcModelID IS NOT NULL
+		AND DIC.Category = 'SRTP' and DIC.LanguageID = #{languageID}
+	</select>
+	
+	<select id="getSRCountOverviewByClient" resultType="java.util.HashMap">
+	    WITH ValidTicketList AS (
+	        SELECT
+	            SR_MST.SRType,
+	            SR_MST.CompletionDT,
+	            SR_MST.ClientID
+	        FROM
+	            XBOLTAPP.ESM_SR_MST SR_MST
+	        INNER JOIN
+	            XBOLTAPP.ESM_SR_TYPE SRTP_TBL ON SR_MST.SRType = SRTP_TBL.SRTypeCode
+	        INNER JOIN
+	            XBOLTADM.TB_ITEM PART_ITEM ON SR_MST.SRArea2 = PART_ITEM.ItemID
+	        INNER JOIN
+	            XBOLTAPP.CRM_CUST_MST CUSTMST ON SR_MST.ClientID = CUSTMST.CustomerNo
+	        WHERE
+	            SR_MST.SRID IS NOT NULL
+	            AND SR_MST.SRCode IS NOT NULL
+	            AND SRTP_TBL.Deactivated = '0'
+	            AND SRTP_TBL.ProcModelID IS NOT NULL
+	            AND PART_ITEM.ClassCode = 'CL04002'
+	            AND PART_ITEM.Deleted = 0
+	            AND CUSTMST.CustLvl = 'C'
+	            
+	            <if test="regStartDate != null and regStartDate != ''">
+	            AND SR_MST.RegDT >= CAST(#{regStartDate} AS DATETIME)
+	            </if>
+	            
+	            <if test="regEndDate != null and regEndDate != ''">
+	            <![CDATA[ AND SR_MST.RegDT <= DATEADD(MS, -2, DATEADD(DAY, 1, CAST(#{regEndDate} AS DATETIME)))]]>
+	            </if>
+	            
+	            <if test="clientName != null and clientName != ''">
+	            AND SR_MST.ClientID = #{clientName}
+	            </if>
+	    )
+	    SELECT
+	        TEAMTXT.Name AS ClientName,
+	        COUNT(VTL.SRType) AS ClientTotal,
+	        SUM(CASE WHEN VTL.SRType IS NOT NULL AND VTL.CompletionDT IS NOT NULL THEN 1 ELSE 0 END) AS ClientCompleted,
+	        SUM(CASE WHEN VTL.SRType IS NOT NULL AND VTL.CompletionDT IS NULL THEN 1 ELSE 0 END) AS ClientProcessing,
+	        
+	        <foreach collection="srTypeArray" item="srType" separator=",">
+	            SUM(CASE WHEN VTL.SRType = #{srType} THEN 1 ELSE 0 END) AS "${srType}Total",
+	            SUM(CASE WHEN VTL.SRType = #{srType} AND VTL.CompletionDT IS NOT NULL THEN 1 ELSE 0 END) AS "${srType}Completed",
+	            SUM(CASE WHEN VTL.SRType = #{srType} AND VTL.CompletionDT IS NULL THEN 1 ELSE 0 END) AS "${srType}Processing"
+	        </foreach>
+	    FROM
+	        XBOLTAPP.CRM_CUST_MST CUSTMST
+	    INNER JOIN
+	        XBOLTADM.TB_TEAM_TXT TEAMTXT ON TEAMTXT.TeamID = CUSTMST.TeamID
+	    LEFT OUTER JOIN
+	        ValidTicketList VTL ON VTL.ClientID = CUSTMST.CustomerNo
+	    WHERE
+	        CUSTMST.CustLvl = 'C'
+	        AND TEAMTXT.LanguageID = #{languageID}
+	    GROUP BY
+	        TEAMTXT.Name
+	    ORDER BY
+	        ClientName;
+	</select>
+	
+	<select id="getSRCountOverviewBySRArea2" resultType="java.util.HashMap">
+		WITH ValidTicketList AS (
+		    SELECT
+		        SR_MST.SRID,
+		        SR_MST.SRCode,
+		        SR_MST.SRType,
+		        SR_MST.CompletionDT,
+		        SR_MST.SRArea2,
+		        SR_MST.ClientID
+		    FROM
+		        XBOLTAPP.ESM_SR_MST SR_MST
+		    INNER JOIN
+		        XBOLTAPP.ESM_SR_TYPE SRTP_TBL ON SR_MST.SRType = SRTP_TBL.SRTypeCode
+		    INNER JOIN
+		        XBOLTADM.TB_ITEM PART_ITEM ON SR_MST.SRArea2 = PART_ITEM.ItemID
+		    INNER JOIN
+		        XBOLTAPP.CRM_CUST_MST CUSTMST ON SR_MST.ClientID = CUSTMST.CustomerNo
+		    WHERE
+		        SR_MST.SRID IS NOT NULL
+		        AND SR_MST.SRCode IS NOT NULL
+		        AND SRTP_TBL.Deactivated = '0'
+		        AND SRTP_TBL.ProcModelID IS NOT NULL
+		        AND PART_ITEM.ClassCode = 'CL04002'
+		        AND PART_ITEM.Deleted = 0
+		        AND CUSTMST.CustLvl = 'C'
+				<if test="regStartDate != null and regStartDate != ''">
+			    AND SR_MST.RegDT >= CAST(#{regStartDate} AS DATETIME)
+				</if>
+				
+				<if test="regEndDate != null and regEndDate != ''">
+				<![CDATA[ AND SR_MST.RegDT <= DATEADD(MS, -2, DATEADD(DAY, 1, CAST(#{regEndDate} AS DATETIME)))]]>
+				</if>
+			    
+				<if test="customerNo != null and customerNo != ''">
+				AND SR_MST.ClientID = #{customerNo}
+			    </if>
+			
+				<if test="srTypeArray != null">
+				AND SR_MST.SRType IN
+				<foreach collection="srTypeArray" item="srType" open="(" separator="," close=")">
+					#{srType}
+				</foreach>
+				</if>
+		),
+		SumQuery AS (
+		    SELECT
+		        VTL.SRArea2 AS PartID,
+		        COUNT(VTL.SRCode) AS Total,
+		        SUM(CASE WHEN VTL.SRType IS NOT NULL AND VTL.CompletionDT IS NOT NULL THEN 1 ELSE 0 END) AS Completed,
+		        SUM(CASE WHEN VTL.SRType IS NOT NULL AND VTL.CompletionDT IS NULL THEN 1 ELSE 0 END) AS Processing
+		                <if test="srTypeArray != null">
+		        ,<foreach collection="srTypeArray" item="srType" separator=",">
+					SUM(CASE WHEN VTL.SRType = #{srType} THEN 1 ELSE 0 END) AS "${srType}Total",
+		            SUM(CASE WHEN VTL.SRType = #{srType} AND VTL.CompletionDT IS NOT NULL THEN 1 ELSE 0 END) AS "${srType}Completed",
+		            SUM(CASE WHEN VTL.SRType = #{srType} AND VTL.CompletionDT IS NULL THEN 1 ELSE 0 END) AS "${srType}Processing"
+		        </foreach>
+		        </if>
+		    FROM
+		        ValidTicketList VTL
+		    GROUP BY
+		        VTL.SRArea2
+		)
+		SELECT
+		    PARENT_ATR.PlainText AS ServiceName,
+		    PART_ATR.PlainText AS PartName,
+		    PART_ITEM.ItemID AS PartID,
+		    COALESCE(SumQuery.Total, 0) AS Total,
+		    COALESCE(SumQuery.Completed, 0) AS Completed,
+		    COALESCE(SumQuery.Processing, 0) AS Processing
+		        <if test="srTypeArray != null">
+		    ,<foreach collection="srTypeArray" item="srType" separator=",">
+					COALESCE(SumQuery.${srType}Total, 0) AS "${srType}Total",
+		            COALESCE(SumQuery.${srType}Completed, 0) AS "${srType}Completed",
+		            COALESCE(SumQuery.${srType}Processing, 0) AS "${srType}Processing"
+		        </foreach>
+		    </if>
+		FROM
+		    XBOLTADM.TB_ITEM PART_ITEM
+		LEFT OUTER JOIN
+		    SumQuery ON PART_ITEM.ItemID = SumQuery.PartID
+		LEFT OUTER JOIN
+		    XBOLTADM.TB_ITEM_ATTR PART_ATR ON PART_ITEM.ItemID = PART_ATR.ItemID AND PART_ATR.AttrTypeCode = 'AT00001' AND PART_ATR.LanguageID = #{languageID}
+		LEFT OUTER JOIN
+		    XBOLTADM.TB_ITEM CXN ON PART_ITEM.ItemID = CXN.ToItemID
+		LEFT OUTER JOIN
+		    XBOLTADM.TB_ITEM_ATTR PARENT_ATR ON CXN.FromItemID = PARENT_ATR.ItemID AND PARENT_ATR.AttrTypeCode = 'AT00001' AND PARENT_ATR.LanguageID = #{languageID}
+		WHERE
+		    PART_ITEM.ClassCode = 'CL04002'
+		    AND PART_ITEM.Deleted = 0
+		ORDER BY
+		    PARENT_ATR.PlainText, PART_ITEM.ItemID;
+	</select>
+
+
+	<select id="getOpenTicketList_gridList" resultType="java.util.HashMap">
+		SELECT 
+			ISNULL(Total,0) AS Total,
+			ISNULL(Unassigned,0) AS Unassigned,
+		    ISNULL(Completed,0) AS Completed,
+		    ISNULL(Delayed,0) AS Delayed
+		FROM (
+			SELECT 
+				<![CDATA[SUM(CASE WHEN Blocked = 0 AND IsPublic = 1 AND (
+				                (ReceiptUserID IS NULL AND CompletionDT IS NULL)OR
+				                (ReceiptUserID IS NOT NULL AND CompletionDT IS NULL AND (Duedate IS NULL OR Duedate > CAST(GETDATE() AS DATE)))OR
+				                (Duedate < CAST(ISNULL(CompletionDT,GETDATE()) AS DATE))
+				            )THEN 1 ELSE 0 END
+				) AS Total,]]>
+				SUM(CASE WHEN ReceiptUserID IS NULL AND CompletionDT IS NULL AND Blocked = 0 AND IsPublic = 1 THEN 1 ELSE 0 END) AS Unassigned,
+				<![CDATA[SUM(CASE WHEN ReceiptUserID IS NOT NULL AND CompletionDT IS NULL AND Blocked = 0 AND IsPublic = 1 AND (Duedate IS NULL OR Duedate > CAST(GETDATE() AS DATE))   THEN 1 ELSE 0 END) AS Completed,]]>
+				<![CDATA[SUM(CASE WHEN Duedate < CAST(ISNULL(CompletionDT,GETDATE()) AS DATE) AND Blocked = 0 AND IsPublic = 1 THEN 1 ELSE 0 END) AS Delayed]]>
+			FROM XBOLTAPP.ESM_SR_MST
+			<where>
+		    <if test="clientID != null and clientID != ''">
+				AND ClientID = #{clientID}
+			</if>
+			<if test="custGRNo != null and custGRNo != ''">
+				AND CustGRNo in (${custGRNo})
+			</if>
+			<if test="receiptTeamID != null and receiptTeamID != ''">
+				AND ReceiptTeamID = #{receiptTeamID}
+			</if>
+			<if test="receiptUserID != null and receiptUserID != ''">
+				AND ReceiptUserID = #{receiptUserID}
+			</if>
+			</where>
+		) T
+	</select>
+	
+	<select id="getPerformReportList_gridList" resultType="java.util.HashMap">
+		
+		SELECT 
+			
+			TT.Name as CompanyName,
+			TM.ClientID,
+			
+			<if test="type != null and type != '' and type == 'category'">
+			TD5.Name as ProcessName, 
+			TD4.Name as CategoryNM,
+			TD3.Name as SubCategoryNM, 
+			ESM.SRType,
+			ESM.Category,
+			ESM.SubCategory,
+			</if>
+			
+			<if test="type != null and type != '' and type == 'srArea'">
+			TIA.PlainText as SRArea1NM, 
+			TIA2.PlainText as SRArea2NM, 
+			ESM.SRArea1,
+			ESM.SRArea2,
+			</if>
+
+			<![CDATA[
+			ISNULL(COUNT(*),0) AS TicketReceived,              
+			
+			ISNULL(SUM(CASE 
+				WHEN ESM.CompletionDT IS NOT NULL AND ESM.Blocked != 0 
+				THEN 1 ELSE 0 END),0) AS TotalCompleted,
+
+			ISNULL(SUM(CASE 
+				WHEN ESM.Blocked != 0 
+					 AND ESM.CompletionDT IS NOT NULL 
+					 AND (ESM.DueDate IS NULL OR ESM.Duedate >= CAST(ISNULL(ESM.CompletionDT,GETDATE()) AS DATE))
+				THEN 1 ELSE 0 END),0) AS CompletedSuccessfully,
+
+			ISNULL(SUM(CASE 
+				WHEN ESM.Blocked != 0 
+					 AND ESM.CompletionDT IS NOT NULL 
+					 AND ESM.DueDate IS NOT NULL 
+					 AND ESM.Duedate < CAST(ISNULL(ESM.CompletionDT,GETDATE()) AS DATE)
+				THEN 1 ELSE 0 END),0) AS CompletedDelay,
+
+			ISNULL(SUM(CASE 
+				WHEN ESM.CompletionDT IS NULL AND ESM.Blocked = 0
+				THEN 1 ELSE 0 END),0) AS Incomplete,
+
+			CASE
+			  WHEN SUM(CASE WHEN ESM.CompletionDT IS NOT NULL AND ESM.Blocked != 0 THEN 1 ELSE 0 END) = 0
+			    THEN 0
+			  ELSE
+			    CAST(
+			      100.0 *
+			      SUM(CASE 
+			            WHEN ESM.Blocked != 0
+			             AND ESM.CompletionDT IS NOT NULL
+			             AND (ESM.DueDate IS NULL OR ESM.Duedate >= CAST(ISNULL(ESM.CompletionDT,GETDATE()) AS DATE))
+			            THEN 1 ELSE 0 END)
+			      /
+			      NULLIF(SUM(CASE WHEN ESM.CompletionDT IS NOT NULL AND ESM.Blocked != 0 THEN 1 ELSE 0 END), 0)
+			      AS DECIMAL(5,2)
+			    )
+			END AS SuccessRate
+			]]>
+			
+			
+		FROM XBOLTAPP.ESM_SR_MST ESM
+		INNER JOIN XBOLTAPP.ESM_SR_MST TSM WITH(NOLOCK)
+		ON ESM.SRID = TSM.SRID
+		
+		Left Outer Join XBOLTADM.TB_MEMBER TM WITH(NOLOCK) ON TSM.ReceiptUserID = TM.MemberID
+		Left Outer Join XBOLTAPP.CRM_CUST_MST CCM WITH(NOLOCK) ON TM.ClientID = CCM.CustomerNo
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TT WITH(NOLOCK) ON TT.TeamID = CCM.TeamID And TT.LanguageID = #{languageID}
+		
+		<if test="type != null and type != '' and type == 'category'">
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD4 WITH(NOLOCK) 
+		On TD4.TypeCode = TSM.Category AND TD4.Category = 'SRCAT' And TD4.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD3 WITH(NOLOCK) 
+		On TD3.TypeCode = TSM.SubCategory And TD3.Category = 'SRCAT' And TD3.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD5 WITH(NOLOCK) 
+		On TD5.TypeCode = TSM.SRType And TD5.Category = 'SRTP' And TD5.LanguageID = #{languageID}
+		</if>
+		
+		<if test="type != null and type != '' and type == 'srArea'">
+		Left Outer Join XBOLTADM.TB_ITEM TIS WITH(NOLOCK) 
+		ON TSM.Status = TIS.Identifier AND ESM.SRArea1 = TIS.ItemID
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA WITH(NOLOCK) 
+		ON TIA.ItemID = TSM.SRArea1 And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID  =  #{languageID}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 WITH(NOLOCK) 
+		ON TIA2.ItemID = TSM.SRArea2 And TIA2.AttrTypeCode = 'AT00001' And TIA2.LanguageID  =  #{languageID}
+		</if>
+		
+		<where>
+		    <if test="clientIDs != null and clientIDs != ''">
+				AND TM.ClientID in (${clientIDs})
+			</if>
+			<if test="companyIDs != null and companyIDs != ''">
+				AND TM.CompanyID in (${companyIDs})
+			</if>
+			<if test="srTypes != null and srTypes != ''">
+				AND ESM.SRType in (${srTypes})
+			</if>
+			<if test="categories != null and categories != ''">
+				AND ESM.Category in (${categories})
+			</if>
+			<if test="subCategories != null and subCategories != ''">
+				AND ESM.SubCategory in (${subCategories})
+			</if>
+			<if test="service != null and service != ''">
+				AND ESM.SRArea1 in (${service})
+			</if>
+			<if test="part != null and part != ''">
+				AND ESM.SRArea2 in (${part})
+			</if>
+			<if test="regStartDate != null and regStartDate != ''">
+				AND ESM.RegDT BETWEEN CAST(#{regStartDate} AS DATETIME) AND DATEADD(MS, -2, DATEADD(DAY,1,CAST(#{regEndDate} AS DATETIME)))
+			</if>
+		</where>
+
+		GROUP BY 
+			<if test="type != null and type != '' and type == 'category'">
+			TT.Name, TD5.Name, TD4.Name, TD3.Name, ESM.SRType, ESM.Category, ESM.SubCategory, TM.ClientID
+			</if>
+			<if test="type != null and type != '' and type == 'srArea'">
+			TT.Name, TIA.PlainText, TIA2.PlainText, ESM.SRArea1, ESM.SRArea2, TM.ClientID
+			</if>
+		ORDER BY 
+			<if test="type != null and type != '' and type == 'category'">
+			TT.Name, TD5.Name, TD4.Name, TD3.Name
+			</if>
+			<if test="type != null and type != '' and type == 'srArea'">
+			TT.Name, TIA.PlainText, TIA2.PlainText
+			</if>
+	</select>
+	
+	<select id="getOpenTicketDetailList_gridList" resultType="java.util.HashMap">
+		<!-- 임시테이블 생성 -->
+	 	Select * INTO #temp_result FROM (
+	 		SELECT
+		 	Row_Number()OVER(ORDER BY TBD.RegDTOrg DESC ) as RNUM, TBD.*
+			From
+			(
+				Select TSM.SRID         TSM_SRID
+			         , TSM.RegDT         RegDTOrg
+			         , TIS.ItemID       TIS_ItemID
+			         , TISA.seq         TISA_seq
+			         , TIA.Seq          TIA_Seq
+			         , SRArea1ATR.seq   SRArea1ATR_seq 
+			         , SRArea２ATR.seq  SRArea２ATR_seq
+				From XBOLTAPP.ESM_SR_MST TSM WITH(NOLOCK)      
+			    Left Outer Join XBOLTADM.TB_ITEM TIS WITH(NOLOCK) 
+				ON TSM.Status = TIS.Identifier
+			    Left Outer Join XBOLTADM.TB_ITEM_ATTR TISA WITH(NOLOCK) 
+				ON TISA.ItemID = TIS.ItemID And TISA.AttrTypeCode = 'AT00001' And TISA.LanguageID = #{languageID}
+			    Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA WITH(NOLOCK)  
+				ON TIA.ItemID = TSM.SRArea1 And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID  =  #{languageID}
+			    Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 WITH(NOLOCK)  
+				ON TIA2.ItemID = TSM.SRArea2 And TIA2.AttrTypeCode = 'AT00001' And TIA2.LanguageID  =  #{languageID}
+			    Left Outer Join XBOLTADM.TB_ITEM_ATTR SRArea1ATR WITH(NOLOCK) 
+				ON SRArea1ATR.ItemID = TSM.SRArea1 AND SRArea1ATR.AttrTypeCode = 'AT00035' AND SRArea1ATR.LanguageID = #{languageID}
+			    Left Outer Join XBOLTADM.TB_ITEM_ATTR SRArea２ATR WITH(NOLOCK) 
+				ON SRArea２ATR.ItemID = TSM.SRArea2 AND SRArea２ATR.AttrTypeCode = 'AT00035' AND SRArea２ATR.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_MEMBER TM WITH(NOLOCK)
+				ON TSM.ReceiptUserID = TM.MemberID
+			    WHERE
+			    TSM.isPublic = 1
+			    <if test="blocked != null and blocked != ''">
+					AND TSM.Blocked = #{blocked}
+				</if>
+				<if test="receiptTeamID != null and receiptTeamID != ''">
+					AND TSM.ReceiptTeamID = #{receiptTeamID}
+				</if>
+				<if test="receiptUserID != null and receiptUserID != ''">
+					AND TSM.ReceiptUserID = #{receiptUserID}
+				</if>
+				<if test="clientID != '' and clientID != null" >
+					AND TM.ClientID = #{clientID}
+				</if>
+				<if test="srClientID != '' and srClientID != null" >
+					AND TSM.ClientID = #{srClientID}
+				</if>
+				<if test="custGRNo != '' and custGRNo != null" >
+					AND TSM.CustGRNo  in (${custGRNo})
+				</if>
+				<if test="clientIDs != null and clientIDs != ''">
+					AND TM.ClientID in (${clientIDs})
+				</if>
+				<if test="companyIDs != null and companyIDs != ''">
+					AND TM.CompanyID in (${companyIDs})
+				</if>
+				<if test="srType != '' and srType != null" >
+					AND TSM.SRType = #{srType}
+				</if>
+				<if test="category != '' and category != null" >
+					AND TSM.Category = #{category}
+				</if>
+				<if test="subCategory != '' and subCategory != null" >
+					AND TSM.SubCategory = #{subCategory}
+				</if>
+				<if test="srArea1 != '' and srArea1 != null" >
+					AND TSM.SRArea1 = #{srArea1}
+				</if>
+				<if test="srArea2 != '' and srArea2 != null" >
+					AND TSM.SRArea2 = #{srArea2}
+				</if>
+				<if test="srTypes != null and srTypes != ''">
+					AND TSM.SRType in (${srTypes})
+				</if>
+				<if test="categories != null and categories != ''">
+					AND TSM.Category in (${categories})
+				</if>
+				<if test="subCategories != null and subCategories != ''">
+					AND TSM.SubCategory in (${subCategories})
+				</if>
+				<if test="service != null and service != ''">
+					AND TSM.SRArea1 in (${service})
+				</if>
+				<if test="part != null and part != ''">
+					AND TSM.SRArea2 in (${part})
+				</if>
+				<if test="regStartDate != null and regStartDate != ''">
+				AND TSM.RegDT BETWEEN CAST(#{regStartDate} AS DATETIME) AND DATEADD(MS, -2, DATEADD(DAY,1,CAST(#{regEndDate} AS DATETIME)))
+				</if>
+				<if test="status != null and status != ''">
+					<choose>
+						<when test="status.equals('Total')">
+							And(
+							(TSM.ReceiptUserID IS NULL AND TSM.CompletionDT IS NULL) OR
+							<![CDATA[ (TSM.ReceiptUserID IS NOT NULL AND TSM.CompletionDT IS NULL AND (TSM.Duedate IS NULL OR TSM.Duedate > CAST(GETDATE() AS DATE))) OR ]]>
+							<![CDATA[ (TSM.Blocked = 0 AND TSM.IsPublic = 1 And TSM.Duedate < CAST(ISNULL(TSM.CompletionDT,GETDATE()) AS DATE)) ]]>
+							)
+						</when>
+						
+						<when test="status.equals('Unassigned')">
+							And TSM.ReceiptUserID IS NULL AND TSM.CompletionDT IS NULL
+						</when>
+						<when test="status.equals('Completed')">
+							<![CDATA[ And TSM.ReceiptUserID IS NOT NULL AND TSM.CompletionDT IS NULL AND (TSM.Duedate IS NULL OR TSM.Duedate > CAST(GETDATE() AS DATE)) ]]>
+						</when>
+						<when test="status.equals('Delayed')">
+							<![CDATA[ AND TSM.Blocked = 0 AND TSM.IsPublic = 1 And TSM.Duedate < CAST(ISNULL(TSM.CompletionDT,GETDATE()) AS DATE) ]]>
+						</when>
+					</choose>
+				</if>
+			) AS TBD
+		) AS SRTBD
+ 
+ 		<!-- 조회 -->
+		Select 
+		   tmp.RNUM , TSM.SRCode,  TSM.SRID, TSM.Status, TSM.SRType, TSM.ESType, TSM.ReceiptUserID,
+		   TEAM6.Name AS CompanyName, 
+		   TSM.Subject, TIA.PlainText As SRArea1Name, TIA2.PlainText As SRArea2Name,
+		   TD4.Name As CategoryNM, ISNULL(TD3.Name, TD4.Name) As SubCategoryNM,
+		   ISNULL(CONVERT(char(19),TSM.RegDT, 120),'') as RegDate,                
+		   TM3.Name + Case When ISNULL(TM3.NameEN,'') != '' Then '(' + ISNULL(TM3.NameEN,'') + ')' Else '' End As ReqUserNM,
+		   TM4.Name + Case When ISNULL(TM4.NameEN,'') != '' Then '(' + ISNULL(TM4.NameEN,'') + ')' Else '' End As ReceiptName, 
+		   TSM.DueDate as DueDate,
+		   EAL.StartTime as RCPT_DATE,
+		   CASE WHEN TSM.CompletionDT is null THEN 
+	           CASE 
+	                 <![CDATA[ WHEN CAST(TSM.Duedate AS DATE) < CAST(GETDATE() AS DATE) THEN CONVERT(INT, DATEDIFF(DAY, TSM.Duedate, GETDATE())) ]]>
+	               ELSE '0'
+	           END
+	           WHEN TSM.CompletionDT is not null THEN 
+	               CASE 
+	                   <![CDATA[ WHEN CAST(TSM.Duedate AS DATE) < CAST(tsm.CompletionDT AS DATE) THEN CONVERT(INT, DATEDIFF(DAY, TSM.Duedate, tsm.CompletionDT)) ]]>
+	                   ELSE '0'
+	               END
+	       END as 'delayDay',
+	       ISNULL(CONVERT(char(19),TSM.CompletionDT, 120),'') as SRCompletionDT
+		From #temp_result tmp
+	    INNER JOIN XBOLTAPP.ESM_SR_MST TSM WITH(NOLOCK)
+	    ON tmp.TSM_SRID = TSM.SRID
+	    Left Outer Join XBOLTADM.TB_MEMBER TM3 WITH(NOLOCK) 
+		On TM3.MemberID = TSM.RequestUserID
+	    Left Outer Join XBOLTADM.TB_MEMBER TM4 WITH(NOLOCK) 
+		On TM4.MemberID = TSM.ReceiptUserID
+	    Left Outer Join XBOLTADM.TB_DICTIONARY TD4 WITH(NOLOCK) 
+		On TD4.TypeCode = TSM.Category AND TD4.Category = 'SRCAT' And TD4.LanguageID = #{languageID}
+	    Left Outer Join XBOLTADM.TB_DICTIONARY TD3 WITH(NOLOCK) 
+		On TD3.TypeCode = TSM.SubCategory And TD3.Category = 'SRCAT' And TD3.LanguageID = #{languageID}
+	    Left Outer Join XBOLTADM.TB_ITEM TIS WITH(NOLOCK) 
+		ON TSM.Status = TIS.Identifier
+	    AND tmp.TIS_ItemID = TIS.ItemID
+	    Left Outer Join XBOLTADM.TB_ITEM_ATTR TISA WITH(NOLOCK) 
+		ON TISA.ItemID = TIS.ItemID And TISA.AttrTypeCode = 'AT00001' And TISA.LanguageID = #{languageID}
+	    AND tmp.TISA_seq = TISA.seq
+	    Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA WITH(NOLOCK) 
+		ON TIA.ItemID = TSM.SRArea1 And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID  =  #{languageID}
+	    AND tmp.TIA_Seq = TIA.Seq
+	    Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 WITH(NOLOCK) 
+		ON TIA2.ItemID = TSM.SRArea2 And TIA2.AttrTypeCode = 'AT00001' And TIA2.LanguageID  =  #{languageID}
+	    Left Outer Join XBOLTAPP.CRM_CUST_MST CCM WITH(NOLOCK) 
+		ON TSM.ClientID = CCM.CustomerNo
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM6 WITH(NOLOCK) 
+		ON TEAM6.TeamID = CCM.TeamID And TEAM6.LanguageID = #{languageID}
+		Left Outer Join XBOLTAPP.ESM_ACTIVITY_LOG EAL WITH(NOLOCK) 
+		ON EAL.PID = TSM.SRID AND EAL.SpeCode = TSM.Status AND EAL.Seq = (
+						    SELECT MAX(Seq)
+						    FROM XBOLTAPP.ESM_ACTIVITY_LOG WITH(NOLOCK)
+						    WHERE SpeCode = TSM.Status
+						    AND PID = TSM.SRID
+						  )
+	   
+	    ORDER BY tmp.RNUM
+ 
+		<!-- 임시테이블 삭제 -->
+		DROP TABLE #temp_result
+	</select>
+	
+	<select id="getindividualPerformanceReportGrid01Data_gridList" resultType="java.util.HashMap">
+	    WITH SrCountByManagerMst AS
+	    (
+	        SELECT
+	        	MEMBER.ClientID as ManagerClientID,
+	            TEAMTEXT.Name AS TeamName,
+	            MEMBER.Name AS ManagerName,
+	            SRMST.ReceiptUserID AS ManagerID,
+	            COUNT(*) AS AssignedTotalCount, 
+	            SUM(CASE WHEN SRMST.CompletionDT IS NOT NULL THEN 1 ELSE 0 END) AS CompletedTotalCount,
+	            
+	            SUM( CASE
+                  WHEN SRMST.CompletionDT IS NOT NULL
+                       AND <![CDATA[ CONVERT(date, SRMST.CompletionDT) <= CONVERT(date, SRMST.DueDate) ]]>  THEN 1				  
+				  WHEN SRMST.CompletionDT IS NOT NULL AND SRMST.Duedate IS NULL THEN 1				  
+				  WHEN LastLog.Status IN ('04','06','08') THEN 1 <!--  반려,기각,강제종료 -->
+                  ELSE 0 END) AS CompletedOnTimeCount,
+	
+	            SUM(CASE WHEN SRMST.CompletionDT IS NOT NULL 
+	                AND <![CDATA[ CONVERT(date,SRMST.CompletionDT) > CONVERT(date,SRMST.DueDate) ]]> 
+	                And LastLog.Status NOT IN ('04','06','08') THEN 1 <!-- 반려,기각,강제종료 -->
+	                ELSE 0 END) AS DelayedCompletedCount,
+	
+	            SUM(CASE WHEN SRMST.CompletionDT IS NULL THEN 1 ELSE 0 END) AS IncompletedCount
+	
+	        FROM 
+	            XBOLTAPP.ESM_SR_MST SRMST
+	        INNER JOIN
+	            XBOLTADM.TB_TEAM_TXT TEAMTEXT
+	            ON SRMST.ReceiptTeamID = TEAMTEXT.TeamID 
+	            AND TEAMTEXT.LanguageID = #{languageID}
+	        INNER JOIN
+	            XBOLTADM.TB_MEMBER MEMBER
+	            ON SRMST.ReceiptUserID = MEMBER.MemberID
+    		INNER JOIN (SELECT AL.PID, AL.Status
+				FROM XBOLTAPP.ESM_ACTIVITY_LOG AL
+					INNER JOIN (
+							SELECT PID, MAX(ActivityLogID) AS MaxID
+							FROM XBOLTAPP.ESM_ACTIVITY_LOG
+							GROUP BY PID
+						) X ON X.PID = AL.PID AND X.MaxID = AL.ActivityLogID
+					) LastLog ON LastLog.PID = SRMST.SRID
+	        WHERE
+	            SRMST.ReceiptUserID IS NOT NULL 
+	        <if test="clientID != null and clientID != ''">
+	            AND MEMBER.ClientID = #{clientID}
+	        </if>
+	        <if test="clientIDs != null and clientIDs != ''">
+				AND MEMBER.ClientID in (${clientIDs})
+			</if>
+			<if test="companyIDs != null and companyIDs != ''">
+				AND SRMST.CompanyID in (${companyIDs})
+			</if>
+	        <if test="receiptTeamID != null and receiptTeamID != ''">
+	            AND SRMST.ReceiptTeamID = #{receiptTeamID}
+	        </if>
+			<if test="regStartDate != null and regStartDate != ''">
+				<![CDATA[AND SRMST.RegDT >= CAST(#{regStartDate} AS DATETIME)]]> 
+			</if>
+			<if test="regEndDate != null and regEndDate != ''">
+				<![CDATA[AND SRMST.RegDT <= DATEADD(MS, -2, DATEADD(DAY,1,CAST(#{regEndDate} AS DATETIME)))]]> 
+			</if>
+	        GROUP BY
+	            MEMBER.ClientID,
+	            TEAMTEXT.Name,
+	            SRMST.ReceiptUserID,
+	            MEMBER.Name
+	    )
+	    SELECT
+	        TEAMTEXTCLIENT.Name AS CompanyName,
+	        SrCountByManagerMst.TeamName,
+	        SrCountByManagerMst.ManagerName,
+	        SrCountByManagerMst.ManagerID,
+	
+	        SrCountByManagerMst.AssignedTotalCount,
+	        SrCountByManagerMst.CompletedTotalCount,
+	        SrCountByManagerMst.CompletedOnTimeCount,
+	        
+			CASE 
+			    WHEN SrCountByManagerMst.CompletedTotalCount <![CDATA[> 0]]>
+			    THEN 
+			        ROUND(
+			            (CAST(SrCountByManagerMst.CompletedOnTimeCount AS FLOAT) / SrCountByManagerMst.CompletedTotalCount) * 100,
+			            2
+			        ) 
+			    ELSE 
+			        0
+			END AS OnTimePercentage,
+	
+	        SrCountByManagerMst.DelayedCompletedCount,
+	        SrCountByManagerMst.IncompletedCount,
+	        
+	        SrCountByManagerMst.ManagerClientID
+	        
+	    FROM
+	        SrCountByManagerMst
+	        
+	    INNER JOIN
+	        XBOLTAPP.CRM_CUST_MST CUSTMST
+	        ON CUSTMST.CustomerNo = SrCountByManagerMst.ManagerClientID
+	        
+	    INNER JOIN
+	        XBOLTADM.TB_TEAM_TXT TEAMTEXTCLIENT
+	        ON TEAMTEXTCLIENT.TeamID = CUSTMST.TeamID
+	        AND TEAMTEXTCLIENT.LanguageID = #{languageID}
+	       
+    		
+	    ORDER BY
+	        SrCountByManagerMst.ManagerClientID, SrCountByManagerMst.ManagerName
+ 	</select>
+ 	
+ 	<select id="getindividualPerformanceReportGrid02Data_gridList" resultType="java.util.HashMap">
+		WITH BusinessHourTotals AS (
+			SELECT
+				SRID,
+				MemberID,
+				SUM(BUSINESS_HOURS) AS TotalBusinessHours
+			FROM XBOLTAPP.ESM_MBR_RCD
+			GROUP BY SRID, MemberID
+		)
+		SELECT
+			SRMST.SRType,
+			SRMST.SRID,
+			SRMST.SRCode,
+			SRMST.Status,
+			SRMST.ESType,
+			TEAMTEXTCLIENT.Name as ClientName,
+			SRArea01Item.PlainText as SRArea1,
+			SRArea02Item.PlainText as SRArea2,
+			CatDic.Name as Category,
+			SubcatDic.Name as Subcategory,
+			SRMST.Subject as Title,
+			CONVERT(DATE, SRMST.RegDT) AS RegDT,
+			RegUser.Name as RegUserName,
+			CONVERT(DATE, TrimmedActivityLog.StartTime) AS ReceiptDate,
+			SRMST.ReceiptUserID,
+			ReceiptUser.Name as ReceiptUserName,			
+			ISNULL(CONVERT(char(10),SRMST.DueDate, 120),'') AS DueDate,
+			ISNULL(CONVERT(char(10),SRMST.CompletionDT, 120),'') AS CompletionDT,
+			CASE
+				WHEN SRMST.CompletionDT IS NULL THEN NULL
+				WHEN CONVERT(DATE, SRMST.CompletionDT) <![CDATA[<=]]> CONVERT(DATE, SRMST.DueDate) THEN 0
+				ELSE DATEDIFF(day, CONVERT(DATE, SRMST.DueDate), CONVERT(DATE, SRMST.CompletionDT))
+			END AS DelayedDays,
+			SRMST.SRID,
+			ISNULL(BHT.TotalBusinessHours, 0) AS TotalBusinessHours
+		FROM XBOLTAPP.ESM_SR_MST SRMST
+		
+		INNER JOIN
+			XBOLTAPP.CRM_CUST_MST CUSTMST
+			ON CUSTMST.CustomerNo = SRMST.ClientID
+			
+		INNER JOIN
+			XBOLTADM.TB_TEAM_TXT TEAMTEXTCLIENT
+			ON TEAMTEXTCLIENT.TeamID = CUSTMST.TeamID
+			AND TEAMTEXTCLIENT.LanguageID = #{languageID}
+			
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR SRArea01Item
+			ON SRArea01Item.ItemID = SRMST.SRArea1
+			AND SRArea01Item.AttrTypeCode = 'AT00001' AND SRArea01Item.LanguageID = #{languageID}
+			
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR SRArea02Item
+			ON SRArea02Item.ItemID = SRMST.SRArea2
+			AND SRArea02Item.AttrTypeCode = 'AT00001' AND SRArea02Item.LanguageID = #{languageID}
+			
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY CatDic
+			ON CatDic.TypeCode = SRMST.Category
+			AND CatDic.Category = 'SRCAT' AND CatDic.LanguageID = #{languageID}
+			
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY SubcatDic
+			ON SubcatDic.TypeCode = SRMST.SubCategory
+			AND SubcatDic.Category = 'SRCAT' AND SubcatDic.LanguageID = #{languageID}
+			
+		LEFT OUTER JOIN
+			XBOLTADM.TB_MEMBER RegUser
+			ON SRMST.RegUserID = RegUser.MemberID
+			
+		LEFT OUTER JOIN
+			XBOLTADM.TB_MEMBER ReceiptUser
+			ON SRMST.ReceiptUserID = ReceiptUser.MemberID
+			
+		LEFT OUTER JOIN
+			(
+				SELECT
+					DocumentID,
+					ActorID,
+					StartTime,
+					ROW_NUMBER() OVER (
+						PARTITION BY DocumentID, ActorID
+						ORDER BY StartTime DESC
+					) AS rn
+				FROM XBOLTAPP.ESM_ACTIVITY_LOG
+			) TrimmedActivityLog
+			ON SRMST.SRID = TrimmedActivityLog.DocumentID
+			AND SRMST.ReceiptUserID = TrimmedActivityLog.ActorID
+			AND TrimmedActivityLog.rn = 1
+		LEFT OUTER JOIN BusinessHourTotals BHT
+			ON BHT.SRID = SRMST.SRID
+			AND BHT.MemberID = SRMST.ReceiptUserID
+		WHERE
+			SRMST.ReceiptUserID IS NOT NULL 
+	        <if test="clientID != null and clientID != ''">
+	            AND ReceiptUser.ClientID = #{clientID}
+	        </if>
+	        <if test="clientIDs != null and clientIDs != ''">
+				AND ReceiptUser.ClientID in (${clientIDs})
+			</if>
+			<if test="companyIDs != null and companyIDs != ''">
+				AND SRMST.CompanyID in (${companyIDs})
+			</if>
+			<if test="managerID != null and managerID != ''">
+		    	AND SRMST.ReceiptUserID = #{managerID}
+	    	</if>
+			<if test="regStartDate != null and regStartDate != ''">
+				<![CDATA[AND SRMST.RegDT >= CAST(#{regStartDate} AS DATETIME)]]> 
+			</if>
+			<if test="regEndDate != null and regEndDate != ''">
+				<![CDATA[AND SRMST.RegDT <= DATEADD(MS, -2, DATEADD(DAY,1,CAST(#{regEndDate} AS DATETIME)))]]> 
+			</if> 
+			<if test="receiptTeamID != null and receiptTeamID != ''">
+				AND SRMST.ReceiptTeamID = #{receiptTeamID}
+			</if>
+ 	</select>
+ 	
+ 	
+ 	<!-- 배치 메일 -->
+	<select id="getBatchMail" resultType="java.util.HashMap">
+		SELECT ReportCode, BatchName, SenderAcc, SenderName, SenderPwd, EmailSvrDomain, Subject, Body, Receiver, CC, DocumentID
+		FROM XBOLTDLM.SEND_BATCH_MAIL
+	</select>
+	
+	<delete id="truncateBatchMail" parameterType="java.util.HashMap">
+		TRUNCATE TABLE XBOLTDLM.SEND_BATCH_MAIL
+	</delete>
+	
+	<select id="getCustomerPerformReportList_gridList" resultType="java.util.HashMap">		
+		SELECT 
+		      TMT.Name  AS CustGRName
+		    , TMT2.Name AS CustomerName
+		    , ESM.ClientID
+		    , CCM.CustGRNo
+		    , COUNT(*) AS TicketCount                            
+		    , SUM(CASE WHEN ESM.CompletionDT IS NOT NULL 
+		               THEN 1 ELSE 0 END) AS TotalCompleted 
+		FROM XBOLTAPP.ESM_SR_MST ESM
+		INNER JOIN XBOLTAPP.CRM_CUST_MST CCM  ON ESM.ClientID   = CCM.CustomerNo 
+		INNER JOIN XBOLTAPP.CRM_CUST_MST CCM2 ON CCM2.CustomerNO = CCM.CustGRNo 
+		INNER JOIN XBOLTADM.TB_TEAM_TXT TMT   ON TMT.TeamID     = CCM2.TeamID AND TMT.LanguageID  = #{languageID}
+		INNER JOIN XBOLTADM.TB_TEAM_TXT TMT2  ON TMT2.TeamID    = CCM.TeamID  AND TMT2.LanguageID = #{languageID}
+		
+		<where>
+		    <if test="custGRNos != null and custGRNos != ''">
+				AND CCM2.CustomerNo in (${custGRNos})
+			</if>
+			<if test="regStartDate != null and regStartDate != ''">
+				AND ESM.RegDT BETWEEN CAST(#{regStartDate} AS DATETIME) AND DATEADD(MS, -2, DATEADD(DAY,1,CAST(#{regEndDate} AS DATETIME)))
+			</if>
+		</where>
+		GROUP BY 
+		      TMT.Name
+		    , TMT2.Name
+		    , ESM.ClientID
+		    , CCM.CustGRNo
+		ORDER BY 
+	      TMT.Name ASC, TMT2.Name ASC
+	</select>
+	
+</mapper>

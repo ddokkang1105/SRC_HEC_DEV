@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	Link 관련 관련	-->
+<mapper namespace="link_SQL">	
+	<select id="getAttrValue" resultType="String">
+		Select PlainText From XBOLTADM.TB_ITEM_ATTR
+		Where AttrTypeCode = #{attrTypeCode}
+		And ItemID = #{itemID}
+		And LanguageID = #{languageID} 
+	</select>
+	
+	<select id="getLinkListFromAttAlloc" resultType="java.util.HashMap">
+		Select TATA.Link,
+			TM.URL,
+			ISNULL(TD.Name, TM.DicCode) AS LinkName,
+			TIA.LovCode,
+			TATA.AttrTypeCode
+		From XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA
+		Left Outer Join XBOLTADM.TB_MENU TM ON TM.MenuID = TATA.Link
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TM.MenuID And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = #{itemID} And TIA.AttrTypeCode = 'AT00037' And TIA.LanguageID = #{languageID}
+		Where ISNULL(TATA.Link,'') != ''
+		And TATA.ItemClassCode = #{itemClassCode}
+	</select>
+	
+	<select id="getExtWebServiceInfo" resultType="java.util.HashMap">
+		SELECT TD.Name, TMA.VarFilter
+		 FROM XBOLTADM.TB_MENU TM 
+		      LEFT OUTER JOIN XBOLTADM.TB_MENU_ALLOC TMA ON TM.MenuID = TMA.MenuID 
+		      LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TM.MenuID = TD.TypeCode AND TD.LanguageID = #{languageID}  
+		WHERE TM.MenuID = #{menuID}  AND TMA.ArcCode = #{arcCode} 
+	</select>
+	
+	<select id="getAttrUrl" resultType="String">
+		SELECT ISNULL(TATL.LinkFilter, TIA.PlainText) AS LinkFilter 
+		  FROM XBOLTADM.TB_ITEM TI
+			Left Outer Join XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA ON TI.ClassCode = TATA.ItemClassCode     AND TATA.attrtypecode = #{attrTypeCode}
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TI.ItemID = TIA.ItemID	AND TIA.LanguageID = #{languageID}	AND TIA.AttrTypeCode = TATA.VarFilter
+			Left Outer Join XBOLTADM.TB_ATTR_TYPE_LOV TATL ON TATL.AttrTypeCode = TATA.VarFilter AND TATL.LovCode = TIA.LovCode AND TATL.LanguageID = #{languageID} 
+		 WHERE TI.ItemID = #{itemID} 
+	</select>
+		
+	<select id="getAttrVarfilter" resultType="java.util.HashMap">
+		SELECT TATA.VarFilter, TIA.PlainText
+		  FROM XBOLTADM.TB_ITEM TI
+			Left Outer Join XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA ON 
+							TI.ClassCode = TATA.ItemClassCode
+					    AND TI.ItemTypeCode = TATA.ItemTypeCode 
+					    AND TATA.attrtypecode = #{attrTypeCode}
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TI.ItemID = TIA.ItemID
+						AND TIA.LanguageID = #{languageID}
+						AND TIA.AttrTypeCode = #{attrTypeCode}
+		 WHERE TI.ItemID = #{s_itemID} 
+	</select>
+	
+	<select id="getLinkFilter" resultType="String" >
+		Select LinkFilter 
+		 From XBOLTADM.TB_ITEM_ATTR TIA 
+			Left Outer Join XBOLTADM.TB_ATTR_TYPE_LOV TATL ON TATL.AttrTypeCode = TIA.AttrTypeCode	And TATL.LovCode = TIA.LovCode And TATL.LanguageID = #{languageID}
+		 Where TIA.ItemID = #{itemID}
+		       And TIA.AttrTypeCode = #{attrTypeCode}
+		       And TIA.LanguageID = #{languageID}
+	</select>
+	
+	<select id="getAttrTypeInfoList_gridList" resultType="java.util.HashMap">
+		Select
+			Row_Number()OVER(ORDER BY TI.Identifier DESC ) as RNUM,
+			TI.Identifier, TI.ItemID,
+			TIA1.AttrTypeCode, TIA1.PlainText,
+			TI.Identifier +' '+ TIA1.PlainText AS ItemName,
+			TIA2.AttrTypeCode AS AT14Code, TIA2.PlainText As TCode,
+			TIA3.AttrTypeCode AS AT37Code, TIA3.PlainText As SystemType,
+			TATA.Link,
+			TIA4.AttrTypeCode AS AT40Code, TIA4.PlainText AS Parameter,
+			CASE TAT.DataType WHEN 'LOV' THEN TATL.Value ELSE ISNULL(TIA3.PlainText, '') END SystemTypeText		
+		From XBOLTADM.TB_ITEM TI
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA1 ON TIA1.AttrTypeCode = 'AT00001' And TIA1.LanguageID  = #{languageID} And TIA1.ItemID = TI.ItemID
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 ON TIA2.AttrTypeCode = 'AT00014' And TIA2.LanguageID  = #{languageID} And TIA2.ItemID = TI.ItemID
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA3 ON TIA3.AttrTypeCode = 'AT00037' And TIA3.LanguageID  = #{languageID} And TIA3.ItemID = TI.ItemID
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA4 ON TIA4.AttrTypeCode = 'AT00040' And TIA4.LanguageID  = #{languageID} And TIA4.ItemID = TI.ItemID
+		Left Outer Join XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA ON TATA.AttrTypeCode = TIA1.AttrTypeCode And TATA.ItemClassCode = (Select ClassCode From XBOLTADM.TB_ITEM Where ItemID = TI.ItemID)
+		Left Outer join	XBOLTADM.TB_ATTR_TYPE_LOV TATL	on TATL.AttrTypeCode  = TIA3.AttrTypeCode AND TATL.LovCode = TIA3.LovCode AND TATL.LanguageID = '1042' 
+		Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT on TIA3.AttrTypeCode = TAT.AttrTypeCode 
+		Where TI.ItemID = #{itemID}
+	</select>
+	
+</mapper>

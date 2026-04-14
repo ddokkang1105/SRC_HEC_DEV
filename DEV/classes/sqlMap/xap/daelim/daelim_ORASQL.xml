@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="daelim_ORASQL">	
+	<select id="dlmc_selectDeptList" resultType="java.util.HashMap">
+		SELECT DEPT_CD, PARENT_CD PDEPT_CD, '1000' CDEPT_CD, 'DL케미칼' CDEPT_NM, 'DLC' CDEPT_NM_EN,
+        DEPT_NM, DEPT_E_NM DEPT_NM_E, NVL(TEAM_MANAGER_ID, MANAGER_ID) MGT_EMP_NO, USE_FG ACTIVE, DEPT_SORT SORT_NO
+        FROM GW_DEPT_INFO
+	</select>
+	
+	<select id="dlmc_selectEmpList" resultType="java.util.HashMap">
+		SELECT USER_ID AS EMP_NO, 
+			   DEPT_CD, 
+			   USER_ID AS GW_ID ,
+			   USER_NM AS EMP_NM, 
+			   USER_E_NM AS EMP_NM_EN,
+			   ENT_DATE AS JOIN_DT,
+			   RET_DATE AS RETIRE_DT,
+			   TITLE_NM AS POSITION,
+		       DEGREE_CD AS JOB_CD,
+		       DEGREE_NM AS JOB_NM,
+		       MAIL AS EMAIL,
+		       USE_FG,
+		       'KR' AS DEF_LANG
+		FROM GW_USER_INFO
+	    WHERE USE_FG = 'Y'
+	</select>
+	
+</mapper>
+
+

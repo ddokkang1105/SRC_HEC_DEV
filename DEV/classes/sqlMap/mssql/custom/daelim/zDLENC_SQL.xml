@@ -1,0 +1,663 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="zDLENC_SQL">	
+
+
+	<select id="getRoleMindMapItemInfo" resultType="java.util.HashMap">
+			SELECT
+			ISNULL(TIA1.PlainText,'Untitled') AS ItemName
+			, TI.Identifier
+			, TIC.Icon	
+			, TI.ItemID AS id
+			, TI.ProjectID
+
+			, TIA4.LovCode As DoneStatus
+			, TIA5.PlainText As dept
+			, MN2.MAP_VAXIS
+			, MN2.CD_MAP_VAXIS As LovCode
+		FROM
+			XBOLTADM.TB_ITEM TI WITH (NOLOCK)
+			INNER Join XBOLTADM.TB_ITEM_CLASS TIC WITH (NOLOCK) ON TIC.ItemClassCode = TI.ClassCode
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA1 WITH (NOLOCK) ON TIA1.ItemID = TI.ItemID And TIA1.AttrTypeCode = 'AT00001' And TIA1.LanguageID =#{languageID}
+			<choose>
+				<when test="projectID.equals('16')">
+					Left Outer Join OLM.DZK0.V_DZKDT_P_STD_MNBODY2 MN2 WITH (NOLOCK) on CONCAT(MN2.ID_ACTY, '_', MN2.NO_STD_MNAL)= TI.Identifier	
+				</when>
+				<otherwise>
+					Left Outer Join OLM.DZK0.V_DZKDT_P_SITE_MNBODY2 MN2 WITH (NOLOCK) on CONCAT(MN2.ID_ACTY, '_', MN2.CD_SITE)= TI.Identifier		
+				</otherwise>
+			</choose>
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA4 WITH (NOLOCK) ON TIA4.ItemID = TI.ItemID And TIA4.AttrTypeCode = 'ZPAT030' And TIA4.LanguageID =#{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA5 WITH (NOLOCK) ON TIA5.ItemID = TI.ItemID And TIA5.AttrTypeCode = 'ZAT0003' And TIA5.LanguageID =#{languageID}
+		WHERE TI.ItemID = #{s_itemID}
+	</select>
+  	
+	
+	<select id="getPreAttr" resultType="java.util.HashMap">
+		SELECT
+			IT.ItemID AS p_itemID,
+			IT.Identifier,
+			IT.ClassCode,
+			IT.ItemTypeCode,
+			TD.Name as ClassName,
+			IATR.PlainText AS ItemName,
+			TIA4.LovCode As DoneStatus,
+			MN2.MAP_VAXIS As Value,
+			MN2.CD_MAP_VAXIS As LovCode
+<!-- 			TIA3.PlainText As ATypeValue,
+			LOV.Value,
+		    TIA5.PlainText AS PreDRBegn,
+		    TIA8.PlainText AS PreBaseDate,  
+		    MyATR.PlainText AS MySTDDay,
+		    MyATR1.PlainText AS MyDRBegn,
+		    TIA10.PlainText AS preDept  -->
+		FROM XBOLTADM.TB_ITEM IT
+			Left outer join XBOLTADM.TB_ITEM_ATTR IATR WITH (NOLOCK) on IT.ItemID = IATR.ItemID and IATR.AttrTypeCode = 'AT00001' And IATR.LanguageID =#{languageID}
+			<!-- LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR WITH (NOLOCK) ON IT.ItemID = ATR.ItemID AND ATR.AttrTypeCode = 'ZPAT001' And ATR.LanguageID = #{languageID} -->
+			<!-- LEFT OUTER JOIN XBOLTADM.TB_ATTR_TYPE_LOV LOV WITH (NOLOCK) ON ATR.LovCode = LOV.LovCode -->
+			Left outer join XBOLTADM.TB_DICTIONARY TD WITH (NOLOCK) on IT.ClassCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA3 WITH (NOLOCK) ON TIA3.ItemID = IT.ItemID And TIA3.AttrTypeCode = 'ZPAT007' And TIA3.LanguageID =#{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA4 WITH (NOLOCK) ON TIA4.ItemID = IT.ItemID And TIA4.AttrTypeCode = 'ZPAT030' And TIA4.LanguageID =#{languageID}
+			<choose>
+				<when test="projectID.equals('16')">
+					Left Outer Join OLM.DZK0.V_DZKDT_P_STD_MNBODY2 MN2 WITH (NOLOCK) on CONCAT(MN2.ID_ACTY, '_', MN2.NO_STD_MNAL)= IT.Identifier	
+				</when>
+				<otherwise>
+					Left Outer Join OLM.DZK0.V_DZKDT_P_SITE_MNBODY2 MN2 WITH (NOLOCK) on CONCAT(MN2.ID_ACTY, '_', MN2.CD_SITE)= IT.Identifier		
+				</otherwise>
+			</choose>
+			
+			<if test="month != null and month != ''">
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA5 WITH (NOLOCK) ON TIA5.ItemID = IT.ItemID AND TIA5.AttrTypeCode = 'ZPAT016' AND TIA5.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA8 WITH (NOLOCK) ON TIA8.ItemID = IT.ItemID AND TIA8.AttrTypeCode = 'ZPAT015' AND TIA8.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR MyATR WITH (NOLOCK) ON MyATR.AttrTypeCode = TIA8.AttrTypeCode AND MyATR.ItemID = #{my_itemID}
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR MyATR1 WITH (NOLOCK) ON MyATR1.AttrTypeCode = TIA5.AttrTypeCode AND MyATR1.ItemID = #{my_itemID}
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA10 WITH (NOLOCK) ON TIA10.ItemID = IT.ItemID AND TIA10.AttrTypeCode = 'ZAT0003' AND TIA10.LanguageID = #{languageID}
+			</if>
+			WHERE Identifier in
+			(
+			SELECT s.items
+			FROM XBOLTADM.TB_ITEM_ATTR ATR WITH (NOLOCK)
+			CROSS APPLY XBOLTADM.fn_SplitAndTrim(ATR.PlainText, CHAR(44)) s
+			WHERE ATR.ItemID = #{s_itemID} AND ATR.AttrTypeCode = 'ZPAT011'
+			)
+			AND IT.ItemID != #{s_itemID} AND IT.ProjectID = #{projectID}
+			<if test="month != null and month != ''">
+			    AND TRY_CAST(TIA5.PlainText AS INT) &gt;= (TRY_CAST(MyATR1.PlainText AS INT) - ${month})
+				AND TRY_CAST(TIA5.PlainText AS INT) &lt;= TRY_CAST(MyATR1.PlainText AS INT)
+			</if>
+	</select>
+
+	
+	 <select id="getPostAttr" resultType="java.util.HashMap">	
+		SELECT DISTINCT
+		    IT.ItemID AS p_itemID,
+			postItem.itemID AS usedItemID,
+			s.items AS myItemIdentifier,
+			ITT.ClassCode,
+		    ITT.ItemTypeCode,
+		    ATTR.PlainText as ItemName,
+			MN2.MAP_VAXIS As Value,
+			MN2.CD_MAP_VAXIS As LovCode,
+		   <!--  TIA3.PlainText AS ATypeValue,  -->
+		    TIA4.LovCode AS DoneStatus
+	<!-- 	    TIA5.PlainText AS PreDRBegn,
+		    TIA8.PlainText AS PreBaseDate,
+		    MyATR.PlainText AS MySTDDay,
+		    MyATR1.PlainText AS MyDRBegn,
+		    TIA10.PlainText AS postDept    -->
+		FROM XBOLTADM.TB_ITEM ITT WITH (NOLOCK)
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR postItem WITH (NOLOCK) ON postItem.ItemID = ITT.itemID AND postItem.AttrTypeCode = 'ZPAT036' AND postItem.LanguageID = #{languageID}	
+		CROSS APPLY XBOLTADM.fn_SplitAndTrim(postItem.PlainText, CHAR(44)) s
+		LEFT JOIN XBOLTADM.TB_ITEM IT WITH (NOLOCK) ON IT.Identifier  = s.items  AND IT.Deleted != 1
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATTR WITH (NOLOCK) ON IT.ItemID = ATTR.ItemID AND ATTR.AttrTypeCode = 'AT00001' AND ATTR.LanguageID = #{languageID}	
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA3 WITH (NOLOCK) ON TIA3.ItemID = IT.itemID AND TIA3.AttrTypeCode = 'ZPAT007' AND TIA3.LanguageID = #{languageID}	
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA4 WITH (NOLOCK) ON TIA4.ItemID = IT.itemID AND TIA4.AttrTypeCode = 'ZPAT030' AND TIA4.LanguageID = #{languageID}
+		<choose>
+			<when test="projectID.equals('16')">
+				Left Outer Join OLM.DZK0.V_DZKDT_P_STD_MNBODY2 MN2 WITH (NOLOCK) on CONCAT(MN2.ID_ACTY, '_', MN2.NO_STD_MNAL)= ITT.Identifier	
+			</when>
+			<otherwise>
+				Left Outer Join OLM.DZK0.V_DZKDT_P_SITE_MNBODY2 MN2 WITH (NOLOCK) on CONCAT(MN2.ID_ACTY, '_', MN2.CD_SITE)= ITT.Identifier		
+			</otherwise>
+		</choose>	 			
+		<if test="month != null and month != ''">
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA5 WITH (NOLOCK) ON TIA5.ItemID = IT.itemID AND TIA5.AttrTypeCode = 'ZPAT016' AND TIA5.LanguageID = #{languageID}	
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA8 WITH (NOLOCK) ON TIA8.ItemID = IT.itemID AND TIA8.AttrTypeCode = 'ZPAT015' AND TIA8.LanguageID = #{languageID}	
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA10 WITH (NOLOCK) ON TIA10.ItemID = IT.itemID AND TIA10.AttrTypeCode = 'ZAT0003' AND TIA10.LanguageID = #{languageID}	
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR MyATR WITH (NOLOCK) ON MyATR.AttrTypeCode = TIA8.AttrTypeCode AND MyATR.ItemID = #{my_itemID}
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR MyATR1 WITH (NOLOCK) ON MyATR1.AttrTypeCode = TIA5.AttrTypeCode AND MyATR1.ItemID = #{my_itemID}
+		</if>
+		<!-- LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR2 WITH (NOLOCK) ON IT.itemID = ATR2.ItemID AND ATR2.AttrTypeCode = 'ZPAT001' AND ATR2.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_ATTR_TYPE_LOV LOV WITH (NOLOCK) ON ATR2.LovCode = LOV.LovCode  -->
+		WHERE ITT.ItemID = #{itemID}  AND ITT.ProjectID = #{projectID}  
+		<if test="month != null and month != ''">
+			AND TRY_CAST(TIA5.PlainText AS INT) &gt;= TRY_CAST(MyATR1.PlainText AS INT)
+	   		AND TRY_CAST(TIA5.PlainText AS INT) &lt;= (TRY_CAST(MyATR1.PlainText AS INT) + ${month})
+   		</if>
+	</select>
+	
+	
+	<select id="zDlenc_getSiteItemAttr" resultType="java.util.HashMap">
+		SELECT TOP 1 PSM.PROP_NM_ACTY,
+			PSM.ID_ACTY,
+			PSM.LVL_PATH,
+			PSM.PROP_CNTS_PPS,
+			PSM.PROP_CNTS_MTHD,
+			PSM.CNTS_OPUT_GIDE,
+			PSM.PROP_MP_LINK,
+			PSM.PROP_DP_LINK,
+			PSM.YN_IADV_PRSS,
+			PSM.YN_P6,
+			PSM.PROP_DT_BEGN,
+			PSM.PROP_DT_PLN_BEGN,
+			PSM.PROP_DT_ACPT_BEGN,
+			PSM.PROP_DT_END,
+			PSM.PROP_DT_PLN_END,
+			PSM.PROP_DT_ACPT_END,
+			PSM.NM_CNTN_STATUS,
+			PSM.PROP_STAT,
+			PSM.NM_BIC_MA,
+			PSM.NM_BIC_RN,
+			PSM.NM_GK_TYPE,
+			PSM.NM_GK_MA,
+			PSM.PROP_YN_CPLT_USE,
+			PSM.GIDE_TYPE_STD_LIST,
+			PSM.GIDE_TYPE_EXC_LIST,
+			PSM.YN_NEW,
+			PSM.YN_NTFC,
+			PSM.NM_NTFC_CYCL
+		  FROM OLM.DZK0.V_DZKDT_P_SITE_MNBODY2 PSM WITH (NOLOCK)
+		  LEFT OUTER JOIN XBOLTADM.TB_Item ITM WITH (NOLOCK) on ITM.identifier = PSM.ID_ACTY + '_' + PSM.CD_SITE
+		  LEFT OUTER JOIN XBOLTADM.TB_PROJECT PJT WITH (NOLOCK) on ITM.ProjectID = PJT.ProjectID and PJT.ProjectCode = PSM.CD_SITE
+		  WHERE ITM.itemID = #{s_itemID}
+	</select>	
+	
+	<select id="zDlenc_getStdItemAttr" resultType="java.util.HashMap">
+		SELECT TOP 1 PSM.PROP_NM_ACTY,
+			PSM.ID_ACTY,
+			PSM.LVL_PATH,
+			PSM.PROP_CNTS_PPS,
+			PSM.PROP_CNTS_MTHD,
+			PSM.CNTS_OPUT_GIDE,
+			PSM.PROP_DR_STD,
+			PSM.PROP_MP_LINK,
+			PSM.PROP_DP_LINK,
+			PSM.YN_IADV_PRSS,
+			PSM.YN_P6,
+			PSM.NM_BIC_MA,
+			PSM.NM_BIC_RN,
+			PSM.NM_GK_TYPE,
+			PSM.NM_GK_MA,
+			PSM.PROP_YN_CPLT_USE,
+			PSM.GIDE_TYPE_STD_LIST,
+			PSM.GIDE_TYPE_EXC_LIST,
+			PSM.YN_NEW,PSM.YN_NTFC,
+			PSM.NM_NTFC_CYCL,
+			PSM.DISP_DR_BEGN,
+			PSM.DISP_DR_END,
+			PSM.NO_STD_MNAL
+		FROM OLM.DZK0.V_DZKDT_P_STD_MNBODY2 PSM WITH (NOLOCK)
+		LEFT OUTER JOIN XBOLTADM.TB_Item ITM WITH (NOLOCK) on ITM.identifier = PSM.ID_ACTY
+		LEFT OUTER JOIN XBOLTADM.TB_PROJECT PJT WITH (NOLOCK) on ITM.ProjectID = PJT.ProjectID and PSM.CD_MNOF = PJT.ProjectCode
+		WHERE ITM.itemID = #{s_itemID}
+	</select>
+	
+		<select id="zDlenc_getStdItemAttr_P" resultType="java.util.HashMap">
+		SELECT TOP 1 PSM.PROP_NM_ACTY,
+			PSM.ID_ACTY,
+			PSM.LVL_PATH,
+			PSM.PROP_CNTS_PPS,
+			PSM.PROP_CNTS_MTHD,
+			PSM.CNTS_OPUT_GIDE,
+			PSM.PROP_DR_STD,
+			PSM.PROP_MP_LINK,
+			PSM.PROP_DP_LINK,
+			PSM.YN_IADV_PRSS,
+			PSM.YN_P6,
+			PSM.NM_BIC_MA,
+			PSM.NM_BIC_RN,
+			PSM.NM_GK_TYPE,
+			PSM.NM_GK_MA,
+			PSM.PROP_YN_CPLT_USE,
+			PSM.GIDE_TYPE_STD_LIST,
+			PSM.GIDE_TYPE_EXC_LIST,
+			PSM.YN_NEW,PSM.YN_NTFC,
+			PSM.NM_NTFC_CYCL,
+			PSM.DISP_DR_BEGN,
+			PSM.DISP_DR_END,
+			PSM.NO_STD_MNAL
+		FROM OLM.DZK0.V_DZKDT_P_STD_MNBODY2 PSM WITH (NOLOCK)
+		LEFT OUTER JOIN XBOLTADM.TB_Item ITM WITH (NOLOCK) on ITM.identifier = PSM.ID_ACTY + '_' + CAST(PSM.NO_STD_MNAL AS VARCHAR(10))
+		LEFT OUTER JOIN XBOLTADM.TB_PROJECT PJT WITH (NOLOCK) on ITM.ProjectID = PJT.ProjectID and PSM.CD_MNOF = PJT.ProjectCode
+		WHERE ITM.itemID = #{s_itemID}
+	</select>	
+	
+	<select id="getProjectCodeFromItem" resultType="String">
+  		SELECT PJT.ProjectCode 
+  		From XBOLTADM.TB_ITEM ITM WITH (NOLOCK) 
+  		LEFT OUTER JOIN XBOLTADM.TB_PROJECT PJT WITH (NOLOCK) on ITM.ProjectID = PJT.ProjectID 
+  		where ITM.itemID =#{s_itemID}
+	</select>
+	
+	<select id="getPJCategory" resultType="String">
+  		SELECT PJCategory 
+  		From XBOLTADM.TB_PROJECT WITH (NOLOCK)
+  		WHERE ProjectCode = #{projectCode}
+	</select>
+	
+	<!-- 주토플 insert 예약 -->
+ 	<insert id="insertZDLENCBatchLog" parameterType="java.util.HashMap"> <!-- 배치 예약 등록 함수 -->
+		INSERT INTO XBOLTADM.TB_VISIT_LOG (ItemID,MenuID, ActionType, Comment, MemberID, Time)
+  		VALUES (#{itemID},#{BatName}, #{ActionType}, #{ExecDate}, #{RegUserID}, #{Time})
+	</insert>
+	
+	
+	<select id="selectReadyItemIDs" resultType="java.util.HashMap" parameterType="map">
+	    SELECT ItemID
+			FROM XBOLTADM.TB_ITEM WITH (NOLOCK)
+			WHERE
+			(
+				(ClassCode = 'CL31000' AND Identifier = 'MASTD') OR
+				(ClassCode = 'CL32000' AND Identifier = 'MCSTD') OR
+				(ClassCode = 'CL31001' AND Identifier LIKE 'MPA\_%' ESCAPE '\') OR
+				(ClassCode = 'CL32001' AND Identifier LIKE 'MPC\_%' ESCAPE '\') OR
+				(ClassCode = 'CL33009' AND Identifier LIKE 'MPP\_%' ESCAPE '\')
+			)
+			AND Deleted = 0
+		</select>
+		
+	<update id="updateDLENCBatchStatus" parameterType="hashmap">
+	    UPDATE XBOLTADM.TB_VISIT_LOG
+	    SET ActionType = #{ActionType}
+	    WHERE MenuID = #{BatName}
+	    AND Comment = #{ExecDate}
+	    AND ItemID = #{ItemID}
+	</update>
+		
+	<select id="getDLENC_FetchViewACSITETreeData" parameterType="java.util.HashMap" statementType="CALLABLE">		
+		{ CALL XBOLTADM.DLENC_A_C_CD_SITE_TREE_BATCH(#{itemID}) }
+	</select>
+	
+	<select id="getDLENC_FetchViewTreeData" parameterType="java.util.HashMap" statementType="CALLABLE">		
+		{ CALL XBOLTADM.DLENC_ACP_TREE_BATCH(#{itemID}) }
+	</select>
+	
+	<select id="getDLENC_FetchViewActyData" parameterType="java.util.HashMap" statementType="CALLABLE">		
+		{ CALL XBOLTADM.DLENC_ACP_ITEM_BATCH(#{itemID}) }
+	</select>
+	
+	<!-- 주토플 update 배치 -->
+	<update id="getDLENC_UpdateViewActyData" parameterType="java.util.HashMap" statementType="CALLABLE">		
+		{ CALL XBOLTADM.DLENC_ACP_ITEM_UPDATE_BATCH }
+	</update>
+	
+	<!-- 플랜트 현장별 Map Tree 생성 프로시저-->
+	<select id="getDLENC_FetchViewPlantMapTreeData" parameterType="java.util.HashMap" statementType="CALLABLE">		
+		{ CALL XBOLTADM.DLENC_PLANT_MAP_TREE_BATCH(#{itemID}) }
+	</select>
+	
+	<select id="zDLenc_getMaxModelIDString" resultType="String">
+		SELECT ISNULL(MAX(ModelID),5000000)  as maxModelID FROM XBOLTADM.TB_MODEL WITH (NOLOCK) WHERE itemID = #{ItemID}
+	</select>
+	
+	<select id="zDLenc_getIsModel" resultType="String">
+		Select TMT.IsModel From XBOLTADM.TB_MODEL_TYPE TMT WITH (NOLOCK)
+		LEFT OUTER JOIN XBOLTADM.TB_MODEL TM WITH (NOLOCK) ON TMT.ModelTypeCode = TM.ModelTypeCode 
+		Where TM.ModelID = #{modelID} 
+	</select>
+	
+	<update id="updateBPMData">
+	    MERGE INTO XBOLTADM.TB_ITEM_ATTR AS TARGET
+	    USING (
+	        SELECT 
+	            ITM.ItemID,
+	            ATR.ItemID AS AtrItemID,
+	            CASE 
+	                WHEN PSM.ACTIVITY_POPUP_COLOR = '#FF0000' THEN 'DNP'
+	                WHEN PSM.ACTIVITY_POPUP_COLOR = '#FFFF00' THEN 'DP'
+	                WHEN PSM.ACTIVITY_POPUP_COLOR = '#808080' THEN 'DC'
+	                ELSE NULL
+	            END AS DoneStatus,
+	            ATR.LovCode
+	        FROM XBOLTADM.TB_ITEM ITM WITH (NOLOCK)
+	        LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR WITH (NOLOCK)
+	            ON ATR.ItemID = ITM.ItemID 
+	            AND ATR.AttrTypeCode = 'ZPAT030' 
+	            AND ATR.LanguageID = 1042
+	        LEFT OUTER JOIN OLM.DZK0.V_DZKDT_P_SITE_MNBODY2 PSM WITH (NOLOCK)
+	            ON ITM.Identifier = PSM.ID_ACTY <!-- + '_' + PSM.CD_SITE -->
+	        WHERE ITM.ClassCode IN ('CL33005', 'CL33015')
+	        AND ITM.Identifier = #{identifier}
+	        AND PSM.CD_SITE=#{CD_SITE}
+	    ) AS SOURCE
+	    ON TARGET.ItemID = SOURCE.ItemID
+	    AND TARGET.AttrTypeCode = 'ZPAT030'
+	    AND TARGET.LanguageID = 1042
+	    
+	    WHEN MATCHED AND SOURCE.DoneStatus IS NULL AND SOURCE.AtrItemID IS NOT NULL THEN
+	        DELETE
+	
+	    WHEN MATCHED AND SOURCE.DoneStatus IS NOT NULL AND SOURCE.AtrItemID IS NOT NULL THEN
+	        UPDATE SET TARGET.LovCode = SOURCE.DoneStatus
+	
+	    WHEN NOT MATCHED AND SOURCE.DoneStatus IS NOT NULL AND SOURCE.AtrItemID IS NULL THEN
+	        INSERT (ItemID, AttrTypeCode, LanguageID, LovCode)
+	        VALUES (SOURCE.ItemID, 'ZPAT030', 1042, SOURCE.DoneStatus);
+	</update>
+
+	<select id="zDlenc_getLinkedModel" resultType="java.util.HashMap">
+		SELECT DISTINCT TE.ModelID  
+		FROM XBOLTADM.TB_ITEM ITM WITH (NOLOCK)
+		LEFT OUTER JOIN XBOLTADM.TB_ELEMENT TE WITH (NOLOCK) on ITM.ItemID =TE.Link and ITM.Identifier = #{identifier}
+		LEFT OUTER JOIN XBOLTADM.TB_MODEL TM WITH (NOLOCK) ON TE.ModelID = TM.ModelID
+		WHERE TM.MTCategory = 'BAS' 
+	</select>
+	
+	<select id="batchIF" parameterType="java.util.HashMap" statementType="CALLABLE">		
+		{ CALL XBOLTADM.HR_IF_STD }
+	</select>
+			
+	<select id="zDlenc_getSiteNoActy" resultType="String">
+		SELECT TOP 1
+		PSM.NO_ACTY
+		  FROM OLM.DZK0.V_DZKDT_P_SITE_MNBODY2 PSM WITH (NOLOCK)
+		  LEFT OUTER JOIN XBOLTADM.TB_Item ITM WITH (NOLOCK) on LEFT(ITM.identifier, 
+            CASE 
+                WHEN CHARINDEX('_', ITM.identifier) > 0 THEN CHARINDEX('_', ITM.identifier) - 1
+                ELSE LEN(ITM.identifier) 
+            END) = PSM.ID_ACTY
+		  LEFT OUTER JOIN XBOLTADM.TB_PROJECT PJT WITH (NOLOCK) on ITM.ProjectID = PJT.ProjectID and PJT.ProjectCode = PSM.CD_SITE
+		  WHERE ITM.itemID = #{s_itemID}
+	</select>
+	
+	<select id="zDlenc_getStdNoActy" resultType="String">
+		SELECT TOP 1
+			PSM.NO_STD_ACTY
+		FROM OLM.DZK0.V_DZKDT_P_STD_MNBODY2 PSM WITH (NOLOCK)
+		LEFT OUTER JOIN XBOLTADM.TB_Item WITH (NOLOCK) ITM on ITM.identifier = PSM.ID_ACTY
+		LEFT OUTER JOIN XBOLTADM.TB_PROJECT PJT WITH (NOLOCK) on ITM.ProjectID = PJT.ProjectID and PSM.CD_MNOF = PJT.ProjectCode
+		WHERE ITM.itemID = #{s_itemID}
+	</select>
+	
+	<select id="batchCreateModelA" parameterType="java.util.HashMap" statementType="CALLABLE">		
+		{ CALL XBOLTADM.ATO_CRTE_MDL_A }
+	</select>
+	
+	<select id="batchCreateModelC" parameterType="java.util.HashMap" statementType="CALLABLE">		
+		{ CALL XBOLTADM.ATO_CRTE_MDL_C }
+	</select>
+	
+	<select id="batchCreateModelP" parameterType="java.util.HashMap" statementType="CALLABLE">		
+		{ CALL XBOLTADM.ATO_CRTE_MDL_P }
+	</select>
+	
+	<update id="zDlenc_insertActivityLog" parameterType="java.util.HashMap" statementType="CALLABLE">
+	    { CALL OLM.DZK0.SP_LOG_PRSS_MING_SELECT_ACT(#{NO_ACTY}, #{ID_IPUT_PRSN}, #{IpAddress}) }
+	</update>
+	
+	<select id="zDlenc_getParentProjectCode" resultType="String">
+	  select PPJT.ProjectCode 
+	  from XBOLTADM.TB_ITEM ITM WITH (NOLOCK)
+	  LEFT JOIN XBOLTADM.TB_PROJECT PJT WITH (NOLOCK) ON ITM.ProjectID = PJT.ProjectID
+	  LEFT JOIN XBOLTADM.TB_PROJECT PPJT WITH (NOLOCK) ON PJT.ParentID = PPJT.ProjectID  
+	  where itemid = #{itemID}
+	</select>
+	
+	<select id="batchDeleteModelPrePost" parameterType="java.util.HashMap" statementType="CALLABLE">		
+		{ CALL XBOLTADM.DELETE_MODEL_CHK_PREPOST }
+	</select>
+	
+	<insert id="zDlenc_insertPrsnKpiLog" parameterType="java.util.HashMap"> <!-- 배치 예약 등록 함수 -->
+		INSERT INTO OLM.DZK0.DZKDT_PRSN_KPI_LOG (ID_USE_PRSN, TYP_KPI, CD_MNOF, CD_SITE, IP_IPUT_PRSN,DNT_IPUT)
+  		VALUES (#{ID_USE_PRSN},'05',#{CD_MNOF}, #{projectCode}, #{IpAddress}, GETDATE())
+	</insert>
+	
+	<select id="zDlenc_getMAP_VAXIS_COLOR" resultType="java.util.HashMap">
+		SELECT CD_MAP_VAXIS, MAP_VAXIS_COLOR FROM OLM.DZK0.V_DZKDT_P_MAP_VAXIS
+	</select>
+	
+	<select id="zDlenc_getIsModel2Model" resultType="java.util.HashMap">
+		SELECT ModelID FROM XBOLTADM.TB_MODEL WHERE IsModel = 2 and MTCategory = 'BAS' and ModelTypeCode != 'MT00033DRW' and deleted = 0
+	</select>
+	<select id="zDlenc_getSubItemList_gridList" resultType="java.util.HashMap" >
+	WITH ItemOCC(MyItem, MyItemType, MyClass, MyVersion, MyID, LastUpdated, MyCompany, TeamID, LastUser, Category, LinkType, SortNum, ProjectID)
+	    AS
+	    (
+	        Select
+	            ITM.ItemID AS MyItem, ITM.ItemTypeCode As MyItemType, ITM.ClassCode AS MyClass
+	            , ITM.Version AS MyVersion, ITM.Identifier AS MyID, Convert(nvarchar(20),ITM.LastUpdated, 111) AS LastUpdated
+	            , ITM.CompanyID AS MyCompany, ITM.OwnerTeamID AS TeamID, ITM.AuthorID AS LastUser
+	            , ITM.CategoryCode AS Category,  XBOLTADM.fn_GetPrePostFromElement(TM.ModelID, ITM.ItemID)  AS LinkType
+	            , null AS SortNum
+	            , ITM.ProjectID
+	        From XBOLTADM.TB_ITEM ITM WITH (NOLOCK)
+	        , (SELECT TOP 1 ModelID FROM XBOLTADM.TB_MODEL WITH (NOLOCK) WHERE ItemID = #{s_itemID} AND MTCategory = 'BAS') TM
+	        Where ItemID IN (
+	            SELECT Distinct OBJ.ItemID AS MyItem
+	             FROM XBOLTADM.TB_ITEM ITM WITH (NOLOCK)
+	             , (SELECT TOP 1 * FROM XBOLTADM.TB_MODEL WITH (NOLOCK) WHERE ItemID = #{s_itemID} AND MTCategory = 'BAS')MDL
+	             , XBOLTADM.TB_ELEMENT ELE WITH (NOLOCK)
+	             , XBOLTADM.TB_ITEM OBJ WITH (NOLOCK)
+	             <if test='"Y".equals(mdlIF)'>
+	             , XBOLTADM.TB_SYMTYPE_ALLOCATION TSA WITH (NOLOCK)
+	             </if>
+	             WHERE ITM.ItemID = #{s_itemID}
+	             And ITM.ItemID = MDL.ItemID
+	             AND MDL.ModelID = ELE.ModelID
+	             And OBJ.ItemID = ELE.Link
+	             AND OBJ.Deleted != '1'
+	             AND OBJ.CategoryCode = 'OJ'
+	             AND MDL.MTCategory = 'BAS'
+	             <if test='"Y".equals(mdlIF)'>
+	             AND TSA.ModelTypeCode = MDL.ModelTypeCode
+	             AND TSA.SymTypeCode = ELE.SymTypeCode
+	             AND TSA.MdlIF = 'Y'
+	             </if>
+	
+	            Union
+	
+	            Select TM2.ItemID
+	            From XBOLTADM.TB_MODEL TM2 WITH (NOLOCK)
+	            INNER JOIN XBOLTADM.TB_ELEMENT TE WITH (NOLOCK) ON TE.Link = #{s_itemID} And TE.ModelID = TM2.ModelID
+	            <if test='"Y".equals(mdlIF)'>
+	            , XBOLTADM.TB_SYMTYPE_ALLOCATION TSA2 WITH (NOLOCK)
+	            </if>
+	            Where TM2.MTCategory = 'BAS'
+	            <if test='"Y".equals(mdlIF)'>
+	             AND TSA2.ModelTypeCode = TM2.ModelTypeCode
+	             AND TSA2.SymTypeCode = TE.SymTypeCode
+	             AND TSA2.MdlIF = 'Y'
+	            </if>
+	        )
+	    ),
+	    ItemMASTER(MyItem, MyItemType, MyClass, MyVersion, MyID, LastUpdated, MyCompany, TeamID, LastUser, GUBUN , LinkType, SortNum, ProjectID)
+	    AS
+	    (
+	        SELECT  Distinct ST1.ToItemID AS MyItem,  ITM2.ItemTypeCode AS MyItemType, ITM2.ClassCode AS MyClass, ITM2.Version AS MyVersion
+	            , ITM2.Identifier AS MyID, Convert(nvarchar(20),ITM2.LastUpdated, 111) AS LastUpdated
+	            , ITM2.CompanyID AS MyCompany
+	            , ITM2.OwnerTeamID AS TeamID
+	            , ITM2.AuthorID AS LastUser
+	            , CASE WHEN ST1.CategoryCode = 'ST1' THEN 'M'
+	                   WHEN ST1.CategoryCode = 'ST2' THEN 'R'
+	              ELSE 'O' END AS GUBUN
+	            ,ItemOCC.LinkType AS LinkType, ST1.SortNum
+	            ,ITM2.ProjectID
+	        FROM  XBOLTADM.TB_ITEM ST1 WITH (NOLOCK)
+	            LEFT OUTER JOIN XBOLTADM.TB_ITEM ITM2 WITH (NOLOCK) ON ITM2.CategoryCode != 'MOJ' AND ITM2.ItemID = ST1.ToItemID
+	            LEFT OUTER JOIN ItemOCC ON ItemOCC.MyItem = ST1.ToItemID
+	        WHERE
+	            ST1.FromItemID = #{s_itemID}
+	            AND ST1.CategoryCode in ('ST1' , 'ST2')
+	            <if test='delItemsYN == "N" or delItemsYN == "" or delItemsYN == null' >
+	            AND ST1.Deleted != '1'
+	            </if>
+	            And ST1.ToItemID !=0
+	           <if test='!"Y".equals(showTOJ)'>  AND ITM2.CategoryCode != 'TOJ' </if>
+	
+	        UNION ALL
+	
+	        SELECT
+	            MyItem, MyItemType, MyClass,  MyVersion, MyID, LastUpdated, MyCompany, TeamID, LastUser
+	            ,CASE WHEN Category = 'ST1' THEN 'M'
+	                  WHEN Category = 'ST2' THEN 'R'
+	             ELSE 'O' END AS GUBUN
+	           ,ItemOCC.LinkType AS LinkType , ItemOCC.SortNum , ITemOCC.ProjectID
+	        FROM
+	            ItemOCC
+	        WHERE
+	            1 = 1
+	            AND NOT EXISTS
+	            (
+	                SELECT 'Z'
+	                FROM XBOLTADM.TB_ITEM ST2 WITH (NOLOCK)
+	                WHERE
+	                    ST2.FromItemID = #{s_itemID}
+	                    AND ST2.CategoryCode in ('ST1' , 'ST2')
+	                    AND ST2.Deleted != '1'
+	                    AND ST2.ToItemID = ItemOCC.MyItem
+	            )
+	    )
+		SELECT  DISTINCT
+		    MST.MyItem AS ItemID
+		    , MST.MyItem AS id
+		    , 'cxnProcess' AS parent
+		    , ISNULL(MST.MyID,'') + ' ' + ISNULL(TIA.PlainText,'') AS TreeName
+		    , 0 AS CHK
+		    , Row_Number()OVER(ORDER BY MST.GUBUN, MST.SortNum, MST.MyClass ASC, MST.MyID ASC, TIA.PlainText ASC ) as RNUM
+		    , CASE
+		        WHEN ISNULL(TIFF.DocumentID , '') != ''
+		        THEN 'icon_attach.png'
+		        ELSE 'blank.gif'
+		      END FileIcon
+		    , MST.MyClass As ClassCode
+		    , CASE WHEN MST.GUBUN = 'O' AND TIO.ItemTypeCode = (Select ItemTypeCode From XBOLTADM.TB_ITEM WITH (NOLOCK) Where ItemID = #{s_itemID}) THEN 'ex_' + TIT.Icon
+		           ELSE ISNULL(TIT.Icon, 'img_job.png') END ItemTypeImg
+		    , MST.MyVersion AS Version
+		    , MST.MyID AS Identifier
+		    , MST.LastUpdated, MST.GUBUN
+		    , ISNULL(TIS.SCOUNT, 0) AS SCOUNT
+		    , TIA.PlainText AS ItemName
+		    , TD.Name AS ClassName
+		    , ISNULL(TT.Name, '') AS TeamName
+		    , TOT.TeamID AS OwnerTeamID
+		    , TOT.Name AS OwnerTeamName
+		    , ISNULL(TM.Name,'') + Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')' Else '' End AS Name
+		    , TSD.Name AS StatusName
+		    ,CASE TIO.Status
+		        WHEN 'NEW1' THEN  TSD.Name
+		        WHEN 'MOD1' THEN  TSD.Name
+		        WHEN 'MOD2' THEN  TSD.Name
+		        ELSE  TSD.Name
+		     END AS ItemStatusText
+		    , TIO.Status
+		    , MST.LastUser AS AuthorID
+		    , TIO.Blocked
+		    , PJTXT.Name AS PjtName
+		    <if test='"Y".equals(mdlIF)'>
+		    , ISNULL(TIPT.Path,'') AS ItemPath
+		    </if>
+		    , ISNULL(TIS.FromItemID, '') AS FromItemID , MST.SortNum
+		    , CASE WHEN MST.GUBUN = 'O'  THEN MST.LinkType ELSE  NULL END AS LinkType
+		    , TIO.ItemTypeCode
+		    , TIT.ChangeMgt
+		    <if test='"Y".equals(getPathYN)'>
+		    , ISNULL(TIPT2.Path,'') AS ToItemPath
+		    </if>
+		    , TIO.Deleted
+		    , TIO.Version
+		    , TIT.AutoID
+		    , ISNULL(TIT.VarFilter,'') AS ClassVarFilter
+		    , ISNULL(TIT.Icon,'img_job.png') AS ItemClassImg
+		FROM
+		    ItemMASTER MST
+		    LEFT OUTER JOIN (SELECT FromItemID, ISNULL(COUNT(DISTINCT ToItemID), 0) AS SCOUNT FROM XBOLTADM.TB_ITEM WITH (NOLOCK) WHERE Deleted != '1' AND CategoryCode IN  ('ST1', 'ST2') GROUP BY FromItemID) TIS on TIS.FromItemID = MST.MyItem
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA WITH (NOLOCK) ON TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID} AND MST.MyItem = TIA.ItemID
+		    LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD WITH (NOLOCK) ON TD.LanguageID = #{languageID} AND MST.MyClass = TD.TypeCode
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM TIO WITH (NOLOCK) ON MST.MyITEM = TIO.ItemID
+		    LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TSD WITH (NOLOCK) ON TSD.LanguageID = #{languageID} AND TIO.Status = TSD.TypeCode AND TSD.Category = 'ITMSTS'
+		    LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TT WITH (NOLOCK) ON TT.LanguageID = #{languageID} AND MST.MyCompany = TT.TeamID
+		    LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TOT WITH (NOLOCK) ON TOT.LanguageID = #{languageID} AND MST.TeamID = TOT.TeamID
+		    LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM WITH (NOLOCK) ON MST.LastUser = TM.MemberID
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM_CLASS TIT WITH (NOLOCK) ON MST.MyClass = TIT.ItemClassCode
+		    LEFT OUTER JOIN (SELECT DISTINCT DocumentID FROM XBOLTADM.TB_FILE WITH (NOLOCK) Where DocCategory = 'ITM' AND Blocked != 1) TIFF ON TIO.ItemID = TIFF.DocumentID
+		    LEFT OUTER JOIN XBOLTADM.TB_PROJECT CSR WITH (NOLOCK) ON CSR.ProjectID = TIO.ProjectID
+		    LEFT OUTER JOIN XBOLTADM.TB_PROJECT PJT WITH (NOLOCK) ON PJT.ProjectID = CSR.RefPjtID
+		    LEFT OUTER JOIN XBOLTADM.TB_PROJECT_TXT PJTXT WITH (NOLOCK) ON PJTXT.ProjectID = CSR.RefPjtID  and PJTXT.LanguageID = #{languageID}
+		    <if test="defDimTypeID != null and defDimTypeID != ''">
+		        LEFT OUTER JOIN XBOLTADM.TB_ITEM_DIM TID WITH (NOLOCK) ON MST.MyItem = TID.ItemID
+		    </if>
+		    <if test="srType != null and srType != ''">
+		        LEFT OUTER JOIN XBOLTADM.TB_Item_Attr TIA2 WITH (NOLOCK) ON TIA2.ItemID = MST.MyItem And TIA2.AttrTypeCode = 'AT00036' And TIA2.LanguageID = #{languageID}
+		    </if>
+		    LEFT OUTER JOIN XBOLTADM.TW_ITEM_PATH_TXT TIPT WITH (NOLOCK) ON TIPT.ItemID = MST.MyItem AND TIPT.LanguageID = #{languageID}
+		    LEFT OUTER JOIN XBOLTADM.TW_ITEM_PATH_TXT TIPT2 WITH (NOLOCK) ON TIPT2.ItemID = TIO.ItemID AND TIPT2.LanguageID = #{languageID}
+		WHERE
+		    MST.MyItem != #{s_itemID}
+		    AND MST.ProjectID in (
+						SELECT ProjectID FROM XBOLTADM.TB_PJT_MEMBER_REL WITH (NOLOCK) where memberID = #{sessionUserId}
+					)	
+		    <if test="searchValue != null and !searchValue.equals('')">
+		        <choose>
+		            <when test="searchKey.equals('Name')">
+		                AND REPLACE(TIA.PlainText, ' ','') like REPLACE(N'%'+#{searchValue}+'%', ' ','')
+		            </when>
+		            <when test="searchKey.equals('ID')">
+		                AND MST.MyID Like N'%'+#{searchValue}+'%'
+		            </when>
+		        </choose>
+		    </if>
+		    <if test='TreeDataFiltered != null and TreeDataFiltered != "" and TreeDataFiltered.equals("Y")'>
+		        <choose>
+		            <when test="sessionParamSubItems != null and sessionParamSubItems != ''">
+		                AND MST.MyItem IN (${sessionParamSubItems})
+		            </when>
+		            <otherwise>
+		                AND MST.MyItem IN ('')
+		            </otherwise>
+		        </choose>
+		    </if>
+		    <if test="mdlIF != null and mdlIF != ''">AND MST.GUBUN = 'O'</if>
+		    <if test='!"Y".equals(showElement)'>AND MST.GUBUN != 'O'</if>
+		    <if test="defDimTypeID != null and defDimTypeID != ''"> AND TID.DimTypeID = #{defDimTypeCode} AND TID.DimValueID = #{defDimValueID}</if>
+		    <if test="srType != null and srType != ''">AND TIA2.PlainText = #{srType}</if>
+		    <choose>
+		        <when test='"Y".equals(sortFilter) and !"Y".equals(showID)'>
+		            ORDER BY
+		            MST.GUBUN, MST.SortNum, MST.MyClass ASC, TIA.PlainText ASC
+		        </when>
+		        <otherwise>
+		            ORDER BY
+		            MST.GUBUN, MST.SortNum, MST.MyClass ASC, MST.MyID ASC ,TIA.PlainText ASC
+		        </otherwise>
+		    </choose>
+	</select>
+	
+	<insert id="insertBatchJobLog" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_BATCH_JOB_LOG (ReportCode, Domain, Status, StartTime, Contents,Result)
+  		VALUES (#{ReportCode},'BPM', '01', GETDATE(),#{Contents} , 0)
+	</insert> 
+	
+	<update id="UpdateBatchJobLog" parameterType="hashmap">
+	    UPDATE XBOLTADM.TB_BATCH_JOB_LOG
+	    SET Status = #{Status}, EndTime = GETDATE()
+	    WHERE BatchJobNo = #{BatchJobNo}
+	</update>
+	
+	<select id="getMaxBatchJobNoString" resultType="String">
+		SELECT ISNULL(MAX(BatchJobNo),1)  as BatchJobNo FROM XBOLTADM.TB_BATCH_JOB_LOG WITH (NOLOCK)
+	</select>
+	
+	<select id="exeAVLvLTreeIsRunning" resultType="String">
+	    SELECT 
+	        COUNT(*) 
+	    FROM XBOLTADM.TB_BATCH_JOB_LOG WITH (NOLOCK)
+	    WHERE StartTime &gt;= CAST(GETDATE() AS date)
+	      AND StartTime &lt; DATEADD(day, 1, CAST(GETDATE() AS date))
+	      AND ReportCode = 'Acty'
+	      AND EndTime IS NULL
+	</select>
+</mapper>

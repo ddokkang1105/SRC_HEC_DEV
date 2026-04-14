@@ -1,0 +1,719 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	Item 관련 관련	-->
+<mapper namespace="organization_SQL">
+
+	<select id="getMaxTeamId" resultType="String">
+		SELECT
+			ISNULL(MAX(TeamID)+1, 1)
+		FROM
+			XBOLTADM.TB_TEAM
+	</select>
+
+<select id="getProcessOrgList" resultType="java.util.HashMap">
+	SELECT
+		TM.TeamCode, TMT.Name
+		FROM
+			XBOLTADM.TB_TEAM TM
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT
+				on TM.TeamID = TMT.TeamID
+				AND LanguageID = #{languageID}
+		WHERE
+			TM.RefTeamCode in (
+				SELECT 
+					DimValueID
+				FROM
+					XBOLTADM.TB_ITEM_DIM
+				WHERE 
+					ItemID = #{s_itemID}
+					AND TM.TeamCode != DimValueID  
+	 		)   
+</select>
+
+<select id="getProcessOrgList_gridList" resultType="java.util.HashMap">
+	SELECT
+		Row_Number() OVER (order by TM.TeamCode, TMT.Name) AS RNUM
+ 		, 0 AS CHK 
+		TM.TeamCode, TMT.Name
+		FROM
+			XBOLTADM.TB_TEAM TM
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT
+				on TM.TeamID = TMT.TeamID
+				AND LanguageID = #{languageID}
+		WHERE
+			TM.RefTeamCode in (
+				SELECT 
+					DimValueID
+				FROM
+					XBOLTADM.TB_ITEM_DIM
+				WHERE 
+					ItemID = #{s_itemID}
+					AND TM.TeamCode != DimValueID  
+	 		)
+	 	Order By
+	 		TM.TeamCode, TMT.Name	   
+</select>
+
+	<select id="getOrganizationInfo" resultType="java.util.HashMap">
+ 			SELECT
+				D.Name AS OrgName
+				, C.TeamID 
+				, C.TeamCode
+				, E.Name AS ParentName
+				, C.CompanyID
+				, F.Name AS CompanyName
+				, C.ItemID
+				, C.TeamType
+				, DIC.Name AS TeamTypeNM
+				, I.ItemTypeCode
+				, M.Name AS Manager
+			
+			FROM 
+				XBOLTADM.TB_TEAM C
+				Left Outer Join XBOLTADM.TB_TEAM_TXT D
+				on C.TeamID = D.TeamID AND D.LanguageID = #{languageID} 
+				Left Outer Join XBOLTADM.TB_TEAM_TXT E
+				on C.ParentID = E.TeamID AND E.LanguageID = #{languageID} 
+				Left Outer Join XBOLTADM.TB_TEAM_TXT F
+				on C.CompanyID = F.TeamID AND F.LanguageID = #{languageID} 
+				Left Outer Join XBOLTADM.TB_DICTIONARY DIC
+				on C.TeamType = DIC.TypeCode AND DIC.Category = 'TMTP' AND DIC.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_ITEM I
+				on C.ItemID = I.ItemID
+				Left Outer Join XBOLTADM.TB_MEMBER M
+				on C.ManagerID = M.MemberID
+			WHERE 
+				C.TeamID = #{s_itemID}
+			ORDER BY 
+				F.Name ASC, E.Name ASC , D.Name ASC	
+	</select>
+
+	<select id="getOrganizationList_gridList" resultType="java.util.HashMap">
+ 			SELECT
+ 				Row_Number() OVER (order by C.TeamCode ASC) AS RNUM
+ 				, 0 AS CHK 
+ 				, ISNULL(null, 'img_job.png') AS OrgTypeImg
+ 				, C.TeamCode 
+ 				, D.Name 
+ 				, DIC.Name AS TeamTypeNM
+ 				, C.TeamID
+ 				, (SELECT COUNT(TeamID) FROM XBOLTADM.TB_TEAM WHERE ParentID = C.TeamID) AS PCOUNT
+ 				, (SELECT COUNT(TeamID) FROM XBOLTADM.TB_MEMBER WHERE TeamID = C.TeamID) AS MCOUNT
+			FROM 
+				XBOLTADM.TB_TEAM C
+				Left Outer Join XBOLTADM.TB_TEAM_TXT D
+				on C.TeamID = D.TeamID
+				Left Outer Join (
+					SELECT TeamID, COUNT(MemberID) AS MemberCount
+					FROM XBOLTADM.TB_MEMBER 
+					GROUP BY TeamID
+				)TM
+				on C.TeamID = TM.TeamID
+				Left Outer Join XBOLTADM.TB_DICTIONARY DIC
+				on C.TeamType = DIC.TypeCode AND DIC.Category = 'TMTP' AND DIC.LanguageID = #{languageID}
+			WHERE
+				C.ParentID = #{s_itemID} AND D.LanguageID = #{languageID} 
+				<if test="searchValue != null and searchValue != ''">
+					<choose>
+						<when test="searchKey.equals('Name')">
+							AND D.Name LIKE '%'+#{searchValue}+'%'
+						</when>
+						<when test="searchKey.equals('ID')">
+							AND C.TeamCode LIKE '%'+#{searchValue}+'%'
+						</when>
+					</choose>
+				</if>
+			GROUP BY
+				 C.TeamCode 
+ 				, D.Name 
+ 				, C.ItemID
+ 				, C.TeamID
+ 				, MemberCount	
+ 				, DIC.Name
+ 	</select>
+
+	<!-- 조직 매필용 -->
+ 	<select id="selectOrganization_gridList" resultType="java.util.HashMap">
+ 			SELECT
+ 				Row_Number() OVER (order by D.Name ASC) AS RNUM
+ 				, 0 AS CHK  			
+				, D.Name AS OrgName
+				, C.TeamID 
+				, C.TeamCode
+				, E.Name AS ParentName
+				, C.CompanyID
+				, F.Name AS CompanyName
+			FROM 
+				XBOLTADM.TB_TEAM C
+				Left Outer Join XBOLTADM.TB_TEAM_TXT D
+				on C.TeamID = D.TeamID AND D.LanguageID = #{languageID} 
+				Left Outer Join XBOLTADM.TB_TEAM_TXT E
+				on C.ParentID = E.TeamID AND E.LanguageID = #{languageID} 
+				Left Outer Join XBOLTADM.TB_TEAM_TXT F
+				on C.CompanyID = F.TeamID AND F.LanguageID = #{languageID} 
+			WHERE 
+				C.ParentID != #{s_itemID}
+				AND TeamType = #{teamType}
+			ORDER BY 
+				F.Name ASC, E.Name ASC , D.Name ASC					
+ 	</select>
+
+	<select id="getOrgMembers" resultType="java.util.HashMap">
+			SELECT 
+				TM.MemberID, TC.Name AS CountryName, (ISNULL(TM.Name,'')+' '+ISNULL(TM.Position, '')) AS UserNAME, TM.LoginID
+				, ISNULL(master.dbo.dec_varchar_sel(0,'HTMAIL',TM.Email),'') AS Email
+				, ISNULL(TTC.Name, '') as CompanyID, TTT.Name AS TeamID
+				, TM.Authority, TM.RetireDate  AS RetireDate
+			FROM 
+				XBOLTADM.TB_MEMBER TM
+				Left Outer Join XBOLTADM.TB_TEAM_TXT TTC on TM.CompanyID = TTC.TeamID AND TTC.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_TEAM_TXT TTT on TM.TeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_COUNTRY TC on TM.CountryID = TC.CountryID 
+				
+			WHERE
+				TM.MemberID in (
+						SELECT 
+				MemberID 
+			FROM 
+				XBOLTADM.TB_MEMBER
+			WHERE
+				MemberID in (
+					SELECT
+						MemberID
+					FROM
+						XBOLTADM.TB_MY_ITEM
+					WHERE
+						TeamID = #{getTeamID}
+				)AND MemberID Not In (
+				SELECT
+					MemberID
+				FROM
+					XBOLTADM.TB_MY_ITEM
+				WHERE
+					ItemID = #{s_itemID}		
+				)				
+			)	
+		</select>
+
+	<select id="getProcessOrgMembers" resultType="java.util.HashMap">
+		SELECT 
+			TM.MemberID, TC.Name AS CountryName, (ISNULL(TM.Name,'')+' '+ISNULL(TM.Position, '')) AS UserNAME, TM.LoginID
+			, ISNULL(master.dbo.dec_varchar_sel(0,'HTMAIL',TM.Email),'') AS Email
+			, ISNULL(TTC.Name, '') as CompanyID, TTT.Name AS TeamID
+			, TM.Authority, TM.RetireDate  AS RetireDate
+		FROM 
+			XBOLTADM.TB_MEMBER TM
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTC on TM.CompanyID = TTC.TeamID AND TTC.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT on TM.TeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_COUNTRY TC on TM.CountryID = TC.CountryID 
+			
+		WHERE
+			TM.MemberID in (
+					SELECT 
+			MemberID 
+		FROM 
+			XBOLTADM.TB_MEMBER
+		WHERE
+			MemberID in (
+				SELECT
+					MemberID
+				FROM
+					XBOLTADM.TB_MY_ITEM
+				WHERE
+					ItemID = #{s_itemID}
+			)	
+		)	
+	</select>
+	
+	<select id="getUserList" resultType="java.util.HashMap">
+		SELECT 
+			TM.MemberID, TM.Name, TM.LoginID
+			, ISNULL(master.dbo.dec_varchar_sel(0,'HTMAIL',TM.Email),'') AS Email
+			, ISNULL(TTC.Name, '') as CompanyID, TTT.Name AS TeamID
+			, TM.Authority, TM.RetireDate  AS RetireDate
+		FROM 
+			XBOLTADM.TB_MEMBER TM
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTC on TM.CompanyID = TTC.TeamID AND TTC.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT on TM.TeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+		<where>		
+			<if test="CompanyID != null and CompanyID != ''">
+				TM.CompanyID = #{CompanyID}
+			</if>
+			<if test="TeamID != null and TeamID != ''">
+				AND TM.TeamID = #{TeamID}
+			</if>
+			<if test="Name != null and Name != ''">
+				AND TM.Name like N'%'+#{Name}+'%'
+			</if>
+		</where>	
+	</select>
+
+	<select id="getOrgUserList_gridList" resultType="java.util.HashMap">
+			SELECT 
+				Row_Number()OVER(ORDER BY TEAM.ManagerID DESC, TM.MemberID ASC) as RNUM
+				, 0 AS CHK
+				, TM.MemberID
+				, TC.Name AS CountryName
+				, ISNULL(TM.Name,'') AS UserNAME
+				, ISNULL(TM.Position, '') AS Position
+				, TM.LoginID
+				, ISNULL(master.dbo.dec_varchar_sel(0,'HTMAIL',TM.Email),'') AS Email 
+				, ISNULL(TTC.Name, '') as CompanyNM
+				, TTT.Name AS TeamID
+				, TM.Authority
+				, TM.MLVL, TM.RetireDate  AS RetireDate
+				, ISNULL(TDML.Name, '') AS AuthorityNm
+				, ISNULL(master.dbo.dec_varchar_sel(0,'HTPHONE',TM.MTelNum),'') AS MTelNum 
+				, ISNULL(TM.TelNum, '') As  TelNum
+				, ISNULL(TM.EmployeeNum, '') As  EmployeeNo
+				, Case When TEAM.ManagerID IS NOT NULL Then 'user.png'Else 'grid_user.png' END  AS OrgTypeImg
+			FROM 
+				XBOLTADM.TB_MEMBER TM
+				Left Outer Join XBOLTADM.TB_TEAM_TXT TTC on TM.CompanyID = TTC.TeamID AND TTC.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_TEAM_TXT TTT on TM.TeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_COUNTRY TC on TM.CountryID = TC.CountryID 
+				Left outer Join XBOLTADM.TB_DICTIONARY TDML on TM.MLVL = TDML.TypeCode AND TDML.Category='MLVL'	AND	TDML.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_TEAM TEAM ON TEAM.TeamID = TM.TeamID And TEAM.ManagerID = TM.MemberID
+			WHERE
+				TM.TeamID  = #{s_itemID}				
+	</select>
+	<select id="getUserList_gridList" resultType="java.util.HashMap">
+			SELECT 
+				Row_Number()OVER(ORDER BY TM.MemberID ASC ) as RNUM
+				, 0 AS CHK
+				, ISNULL(null, 'grid_user.png')  AS OrgTypeImg
+				, TM.MemberID
+				, TC.Name AS CountryName
+				, ISNULL(TM.Name,'') AS UserNAME
+				, ISNULL(TM.Position, '') AS Position
+				, TM.LoginID
+				, ISNULL(master.dbo.dec_varchar_sel(0,'HTMAIL',TM.Email),'') AS Email 
+				, ISNULL(TTC.Name, '') as CompanyID
+				, TTT.Name AS TeamID
+				, TM.Authority, TM.RetireDate  AS RetireDate
+				, ISNULL(TDML.Name, '') AS AuthorityNm
+			FROM 
+				XBOLTADM.TB_MEMBER TM
+				Left Outer Join XBOLTADM.TB_TEAM_TXT TTC on TM.CompanyID = TTC.TeamID AND TTC.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_TEAM_TXT TTT on TM.TeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_COUNTRY TC on TM.CountryID = TC.CountryID 
+				Left outer Join XBOLTADM.TB_DICTIONARY TDML
+					on TM.MLVL = TDML.TypeCode 
+					AND TDML.Category='MLVL'
+					AND	TDML.LanguageID = #{languageID}
+			WHERE
+				TM.MemberID in (
+						SELECT 
+				MemberID 
+			FROM 
+				XBOLTADM.TB_MEMBER
+			WHERE
+				MemberID in (
+					SELECT
+						MemberID
+					FROM
+						XBOLTADM.TB_MY_ITEM
+					WHERE
+						TeamID in (
+							SELECT
+								TeamID
+							From 
+								XBOLTADM.TB_TEAM
+							WHERE
+								RefTeamCode = #{s_itemID}		
+						)
+				)					
+			)			
+	</select>
+	
+		<select id="getProcessUserList_gridList" resultType="java.util.HashMap">
+		SELECT 
+			Row_Number()OVER(ORDER BY TM.MemberID ASC ) as RNUM
+			, CHK AS 0
+			, TM.MemberID
+			, TC.Name AS CountryName
+			, (ISNULL(TM.Name,'')+' '+ISNULL(TM.Position, '')) AS UserNAME
+			, TM.LoginID
+			, ISNULL(master.dbo.dec_varchar_sel(0,'HTMAIL',TM.Email),'') AS Email
+			, ISNULL(TTC.Name, '') as CompanyID
+			, TTT.Name AS TeamID
+			, TM.Authority
+			, CASE TM.Authority WHEN '0' THEN 'Viewer' WHEN '1' THEN 'Admin' ELSE '' END AuthorityNm
+			, TM.RetireDate  AS RetireDate
+		FROM 
+			XBOLTADM.TB_MEMBER TM
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTC on TM.CompanyID = TTC.TeamID AND TTC.LanguageID = '1042'
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT on TM.TeamID = TTT.TeamID AND TTT.LanguageID = '1042'
+			Left Outer Join XBOLTADM.TB_COUNTRY TC on TM.CountryID = TC.CountryID 
+		WHERE
+			TM.MemberID in (
+					SELECT 
+			MemberID 
+		FROM 
+			XBOLTADM.TB_MEMBER
+		WHERE
+			MemberID in (
+				SELECT
+					MemberID
+				FROM
+					XBOLTADM.TB_MY_ITEM
+				WHERE
+					ItemID in (
+						SELECT FromItemID FROM XBOLTADM.TB_ITEM
+						WHERE ToItemID = #{s_itemID}	AND CategoryCode = 'CN'
+					)
+			)	
+		)		
+	</select>
+	
+	<select id="getMyItemList_gridList" resultType="java.util.HashMap">
+		SELECT 
+			Row_Number()OVER(ORDER BY TI.ClassCode ASC, TIA.PlainText ASC) as RNUM
+			, 0 AS CHK
+			, TI.ItemID
+			, ISNULL(TIS.SCOUNT, 0) AS SCOUNT
+			, TIA.PlainText as ItemName
+			, TD.Name as ClassName
+			, ISNULL(TT.Name, '') as TeamName
+			, TOT.Name as OwnerTeamName
+			, TM.Name
+			, Convert(nvarchar(20),TI.LastUpdated, 111) AS LastUpdated
+			, TI.Version
+			, TI.Identifier
+			, TIF.PlainText as ProcessInfo
+		FROM
+			XBOLTADM.TB_ITEM TI
+			Left outer join (
+				SELECT FromItemID, ISNULL(COUNT(DISTINCT ToItemID), 0) AS SCOUNT 
+				FROM XBOLTADM.TB_ITEM 
+				WHERE Deleted != '1'
+				GROUP BY FromItemID 
+				) TIS on TIS.FromItemID = TI.ItemID
+			Left outer join XBOLTADM.TB_DICTIONARY TD on TI.ClassCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_TEAM_TXT TT on TI.CompanyID = TT.TeamID  AND TT.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_TEAM_TXT TOT on TI.OwnerTeamID = TOT.TeamID AND TOT.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_MEMBER TM on TI.AuthorID = TM.MemberID
+			Left outer join XBOLTADM.TB_ITEM_ATTR TIA on TI.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_ITEM_ATTR TIF on TI.ItemID = TIF.ItemID AND TIF.AttrTypeCode = 'AT00003' AND TIF.LanguageID = #{languageID}
+		WHERE 
+			TI.ItemID in (
+				Select ItemID From XBOLTADM.TB_MY_ITEM WHERE MemberID = #{s_itemID}
+		 	)
+	 		AND TI.Deleted != '1'
+	 		or
+	 		TI.ItemID in (
+				Select ItemID FROM XBOLTADM.TB_ITEM
+				Where AuthorID =  #{s_itemID}
+			 	AND Deleted != '1'
+	 		)
+		order by
+			TI.ClassCode ASC, TIA.PlainText ASC		
+	</select>
+	
+	<delete id="delDimUser">
+		DELETE
+		FROM
+			XBOLTADM.TB_MY_ITEM
+		WHERE
+			ItemID = #{s_itemID}
+			AND MemberID = #{MemberID}
+	</delete>
+
+	<insert id="addDimUser">
+		INSERT INTO
+			XBOLTADM.TB_MY_ITEM	(
+				MemberID
+				, ItemID
+				, ItemTypeCode
+		)	
+		VALUES(
+				#{MemberID}
+				,#{s_itemID}
+				, (SELECT ItemTypeCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{s_itemID})
+		)
+	</insert>
+	
+	<insert id="addTeam">
+		INSERT INTO
+			XBOLTADM.TB_TEAM(
+				TeamID ,TeamCode ,ParentID ,CompanyID ,TeamType, ItemID
+				,CreationTime ,LastUpdated
+			)VALUES(
+				#{TeamID} , #{TeamCode} , #{parentID} , #{companyID}, #{TeamType}, #{ItemID}
+				,getDate() ,getDate()
+			)
+	</insert>
+
+	<insert id="addTeamText">
+		INSERT INTO
+			XBOLTADM.TB_TEAM_TXT(
+				TeamID ,LanguageID ,TeamCode ,Name
+			)VALUES(
+				#{TeamID} ,#{languageID} ,#{TeamCode} , #{TeamName} 
+			)	
+	</insert>
+	
+	<update id="updateTeam">
+		UPDATE
+			XBOLTADM.TB_TEAM
+		SET
+			TeamID = TeamID
+			<if test="TeamCode != null and TeamCode != ''">
+				, TeamCode = #{TeamCode}
+			</if>
+			<if test="companyID != null and companyID != ''">
+				, companyID = #{companyID}
+			</if>
+			<if test="TeamType != null and TeamType != ''">
+				, TeamType = #{TeamType}
+			</if>
+			<if test="ParentID != null and ParentID != ''">
+				, ParentID = #{ParentID}
+			</if>
+			<if test="ItemID != null and ItemID != ''">
+				, ItemID = #{ItemID}
+			</if>
+			<if test="ManagerID != null and ManagerID != ''">
+				, ManagerID = #{ManagerID}
+			</if>
+		WHERE
+			TeamID = #{TeamID}
+	</update>
+	
+	<update id="updateTeamText">
+		UPDATE
+			XBOLTADM.TB_TEAM_TXT
+		SET
+			TeamID = TeamID
+			<if test="TeamName != null and TeamName != ''">
+				, Name = #{TeamName}
+			</if>
+		WHERE
+			TeamID = #{TeamID}
+			AND LanguageID = #{languageID}
+	</update>
+	
+<!-- ==========================================================================================================================	-->
+	
+	<select id="getOrgPrcCNItems_gridList" resultType="java.util.HashMap">
+		SELECT 
+			Row_Number()OVER(ORDER BY  ISNULL(T2.Identifier, '') ASC) as RNUM 
+			, 0 CHK
+		    , T1.ItemID As CnItemID
+		    , T2.ItemID As OrgItemID
+		    , ISNULL(T2.Identifier, '') As OrgID
+		    , ISNULL(T10.Identifier, '') As PrcID
+		    , T11.PlainText As OrgName
+		    , T12.PlainText As PrcName
+		    , ISNULL(T6.Value, '') AS CNRAI		
+		    , ISNULL(T4.PlainText, '') AS CNInfo			
+		    , ISNULL(XBOLTADM.fn_GetMyAbsPathForList(T1.FromItemID, #{languageID}), '') AS OrgPath
+		    , ISNULL(XBOLTADM.fn_GetMyAbsPathForList(T1.ToItemID, #{languageID}), '') AS PrcPath
+		    ,T1.FromItemID As OrgItemID
+		    ,T1.ToItemID As PrcItemID
+		    ,T1.ItemTypeCode
+		    ,T1.ClassCode
+		        
+		  FROM [XBOLTADM].[TB_ITEM] T1
+		  	Left Outer Join XBOLTADM.TB_ITEM T2 on T1.FromItemID = T2.ItemID 
+		  	Left Outer Join XBOLTADM.TB_ITEM T10 on T1.ToItemID = T10.ItemID 
+		  	Left Outer Join XBOLTADM.TB_ITEM_ATTR T11
+		  		on T1.FromItemID = T11.ItemID AND T11.AttrTypeCode = 'AT00001' AND T11.LanguageID = #{languageID}
+		  	Left Outer Join XBOLTADM.TB_ITEM_ATTR T12
+		  		on T1.ToItemID = T12.ItemID AND T12.AttrTypeCode = 'AT00001' AND T12.LanguageID = #{languageID}
+		  	
+		  	Left Outer Join XBOLTADM.TB_ITEM_ATTR T4
+		  	<choose>
+		  		<when test="isComLangAT00003 != '1'">
+		  			ON T4.ItemID = T1.ItemID AND T4.AttrTypeCode = 'AT00003' AND T4.LanguageID = #{languageID}
+		  		</when>
+		  		<otherwise>
+		  			ON T4.ItemID = T1.ItemID AND T4.AttrTypeCode = 'AT00003' AND T4.LanguageID = #{defaultLang}
+		  		</otherwise>
+		  	</choose>		  	
+		  	Left Outer Join XBOLTADM.TB_ITEM_ATTR T5
+		  	<choose>
+		  		<when test="isComLangAT00011 != '1'">
+		  			ON T5.ItemID = T1.ItemID AND T5.AttrTypeCode = 'AT00011' AND T5.LanguageID = #{languageID}
+		 			Left Outer join	XBOLTADM.TB_ATTR_TYPE_LOV T6
+					ON T5.AttrTypeCode  = T6.AttrTypeCode AND T5.LovCode = T6.LovCode AND T6.LanguageID = #{languageID}
+		  		</when>
+		  		<otherwise>
+		  			ON T5.ItemID = T1.ItemID AND T5.AttrTypeCode = 'AT00011' AND T5.LanguageID = #{defaultLang}
+		 			Left Outer join	XBOLTADM.TB_ATTR_TYPE_LOV T6
+					ON T5.AttrTypeCode  = T6.AttrTypeCode AND T5.LovCode = T6.LovCode AND T6.LanguageID = #{defaultLang}
+		  		</otherwise>
+		  	</choose>												
+		  WHERE T1.ItemTypeCode = 'CN01201'
+		  AND T1.Deleted != 1
+		  	<if test="ItemTypeCode != null and ItemTypeCode != ''">
+			  	<choose>
+			  		<when test="ItemTypeCode.equals('OJ00001')">
+			  			AND T1.FromItemID = #{s_itemID}
+			  		</when>
+			  		<when test="ItemTypeCode.equals('OJ00012')">
+			  			AND T1.ToItemID = #{s_itemID}
+			  		</when>
+			  	</choose>
+		  	</if>
+			<if test="searchValue != null and searchValue != ''">
+				<choose>
+					<when test="searchKey.equals('Name') and ItemTypeCode.equals('OJ00001')">
+						AND T12.PlainText like '%'+#{searchValue}+'%'
+					</when>
+					<when test="searchKey.equals('Name') and ItemTypeCode.equals('OJ00012')">
+						AND T11.PlainText like '%'+#{searchValue}+'%'
+					</when>
+					<when test="!searchKey.equals('Name') and ItemTypeCode.equals('OJ00001')">
+						AND T10.Identifier like '%'+#{searchValue}+'%'
+					</when>
+					<when test="!searchKey.equals('Name') and ItemTypeCode.equals('OJ00012')">
+						AND T2.Identifier like '%'+#{searchValue}+'%'
+					</when>
+				</choose>
+			</if>
+	</select>
+	
+	<select id="getAttrInfo" resultType="java.util.HashMap">
+		SELECT Distinct
+	   		T1.AttrTypeCode
+      		,T1.IsComLang 
+      	FROM XBOLTADM.TB_ATTR_TYPE T1,
+  			XBOLTADM.TB_ATTR_TYPE_ALLOCATION T2
+  		WHERE
+ 			T2.ItemClassCode = 'CNL1201'
+  			AND T1.AttrTypeCode = T2.AttrTypeCode
+  		ORDER BY T1.AttrTypeCode
+	</select>
+	
+	
+	<select id="getCNItems" resultType="java.util.HashMap">
+		SELECT 
+			Row_Number()OVER(ORDER BY  ISNULL(T2.Identifier, '') ASC) as RNUM 
+		    , T1.ItemID As CnItemID
+		    , T2.ItemID As RelItemID
+		    , ISNULL(T2.Identifier, '') As RelID
+		    , ISNULL(T3.Identifier, '') As PrcID
+		    , T4.PlainText As RelName
+		    , T5.PlainText As PrcName	
+		    , ISNULL(XBOLTADM.fn_GetMyAbsPathForList(T1.FromItemID, #{languageID}), '') AS RelPath
+		    , ISNULL(XBOLTADM.fn_GetMyAbsPathForList(T1.ToItemID, #{languageID}), '') AS PrcPath
+		    ,T1.FromItemID As RelItemID
+		    ,T1.ToItemID As PrcItemID
+		    ,T1.ItemTypeCode
+		    ,T1.ClassCode
+		    , (SELECT Icon FROM XBOLTADM.TB_ITEM_TYPE WHERE ItemTypeCode = T2.ItemTypeCode) As FromItemIcon
+		    , (SELECT Icon FROM XBOLTADM.TB_ITEM_TYPE WHERE ItemTypeCode = T3.ItemTypeCode) As ToItemIcon
+		    , T2.AuthorID As RelAuthorID
+		    , T2.LockOwner As RelLockOwner
+		    , T3.AuthorID As PrcAuthorID
+		    , T3.LockOwner As PrcLockOwner
+		    , T2.Identifier As RelIdentifier
+		    , T3.Identifier As PrcIdentifier
+		    , T2.Blocked As RelBlocked
+		    , T3.Blocked As PrcBlocked
+		    , T2.Status As RelStatus
+		    , T3.Status As PrcStatus
+		  FROM XBOLTADM.TB_ITEM T1
+		  	Left Outer Join XBOLTADM.TB_ITEM T2 on T1.FromItemID = T2.ItemID 
+		  	Left Outer Join XBOLTADM.TB_ITEM T3 on T1.ToItemID = T3.ItemID
+		  	
+		  	Left Outer Join XBOLTADM.TB_ITEM_ATTR T4
+		  		on T1.FromItemID = T4.ItemID AND T4.AttrTypeCode = 'AT00001' AND T4.LanguageID = #{languageID}
+		  	Left Outer Join XBOLTADM.TB_ITEM_ATTR T5
+		  		on T1.ToItemID = T5.ItemID AND T5.AttrTypeCode = 'AT00001' AND T5.LanguageID = #{languageID}  		  	  	
+		  WHERE T1.ItemTypeCode = #{varFilter}
+		  AND T1.Deleted != 1
+		  <choose>
+			<when test="isFromItem.equalsIgnoreCase('Y')">AND T1.FromItemID = #{s_itemID}</when>
+			<when test="isFromItem.equalsIgnoreCase('N')">AND T1.ToItemID = #{s_itemID}</when>
+		  </choose>   
+	</select>
+	
+	<select id="getFromToItemTypeCode" resultType="java.util.HashMap">
+		SELECT 
+      		 FromItemTypeCode
+      		, ToItemTypeCode
+  		FROM XBOLTADM.TB_ITEM_TYPE
+  		WHERE ItemTypeCode = #{varFilter}
+	</select>
+	
+	<select id="getConItemTypeCode" resultType="String">
+		SELECT ItemTypeCode
+		FROM XBOLTADM.TB_ITEM_TYPE
+		WHERE 
+			ToItemTypeCode = FromItemTypeCode AND Category = 'ST'
+			AND ToItemTypeCode = #{ItemTypeCode}
+	</select>
+	
+	<select id="getCountConItem" resultType="String">
+		SELECT Count(ItemID) As CNT
+		FROM XBOLTADM.TB_ITEM
+		WHERE 
+			ItemTypeCode = #{ItemTypeCode}
+			AND FromItemID = #{FromItemID}
+			AND ToItemID = #{ToItemID}
+			<if test='deleted != null and deleted != "" '>
+			AND Deleted != #{deleted}
+			</if>
+	</select>
+	
+	<select id="getConItemID" resultType="String">
+		SELECT ItemID
+		FROM XBOLTADM.TB_ITEM
+		WHERE 
+			ItemTypeCode = #{ItemTypeCode}
+			AND FromItemID = #{FromItemID}
+			AND ToItemID = #{ToItemID}
+			<if test='deleted != null and deleted != "" '>
+			AND Deleted != #{deleted}
+			</if>
+	</select>
+	
+	<select id="getItemIdANdName" resultType="String">
+		SELECT 
+      		(T1.Identifier + ' : ' + T2.PlainText) As Name
+      	FROM XBOLTADM.TB_ITEM T1,
+  			XBOLTADM.TB_ITEM_ATTR T2
+  		where T1.ItemID = #{ItemID}
+  		and T1.ItemID = T2.ItemID 
+  		and T2.AttrTypeCode = 'AT00001'
+  		and T2.LanguageID = #{LanguageID}
+	</select>
+	
+	<select id="insertHRTeamInfo" parameterType="java.util.HashMap" statementType="CALLABLE">
+		{ CALL #{procedureName} }
+	</select>
+	
+	<delete id="delTeam">
+		DELETE
+		FROM
+			XBOLTADM.TB_TEAM_TXT
+		WHERE
+			TeamID = #{TeamID}	
+			
+		DELETE
+		FROM
+			XBOLTADM.TB_TEAM
+		WHERE
+			TeamID = #{TeamID}
+	</delete>
+	
+	<select id="getPathOrg" resultType="String">
+		SELECT
+			CONVERT(NVARCHAR(MAX), XBOLTADM.fn_GetMyAbsPathForList(TI.ItemID, #{languageID}) + '/' + CONVERT(NVARCHAR(MAX), TIA2.PlainText)) AS Path
+		FROM
+			XBOLTADM.TB_ITEM TI
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 on  TI.ItemID = TIA2.ItemID AND TIA2.AttrTypeCode = 'AT00001' AND TIA2.LanguageID = #{languageID}	
+		WHERE TI.ItemID = #{ItemID}	
+	</select>
+	
+	<select id="getItemIdFromTeam" resultType="String">
+	    Select ItemID 
+		 From XBOLTADM.TB_TEAM
+		 Where TeamID = (Select TeamID From XBOLTADM.TB_MEMBER Where LoginID = #{loginID})
+    </select>
+	
+</mapper>

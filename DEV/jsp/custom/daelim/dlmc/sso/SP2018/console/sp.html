@@ -1,0 +1,112 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+	<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	   <title>::: Configurations for Service Providers :::</title>
+	   <style type="text/css">
+           .item-title {font-weight: bold}
+           .item-req {color: red; font-weight: bold; margin-left: 5px}
+        </style>
+	</head>
+	<body>
+	   <div id="content">
+	       <p />
+	       <span class="item-title">인증서</span>
+	       <br>
+	       <input type="text" id="SPN_CERT_PATH" size="50"> 
+	       <ul class="item-explain">
+	        <li>인증서 파일에는 공개키가 포함되어 있어야 한다.</li>
+	       </ul>
+       
+	       <p />
+           <span class="item-title">로그인 페이지</span>
+           <br>
+           <input type="text" id="SPO_LOGIN_PAGE_URI" size="50"> 
+		   <ul class="item-explain">
+		      <li>미설정 시 IdP의 통합 로그인 page를 사용하게 된다.</li>
+		      <li>업무시스템 로그인 page를 사용하기 위해서는 /SP/test_login.jsp를 참고한다.</li>
+		      <li>http:// 또는 https://로 시작 하지 않으면 컨텍스트 이하 path부터 설정한다 (반드시 /로 시작)</li>
+		   </ul>
+		   
+		   <p />
+           <span class="item-title">현업 인증(session) 생성 - interface</span>
+           <br>
+           <input type="text" id="SPO_CUSTOM_SESSION_CREATOR" size="50"> 
+           <ul class="item-explain">
+              <li>com.rathontech.sso.sp.session.custom.CustomSessionCreator 을 구현한다.</li>
+              <li>예) com.rathontech.sso.sp.session.custom.CustomSessionCreationTester</li>
+           </ul>
+           
+           <p />
+           <span class="item-title">현업 인증(session) 생성 - redirection</span>
+           <br>
+           <input type="text" id="SPO_CUSTOM_SESSION_REDIRECTOR" size="50"> 
+           <ul class="item-explain">
+              <li>http:// 또는 https://로 시작 하지 않으면 컨텍스트 이하 path부터 설정한다 (반드시 /로 시작)</li>
+              <li>예) /SP/session/RedirectCustomSessionCreationTester.jsp</li>
+           </ul>
+           
+           <p />
+           <span class="item-title">Character Set</span>
+           <br>
+           <input type="text" id="SPO_CHARACTER_ENCODING"> 
+           <ul class="item-explain">
+              <li>사이트에서 사용하는 character set을 설정 해준다.</li>
+              <li>기본값은 <b>UTF-8</b> 이다.</li>
+           </ul>
+           
+           <p />
+           <span class="item-title">싱글사인온(SSO) 인증방식</span>
+           <br>
+           <select id="SPO_SSO_AUTHENTICATION_METHOD">
+            <option value="SESSION">SESSION</option>
+            <option value="COOKIE">COOKIE</option>
+           </select>
+           <ul class="item-explain">
+              <li>sso 인증 방식을 선택 한다.</li>
+              <li>IdP와 동일하게 설정하는것을 권장한다.</li>
+              <li>기본값은 <b>session</b> 이다.</li>
+           </ul>
+           
+           <p />
+           <span class="item-title">싱글로그아웃(SLO) 요청방식</span>
+           <br>
+           <select id="SPO_LOGOUT_METHOD">
+            <option value="REDIRECT">REDIRECT</option>
+            <option value="SOAP">SOAP</option>
+            <option value="SOAP:L4">SOAP:L4</option>
+           </select>
+           <ul class="item-explain">
+              <li>SLO 로그아웃 방식을 선택 한다.</li>
+              <li>SOAP, SOAP:L4 일경우 SPO_SSO_AUTHENTICATION_METHOD이 'SESSION'이어야 하고</li>
+              <li>REDIRECT, SOAP 일경우 IDPM_LOGOUT_REQ_URI 설정 값이 적용되고</li>
+              <li>SOAP:L4 일경우 IDPO_LOADBALANCE_IP_CONTEXT 설정 값이 적용된다. 그러므로  SOAP:L4 일경우 IDPO_LOADBALANCE_IP_CONTEXT가 반드시 설정 되어야 한다.</li>
+              <li>** SOAP 방식일 경우 반드시 sp와 idp 인증 모드는 SESSION이 되어야 한다.(server to server 통신이기 때문에 브라우져 쿠키가 삭제안됨)</li>
+              <li>기본값은 <b>REDIRECT</b> 이다</li>
+           </ul>
+           
+           <p />
+           <span class="item-title">인증 세션 prefix</span>
+           <br>
+           <input type="text" id="SPO_SESSIONKEY_PREFIX"> 
+           <ul class="item-explain">
+               <li>SSO 인증 후 생성 되는 session 키값의 prefix 명</li>
+               <li>기본값은 <b>RathonSSO_</b> 이다.</li>
+           </ul>
+	       
+	       <p />
+           <span class="item-title">Service Provider client ip through proxy server</span>
+           <br>
+           <input type="text" id="SPN_CLIENT_IP_HEADER"> 
+           <ul class="item-explain">
+               <li>사용자가 proxy server를 통하여 service provider로 접근할 때 사용</li>
+               <li>기본값은 <b>Proxy-Client-IP</b> 이다.</li>
+           </ul>
+           
+           <hr />
+           
+           <p />
+           <input type="button" id="btn_submit" value="저장하기" onclick="rathon.doConfig(1)" style="font-weight:bold">
+	   </div>
+	</body>
+</html>

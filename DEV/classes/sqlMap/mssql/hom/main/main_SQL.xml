@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="main_SQL">
+	<select id="processStt_chart" resultType="java.util.HashMap">
+		SELECT COUNT(*) AS value, PlainText label, IA.ItemID AS ItemID
+		FROM XBOLTADM.TW_PROCESS TP
+			INNER JOIN XBOLTADM.TB_ITEM_ATTR IA ON TP.L1ItemID=IA.ItemID AND IA.AttrTypeCode='AT00001' AND IA.ClassCode='CL01001' AND IA.LanguageID=#{sessionCurrLangType}
+		WHERE TP.ItemClassCode=#{ClassCode}
+		GROUP BY ItemClassCode, PlainText, IA.ItemID
+	</select>
+	
+	<select id="ZdlmcProcessStt_chart" resultType="java.util.HashMap">
+		SELECT COUNT(*) AS value, PlainText label, IA.ItemID AS ItemID 
+		FROM XBOLTADM.TW_PROCESS TP
+			INNER JOIN XBOLTADM.TB_ITEM_ATTR IA ON TP.L1ItemID=IA.ItemID AND IA.AttrTypeCode='AT00001' AND IA.ClassCode='CL01001' AND IA.LanguageID=#{sessionCurrLangType}
+			INNER JOIN XBOLTADM.TB_ITEM ITM ON ITM.ItemID = TP.ItemID
+			INNER JOIN XBOLTADM.TB_CHANGE_SET CS ON CS.ChangeSetID = ITM.CurChangeSet 
+			INNER JOIN XBOLTADM.TB_ITEM AS ITM2 ON ITM2.ItemID = IA.ItemID
+		WHERE TP.ItemClassCode=#{ClassCode}  AND CS.ChangeType !='DEL'
+		GROUP BY TP.ItemClassCode, PlainText, IA.ItemID,ITM2.Identifier
+		ORDER BY ITM2.Identifier
+	
+	</select>
+	
+	<select id="processSttBar_chart" resultType="java.util.HashMap">
+		Select * From (
+			Select 
+				IA.PlainText AS label
+				, IA.PlainText AS name
+				, TI.Identifier
+				, ( Select COUNT(*) 
+					From XBOLTADM.TW_PROCESS TP
+					Inner Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TP.ItemID 
+						And TIA.AttrTypeCode = 'AT00037' 
+						And TIA.LanguageID = #{sessionDefLanguageId} And TIA.LovCode = 'LV37001'
+					WHERE TP.L1ItemID = IA.ItemID 
+				 	And TP.ItemClassCode = #{classCode}
+				 ) AS System	
+				, ( Select COUNT(*) 
+					From XBOLTADM.TW_PROCESS TP
+					Inner Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TP.ItemID 
+						And TIA.AttrTypeCode = 'AT00037' 
+						And TIA.LanguageID = #{sessionDefLanguageId} And TIA.LovCode = 'LV37002'
+					WHERE TP.L1ItemID = IA.ItemID 
+				 	And TP.ItemClassCode = #{classCode}
+				 ) AS Manual
+				, (Select COUNT(*) From XBOLTADM.TW_PROCESS
+				 WHERE L1ItemID = IA.ItemID 
+				 And ItemClassCode = #{classCode}
+				 ) AS totalCnt	
+				 , (Select COUNT(*) From XBOLTADM.TW_PROCESS
+				 WHERE L1ItemID = IA.ItemID 
+				 And ItemClassCode = #{classCode}
+				 ) AS value				
+			FROM XBOLTADM.TB_ITEM_ATTR IA 
+			Inner Join XBOLTADM.Tb_Item TI ON TI.ItemID = IA.ItemID 
+			Where IA.AttrTypeCode = 'AT00002'
+			And IA.ClassCode = 'CL01001'
+			And IA.LanguageID = #{sessionDefLanguageId}
+		) T 
+		Where totalCnt != 0
+		Order By T.Identifier 
+	</select>
+	
+	<select id="processStt_sum" resultType="java.util.HashMap">
+		SELECT SUM(value) AS value, ItemClassCode
+		FROM (		
+			SELECT COUNT(*) AS value, ItemClassCode
+			FROM XBOLTADM.TW_PROCESS TP
+				INNER JOIN XBOLTADM.TB_ITEM_ATTR IA ON TP.L1ItemID=IA.ItemID AND IA.AttrTypeCode='AT00001' AND IA.ClassCode='CL01001' AND IA.LanguageID=#{sessionCurrLangType}
+			WHERE TP.ItemClassCode IN ('CL01004','CL01005','CL01006')
+			GROUP BY ItemClassCode
+		) A
+		GROUP BY ItemClassCode
+	</select>	
+	
+	<select id="getProgramType" resultType="java.util.HashMap">
+		SELECT LovCode, Value
+  		FROM XBOLTADM.TB_ATTR_TYPE_LOV
+  		WHERE AttrTypeCode = 'AT00063'
+  		AND LanguageID = #{LanguageID}
+  		ORDER BY LovCode
+	</select>
+	
+	<select id="getModuleNameList" resultType="java.util.HashMap">
+		SELECT DISTINCT 
+			ModuleID
+      		,T3.Identifier 
+  		FROM XBOLTADM.TW_SAP_PROGRAM T1,
+  			XBOLTADM.TB_ITEM T3
+  		WHERE 
+  			T1.ModuleID = T3.ItemID 
+  		order by ModuleID
+  		
+	</select>
+	
+	<select id="getCountProgramType" resultType="String">
+		SELECT 
+			COUNT(*) AS CNT
+  		FROM XBOLTADM.TW_SAP_PROGRAM T1,
+  			XBOLTADM.TB_ITEM T3
+  		WHERE 
+  			T1.ModuleID = T3.ItemID  
+ 			AND ProgramType = #{programType}
+ 			AND T3.Identifier = #{moduleName}
+	</select>
+	
+	<select id="getLevel1Name" resultType="java.util.HashMap">
+		SELECT Distinct 
+			IA.ItemID,
+			IT.Identifier,
+			IA.PlainText As label
+		FROM XBOLTADM.TW_PROCESS TP
+			INNER JOIN XBOLTADM.TB_ITEM_ATTR IA ON 
+			TP.L1ItemID=IA.ItemID 
+			AND IA.AttrTypeCode='AT00001' AND IA.ClassCode='CL01001' AND IA.LanguageID=#{LanguageID}
+			INNER JOIN XBOLTADM.TB_ITEM IT ON IA.ItemID = IT.ItemID
+		ORDER BY Identifier
+	</select>
+	
+	<select id="getCountMainChangeSetData" resultType="String">
+		SELECT COUNT(T1.L1ItemID) AS CNT   
+  		FROM XBOLTADM.TW_PROCESS T1, 
+  		     XBOLTADM.TB_CHANGE_SET T2,
+  		     XBOLTADM.TB_PROJECT T3,
+  		     XBOLTADM.TB_PROJECT T4
+  		WHERE 
+  			T1.ItemID = T2.ItemID AND  T2.ItemTypeCode = 'OJ00001'
+  			AND T2.ProjectID = T3.ProjectID 
+  			AND T3.RefPjtID = T4.ProjectID
+  			AND T1.L1ItemID = #{L1ItemID}
+  			AND T2.ChangeType = #{ChangeType}  					
+			<if test="parentId != null and parentId != ''">
+				AND LT4.ProjectID = #{parentId}
+			</if>
+			<if test="scStartDt != null and scStartDt != '' and scEndDt != null and scEndDt != ''">
+				AND CONVERT(VARCHAR, T2.CreationTime, 112) BETWEEN #{scStartDt} AND #{scEndDt}
+			</if>
+	</select>
+	
+	<select id="getPjtInfoFromTEMPL" resultType="java.util.HashMap">
+		SELECT 
+			T1.ProjectID,
+			T2.Name
+  		FROM XBOLTADM.TB_TEMPL T1
+  		Left Outer Join XBOLTADM.TB_PROJECT_TXT T2
+				On T1.ProjectID = T2.ProjectID AND T2.LanguageID = #{sessionCurrLangType}
+  		WHERE   		
+  			T1.TemplCode = #{sessionTemplCode}
+  			<if test="TemplCode != null and TemplCode != ''">
+				or  T1.TemplCode = #{TemplCode}
+			</if>
+	</select>
+	
+	<select id="getMainChangeSetList_gridList" resultType="java.util.HashMap">
+		SELECT
+			TOP 20
+			 Row_Number()OVER(ORDER BY TI.ClassCode, ChangeSetID DESC) as RNUM
+			 , TCS.ChangeSetID
+			 , TCS.ProjectID
+			 , TI.Identifier
+			 , TIA.PlainText AS ItemName
+			 , TCS.ItemID		
+			 , TM.Name As AuthorName  
+			 , ISNULL(CONVERT(char(10),TCS.CreationTime, 120),'') as CreationTime		 
+			 , TDS.Name AS StatusName			 
+		FROM XBOLTADM.TB_CHANGE_SET TCS
+			Left Outer Join XBOLTADM.TB_ITEM TI ON TCS.ItemID = TI.ItemID			
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TCS.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM ON TCS.AuthorID = TM.MemberID			
+			Left outer Join XBOLTADM.TB_DICTIONARY TDS ON TCS.Status = TDS.TypeCode AND TDS.Category = 'CNGSTS' AND TDS.LanguageID = #{languageID}
+		Where TCS.Status != 'CLS'	
+	</select>
+	
+	
+</mapper>

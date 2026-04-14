@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="forumComment_SQL">
+
+	<select id="commentTotalCnt" resultType="String">
+		<![CDATA[
+			SELECT Count(*) totalCnt FROM XBOLTADM.TB_BOARD_COMMENT WHERE BoardMgtID = #{BoardMgtID}
+		]]>
+	</select>
+	
+	<select id="commentGridList" resultType="java.util.HashMap">
+		<![CDATA[
+			SELECT *
+			FROM (
+				SELECT
+					Row_number() OVER( ORDER BY comment.BoardID DESC ) AS RNUM
+					, comment.BoardID AS privateId
+					, comment.ParentID AS commentId
+					, brd.Content AS maincontent
+					, brd.Subject AS subject
+					, brd.RegUserID As RegID
+					, comment.RegUserID As commentRegID
+					, comment.BoardMgtID
+					, comment.Content AS content
+					, ISNULL(prntmbr.Name, '') AS WriteForumUser
+					, ISNULL(mbr.Name, '') AS WriteCommentUser
+					, CONVERT(VARCHAR, brd.RegDT, 120) AS RegForumDT
+					, CONVERT(VARCHAR, comment.RegDT, 120 ) AS RegCommentDT
+				FROM XBOLTADM.TB_BOARD comment
+					LEFT OUTER JOIN XBOLTADM.TB_BOARD brd ON comment.ParentID=brd.boardID
+					LEFT OUTER JOIN XBOLTADM.TB_MEMBER prntmbr ON brd.RegUserID=prntmbr.MemberID
+					LEFT OUTER JOIN XBOLTADM.TB_MEMBER mbr ON comment.RegUserID=mbr.MemberID
+				WHERE comment.BoardMgtID=#{BoardMgtID}  AND comment.ParentID=(#{parentID}) And comment.replyLev = 1
+		]]>
+		
+		<if test="itemID != null and itemID != ''">
+			AND comment.itemID = #{itemID}
+		</if>
+		<if test="SRT_DT != null and SRT_DT != '' and END_DT != null and END_DT != ''">
+			AND CONVERT(VARCHAR, RegCommentDT, 112) BETWEEN #{STR_DT} AND #{END_DT}
+		</if>
+		<if test="SEARCH_CON != null and SEARCH_CON != ''">
+			<choose>
+				<when test="SEARCH_TYP.equals('001')"> Subject Like '%'||#{SEARCH_CON}||'%' </when>
+				<when test="SEARCH_TYP.equals('002')"> Subject LIKE '%'||#{SEARCH_CON}||'%' OR Content LIKE '%'||#{SEARCH_CON}||'%' </when>
+			</choose>
+		</if>		
+		) comment
+		<where>
+			<if test="pageNo != null and pageNo != ''">
+				comment.RNUM BETWEEN ((#{pageNo}-1)*#{listCnt} + 1) AND (#{pageNo}*#{listCnt})
+			</if>
+		</where>
+		ORDER BY RegCommentDT DESC
+	</select>
+	<select id="boardNextVal" resultType="String">
+		SELECT
+			ISNULL(MAX(BoardID)+1,'1') as next
+		FROM
+			XBOLTADM.TB_BOARD
+	</select>
+	
+	<select id="emptyForum" resultType="java.util.HashMap">
+		SELECT 
+			Subject AS subject
+			, brd.RegUserID As RegID
+			, ISNULL(mbr.Name,'') AS WriteForumUser
+			, CONVERT(VARCHAR, RegDT, 120) AS RegForumDT
+			, brd.Content AS maincontent
+		FROM XBOLTADM.TB_BOARD brd
+			LEFT OUTER JOIN XBOLTADM.TB_MEMBER mbr ON brd.RegUserID=mbr.MemberID
+		WHERE BoardID=#{boardID}		
+		<if test="itemID != null and itemID != ''">
+			AND brd.itemID = #{itemID}
+		</if>
+	</select>
+	
+	<select id="getContent" resultType="String">
+		SELECT
+			Content
+		FROM
+			XBOLTADM.TB_BOARD
+		WHERE BoardID = #{boardID}
+		AND BoardMgtID = #{BoardMgtID}
+		AND ReplyLev = #{replyLev}
+	</select>
+	
+	<update id="commentUpdate" parameterType="java.util.HashMap">
+	    <![CDATA[
+		UPDATE XBOLTADM.TB_BOARD SET
+			Content = #{content}
+		WHERE BoardID = #{boardID}
+		AND BoardMgtID = #{boardMgtID}
+		AND ReplyLev = #{replyLev}
+		]]>	
+	</update>
+	
+	<insert id="commentInsert" parameterType="java.util.HashMap">
+		Insert Into XBOLTADM.TB_BOARD (
+			BoardID,
+			BoardMgtID,
+			Content,
+			ItemID,
+			ItemTypeCode,
+			ParentID,
+			ReplyLev,
+			RegDT,
+			RegUserID,
+			ModDT,
+			ModUserID,
+			RefID
+			) Values (
+				#{boardID},
+				#{BoardMgtID},
+				#{content},
+				#{itemID},
+				#{itemTypeCode},
+				#{parentID},
+				#{replyLev},
+				GetDate(),
+				#{userID},
+				GetDate(),
+				#{userID},
+				#{refID}			
+			)
+	</insert>
+	<select id="getauthority" resultType="String">
+	    SELECT 
+			RegUserId AS userId
+		FROM XBOLTADM.TB_BOARD_COMMENT
+		WHERE CommentSeq = #{commentId}
+	</select>
+	<delete id="commentDelete" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_BOARD_ATTCH WHERE BoardID=#{boardID}		
+		DELETE FROM XBOLTADM.TB_BOARD WHERE BoardID = #{boardID}
+	</delete>
+</mapper>

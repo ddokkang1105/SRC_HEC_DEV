@@ -1,0 +1,255 @@
+<%@ page language="java" contentType="text/html; charset=utf-8" pageEncoding="utf-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jstl/fmt_rt" %>
+<%@ taglib uri="http://www.springframework.org/tags" prefix="spring" %>
+<c:url value="/" var="root"/>
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge; charset=utf-8" />
+<title>Upload</title>
+<link rel="stylesheet" type="text/css" href="${root}cmm/js/dhtmlx/dhtmlxVault/codebase/dhtmlxvault.css"/>
+<script src="${root}cmm/js/dhtmlx/dhtmlxVault/codebase/dhtmlxvault.js" type="text/javascript"></script>
+<script src="${root}cmm/js/dhtmlx/dhtmlxVault/codebase/swfobject.js" type="text/javascript"></script>
+<%@ include file="/WEB-INF/jsp/template/tagInc.jsp"%>
+<script type="text/javascript" src="${root}cmm/js/dhtmlx/suite.js"></script>
+<link rel="stylesheet" href="${root}cmm/js/dhtmlx/suite.css">
+<!-- 화면 표시 메세지 취득  -->
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00118" var="WM00118"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00067" var="WM00067"/>
+
+
+<script type="text/javascript">
+var param ="scrnType=${scrnType}&mgtId=${mgtId}&id=${id}&usrId=${usrId}";
+var scrnType="${scrnType}";
+var uploadCnt=0;
+var seq=1;
+var vault;
+var file_conf ={
+    container:  "vaultObj",             // html container for vault
+    uploadUrl:  "${root}fileUploadHandler?"+param,        // html4/html5 upload url
+    slXap:      "${root}cmm/js/dhtmlx/dhtmlxVault/codebase/dhxvault.xap",             // path to silverlight uploader
+    slUrl:      "http://${root}fileUploadHandler" // silverlight upload url, FULL path required
+};
+
+function writeLog(text) {
+	//var p = document.getElementById("log_here");
+	//p.innerHTML = "<div>"+text+"</div>"+p.innerHTML;
+}
+
+function fnMutiSave(){
+	var url  = "saveMultiFile.do";
+	var screenType = "${screenType}";
+	if(screenType == "INST"){url="saveInstanceFile.do"; }
+	ajaxSubmit(document.uploadFrm, url,"blankSubFrame");	
+}
+
+function clickClosePop(){	
+	if("${scrnType}"=="ITM_M"){fnGoList();
+	}else{
+		var vaultData = vault.getData();
+		var fileNameList = new Array;
+		for(var i=0; i<vaultData.length; i++){
+			fileNameList[i] = vaultData[i].name;
+			//console.log("vaultData["+i+"]:"+vaultData[i].name);
+		}
+		//console.log("fileNameList :"+fileNameList);
+		var url  = "removeFileList.do";
+		var data = "fileNameList="+fileNameList;
+		ajaxPage(url,data,"blankSubFrame");
+	}
+}
+
+function fnClose(){
+	self.close();
+}
+
+function viewMessage(){	
+	dhx.alert({
+		text: "${WM00067}",
+		buttons: ["ok"],
+		css: "align-center"
+	}).then(() => {
+		fnGoList();
+	});
+}
+
+// 목록
+function fnGoList(){
+	if("${browserType}"=="IE"){
+		if("${screenType}" == "csrDtl"){ // change order 에서 파일첨부 할 경우 
+			fnCallBack(); 
+		}else{
+			setSubFrame();
+		}
+	
+		try{$(".popup_div").hide();$("#mask").hide();}catch(e){}
+	}else{
+		if("${screenType}" == "csrDtl"){
+			window.opener.fnCallBack(); 
+		}else{window.opener.setSubFrame();}
+	}
+	self.close();
+}
+
+function fnSaveToOpener(){
+	window.opener.fnDisplayTempFile();
+	self.close();
+}
+</script>
+</head><body>
+<div class="popup02">
+<form name="uploadFrm" id="uploadFrm" method="post" onsubmit="return false;">
+<input type="hidden" id="scrnType" name="scrnType" value="${scrnType}">
+<input type="hidden" id="usrId" name="usrId" value="${usrId}">
+<input type="hidden" id="mgtId" name="mgtId" value="${mgtId}">
+<input type="hidden" id="id" name="id" value="${id}">
+<input type="hidden" id="itemClassCode" name="itemClassCode" value="${resultMap.itemClassCode}">
+<input type="hidden" id="docCategory" name="docCategory" value="${docCategory}">
+<input type="hidden" id="projectID" name="projectID" value="${projectID}">
+<input type="hidden" id="changeSetID" name="changeSetID" value="${changeSetID}">
+<c:if test="${screenType == 'csrDtl'}">
+<input type="hidden" id="fltpCode" name="fltpCode" value="${fltpCode}">
+</c:if>
+
+<input type="hidden" id="instacneKey" name="instanceNo" value="${instanceNo}" >
+<input type="hidden" id="instanceClass" name="instanceClass" value="${instanceClass}" >
+<c:if test="${browserType == 'IE'}">
+<ul>
+  <li class="top_zone popup_title"><img src="${root}${HTML_IMG_DIR}/popup_box2_.png" /></li>
+  <li class="con_zone">
+ 	<div class="title popup_title"><span class="pdL10">Upload</span>
+		<div class="floatR mgR20">
+			<img class="popup_closeBtn" id="popup_close_btn" src='${root}${HTML_IMG_DIR}/btn_close1.png' title="close" onclick="clickClosePop();">
+		</div>
+	</div>
+	<div class="szone"></c:if>
+  		<div class="popup02con01">
+  			<c:if test="${browserType == 'IE'}"><table class="mgT5 mgR20" style="table-layout:fixed;" width="100%" cellpadding="0" cellspacing="0"></c:if>
+ 			<c:if test="${browserType != 'IE'}"><table class="mgT15 mgR20" style="table-layout:fixed;" width="100%" cellpadding="0" cellspacing="0"></c:if>
+				<c:if test="${(docCategory == 'ITM' || docCategory == 'SCR') && (scrnType=='ITM_M' || scrnType=='INST' || scrnType=='SCR')}">
+				<tr>
+					<td>
+						<div class="mgL10 mgB15">
+							<span class="mgR10">${menu.LN00091}</span>
+							<span>
+							<select id="fltpCode" name="fltpCode" style="width:200px;" ></select>
+							<input type="hidden" class="text" id="fileType" name="fileType" value="${resultMap.fltpCode}" size="60" />
+							</span>
+						</div>
+					</td>
+				</tr>
+				</c:if>
+				<tr>
+					<td>
+						<div id="vaultObj" class="mgL10" style="width: 96%;height: 250px;margin: 0 auto;"></div>
+						<div id="log_here"></div>
+					</td>
+				</tr>
+			</table>
+			<div class="alignBTN mgB5 mgR15">
+				<c:if test="${scrnType=='ITM_M' || scrnType=='INST' || scrnType=='SCR'}">
+					<span class="btn_pack medium icon"><span class="save"></span><input value="Save" onclick="fnMutiSave();" type="submit"></span>
+				</c:if>	
+				<c:if test="${scrnType eq 'SR' || scrnType eq 'BRD' || scrnType eq 'SCHDL' || scrnType eq 'CS'}">
+					<span class="btn_pack medium icon"><span class="save"></span><input value="Save" onclick="fnSaveToOpener();" type="submit"></span>
+				</c:if>				
+				<span class="btn_pack medium icon"><span class="confirm"></span><input class="popup_closeBtn" value="Close" onclick="clickClosePop();" type="submit"></span>
+			</div>			
+  		</div>
+  	<c:if test="${browserType == 'IE'}">
+	</div>
+	</li>	
+	</ul></c:if>
+<script type="text/javascript">
+	if("${scrnType}"=="ITM_M"){
+		var data = "&itemClassCode="+$('#itemClassCode').val();
+		var fltpName = "";//$('#fltpName').val();
+		fnSelectNone('fltpCode', data, 'fltpCode', fltpName); 
+	}else if("${scrnType}"=="INST"){		
+		var data = "&itemID=${id}&languageID=${sessionScope.loginInfo.sessionCurrLangType}"; 
+		fnSelectNone('fltpCode', data, 'getInstanceFltp', ""); 
+	}else if("${scrnType}"=="SCR"){
+		var data = "&scrId=${id}&languageID=${sessionScope.loginInfo.sessionCurrLangType}";
+		fnSelect('fltpCode', data, 'getFltpBySCR', '','','scr_SQL');
+	};
+	//window.dhx4.ajax.post(file_conf, function(r){
+	//var t = null;
+	//try {eval("t="+r.xmlDoc.responseText);}catch(e){};
+	//if (t != null) {
+					vault = new dhtmlXVaultObject(file_conf);
+					vault.attachEvent("onUploadFile", function(file, extra){
+						writeLog("<b>onUploadFile</b>, real name: "+file.name+", server name: "+file.serverName+", extra param:"+extra.param+",id="+file.id);
+						//display Detail						
+						if(file.name.length>0 && "${scrnType}"!="ITM_M" && "${scrnType}"!="INST" && "${scrnType}"!="SCR"){
+							if("${browserType}"=="IE"){fnAttacthFileHtml(file.id, file.name);}
+							else{window.opener.fnAttacthFileHtml(file.id, file.name);}
+						}
+					});
+					vault.attachEvent("onUploadComplete", function(files){
+						uploadCnt=uploadCnt+files.length;
+						writeLog("<b>onUploadComplete</b> "+files.length+" file"+(files.length>1?"s were":" was")+" uploaded");
+					});
+					vault.attachEvent("onUploadCancel", function(file){
+						writeLog("<b>onUploadCancel</b>, file: "+file.name);
+					});
+					vault.attachEvent("onUploadFail", function(file, extra){						
+						dhx.alert({
+							text: "<b>onUploadFail</b>, file name is '"+file.name+"'",
+							buttons: ["ok"],
+							css: "align-center"
+						})
+					});
+					//file Remove
+					vault.attachEvent("onBeforeFileRemove", function(file){
+						// if (!confirm("Are you sure you want to delete '"+file.name+"' ?")) { return false; }
+						uploadCnt=uploadCnt-1;
+						
+						if("${browserType}"=="IE"){fnDeleteFileHtml(file.id, file.name);}else{window.opener.fnDeleteFileHtml(file.id, file.name);}
+						return true;
+					});
+					vault.attachEvent("onFileRemove", function(file){					
+						//file delete
+						if(scrnType == "ITM_M"){
+							var url = "deleteTempFile.do";
+							var data = "&scrnType=${scrnType}&fileName="+file.name;
+							ajaxPage(url, data, "blankFileFrame");			
+						}
+					});						//fileAdd //확장자 체크
+					var totalSize = 0;
+					//var maxSize = 98765432;
+					var maxSize = 1024765432;
+					vault.attachEvent("onBeforeFileAdd", function(file){
+						totalSize += file.size;
+					    if (totalSize > maxSize) return false; 
+					    
+					    var ext = this.getFileExtension(file.name);
+					    if (ext == "jsp" || ext== "php" || ext=="js" || ext=="asp" || ext=="aspx" || ext=="exe")
+					    	return false;
+					    
+					    
+					    if(file.name.length>0 && "${gubun}"=="MBRD"){
+					    	if (ext != "mp4" && ext != "avi" && ext != "wma" && ext != "wma"){
+					    		return false;
+					    	}
+					    } 
+					    //return (ext=="txt"||ext=="doc");
+					    return true;
+					});
+					
+					//file count limit
+					if("${scrnType}"=="ITM"){vault.setFilesLimit(1);} 
+//});	
+	</script>	
+	<iframe name="blankSubFrame" id="blankSubFrame" src="about:blank" style="display:none" frameborder="0"></iframe>	
+</form>
+</div>
+<c:if test="${browserType == 'IE'}">
+<div class="popup02bot_zone" >
+	<img src="${root}${HTML_IMG_DIR}/popup02_box6.png">
+</div>
+</c:if>
+<iframe name="blankFileFrame" id="blankFileFrame" src="about:blank" style="display:none" frameborder="0"></iframe>
+
+</body></html>

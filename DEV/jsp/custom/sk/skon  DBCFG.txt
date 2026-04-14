@@ -1,0 +1,53 @@
+
+테스트 사용자 계정 :  SKO1 (본사 편집자), SK02 (본사 조회 사용자), SKBA1 (SKBA 편집자), SKBA2(SKBA 조회사용자)
+
+========= 2025/03/17 =============================================================================================================================
+
+01 UPDATE [XBOLTADM].[TB_MENU_ALLOC]  SET  [VarFilter] = replace(varFilter, '/procOverview','/viewProcessInfo')
+   UPDATE [XBOLTADM].[TB_MENU_ALLOC]  SET  [VarFilter] = replace(varFilter, '/zSKON_viewTSDInfo',',tsd/viewTSDInfo')
+   UPDATE [XBOLTADM].[TB_ITEM_CLASS]  SET DefCSRID = 4,  DefVersionIncr ='1.0'  Where ItemTypeCode = 'OJ00001' and ChangeMgt = 1
+   UPDATE [XBOLTADM].[TB_PROJECT] SET CheckInOption = '03A' where CheckInOption = '03'
+
+02 Create base model procedure query 수정
+
+SELECT ST.ClassCode, ST.ToItemID,(select COUNT(ToItemID) from xboltadm.TB_ITEM where FromItemID = @RItemID And ItemTypeCode in ('CN00001' , 'CN00101') AND Deleted != 1) AS ItemCnt
+			FROM XBOLTADM.TB_ITEM ST 
+			left outer join XBOLTADM.TB_ITEM ITM on ITM.ItemID = ST.ToItemID		
+			INNER join XBOLTADM.TB_ITEM L5 on L5.ItemID = ST.ToItemID and L5.ClassCode = 'CL01006'
+			WHERE ST.FromItemID = @RItemID And ST.ItemTypeCode in ('CN00001' , 'CN00101') AND ST.Deleted != 1 		
+			order by ClassCode DESC , ITM.Identifier
+
+03 CN00116 Process/TSD CxnItemType 생성
+   CL01005 Class에 문서레벨 ATTR 할당
+   CL01005 하위항목 메뉴 VarFilter에  addOption = 01 제거
+   모델 탭 메뉴 VarFilter에 MOD1&dbFuncCode=CREATE_BASEMODEL  할당
+   게시판  BRD201  Mgt Only Uncheck
+   LN00129  제/개정 관리번호, Ln00191 제/개정 관리 구분 으로 변경
+
+04 itemClassMenu
+ 	  >> 폐기 버튼 icon confirm >> Delete 아이콘으로 변경
+   
+   viewProcessInfo
+	  >> 기본 정보 체크 박스 해제 시 체크박스 리스트 사라짐
+	  >> 첨부문서 Title 과 아래 테이블 그리드 간 간격이 없음, 연관문서,용어의 정의, 변경 이력 동일함
+	  >> Item Status = NEW1일 경우 삭제 처리 후 Go Back 처리 (화면 좌상단 fnGoBackItem  처리 가능 여부 확인)
+   
+   createProcessInfo
+  	  >> 저장 시 대기 중 애니메이션 처리   
+  	  >> Site Dimension insert 시  itemTypeCode, ItemClassCode 값 같이 Insert 되야함 ,  Site 2개 선택 시 DimValueID = '' 인 값이 추가로 Insert되고 있음
+  	  >> 주요개정 사항  Text Area >> 결재 상신  개요로 복사 됨 >> 결재 상신 개요 쪽 TinyMce 제거하고 단순 TextArea로 수정해서 일치시켜야 함
+
+    searchPrcList  
+ 	 >> ARC VarFilter에서 fixedDimValueID = N 일 경우 선택된 Site 체크박스 활성화 처리 안됨 (예 : Process >> 본사)
+
+    editProcesInfo  
+  		>> 문서레벨 값 >> 문서분야와 select list 와 연동되고 있음
+  		>> 연관문서  >> 기술표준문서( TSD) CXNItem 생성 시 itemTypeCode = CN00106, ClassCode = ㅊCNL0106
+  
+05 checkInMgt.do 실행 전 checkInPassCheck.do  >> DB 함수는 fn_checkInPassCheck 실행 함수 작성 필요    
+   DB 함수 생성 : fn_checkMyItem   >> searchPrcList.do  >> myItem 로직 대체
+   DB 함수 생성 : fn_getItemDefCSRID  >>   getItemClassDefCSRID 쿼리에   >> 예외 함수 처리  ISNULL(fn_getItemDefCSRID ) 처리  (사용자 Site / Class 별 CSRID 값 처리)
+
+06. [fn_checkInPassCheck] db 함수  IF @attrValue = '' OR @attrValue IS NULL  null값 체크 조건 추가
+07. [fn_checkInPassCheck] db 함수  IF  @Cnt  조건 추가 및 @cngts changesetid  파라미터 추가
+  ====================================================================================================================================================-

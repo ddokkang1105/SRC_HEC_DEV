@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<agentConfig><ssoProvider code="PAL" ip="127.0.0.1" timeout="5000" url="http://ssodev.emart.com:8090/sso/agentservice/web/2020/%s.do" validateSecureChannel="false"/></agentConfig>

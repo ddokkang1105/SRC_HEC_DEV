@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<agentConfig><ssoProvider code="0f85b866-0461-4a9e-a724-91e3931eb8e9" ip="10.224.99.179" timeout="5000" url="http://ssodev.hyundai-kefico.com:9090/sso/agentservice/web/2020/%s.do" validateSecureChannel="false"/></agentConfig>

@@ -1,0 +1,3084 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	OCC Item 관련 관련	-->
+<mapper namespace="model_SQL">
+	<select id="getItemInfoByItemID" resultType="java.util.HashMap">
+		SELECT * FROM XBOLTADM.TB_ITEM WHERE ItemID=#{ItemID}
+	</select> 	
+	<!-- model ID를 통하여 ItemID 얻어오기 -->
+	<select id="getItemIDFromModelID" resultType="String">
+		SELECT ItemID FROM XBOLTADM.TB_MODEL WHERE ModelID = #{s_itemID}
+	</select>
+		 
+	<delete  id="delElement" parameterType="java.util.HashMap">
+		DELETE FROM	XBOLTADM.TB_ELEMENT WHERE ModelID=#{ModelID} 		
+	</delete>
+	
+	<update  id="updateModelDelMark" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_MODEL SET Deleted = 1 WHERE ModelID=#{ModelID}
+	</update>		
+	
+	<select id="getModelList_gridList" resultType="java.util.HashMap">
+			SELECT
+				Row_Number()OVER(ORDER BY  TM.ModelID ASC ) as RNUM 
+				, 0 AS CHK
+				, TM.ModelID
+				, TI.ItemID
+				, TMT.Name
+				, TIOA.PlainText AS ElementName
+				, TCD.Name AS ModelTypeName
+				, TMD.Name AS MTCName	
+				, Convert(nvarchar(20),TM.CreationTime, 111) AS CreationTime
+				, Convert(nvarchar(20),TM.LastUpdated, 111) AS LastUpdated
+				, ISNULL(TB.Name,'') + Case When ISNULL(TB.NameEN,'') != '' Then '(' + ISNULL(TB.NameEN,'') + ')' Else '' End AS UserName
+				, TM.Blocked
+				, TM.MTCategory		
+				, (Select ISNULL(Name,'') + Case When ISNULL(NameEN,'') != '' Then '(' + ISNULL(NameEN,'') + ')' Else '' End AS Name From XBOLTADM.TB_MEMBER WITH (NOLOCK) Where MemberID = TM.Creator) AS Creator
+				, TST.Name AS StatusName
+				, TM.Status AS StatusCode
+				, TM.IsPublic
+				, ISNULL(XBOLTADM.fn_GetMyAbsPathForList( TI.ItemID , TIOA.LanguageID),'') AS Path 
+				, TI.Identifier
+				, TI.AuthorID As ItemAuthorID
+				, TI.Blocked As ItemBlocked
+				, TI.Status As ItemStatus
+				, 
+				  Case When TM.IsPublic = '1' Then 'btn_gedit.png'
+				  Else
+					 Case When TM.Blocked  = '1' Then 'btn_view2.png'
+				   	  Else	
+					   <choose>
+					   <when test='"Y".equals(viewYN)' >'btn_view2.png'</when>
+					   <otherwise> 'btn_gedit.png' </otherwise>
+					   </choose>
+				  End
+				  End BtnControl
+				, ISNULL(TMTYP.MenuID,'') AS MenuID
+ 				, ISNULL(TMU.URL,'') AS URL
+ 				, ISNULL(TM.ChangeSetID,'') AS ChangeSetID
+ 				, ISNULL(TCS.Version, '-') AS CSVersion
+			FROM XBOLTADM.TB_MODEL TM WITH (NOLOCK)
+				Left Outer Join XBOLTADM.TB_MODEL_TXT TMT WITH (NOLOCK) on TM.ModelID = TMT.ModelID AND TMT.LanguageID = #{languageID}
+				Left Outer Join	XBOLTADM.TB_ITEM TI WITH (NOLOCK) on TM.ItemID = TI.ItemID
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIOA WITH (NOLOCK) on TI.ItemID = TIOA.ItemID AND TIOA.AttrTypeCode = 'AT00001' AND TIOA.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_DICTIONARY	TCD WITH (NOLOCK) on TCD.TypeCode = TM.ModelTypeCode AND TCD.LanguageID = #{languageID} And TCD.Category = 'MT'
+				Left Outer Join XBOLTADM.TB_DICTIONARY	TMD WITH (NOLOCK) on TMD.TypeCode = TM.MTCategory AND TMD.LanguageID = #{languageID} and TMD.Category = 'MC'
+				Left Outer Join XBOLTADM.TB_MEMBER TB WITH (NOLOCK) on TM.LastUser = TB.MemberID	
+				Left Outer Join XBOLTADM.TB_DICTIONARY	TST WITH (NOLOCK) on TST.TypeCode = TM.Status AND TST.LanguageID = #{languageID}  AND TST.Category= 'MDLSTS'											
+				Left Outer Join XBOLTADM.TB_MODEL_TYPE TMTYP WITH (NOLOCK) On TMTYP.ModelTypeCode = TM.ModelTypeCode 
+  				Left Outer Join XBOLTADM.TB_MENU TMU WITH (NOLOCK) ON TMU.MenuID = TMTYP.MenuID 
+  				Left Outer Join XBOLTADM.TB_CHANGE_SET TCS WITH (NOLOCK) ON TM.ChangeSetID = TCS.ChangeSetID
+			WHERE  TM.Deleted != 1
+				<if test="s_itemID != null and s_itemID != ''">
+					AND TM.ItemID = #{s_itemID}
+				</if>
+				<if test="MTCategory != null and MTCategory != ''">
+					AND TM.MTCategory = #{MTCategory}
+				</if>
+				<if test="searchValue != null and searchValue != ''">
+					<if test="searchKey.equals('Name')">
+						AND TMT.Name like '%'+#{searchValue}+'%'
+					</if>
+					<if test="searchKey.equals('ID')">
+						AND TM.ModelID like '%'+#{searchValue}+'%'
+					</if>
+				</if>
+				<if test="userID != null and userID != ''">
+					AND TM.ItemID IN (Select ItemID From XBOLTADM.TB_ITEM WITH (NOLOCK) Where AuthorID = #{userID})
+				</if>
+				<if test="screenType != null and screenType.equals('MyPg')">
+					AND TM.ItemID IN (Select ItemID From XBOLTADM.TB_ITEM WITH (NOLOCK) Where AuthorID = #{sessionUserId})
+				</if>
+				<if test="modelTypeCode != null and modelTypeCode != ''">
+					AND TM.ModelTypeCode = #{modelTypeCode}
+				</if>  	 
+			ORDER BY TM.ModelID DESC	
+	 </select>
+		
+	<select id="selectModelInfo" resultType="java.util.HashMap">
+		SELECT 
+			TMT.Name
+			, TMT.Description
+			, TMT.ModelXML
+			, TM.ItemID
+			, TD.Name AS ModelTypeName
+			, TM.MTCategory
+			, TM.ModelTypeCode
+		FROM XBOLTADM.TB_MODEL TM 
+		Left Outer Join XBOLTADM.TB_MODEL_TXT TMT ON TM.ModelID = TMT.ModelID And TMT.LanguageID = #{languageID}
+		Left Outer join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TM.ModelTypeCode And TD.LanguageID = #{languageID}		
+		WHERE TM.ModelID = #{s_itemID} 	
+	</select>
+	
+	
+	<select id="getItemMdlOccList_gridList" resultType="java.util.HashMap">
+			SELECT
+				Distinct 
+				Row_Number()OVER(ORDER BY TM.LastUpdated ASC , TM.ModelID ASC) as RNUM
+				, 0 AS CHK
+				, TI.ItemID
+				, TM.ModelID
+				, TM.ChangeSetID 
+				, TMT.Name
+				, TIOA.PlainText AS ElementName
+				, TCD.Name AS ModelTypeName
+				, TMD.Name AS MTCName
+				, Convert(nvarchar(20),TM.CreationTime, 111) AS CreationTime	
+				, Convert(nvarchar(20),TM.LastUpdated, 111) AS LastUpdated
+				, TB.Name+'('+TTT.Name+')' AS UserName
+				, TM.Blocked
+				, TM.MTCategory
+				, (Select Name From XBOLTADM.TB_MEMBER Where MemberID = TM.Creator) AS Creator
+				, TST.Name AS StatusName	
+				, TM.Status AS StatusCode
+				, TM.IsPublic
+				, ISNULL(XBOLTADM.fn_GetMyAbsPathForList( TI.ItemID , TIOA.LanguageID),'') AS Path 
+				, TI.ClassCode
+				, (TI.Identifier + ' ' + TIOA.PlainText) As ItemName
+				, TI.Identifier, TIOA.PlainText
+				, TI.AuthorID As ItemAuthorID
+				, TI.Blocked As ItemBlocked
+				, TI.Status As ItemStatus
+				, Case When TM.Blocked  = '1' Then 'btn_view2.png'
+			   	  Else	
+				   <choose>
+				   <when test='"Y".equals(viewYN)' >'btn_view2.png'</when>
+				   <otherwise> 'btn_gedit.png' </otherwise>
+				   </choose>
+				  End BtnControl
+				 , ISNULL(TMTYP.MenuID,'') AS MenuID
+ 				 , ISNULL(TMU.URL,'') AS URL
+			FROM XBOLTADM.TB_MODEL TM
+				Left Outer Join XBOLTADM.TB_MODEL_TXT TMT
+					on TM.ModelID = TMT.ModelID
+					AND TMT.LanguageID = #{languageID}
+				Left Outer Join	XBOLTADM.TB_ITEM TI 
+					on TM.ItemID = TI.ItemID
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIOA
+					on TI.ItemID = TIOA.ItemID
+						AND TIOA.AttrTypeCode = 'AT00001'
+						AND TIOA.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_DICTIONARY	TCD
+					on TCD.TypeCode = TM.ModelTypeCode
+						AND TCD.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_DICTIONARY	TMD
+					on TMD.TypeCode = TM.MTCategory
+						AND TMD.LanguageID = #{languageID}		
+				Left Outer Join XBOLTADM.TB_MEMBER TB
+					on TM.LastUser = TB.MemberID	
+				Left Outer Join XBOLTADM.TB_DICTIONARY	TST
+					on TST.TypeCode = TM.Status
+					AND TST.LanguageID = #{languageID} AND TST.Category= 'MDLSTS'	
+				Left Outer Join XBOLTADM.TB_MODEL_TYPE TMTYP On TMTYP.ModelTypeCode = TM.ModelTypeCode 
+  				Left Outer Join XBOLTADM.TB_MENU TMU ON TMU.MenuID = TMTYP.MenuID 						
+  				Left Outer Join XBOLTADM.TB_TEAM_TXT TTT ON TB.TeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+			WHERE TM.ModelID in ( SELECT ModelID FROM XBOLTADM.TB_ELEMENT WHERE Link =  #{s_itemID} )		
+				AND TM.Deleted != 1
+				<if test="searchValue != null and searchValue != ''">
+					<choose>
+						<when test="searchKey.equals('Name')">
+							AND TIOA.PlainText LIKE '%'+#{searchValue}+'%'
+						</when>
+						<when test="searchKey.equals('Info')">
+							AND TM.ModelID LIKE '%'+#{searchValue}+'%'
+						</when>
+					</choose>
+				</if>
+			<!-- Order By TI.Identifier, TIOA.PlainText	 -->
+			ORDER BY RNUM DESC
+	</select>
+	
+		
+	<select id="getElements" resultType="java.util.HashMap">
+	 	SELECT  
+			 C.ModelID AS ModelID,
+			 C.ElementID AS ElementID,
+			 C.ObjectID AS ObjectID,
+			 C.CategoryCode AS CategoryCode,
+			 C.ItemTypeCode AS ItemTypeCode,
+			
+			 C.PositionX/CONVERT(float, 10) AS PositionX,
+			 C.PositionY/CONVERT(float, 10) AS PositionY,
+			 C.Width/CONVERT(float, 10) AS Width,
+			 C.Height/CONVERT(float, 10) AS Height,
+			
+			 ISNULL(C.FromID, -1) AS FromID,
+			 ISNULL(C.ToID,-1) AS ToID,
+			 CASE C.SymTypeCode WHEN 'SB00000' THEN C.Style ELSE ISNULL(E.ImagePath, C.Style) END AS Style, 
+			 C.fillColor AS fillColor,
+			 ISNULL(C.gradientColor,'') AS gradientColor,
+			 
+			 <choose>
+			 	<when test='dimValueList != null and !"".equals(dimValueList)'>
+			 		CASE
+	        		WHEN C.Link NOT IN (SELECT ITEMID FROM XBOLTADM.TB_ITEM_DIM WHERE DimTypeID = #{dimTypeID} AND DimValueID IN (${dimValueList})) THEN 'N'
+	        		ELSE 'Y'
+	   			  	END AS SelectedDim,
+			 	</when>
+			 	<otherwise>
+			 		'N' AS SelectedDim,
+			 	</otherwise>
+			 </choose>
+			 
+			 <choose>
+			 	<when test='symTypeCodeList != null and !"".equals(symTypeCodeList)'>
+			 		CASE
+	        		WHEN C.SymTypeCode IN (${symTypeCodeList}) THEN 'Y'
+	        		ELSE 'N'
+	   			  	END AS SelectedSym,
+			 	</when>
+			 	<otherwise>
+			 		'N' AS SelectedSym,
+			 	</otherwise>
+			 </choose>
+   			
+   			 <choose>
+			 	<when test='blurredList != null and !"".equals(blurredList)'>
+			 	  CASE
+	        		WHEN ITM.ItemTypeCode IN (${blurredList}) THEN 'N'
+	        		ELSE 'Y'
+	   			  END AS SelectedItemTypeCode,
+			 	</when>
+			 	<otherwise>
+			 	  'Y' AS SelectedItemTypeCode,
+			 	</otherwise>
+			 </choose>
+			 (Select ItemTypeCode From XBOLTADM.TB_ELEMENT WITH (NOLOCK) Where ModelID = C.ModelID And ElementID = C.FromID ) AS FromItemTypeCode,
+   			 (Select ItemTypeCode From XBOLTADM.TB_ELEMENT WITH (NOLOCK) Where ModelID = C.ModelID And ElementID = C.ToID ) AS ToItemTypeCode,
+	   		 C.Opacity AS Opacity, C.Opacity AS DefOpacity, 
+	   		 ISNULL(ISNULL(C.fontColor,D.fontColor), #{DefFontColor}) AS fontColor, ISNULL(ISNULL(C.fontColor,D.fontColor), #{DefFontColor}) AS DefFontColor,
+	   		 
+			 ISNULL(C.startArrow,'') AS startArrow,
+			 C.endArrow AS endArrow,
+			 C.edgeStyle AS edgeStyle,
+			 C.ExitX AS ExitX,
+			 C.ExitY AS ExitY,
+			 C.ExitPerimeter AS ExitPerimeter,
+			 C.EntryX AS EntryX,
+			 C.EntryY AS EntryY,
+			 C.EntryPerimeter AS EntryPerimeter,
+			 ISNULL(D.FontFamily,#{DefFontFamily}) AS FontFamily,
+			 ISNULL(C.FontStyle,D.FontStyle) AS FontStyle,
+<!-- 			 ISNULL(D.fontSize,#{DefFontSize}) AS fontSize, -->
+<!-- 			 ISNULL(D.fontSize,#{DefFontSize}) AS DefFontSize, -->
+ 			 ISNULL(E.DefFontSize,#{DefFontSize}) AS fontSize,
+			 ISNULL(E.DefFontSize,#{DefFontSize}) AS DefFontSize,
+			 ISNULL(C.link, '') AS link,	
+			 ISNULL(ITM.ItemTypeCode,'') AS ItemTypeCode,		 
+			 ITM.Identifier,
+			 <choose>
+			 	<when test="scrnMode != '' ">
+			 	 CASE WHEN ISNULL(C.ObjectID,'') = '' Then ISNULL(Replace(C.EAT001,'"','/quo'),'')
+			 	 
+			 	  WHEN LEN(ISNULL(Replace(D.PlainText, '"','/quo'),'')) > ISNULL(E.NameTextLen,0)	AND ISNULL(E.NameTextLen,0) > 0	
+				      THEN SUBSTRING(ISNULL(Replace(D.PlainText, '"','/quo'),''),1,ISNULL(E.NameTextLen,0))+'...'
+				 WHEN E.NameTextLen = -1 
+				 	THEN CASE
+				 	  		WHEN LEN(ISNULL(Replace(D.PlainText, '"','/quo'),'')) > ISNULL( C.Width*(C.StartSize/ISNULL(E.DefFontSize,#{DefFontSize}))/ISNULL(E.DefFontSize,#{DefFontSize})/10,0)	AND ISNULL( C.Width*(C.StartSize/ISNULL(E.DefFontSize,#{DefFontSize}))/ISNULL(E.DefFontSize,#{DefFontSize})/10,0) > 0	
+				      		THEN SUBSTRING(ISNULL(Replace(D.PlainText, '"','/quo'),''),1,ISNULL( C.Width*(C.StartSize/ISNULL(E.DefFontSize,#{DefFontSize}))/ISNULL(E.DefFontSize,#{DefFontSize})/10,0))+'...' 
+				      		ELSE ISNULL(Replace(D.PlainText, '"','/quo'),'') END
+			 	 ELSE 
+			 		ISNULL(Replace(D.PlainText, '"','/quo'),'') END AS PlainText,
+			 	</when>
+			 	<otherwise>
+			 	 CASE WHEN ISNULL(C.ObjectID,'') = '' Then ISNULL(Replace(C.EAT001,'"','/quo'),'')
+			 	 ELSE 
+			 	
+			 	 CASE WHEN LEN(ISNULL(Replace(D.PlainText, '"','/quo'),'')) > 50	AND C.SymTypeCode IN ('SB00006', 'SB00016') 	
+				      THEN SUBSTRING(ISNULL(Replace(D.PlainText, '"','/quo'),''),1,50)+'...'		
+				      
+				      WHEN LEN(ISNULL(Replace(D.PlainText, '"','/quo'),'')) > ISNULL(E.NameTextLen,0)	AND ISNULL(E.NameTextLen,0) > 0	
+				      THEN SUBSTRING(ISNULL(Replace(D.PlainText, '"','/quo'),''),1,ISNULL(E.NameTextLen,0))+'...'
+				      		
+				      ELSE ISNULL(Replace(D.PlainText, '"','/quo'),'') END
+				      
+				 END AS PlainText,
+			 	</otherwise>
+			 </choose>
+			 C.Parent AS Parent,
+			 ISNULL(C.Path,'') AS Path,	
+			 C.Rotation AS Rotation,
+			 	 
+			 ISNULL(C.GradientDirection,'') AS GradientDirection,
+			 ISNULL(C.LabelBackgroundColor, E.DefLabelBGColor) AS LabelBackgroundColor, 	
+			
+			 C.Shadow AS Shadow,
+			 C.Relative AS Relative,
+			 C.Rounded AS Rounded,
+			 C.LabelBorderColor AS LabelBorderColor,
+			 C.SpacingTop AS SpacingTop,
+			 ISNULL(C.StartFill,'-1') AS StartFill,
+			 ISNULL(C.EndFill,'-1') AS EndFill,
+			 C.StartSize AS StartSize,
+			 C.EndSize AS EndSize,
+			 G.LovCode AS WarningType,
+			 C.SymTypeCode AS SymTypeCode,
+			 (Select Max(ElementID) From XBOLTADM.TB_ELEMENT WITH (NOLOCK) Where ModelID = #{ModelID} ) AS MaxElementID,
+			 <![CDATA[	
+			 Case When ISNULL(TIA.PlainText,'') != '' 
+			 	Then '- ' + TD.Name + '<br><br>' + ISNULL(Replace(Replace(Replace(Replace(Replace(TIA.PlainText, '"','/quo'), CHAR(13),'  '),CHAR(10),'<br>'),CHAR(9),'<br>'),'',''),'') 
+			 	ELSE ''
+			 	END AS Tooltip,
+			 ]]>
+			 <choose>
+			 	<when test="newElementIDs != null and newElementIDs != ''">
+			 	CASE WHEN TE.ElementID != '' THEN  #{newEleStrokeColor} ELSE C.strokeColor END AS strokeColor,
+			 	CASE WHEN TE.ElementID != '' THEN  #{newEleStrokeColor} ELSE C.strokeColor END AS DefStrokeColor,
+			 	CASE WHEN TE.ElementID != '' THEN '4' ELSE C.strokeWidth END AS strokeWidth,
+			 	C.Dashed AS Dashed
+			 	</when>
+			 	<when test="delElementIDs != null and delElementIDs != ''">
+			 	CASE WHEN TE.ElementID != '' THEN  #{delEleStrokeColor} ELSE C.strokeColor END AS strokeColor,
+			 	CASE WHEN TE.ElementID != '' THEN  #{delEleStrokeColor} ELSE C.strokeColor END AS DefStrokeColor,
+			 	CASE WHEN TE.ElementID != '' THEN '4' ELSE C.strokeWidth END AS strokeWidth,
+			 	CASE WHEN TE.ElementID != '' THEN '1' ELSE C.Dashed END AS Dashed
+			 	C.Dashed AS Dashed
+			 	</when>
+			 	<otherwise>
+			 	CASE WHEN ITM.Deleted=1 THEN #{DefStrokeColor} ELSE C.strokeColor END AS strokeColor,
+			 	CASE WHEN ITM.Deleted=1 THEN #{DefStrokeColor} ELSE C.strokeColor END AS DefStrokeColor,
+			 	CASE WHEN ITM.Deleted=1 THEN '4' ELSE C.strokeWidth END AS strokeWidth,
+			 	CASE WHEN ITM.Deleted=1 THEN '1' ELSE C.Dashed END AS Dashed	 	
+			 	</otherwise>
+			 </choose>		 		 
+		FROM XBOLTADM.TB_ELEMENT C WITH (NOLOCK)
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR D WITH (NOLOCK) ON C.ObjectID = D.ItemID and D.AttrTypeCode = 'AT00001'	AND D.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_SYMBOL_TYPE E WITH (NOLOCK) ON C.SymTypeCode = E.SymTypeCode		
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR G WITH (NOLOCK) ON C.ObjectID = G.ItemID and G.AttrTypeCode = 'AT00026'	AND G.LanguageID = (Select LanguageID From XBOLTADM.TB_LANGUAGE WITH (NOLOCK) Where IsDefault=1)
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM ITM WITH (NOLOCK) ON C.link = ITM.ItemID
+		<if test="newElementIDs != null and newElementIDs != ''">
+		LEFT OUTER JOIN XBOLTADM.Tb_ELEMENT TE WITH (NOLOCK) ON TE.ElementID = C.ELEMENTID And TE.ElementID IN (${newElementIDs})
+		</if>
+		<if test="delElementIDs != null and delElementIDs != ''">
+		LEFT OUTER JOIN XBOLTADM.Tb_ELEMENT TE WITH (NOLOCK) ON TE.ElementID = C.ELEMENTID And TE.ElementID IN (${delElementIDs})
+		</if>
+		Left Outer Join XBOLTADM.TB_MODEL TM WITH (NOLOCK) ON TM.ModelID = C.ModelID 
+		Left Outer Join XBOLTADM.TB_MODEL_DISPLAY TMD WITH (NOLOCK) ON TMD.TypeCode = C.SymTypeCode And TMD.Category = 'ELM' AND DisplayType = 'MOT'
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA WITH (NOLOCK) ON TIA.ItemID = C.ObjectID And TIA.AttrTypeCode = TMD.AttrTypeCode And TIA.LanguageID = #{languageID}	
+		Left Outer Join XBOLTADM.TB_Dictionary TD WITH (NOLOCK) ON TD.TypeCode = TMD.AttrTypeCode And TD.Category	= 'AT' And TD.LanguageID = #{languageID}
+		WHERE C.ModelID = #{ModelID}				
+		Order By C.DisplaySeq, C.ElementID 	     
+	</select>
+	
+	<select id="getElementsAttrRev" resultType="java.util.HashMap">
+	 	SELECT  
+			 ISNULL(C.ModelID,'') AS ModelID,
+			 ISNULL(C.ElementID,'') AS ElementID,
+			 ISNULL(C.ObjectID,'') AS ObjectID,
+			 ISNULL(C.CategoryCode,'') AS CategoryCode,
+			 ISNULL(C.ItemTypeCode,'') AS ItemTypeCode,
+			
+			 ISNULL(C.PositionX/CONVERT(float, 10),'') AS PositionX,
+			 ISNULL(C.PositionY/CONVERT(float, 10),'') AS PositionY,
+			 ISNULL(C.Width/CONVERT(float, 10),'') AS Width,
+			 ISNULL(C.Height/CONVERT(float, 10),'') AS Height,
+			 <!-- 
+			 ISNULL(C.PositionX/10,'') AS PositionX,
+			 ISNULL(C.PositionY/10,'') AS PositionY,
+			 ISNULL(C.Width/10,'') AS Width,
+			 ISNULL(C.Height/10,'') AS Height,
+			 --> 
+			 ISNULL(C.FromID,'') AS FromID,
+			 ISNULL(C.ToID,'') AS ToID,
+			 CASE ISNULL(C.SymTypeCode,'') WHEN 'SB00000' THEN ISNULL(C.Style,'') ELSE ISNULL(E.ImagePath, C.Style) END AS Style, 
+			<!--  ISNULL(CASE WHEN ITM.Deleted=1 THEN #{DefStrokeColor} ELSE C.strokeColor END,'') AS strokeColor,
+			 ISNULL(CASE WHEN ITM.Deleted=1 THEN '4' ELSE C.strokeWidth END,'1') AS strokeWidth, -->
+			 ISNULL(C.gradientColor,'') AS gradientColor,
+			 ISNULL(C.fillColor,'') AS fillColor, 
+			<if test='dimValueIDs != null and !"".equals(dimValueIDs)'>	   			 
+   			  CASE
+        		WHEN C.Link NOT IN (SELECT ITEMID FROM XBOLTADM.TB_ITEM_DIM WHERE DimTypeID = #{dimTypeID} AND DimValueID IN (${dimValueIDs})) THEN 'N'
+        		ELSE 'Y'
+   			  END AS SelectedDim,
+   			 </if>
+   			
+   			 <choose>
+			 	<when test='blurredList != null and !"".equals(blurredList)'>
+			 	  CASE
+	        		WHEN ITM.ItemTypeCode IN (${blurredList}) THEN 'N'
+	        		ELSE 'Y'
+	   			  END AS SelectedItemTypeCode,
+			 	</when>
+			 	<otherwise>
+			 	  'Y' AS SelectedItemTypeCode,
+			 	</otherwise>
+			 </choose>
+			 (Select ItemTypeCode From XBOLTADM.TB_ELEMENT Where ModelID = C.ModelID And ElementID = C.FromID ) AS FromItemTypeCode,
+   			 (Select ItemTypeCode From XBOLTADM.TB_ELEMENT Where ModelID = C.ModelID And ElementID = C.ToID ) AS ToItemTypeCode,
+	   		 C.Opacity AS Opacity, 
+	   		 C.Opacity AS DefOpacity, 
+	   		 
+			 ISNULL(C.startArrow,'') AS startArrow,
+			 ISNULL(C.endArrow,'') AS endArrow,
+			 ISNULL(C.edgeStyle,'') AS edgeStyle,
+			 C.ExitX AS ExitX,
+			 C.ExitY AS ExitY,
+			 C.ExitPerimeter AS ExitPerimeter,
+			 C.EntryX AS EntryX,
+			 C.EntryY AS EntryY,
+			 C.EntryPerimeter AS EntryPerimeter,
+			 ISNULL(D.FontFamily,#{DefFontFamily}) AS FontFamily,
+			 ISNULL(D.FontStyle,#{DefFontStyle}) AS FontStyle,
+			 ISNULL(ISNULL(C.fontColor,D.fontColor), #{DefFontColor}) AS fontColor,
+			 ISNULL(D.fontSize,#{DefFontSize}) AS fontSize,
+			 ISNULL(D.fontSize,#{DefFontSize}) AS DefFontSize,
+			 ISNULL(C.link,'') AS link,
+			 ISNULL( Replace(ISNULL(D.PlainText, D2.PlainText), '"','/quo') , '' ) AS PlainText,
+			 ISNULL(C.Parent,'') AS Parent,
+			 ISNULL(C.Path,'') AS Path,	
+			 ISNULL(C.Rotation,'') AS Rotation,	 
+			 ISNULL(C.GradientDirection,'') AS GradientDirection,
+			 ISNULL(C.LabelBackgroundColor,'') AS LabelBackgroundColor, 	
+			 ISNULL(C.Shadow,'') AS Shadow,
+			 ISNULL(C.Dashed,'') AS Dashed,
+			 ISNULL(C.Relative,'') AS Relative,
+			 ISNULL(C.Rounded,'') AS Rounded,
+			 ISNULL(C.LabelBorderColor,'') AS LabelBorderColor,
+			 ISNULL(C.SpacingTop,'') AS SpacingTop,
+			 ISNULL(C.StartFill,'-1') AS StartFill,
+			 ISNULL(C.EndFill,'-1') AS EndFill,
+			 ISNULL(C.StartSize,'') AS StartSize,
+			 ISNULL(C.EndSize,'') AS EndSize,
+			 ISNULL(G.LovCode,'') AS WarningType,
+			 ISNULL(C.SymTypeCode,'') AS SymTypeCode,	
+			 (Select Max(ElementID) From XBOLTADM.TB_ELEMENT Where ModelID = #{ModelID} ) AS MaxElementID,
+			 <choose>
+			 	<when test="newElementIDs != null and newElementIDs != ''">
+			 	CASE WHEN ISNULL(TE.ElementID,'') != '' THEN  #{newEleStrokeColor} ELSE C.strokeColor END AS strokeColor,
+			 	CASE WHEN ISNULL(TE.ElementID,'') != '' THEN  #{newEleStrokeColor} ELSE C.strokeColor END AS DefStrokeColor,
+			 	CASE WHEN ISNULL(TE.ElementID,'') != '' THEN '4' ELSE C.strokeWidth END AS strokeWidth
+			 	</when>
+			 	<when test="delElementIDs != null and delElementIDs != ''">
+			 	CASE WHEN ISNULL(TE.ElementID,'') != '' THEN  #{delEleStrokeColor} ELSE C.strokeColor END AS strokeColor,
+			 	CASE WHEN ISNULL(TE.ElementID,'') != '' THEN  #{delEleStrokeColor} ELSE C.strokeColor END AS DefStrokeColor,
+			 	CASE WHEN ISNULL(TE.ElementID,'') != '' THEN '10' ELSE C.strokeWidth END AS strokeWidth
+			 	</when>
+			 	<otherwise>
+			 	ISNULL(CASE WHEN ITM.Deleted=1 THEN #{DefStrokeColor} ELSE C.strokeColor END,'') AS strokeColor,
+			 	ISNULL(CASE WHEN ITM.Deleted=1 THEN #{DefStrokeColor} ELSE C.strokeColor END,'') AS DefStrokeColor,
+			 	ISNULL(CASE WHEN ITM.Deleted=1 THEN '10' ELSE C.strokeWidth END,'') AS strokeWidth
+			 	ISNULL(CASE WHEN ITM.Deleted=1 THEN '2' ELSE NULL END,'') AS Dashed
+			 	</otherwise>
+			 </choose>			
+		FROM XBOLTADM.TB_ELEMENT C
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR_REV D ON C.ObjectID = D.ItemID and D.AttrTypeCode = 'AT00001'	AND D.LanguageID = #{languageID} And D.ChangeSetID = #{changeSetID}
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR D2 ON C.ObjectID = D2.ItemID and D2.AttrTypeCode = 'AT00001'	AND D2.LanguageID = #{languageID}
+		<if test="newElementIDs != null and newElementIDs != ''">
+		LEFT OUTER JOIN XBOLTADM.Tb_ELEMENT TE ON TE.ElementID = C.ELEMENTID And TE.ElementID IN (${newElementIDs})
+		</if>
+		<if test="delElementIDs != null and delElementIDs != ''">
+		LEFT OUTER JOIN XBOLTADM.Tb_ELEMENT TE ON TE.ElementID = C.ELEMENTID And TE.ElementID IN (${delElementIDs})
+		</if>
+		LEFT OUTER JOIN XBOLTADM.TB_SYMBOL_TYPE E ON C.SymTypeCode = E.SymTypeCode				
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR G ON C.ObjectID = G.ItemID and G.AttrTypeCode = 'AT00026'	AND G.LanguageID = (Select LanguageID From XBOLTADM.TB_LANGUAGE Where IsDefault=1)
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM ITM ON C.link = ITM.ItemID
+		WHERE C.ModelID = #{ModelID}	  
+		Order By C.ElementID 	     
+	</select>
+	  
+	<select id="getElementsBySymTypeCode" resultType="java.util.HashMap">
+	 	SELECT 
+			 ISNULL(C.ModelID,'') AS ModelID,
+			 ISNULL(C.ElementID,'') AS ElementID,
+			 ISNULL(C.ObjectID,'') AS ObjectID,
+			 ISNULL(C.CategoryCode,'') AS CategoryCode,
+			 ISNULL(C.ItemTypeCode,'') AS ItemTypeCode,
+			
+			 '2' AS PositionX,
+			 '-16' AS PositionY,
+			 '74' AS Width,
+			 '20' AS Height,
+			 ISNULL(F.ImagePath, '') AS Style, 
+			 #{DefFontFamily} AS FontFamily,
+			 #{DefFontStyle} AS FontStyle,
+			 #{DefFontColor} AS fontColor,
+			 9 AS fontSize,
+			 ISNULL(D.Identifier,'') AS AttrType,
+			 ISNULL(C.ElementID,'') AS Parent,
+			 '-5' AS SpacingTop,
+			 ISNULL(C.SymTypeCode,'') AS SymTypeCode
+		FROM XBOLTADM.TB_ELEMENT C
+			INNER JOIN XBOLTADM.TB_ITEM D ON C.link = D.ItemID			
+			LEFT OUTER JOIN XBOLTADM.TB_SYMBOL_TYPE F ON F.SymTypeCode='SB00013'
+		WHERE C.ModelID = #{ModelID}	AND LEN(ISNULL(C.link,''))>0 
+		AND C.SymTypeCode IN (${SymTypeCode})
+		
+		UNION
+		
+		SELECT  	 ISNULL(C.ModelID,'') AS ModelID,
+			 ISNULL(C.ElementID,'') AS ElementID,
+			 ISNULL(C.ObjectID,'') AS ObjectID,
+			 ISNULL(C.CategoryCode,'') AS CategoryCode,
+			 ISNULL(C.ItemTypeCode,'') AS ItemTypeCode,		
+			 '0' AS PositionX,
+			 '60' AS PositionY,
+			 '70' AS Width,
+			 '20' AS Height,
+			 ISNULL(F.ImagePath, '') AS Style, 
+			 #{DefFontFamily} AS FontFamily,
+			 #{DefFontStyle} AS FontStyle,
+			 #{DefFontColor} AS fontColor,
+			 9 AS fontSize	,	
+			 ISNULL(A.GWTP,'') + ISNULL(A.IATF, '')  As AttrType,
+			 ISNULL(C.ElementID,'') AS Parent,
+			 '-5' AS SpacingTop,
+			 ISNULL(C.SymTypeCode,'') AS SymTypeCode
+		FROM
+			(SELECT ISNULL(E.ModelID,'') AS ModelID,  ISNULL(E.ElementID,'') AS ElementID,  Max(G.Value) As GWTP,  '/' + Max(I.Value) As IATF
+		
+		FROM XBOLTADM.TB_ELEMENT E
+    		Left Outer Join XBOLTADM.TB_ITEM_ATTR D ON E.link = D.ItemID and D.AttrTypeCode = 'AT00031' AND D.LanguageID = (Select languageID from XBOLTADM.TB_LANGUAGE where IsDefault = 1) AND D.LovCode = 'LV31001'
+			Left Outer Join XBOLTADM.TB_ATTR_TYPE_LOV G on G.AttrTypeCode = 'AT00031' and  G.LanguageID = 1042 and G.LovCode = D.LovCode
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR H ON E.link = H.ItemID and H.AttrTypeCode = 'AT00031' AND H.LanguageID =(Select languageID from XBOLTADM.TB_LANGUAGE where IsDefault = 1)	 AND H.LovCode = 'LV31002'
+			Left Outer Join XBOLTADM.TB_ATTR_TYPE_LOV I on I.AttrTypeCode = 'AT00031' and  I.LanguageID = 1042 and I.LovCode = H.LovCode			
+		WHERE E.ModelID =  #{ModelID}	AND LEN(ISNULL(E.link,''))>0 AND E.SymTypeCode IN (${SymTypeCode})
+		Group by E.ModelID, G.Value, I.Value,ElementID
+		)A Inner Join XBOLTADM.TB_ELEMENT C on A.ElementID = C.ElementID 
+		   Inner JOIN XBOLTADM.TB_SYMBOL_TYPE F ON F.SymTypeCode='SB00013'
+		   where A.GWTP is Not Null or A.IATF is Not Null
+		   
+		UNION
+		
+		SELECT 
+			 ISNULL(C.ModelID,'') AS ModelID,
+			 ISNULL(C.ElementID,'') AS ElementID,
+			 ISNULL(C.ObjectID,'') AS ObjectID,
+			 ISNULL(C.CategoryCode,'') AS CategoryCode,
+			 ISNULL(C.ItemTypeCode,'') AS ItemTypeCode,
+			
+			 '75' AS PositionX,
+			 '-16' AS PositionY,
+			 '70' AS Width,
+			 '20' AS Height,
+			 ISNULL(F.ImagePath, '') AS Style, 
+			 #{DefFontFamily} AS FontFamily,
+			 #{DefFontStyle} AS FontStyle,
+			 #{DefFontColor} AS fontColor,
+			 9 AS fontSize,
+			 ISNULL(Replace(D.PlainText, '"','/quo'),'') AS AttrType,
+			 ISNULL(C.ElementID,'') AS Parent,
+			 '-5' AS SpacingTop,
+			 ISNULL(C.SymTypeCode,'') AS SymTypeCode
+		FROM XBOLTADM.TB_ELEMENT C
+    		INNER JOIN XBOLTADM.TB_ITEM_ATTR D ON C.link = D.ItemID and D.AttrTypeCode = 'AT00002' AND D.LanguageID = #{languageID}		
+			LEFT OUTER JOIN XBOLTADM.TB_SYMBOL_TYPE F ON F.SymTypeCode='SB00013'
+		WHERE C.ModelID = #{ModelID}	AND LEN(ISNULL(C.link,''))>0 
+		AND C.SymTypeCode IN (${SymTypeCode})   
+		
+				
+	</select>  	
+	
+	<select id="getElementsByAttrDP" resultType="java.util.HashMap">
+	<!-- TEXT on Symbol -->
+		Select Distinct TE.ModelID, 
+			TE.ElementID, 
+			TE.ObjectID, 
+			TE.Link,
+			TE.CategoryCode, 
+			TI.ItemTypeCode, 
+			CASE 
+				WHEN TMD.RefPoint IN (2, 3) THEN TMD.X + TE.Width/10
+				WHEN TMD.RefPoint = 5 THEN TMD.X + TE.Width/20 - (TE.Width * TMD.Width / 20)
+				ELSE TMD.X 
+			END AS PositionX,
+			CASE
+				WHEN TMD.RefPoint IN (3, 4) THEN TMD.Y + TE.Height/10
+				ELSE TMD.Y
+			END AS PositionY,
+			CASE WHEN TMD.Width &lt; 1 THEN (TE.Width * TMD.Width / 10) ELSE TMD.Width END AS Width, 
+			CASE WHEN TMD.Height &lt; 1 THEN (TE.Height * TMD.Height / 10) ELSE TMD.Height END AS Height,
+			ISNULL(TST.ImagePath, '') AS Style,
+			ISNULL(TMD.FontFamily, #{DefFontFamily}) AS FontFamily, 
+			ISNULL(TMD.FontStyle, #{DefFontStyle}) AS FontStyle,
+			TMD.FontColor As fontColor, 
+			ISNULL(TMD.FontSize, #{DefFontSize}) AS fontSize,
+			TMD.FillColor As fillColor,
+			TMD.AttrTypeCode  AS AttrType,
+			TE.ElementID AS Parent, 
+			<!--ISNULL(TE.SpacingTop, -5) AS SpacingTop, -->
+			TE.SymTypeCode,
+			TMD.AttrTypeCode,
+			ISNULL(ATP.DataType,'') As DataType,
+			TMD.DisplayType, TMD.Category, '' AS Status,
+			TMD.ScrnMode,
+			TI.ItemTypeCode AS ItemTypeCode,
+			CASE WHEN TMD.Width &lt; 1 AND TMD.Height &lt; 1 and MaxTextLen is not null
+			THEN CAST(CASE
+						  WHEN FLOOR(TE.Width/10 * TMD.Width / (ISNULL(TMD.FontSize, #{DefFontSize})+1)) * FLOOR((TE.Height)/10 * TMD.Height / (ISNULL(TMD.FontSize, #{DefFontSize})+1)) &lt; TMD.MaxTextLen 
+        			  	  THEN TMD.MaxTextLen
+        				  ELSE FLOOR(TE.Width/10 * TMD.Width / (ISNULL(TMD.FontSize, #{DefFontSize})+1)) * FLOOR((TE.Height)/10 * TMD.Height / (ISNULL(TMD.FontSize, #{DefFontSize})+1))
+    				  END AS INT) ELSE TMD.MaxTextLen
+			END AS MaxTextLen
+			<choose>
+			 	<when test='dimValueList != null and !"".equals(dimValueList)'>
+			 		, CASE
+	        		WHEN TE.Link NOT IN (SELECT ITEMID FROM XBOLTADM.TB_ITEM_DIM WITH (NOLOCK) WHERE DimTypeID = #{dimTypeID} AND DimValueID IN (${dimValueList})) THEN 'N'
+	        		ELSE 'Y'
+	   			  	END AS SelectedDim
+			 	</when>
+			 	<otherwise>
+			 		, 'N' AS SelectedDim
+			 	</otherwise>
+			 </choose>,
+			 ISNULL(TMD.TextAlign, 'left') AS TextAlign,
+			 ISNULL(TMD.TextVAlign, 'top') AS TextVAlign
+		 From 
+		XBOLTADM.TB_MODEL_DISPLAY TMD WITH (NOLOCK) Left Outer join XBOLTADM.TB_ATTR_TYPE ATP WITH (NOLOCK) ON ATP.AttrTypeCode = TMD.AttrTypeCode , XBOLTADM.TB_ELEMENT TE WITH (NOLOCK)
+				Left Outer join XBOLTADM.TB_ITEM TI WITH (NOLOCK) ON TI.ItemID = TE.Link 
+				Left Outer join XBOLTADM.TB_SYMBOL_TYPE TST WITH (NOLOCK) ON TST.SymTypeCode = 'SB00013'			
+				<choose>
+					<when test='attrRevYN != null and "Y".equals(attrRevYN)'>	
+						Left Outer Join XBOLTADM.TB_ITEM_ATTR_REV TIA WITH (NOLOCK) ON TIA.ItemID = TI.ItemID and TIA.ChangeSetID = #{changeSetID}
+					</when>
+					<otherwise>	Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA WITH (NOLOCK) ON TIA.ItemID = TI.ItemID </otherwise>
+				</choose>		
+		Where TE.SymTypeCode = TMD.TypeCode  		
+		And TIA.AttrTypeCode = TMD.AttrTypeCode 
+		And TE.ModelID = #{ModelID}
+		<!-- And ATP.DataType != 'LOV' -->
+		AND TMD.DisplayType = 'Text'
+		<if test='dimValueList != null and !"".equals(dimValueList)'>
+			And TE.Link IN (SELECT ITEMID FROM XBOLTADM.TB_ITEM_DIM WITH (NOLOCK) WHERE DimTypeID = #{dimTypeID} AND DimValueID IN (${dimValueList}))
+		</if>
+		<if test='blurredList != null and !"".equals(blurredList)'>
+			And TI.ItemTypeCode NOT IN (${blurredList})
+		</if>
+		<if test='itemTypeCodeList != null and !"".equals(itemTypeCodeList)'>
+			And TI.ItemTypeCode IN (${itemTypeCodeList})
+		</if>
+		
+		
+		<choose>
+		<when test='scrnMode != "" and scrnMode != null'>
+			<if test='scrnMode == "V"'>And TMD.ScrnMode IN ('C','V')</if>	
+			<if test='scrnMode == "E"'>And TMD.ScrnMode IN ('C','E')</if>	
+		</when>
+		<otherwise>And TMD.ScrnMode = 'C'</otherwise>
+		</choose>
+		
+		UNION 
+	    <!-- ID On Symbol -->	
+		Select 
+			TE.ModelID, 
+			TE.ElementID, 
+			TE.ObjectID, 
+			TE.Link,
+			TE.CategoryCode, 
+			TI.ItemTypeCode, 
+			TMD.X AS PositionX, 
+			TMD.Y AS PositionY, 
+			TMD.Width, 
+			TMD.Height, 
+			ISNULL(TST.ImagePath, '') AS Style, 
+			ISNULL(TMD.FontFamily, #{DefFontFamily}) AS FontFamily, 
+			ISNULL(TMD.FontStyle, #{DefFontStyle}) AS FontStyle,
+			TMD.FontColor As fontColor, 
+			ISNULL(TMD.FontSize, #{DefFontSize}) AS fontSize,
+			TMD.FillColor As fillColor,
+			CASE TMD.AttrTypeCode  
+				WHEN 'ID' THEN ISNULL(TI.Identifier,'') 
+				WHEN 'SortNum' THEN ISNULL(TE.SortNum,'') 
+				WHEN 'SBICON' THEN 'ICON_'+ ISNULL(TMD.TypeCode,'') 
+				WHEN 'TLINK' THEN 'ICON_TLINK' 
+				WHEN 'FILELINK' THEN 'ICON_FILELINK' 
+				WHEN 'TEAM' THEN XBOLTADM.fn_GetTeamRoleTeamNMList(TE.Link, #{languageID}, '', '')
+				WHEN 'OWNTM' THEN  '('+ ISNULL(TMT.Name,'')  + ')'
+				WHEN 'UDATE' THEN 'l/u'+Convert(nvarchar(20),TI.LastUpdated, 102)
+				WHEN 'CLSNM' THEN ISNULL(TD.Name,'')
+				ELSE TMD.AttrTypeCode  
+				END AS AttrType,
+			TE.ElementID AS Parent, 
+		<!--	CASE TMD.AttrTypeCode WHEN 'CLSNM' THEN -5 Else ISNULL(TE.SpacingTop, -5) END AS SpacingTop, -->
+			TE.SymTypeCode,  
+			TMD.AttrTypeCode,
+			'' AS DataType,
+			TMD.DisplayType, TMD.Category, '' AS Status,
+			TMD.ScrnMode,
+			TI.ItemTypeCode AS ItemTypeCode,
+			TMD.MaxTextLen
+			<choose>
+			 	<when test='dimValueList != null and !"".equals(dimValueList)'>
+			 		, CASE
+	        		WHEN TE.Link NOT IN (SELECT ITEMID FROM XBOLTADM.TB_ITEM_DIM WITH (NOLOCK) WHERE DimTypeID = #{dimTypeID} AND DimValueID IN (${dimValueList})) THEN 'N'
+	        		ELSE 'Y'
+	   			  	END AS SelectedDim
+			 	</when>
+			 	<otherwise>
+			 		, 'N' AS SelectedDim
+			 	</otherwise>
+			 </choose>,
+			 ISNULL(TMD.TextAlign, 'left') AS TextAlign,
+			 ISNULL(TMD.TextVAlign, 'top') AS TextVAlign
+		From 
+		XBOLTADM.TB_MODEL_DISPLAY TMD WITH (NOLOCK), XBOLTADM.TB_ELEMENT TE WITH (NOLOCK)
+			Left Outer join XBOLTADM.Tb_ITEM TI WITH (NOLOCK) ON TI.ItemID = TE.Link 
+			Left OUter join XBOLTADM.TB_SYMBOL_TYPE TST WITH (NOLOCK) ON TST.SymTypeCode = 'SB00013'
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT WITH (NOLOCK) ON TMT.TeamID = TI.OwnerTeamID And TMT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD WITH (NOLOCK) ON TD.TypeCode = TI.ClassCode And TD.LanguageID = #{languageID}
+		Where TE.SymTypeCode = TMD.TypeCode  
+			  And TMD.AttrTypeCode IN('ID','SortNum','SBICON',#{TLink},'TEAM','FILELINK','OWNTM','UDATE','CLSNM')
+			  And TE.ModelID = #{ModelID}
+			  <if test='dimValueList != null and !"".equals(dimValueList)'>
+			  	And TE.Link IN (SELECT ITEMID FROM XBOLTADM.TB_ITEM_DIM WITH (NOLOCK) WHERE DimTypeID = #{dimTypeID} AND DimValueID IN (${dimValueList}))
+			  </if>
+			  <if test='blurredList != null and !"".equals(blurredList)'>
+			    And TI.ItemTypeCode NOT IN (${blurredList})
+			  </if>
+			  <if test='itemTypeCodeList != null and !"".equals(itemTypeCodeList)'>
+				And TI.ItemTypeCode IN (${itemTypeCodeList})
+			  </if>
+		<choose>
+		<when test='scrnMode != "" and scrnMode != null'>
+			<if test='scrnMode == "V"'>And TMD.ScrnMode IN ('C','V')</if>	
+			<if test='scrnMode == "E"'>And TMD.ScrnMode IN ('C','E')</if>	
+		</when>
+		<otherwise>And TMD.ScrnMode = 'C'</otherwise>
+		</choose>
+
+		UNION
+		<!-- IMAGE On Symbol -->
+		Select 
+			TE.ModelID, TE.ElementID, TE.ObjectID ,TE.Link, TE.CategoryCode
+			, TI.ItemTypeCode,
+						CASE 
+				WHEN TMD.RefPoint IN (2, 3) THEN TMD.X + TE.Width/10
+				WHEN TMD.RefPoint = 5 and TMD.Width &lt; 1 THEN TMD.X + TE.Width/20 - (TE.Width * TMD.Width / 20)
+				WHEN TMD.RefPoint = 5 and TMD.Width >= 1 THEN TMD.X + TE.Width/20
+				ELSE TMD.X 
+			END AS PositionX,
+			CASE
+				WHEN TMD.RefPoint IN (3, 4) THEN TMD.Y + TE.Height/10
+				ELSE TMD.Y
+			END AS PositionY,
+			 TMD.Width, TMD.Height, ISNULL(TST.ImagePath, '') AS Style
+			, ISNULL(TMD.FontFamily, #{DefFontFamily}) AS FontFamily
+			, ISNULL(TMD.FontStyle, #{DefFontStyle}) AS FontStyle
+			, TMD.FontColor As fontColor
+			, ISNULL(TMD.FontSize, #{DefFontSize}) AS fontSize
+			, TMD.FillColor As fillColor
+			, Case TMD.AttrTypeCode 
+					WHEN 'SBICON' Then 'ICON_'+TMD.TypeCode 
+					WHEN 'TLINK' Then 'ICON_TLINK'
+					WHEN 'FILELINK' Then 'ICON_FILELINK'
+				    Else TMD.AttrTypeCode END AS AttrType			
+			, TE.ElementID AS Parent
+			<!--, ISNULL(TE.SpacingTop, -5) AS SpacingTop-->
+			, TE.SymTypeCode, TMD.AttrTypeCode
+			, ISNULL((Select DataType From XBOLTADM.TB_ATTR_TYPE WITH (NOLOCK) Where AttrTypeCode = TMD.AttrTypeCode),'') As DataType
+			, TMD.DisplayType, TMD.Category, '' AS Status, TMD.ScrnMode
+			, TI.ItemTypeCode AS ItemTypeCode,
+			TMD.MaxTextLen
+			<choose>
+			 	<when test='dimValueList != null and !"".equals(dimValueList)'>
+			 		, CASE
+	        		WHEN TE.Link NOT IN (SELECT ITEMID FROM XBOLTADM.TB_ITEM_DIM WITH (NOLOCK) WHERE DimTypeID = #{dimTypeID} AND DimValueID IN (${dimValueList})) THEN 'N'
+	        		ELSE 'Y'
+	   			  	END AS SelectedDim
+			 	</when>
+			 	<otherwise>
+			 		, 'N' AS SelectedDim
+			 	</otherwise>
+			 </choose>,
+			 ISNULL(TMD.TextAlign, 'left') AS TextAlign,
+			 ISNULL(TMD.TextVAlign, 'top') AS TextVAlign
+		From XBOLTADM.TB_MODEL_DISPLAY TMD WITH (NOLOCK) , XBOLTADM.TB_ELEMENT TE WITH (NOLOCK) 
+		Left Outer join XBOLTADM.Tb_ITEM TI WITH (NOLOCK) ON TI.ItemID = TE.Link 
+		Left OUter join XBOLTADM.TB_SYMBOL_TYPE TST WITH (NOLOCK) ON TST.SymTypeCode = 'SB00013' 
+		<choose>
+		<when test='attrRevYN != null and "Y".equals(attrRevYN)'>
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR_REV TIA WITH (NOLOCK) ON TIA.ItemID = TI.ItemID And TIA.ChangeSetID = #{changeSetID}
+		</when>
+		<otherwise>Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA WITH (NOLOCK) ON TIA.ItemID = TI.ItemID </otherwise>
+		</choose>		
+		Where TE.SymTypeCode = TMD.TypeCode And TIA.AttrTypeCode = TMD.AttrTypeCode And TE.ModelID =  #{ModelID}
+		And (Select DataType From XBOLTADM.TB_ATTR_TYPE WITH (NOLOCK) Where AttrTypeCode = TMD.AttrTypeCode) = 'LOV' 
+		And TMD.DisplayType IN ('Image','Animation')
+		<if test='dimValueList != null and !"".equals(dimValueList)'>
+			And TE.Link IN (SELECT ITEMID FROM XBOLTADM.TB_ITEM_DIM WITH (NOLOCK) WHERE DimTypeID = #{dimTypeID} AND DimValueID IN (${dimValueList}))
+		</if>
+		 <if test='blurredList != null and !"".equals(blurredList)'>
+			And TI.ItemTypeCode NOT IN (${blurredList})
+		 </if>
+		 <if test='itemTypeCodeList != null and !"".equals(itemTypeCodeList)'>
+			And TI.ItemTypeCode IN (${itemTypeCodeList})
+		 </if>
+		<choose>
+		<when test='scrnMode != "" and scrnMode != null'>
+			<if test='scrnMode == "V"'>And TMD.ScrnMode IN ('C','V')</if>	
+			<if test='scrnMode == "E"'>And TMD.ScrnMode IN ('C','E')</if>	
+		</when>
+		<otherwise>And TMD.ScrnMode = 'C'</otherwise>
+		</choose>
+		
+		UNION 
+		<!-- STS On Symbol -->
+		Select 
+			TE.ModelID, TE.ElementID, TE.ObjectID, TE.Link, TE.CategoryCode 
+			, TI.ItemTypeCode, TMD.X AS PositionX, TMD.Y AS PositionY 
+			, TMD.Width, TMD.Height, ISNULL(TST.ImagePath, '') AS Style
+			, ISNULL(TMD.FontFamily, #{DefFontFamily}) AS FontFamily
+			, ISNULL(TMD.FontStyle, #{DefFontStyle}) AS FontStyle
+			, TMD.FontColor As fontColor
+			, ISNULL(TMD.FontSize, #{DefFontSize}) AS fontSize
+			, TMD.FillColor As fillColor
+			, Case TMD.DisplayType When 'Text' THEN ISNULL(TD.Name,'') ELSE TI.Status END AS AttrType
+			, TE.ElementID AS Parent 
+			<!--, ISNULL(TE.SpacingTop, -5) AS SpacingTop-->
+			, TE.SymTypeCode 
+			, TMD.AttrTypeCode 
+			, 'STS' As DataType
+			, TMD.DisplayType , TMD.Category, '' AS Status, TMD.ScrnMode
+			, TI.ItemTypeCode AS ItemTypeCode,
+			TMD.MaxTextLen	
+			<choose>
+			 	<when test='dimValueList != null and !"".equals(dimValueList)'>
+			 		, CASE
+	        		WHEN TE.Link NOT IN (SELECT ITEMID FROM XBOLTADM.TB_ITEM_DIM WITH (NOLOCK) WHERE DimTypeID = #{dimTypeID} AND DimValueID IN (${dimValueList})) THEN 'N'
+	        		ELSE 'Y'
+	   			  	END AS SelectedDim
+			 	</when>
+			 	<otherwise>
+			 		, 'N' AS SelectedDim
+			 	</otherwise>
+			 </choose>,
+			 ISNULL(TMD.TextAlign, 'left') AS TextAlign,
+			 ISNULL(TMD.TextVAlign, 'top') AS TextVAlign
+		From XBOLTADM.TB_MODEL_DISPLAY TMD WITH (NOLOCK) , XBOLTADM.TB_ELEMENT TE WITH (NOLOCK) 
+		Left Outer join XBOLTADM.Tb_ITEM TI WITH (NOLOCK) ON TI.ItemID = TE.ObjectID 
+		Left OUter join XBOLTADM.TB_SYMBOL_TYPE TST WITH (NOLOCK) ON TST.SymTypeCode = 'SB00013' 
+		Left OUter Join XBOLTADM.TB_DICTIONARY TD WITH (NOLOCK) ON TD.TypeCode = TI.Status And TD.LanguageID = #{languageID} And TD.Category ='ITMSTS'
+		Where TE.SymTypeCode = TMD.TypeCode And TE.ModelID = #{ModelID}
+		And TMD.AttrTypeCode = 'STS' 
+		<if test='dimValueList != null and !"".equals(dimValueList)'>
+			And TE.Link IN (SELECT ITEMID FROM XBOLTADM.TB_ITEM_DIM WITH (NOLOCK) WHERE DimTypeID = #{dimTypeID} AND DimValueID IN (${dimValueList}))
+		</if>
+		<if test='blurredList != null and !"".equals(blurredList)'>
+		    And TI.ItemTypeCode NOT IN (${blurredList})
+		</if>
+		<if test='itemTypeCodeList != null and !"".equals(itemTypeCodeList)'>
+			And TI.ItemTypeCode IN (${itemTypeCodeList})
+		</if>
+		<choose>
+		<when test='scrnMode != "" and scrnMode != null'>
+			<if test='scrnMode == "V"'>And TMD.ScrnMode IN ('C','V')</if>	
+			<if test='scrnMode == "E"'>And TMD.ScrnMode IN ('C','E')</if>	
+		</when>
+		<otherwise>And TMD.ScrnMode = 'C'</otherwise>
+		</choose>
+		
+		<!-- Display Category = MDL -->
+		UNION
+		
+		Select  TM.ModelID AS ModelID 
+		 , '' AS ElementID
+		 , #{ItemID} AS ObjectID
+		 , #{ItemID} AS Link
+		 , '' AS CategoryCode 
+		 , '' AS ItemTypeCode
+		 , TMD.X AS PositionX, TMD.Y AS PositionY 
+		 , TMD.Width, TMD.Height, 'whiteSpace=wrap;text' AS Style
+		 , ISNULL(TMD.FontFamily, #{DefFontFamily}) AS FontFamily 
+		 , ISNULL(TMD.FontStyle, #{DefFontStyle}) AS FontStyle
+		 , TMD.FontColor As fontColor
+		 , ISNULL(TMD.FontSize, #{DefFontSize}) AS fontSize
+		 , TMD.FillColor As fillColor
+		 , Case			 
+			When TMD.AttrTypeCode = 'STS' THEN ISNULL(TI.Status, 'REL')
+			When TMD.AttrTypeCode = 'ID' THEN ISNULL(TI.Identifier, 'N/A')
+			When TMD.AttrTypeCode = 'MDLCAT' THEN ISNULL(TD1.Name, 'N/A')
+			When TMD.AttrTypeCode = 'MDLTP' THEN ISNULL(TD2.Name, 'N/A')
+			When TMD.AttrTypeCode = 'MDLNM' THEN ISNULL(TMT.Name, 'Untitled')
+			When TMD.AttrTypeCode = 'Version' THEN 'Ver. ' + ISNULL(TCS.Version, '')
+			ELSE TMD.AttrTypeCode  END  AS AttrType 
+		 , TM.ModelID AS Parent 
+		<!-- , -5 AS SpacingTop-->
+		 , '' AS SymTypeCode
+		 , TMD.AttrTypeCode , '' As DataType
+		 , TMD.DisplayType , TMD.Category, TI.Status AS Status, TMD.ScrnMode
+		 , '' AS ItemTypeCode,
+			TMD.MaxTextLen
+		 , '' AS SelectedDim
+		 , ISNULL(TMD.TextAlign, 'left') AS TextAlign,
+		   ISNULL(TMD.TextVAlign, 'top') AS TextVAlign
+		From XBOLTADM.TB_MODEL_DISPLAY TMD WITH (NOLOCK)
+		 Left Outer Join XBOLTADM.TB_MODEL TM WITH (NOLOCK) ON TM.ModelID = #{ModelID}	
+		 Left Outer Join XBOLTADM.TB_MODEL_TXT TMT WITH (NOLOCK) ON TMT.ModelID = TM.ModelID and TMT.LanguageID = #{languageID}	
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TD1 WITH (NOLOCK) ON TD1.TypeCode = TM.MTCategory and TD1.Category = 'MC' and TD1.LanguageID = #{languageID}
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TD2 WITH (NOLOCK) ON TD2.TypeCode = TM.ModelTypeCode and TD2.Category = 'MT' and TD2.LanguageID = #{languageID}	
+		 Left OUter Join XBOLTADM.TB_ITEM TI WITH (NOLOCK) ON TI.ItemID = TM.ItemID
+		 Left OUter Join XBOLTADM.TB_ITEM_ATTR TATR WITH (NOLOCK) ON TATR.ItemID = TI.ItemID and TATR.AttrTypeCode = TMD.AttrTypeCode and TATR.LanguageID = #{languageID} 
+		 Left Outer Join XBOLTADM.TB_CHANGE_SET TCS WITH (NOLOCK) ON TM.ChangeSetID = TCS.ChangeSetID	
+		Where TMD.Category = 'MDL' And TMD.TypeCode = #{modelTypeCode}
+		<choose>
+		<when test='scrnMode != "" and scrnMode != null'>
+			<if test='scrnMode == "V"'>And TMD.ScrnMode IN ('C','V')</if>	
+			<if test='scrnMode == "E"'>And TMD.ScrnMode IN ('C','E')</if>	
+		</when>
+		<otherwise>And TMD.ScrnMode = 'C'</otherwise>
+		</choose>
+	</select>
+	
+	<select id="isElementExist" resultType="java.util.HashMap">
+		SELECT * FROM  XBOLTADM.TB_ELEMENT 
+		WHERE ElementID=#{ElementID} 
+		AND ModelID=#{ModelID}
+		<if test="fromID != null and fromID != ''">
+			And FromID = #{fromID}
+		</if>
+		<if test="toID != null and toID != ''">
+			And ToID = #{toID}
+		</if>
+		
+	</select> 	
+	
+	 <select id="getMaxElementID" resultType="String">
+		SELECT ISNULL(MAX(ElementID),0) + 1 as maxID FROM XBOLTADM.TB_ELEMENT		
+	</select>
+	
+	<select id="getMaxItemIDNew" resultType="String">
+		SELECT ISNULL(MAX(ItemID),0) + 1 as maxItemID FROM XBOLTADM.TB_ITEM		
+	</select> 
+	 
+	<select id="getSymType" resultType="java.util.HashMap">
+		SELECT * 
+		FROM  
+		XBOLTADM.TB_SYMBOL_TYPE 
+		<where>
+			<if test="SymTypeCode != null and SymTypeCode != ''">
+				SymTypeCode=#{SymTypeCode}		
+			</if>
+		</where>		
+	</select>	
+	<select id="getItemAttr" resultType="java.util.HashMap">
+		SELECT * FROM  XBOLTADM.TB_ITEM_ATTR WHERE ItemID=#{ItemID} AND LanguageID = #{languageID} AND AttrTypeCode = 'AT00001'
+	</select>
+	
+	<select id="getItemIDFromElementID" resultType="java.util.HashMap">
+		SELECT * FROM XBOLTADM.TB_ELEMENT WHERE ElementID=#{ElementID}	AND ModelID=#{ModelID}	
+	</select>
+	
+	<select id="getModel" resultType="java.util.HashMap">
+		SELECT
+			 DISTINCT TM.ModelID
+			 , TM.ItemID
+			 , TM.Status
+			 , TMT.ModelXML
+			 , TMT.ModelID AS ModelIDTXT
+			 , TMT.Name AS ModelName
+			 , TM.Blocked AS ModelBlocked
+			 , TM.IsPublic
+			 , TM.ModelTypeCode
+			 , Convert(nvarchar(20),TM.ValidFrom, 111) AS ValidFrom
+			 , Convert(nvarchar(20),TM.ValidTo, 111) AS ValidTo
+			 , TCD.Name AS ModelTypeName
+			 , TM.MTCategory
+			 , TM.Dx, TM.Dy
+			 , TM.IsModel
+			 , ISNULL(TM.Zoom,1) AS Zoom
+			 , Convert(nvarchar(20),TM.CreationTime, 111) AS CreationTime
+			 , Convert(nvarchar(20),TM.LastUpdated, 111) AS LastUpdated
+			 , ISNULL(TMC.Name,'') + Case When ISNULL(TMC.NameEN,'') != '' Then '(' + ISNULL(TMC.NameEN,'') + ')' Else '' End AS CreatorNm
+			 , ISNULL(TMU.Name,'') + Case When ISNULL(TMU.NameEN,'') != '' Then '(' + ISNULL(TMU.NameEN,'') + ')' Else '' End As LastUserNm
+			 , ISNULL(TMT.Description,'') As Description
+			 , TDS.Name As StatusName
+			 , TDC.Name As MTCategoryName
+			 , TM.RefModelID
+			 , ISNULL((Select Name From XBOLTADM.TB_MODEL_TXT Where ModelID = TM.RefModelID AND LanguageID = #{languageID}),'N/A') AS RefModelName
+			 , TPT.Name AS ProjectName
+			 , TCS.Version
+	    FROM XBOLTADM.TB_MODEL TM
+			LEFT JOIN XBOLTADM.TB_MODEL_TXT TMT ON TM.ModelID = TMT.ModelID AND TMT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TCD ON TCD.TypeCode = TM.ModelTypeCode AND TCD.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TDS ON TDS.TypeCode = TM.Status AND TDS.LanguageID = #{languageID} And TDS.Category = 'MDLSTS'
+			Left Outer Join XBOLTADM.TB_DICTIONARY TDC ON TDC.TypeCode = TM.MTCategory AND TDC.LanguageID = #{languageID} And TDC.Category = 'MC'
+			Left OUter Join XBOLTADM.TB_MEMBER TMC ON TMC.MemberID = TM.Creator 
+			Left OUter Join XBOLTADM.TB_MEMBER TMU ON TMU.MemberID = TM.LastUser 			 
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT ON TM.ProjectID = TPT.ProjectID	AND TPT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_CHANGE_SET TCS ON TM.ChangeSetID = TCS.ChangeSetID
+		WHERE TM.ModelID=#{ModelID}		
+	</select>
+	
+	<select id="getModelName" resultType="java.util.HashMap">
+		SELECT ISNULL(TM.ModelID, #{ModelID}) AS ModelID
+			, ISNULL(IA.Name, N'Untitled') AS ModelName
+		FROM	
+			XBOLTADM.TB_MODEL TM
+			Left Outer Join XBOLTADM.TB_MODEL_TXT IA
+				on TM.ModelID =  IA.ModelID
+			<if test="languageID != null and languageID != ''">
+				AND IA.LanguageID = #{languageID}
+			</if>
+		WHERE TM.ItemID =  #{ModelID}		
+	</select>
+
+	<select id="getModelLabelName" resultType="String">
+		SELECT TOP 1 ISNULL(IA.Name, N'Untitled') AS ModelName
+		FROM	
+			XBOLTADM.TB_MODEL TM
+			Left Outer Join XBOLTADM.TB_MODEL_TXT IA
+				on TM.ModelID =  IA.ModelID
+			<if test="languageID != null and languageID != ''">
+				AND IA.LanguageID = #{languageID}
+			</if>		 
+		WHERE TM.ItemID =  #{ModelID}		
+	</select>
+	<select id="getModelLabelNameModelID" resultType="String">
+		SELECT TOP 1 ISNULL(IA.Name, N'Untitled') AS ModelName
+		FROM XBOLTADM.TB_MODEL TM
+			Left Outer Join XBOLTADM.TB_MODEL_TXT IA
+			on TM.ModelID =  IA.ModelID
+			<if test="languageID != null and languageID != ''">
+				AND IA.LanguageID = #{languageID}
+			</if> 
+		WHERE TM.ItemID in ( SELECT ItemID FROM XBOLTADM.TB_MODEL WHERE ModelID =  #{ModelID})		
+	</select>
+
+	 
+	<select id="getModelNameModelID" resultType="java.util.HashMap">
+		SELECT ISNULL(TM.ModelID, #{ModelID}) AS ModelID
+			, ISNULL(IA.Name, N'Untitled') AS ModelName
+		FROM XBOLTADM.TB_MODEL TM
+			Left Outer Join XBOLTADM.TB_MODEL_TXT IA
+			on TM.ModelID =  IA.ModelID
+			<if test="languageID != null and languageID != ''">
+				AND IA.LanguageID = #{languageID}
+			</if>
+		WHERE TM.ItemID in ( SELECT ItemID FROM XBOLTADM.TB_MODEL WHERE ModelID =  #{ModelID})		
+	</select>
+	 
+	<insert id="insertItemNew" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_ITEM (ItemID, CategoryCode, ItemTypeCode, ClassCode, FromItemID, ToItemID, DefSymCode, 
+									AuthorID, Status, Creator, CreationTime, LastUser, LastUpdated, ProjectID
+									<if test="identifier != null and identifier != ''">, Identifier </if>
+									<if test="ownerTeamID != null and ownerTeamID != ''">, OwnerTeamID </if>
+									<if test="ownerTeamID != null and ownerTeamID != ''">, CompanyID </if>
+									<if test="curChangeSet != null and curChangeSet != ''">, CurChangeSet </if>
+									<if test="refClientID != null and refClientID != ''">, RefClientID </if>
+									<if test="refCItemID != null and refCItemID != ''">, RefCItemID </if>
+									<if test="refItemID != null and refItemID != ''">, RefItemID </if>
+									)
+		VALUES (#{ItemID}, #{CategoryCode}, #{ItemTypeCode}, #{ClassCode}, #{FromItemID}, #{ToItemID}, #{DefSymCode},
+									#{AuthorID}, #{ItemStatus}, #{Creator}, GetDate(), #{Creator}, GetDate(), #{projectID}
+									<if test="identifier != null and identifier != ''">, #{identifier} </if>
+									<if test="ownerTeamID != null and ownerTeamID != ''">,#{ownerTeamID}</if>
+									<if test="ownerTeamID != null and ownerTeamID != ''">,(Select CompanyID FROM XBOLTADM.TB_TEAM WHERE TeamID = #{ownerTeamID} )</if>
+									<if test="curChangeSet != null and curChangeSet != ''">,#{curChangeSet}</if>
+									<if test="refClientID != null and refClientID != ''">,#{refClientID}</if>
+									<if test="refCItemID != null and refCItemID != ''">,#{refCItemID}</if>
+									<if test="refItemID != null and refItemID != ''">,#{refItemID}</if>
+									)
+	</insert> 
+	 
+	 <insert id="insertElement" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_ELEMENT 
+			( ElementID, ModelID, ObjectID, CategoryCode, ItemTypeCode, ClassCode, Deleted, Link
+				<if test="FromID != null and FromID != ''">, FromID</if>
+				<if test="ToID != null and ToID != ''">, ToID</if>
+				<if test="PositionX != null and PositionX != ''">, PositionX</if>
+				<if test="PositionY != null and PositionY != ''">, PositionY</if>
+				<if test="Height != null and Height != ''">, Height</if>
+				<if test="Width != null and Width != ''">, Width</if>
+				<if test="Style != null and Style != ''">, Style</if>
+				<if test="StrokeColor != null and StrokeColor != ''">, StrokeColor</if>
+				<if test="StrokeWidth != null and StrokeWidth != ''">, StrokeWidth</if>
+				<if test="GradientColor != null and GradientColor != ''">, GradientColor</if>				
+				<if test="FillColor != null and FillColor != ''">, FillColor</if>
+				<if test="StartArrow != null and StartArrow != ''">, StartArrow</if>
+				<if test="EndArrow != null and EndArrow != ''">, EndArrow</if>
+				<if test="EdgeStyle != null and EdgeStyle != ''">, EdgeStyle</if>
+				<if test="ExitX != null and ExitX != ''">, ExitX</if>
+				<if test="ExitY != null and ExitY != ''">, ExitY</if>
+				<if test="ExitPerimeter != null and ExitPerimeter != ''">, ExitPerimeter</if>
+				<if test="EntryX != null and EntryX != ''">, EntryX</if>
+				<if test="EntryY != null and EntryY != ''">, EntryY</if>
+				<if test="EntryPerimeter != null and EntryPerimeter != ''">, EntryPerimeter</if>
+				<if test="HTML != null and HTML != ''">, HTML</if>
+				<if test="Parent != null and Parent != ''">, Parent</if>
+				, SymTypeCode
+				<if test="FontStyle != null and FontStyle != ''">, FontStyle</if>
+				<if test="FontColor != null and FontColor != ''">, FontColor</if>
+				<if test="Path != null and Path != ''">, Path</if>
+				<if test="Relative != null and Relative != ''">, Relative</if>
+				<if test="Rotation != null and Rotation != ''">, Rotation</if>
+				<if test="GradientDirection != null and GradientDirection != ''">, GradientDirection</if>
+				<if test="LabelBackgroundColor != null and LabelBackgroundColor != ''">, LabelBackgroundColor</if>
+				<if test="Opacity != null and Opacity != ''">, Opacity</if>
+				<if test="Shadow != null and Shadow != ''">, Shadow</if>
+				<if test="Dashed != null and Dashed != ''">, Dashed</if>
+				<if test="Rounded != null and Rounded != ''">, Rounded</if>
+				<if test="LabelBorderColor != null and LabelBorderColor != ''">, LabelBorderColor</if>
+				<if test="SpacingTop != null and SpacingTop != ''">, SpacingTop</if>
+				<if test="StartFill != null and StartFill != ''">, StartFill</if>
+				<if test="EndFill != null and EndFill != ''">, EndFill</if>
+				<if test="StartSize != null and StartSize != ''">, StartSize</if>
+				<if test="EndSize != null and EndSize != ''">, EndSize</if>
+				<if test="displaySeq != null and displaySeq != ''">, DisplaySeq</if>
+				,LastUpdated
+				,LastUser
+		)
+		VALUES
+			( #{ElementID}, #{ModelID}, #{ItemID}, #{CategoryCode}, #{ItemTypeCode}, #{ClassCode}, #{Deleted}, #{Link}
+				<if test="FromID != null and FromID != ''">, #{FromID}</if>
+				<if test="ToID != null and ToID != ''">, #{ToID}</if>
+				<if test="PositionX != null and PositionX != ''">, FLOOR(ROUND(#{PositionX},1) * 10 )</if>
+				<if test="PositionY != null and PositionY != ''">, FLOOR(ROUND(#{PositionY},1) * 10 )</if>
+				<if test="Height != null and Height != ''">, FLOOR(ROUND(#{Height},1) * 10 )</if>
+				<if test="Width != null and Width != ''">, FLOOR(ROUND(#{Width},1) * 10 )</if>
+				<if test="Style != null and Style != ''">, #{Style}</if>
+				<if test="StrokeColor != null and StrokeColor != ''">, #{StrokeColor}</if>
+				<if test="StrokeWidth != null and StrokeWidth != ''">, #{StrokeWidth}</if>
+				<if test="GradientColor != null and GradientColor != ''">, #{GradientColor}</if>
+				<if test="FillColor != null and FillColor != ''">, #{FillColor}</if>
+				<if test="StartArrow != null and StartArrow != ''">, #{StartArrow}</if>
+				<if test="EndArrow != null and EndArrow != ''">, #{EndArrow}</if>
+				<if test="EdgeStyle != null and EdgeStyle != ''">, #{EdgeStyle}</if>
+				<if test="ExitX != null and ExitX != ''">, ${ExitX}</if>
+				<if test="ExitY != null and ExitY != ''">, ${ExitY}</if>
+				<if test="ExitPerimeter != null and ExitPerimeter != ''">, ${ExitPerimeter}</if>
+				<if test="EntryX != null and EntryX != ''">, ${EntryX}</if>
+				<if test="EntryY != null and EntryY != ''">, ${EntryY}</if>
+				<if test="EntryPerimeter != null and EntryPerimeter != ''">, ${EntryPerimeter}</if>
+				<if test="HTML != null and HTML != ''">, #{HTML}</if>
+				<if test="Parent != null and Parent != ''">, #{Parent}</if>			
+				<choose><when test="SymTypeCode != null and SymTypeCode != ''">, #{SymTypeCode}</when><otherwise>,'SB00013'</otherwise></choose>	
+				<if test="FontStyle != null and FontStyle != ''">, #{FontStyle}</if>	
+				<if test="FontColor != null and FontColor != ''">, #{FontColor}</if>	
+				<if test="Path != null and Path != ''">, #{Path}</if>
+				<if test="Relative != null and Relative != ''">, #{Relative}</if>
+				<if test="Rotation != null and Rotation != ''">, #{Rotation}</if>
+				<if test="GradientDirection != null and GradientDirection != ''">, #{GradientDirection}</if>
+				<if test="LabelBackgroundColor != null and LabelBackgroundColor != ''">, #{LabelBackgroundColor}</if>
+				<if test="Opacity != null and Opacity != ''">, #{Opacity}</if>
+				<if test="Shadow != null and Shadow != ''">, #{Shadow}</if>
+				<if test="Dashed != null and Dashed != ''">, #{Dashed}</if>
+				<if test="Rounded != null and Rounded != ''">, #{Rounded}</if>
+				<if test="LabelBorderColor != null and LabelBorderColor != ''">, #{LabelBorderColor}</if>
+				<if test="SpacingTop != null and SpacingTop != ''">, #{SpacingTop}</if>
+				<if test="StartFill != null and StartFill != ''">, #{StartFill}</if>
+				<if test="EndFill != null and EndFill != ''">, #{EndFill}</if>
+				<if test="StartSize != null and StartSize != ''">, #{StartSize}</if>
+				<if test="EndSize != null and EndSize != ''">, #{EndSize}</if>
+				<if test="displaySeq != null and displaySeq != ''">, #{displaySeq}</if>
+				,getDate()
+				,#{LastUser}
+			)
+	</insert> 
+	
+	<insert id="insertItemAttr" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_ITEM_ATTR
+		(LanguageID, PlainText, AttrTypeCode
+			, ItemID, ItemTypeCode, ClassCode
+			, FontFamily, FontStyle, FontSize, FontColor
+			<if test="LovCode != null and LovCode != ''">, LovCode</if>
+			, LastUpdated)
+		VALUES (#{languageID}, #{PlainText}, #{AttrTypeCode}
+				, #{ItemID}, #{ItemTypeCode}, #{ClassCode}
+				, #{FontFamily}, #{FontStyle}, #{FontSize}
+				, #{FontColor}
+				<if test="LovCode != null and LovCode != ''">, #{LovCode}</if>
+				, getDate()
+				)		
+	</insert>
+	<insert id="insertModelXML" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_MODEL_TXT (ModelID, LanguageID, ModelXML)
+		VALUES (#{ModelID}, #{LanguageID}, #{ModelXML})
+	</insert>
+	<update id="updateModelXML" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_MODEL_TXT
+		SET ModelXML = #{ModelXML}, LastUser = #{LastUser}, LastUpdated = GetDate() 
+		WHERE ModelID = #{ModelID} AND LanguageID= #{LanguageID}
+	</update>
+	<update id="updateIsModel" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_MODEL
+		SET IsModel = #{IsModel} 
+		WHERE ModelID = #{ModelID}
+	</update>
+	<update id="updateElement" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_ELEMENT
+		SET  
+			 Deleted=#{Deleted}, Link=#{Link}
+			 <choose><when test="FromID != null and FromID != ''">, FromID=#{FromID}</when><otherwise>, FromID=NULL</otherwise></choose>			
+			 <choose><when test="ToID != null and ToID != ''">, ToID= #{ToID}</when><otherwise>, ToID=NULL</otherwise></choose>
+			 <choose><when test="PositionX != null and PositionX != ''">, PositionX=FLOOR(ROUND(#{PositionX},1) * 10)</when><otherwise>, PositionX=NULL</otherwise></choose>
+			 <choose><when test="PositionY != null and PositionY != ''">, PositionY=FLOOR(ROUND(#{PositionY},1) * 10)</when><otherwise>, PositionY=NULL</otherwise></choose>
+			 <choose><when test="Height != null and Height != ''">, Height=FLOOR(ROUND(#{Height},1) * 10)</when><otherwise>, Height=NULL</otherwise></choose>
+			 <choose><when test="Width != null and Width != ''">, Width=FLOOR(ROUND(#{Width},1) * 10)</when><otherwise>, Width=NULL</otherwise></choose>
+			 <choose><when test="Style != null and Style != ''">, Style=#{Style}</when><otherwise>, Style=''</otherwise></choose>
+			 <choose><when test="StrokeColor != null and StrokeColor != ''">, StrokeColor=#{StrokeColor}</when><otherwise>, StrokeColor=NULL</otherwise></choose>
+			 <choose><when test="StrokeWidth != null and StrokeWidth != ''">, StrokeWidth=#{StrokeWidth}</when><otherwise>, StrokeWidth=NULL</otherwise></choose>
+			 <choose><when test="GradientColor != null and GradientColor != ''">, GradientColor= #{GradientColor}</when><otherwise>, GradientColor=''</otherwise></choose>
+			 <choose><when test="FillColor != null and FillColor != ''">, FillColor=#{FillColor}</when><otherwise>, FillColor=''</otherwise></choose>
+			 <choose><when test="StartArrow != null and StartArrow != ''">, StartArrow=#{StartArrow}</when><otherwise>, StartArrow=NULL</otherwise></choose>
+			 <choose><when test="EndArrow != null and EndArrow != ''">, EndArrow=#{EndArrow}</when><otherwise>, EndArrow=NULL</otherwise></choose>
+			 <choose><when test="EdgeStyle != null and EdgeStyle != ''">, EdgeStyle=#{EdgeStyle}</when><otherwise>, EdgeStyle=NULL</otherwise></choose>
+			 <choose><when test="ExitX != null and ExitX != ''">, ExitX=${ExitX}</when><otherwise>, ExitX=NULL</otherwise></choose>
+			 <choose><when test="ExitY != null and ExitY != ''">, ExitY=${ExitY}</when><otherwise>, ExitY=NULL</otherwise></choose>
+			 <choose><when test="ExitPerimeter != null and ExitPerimeter != ''">, ExitPerimeter=${ExitPerimeter}</when><otherwise>, ExitPerimeter=NULL</otherwise></choose>
+			 <choose><when test="EntryX != null and EntryX != ''">, EntryX=${EntryX}</when><otherwise>, EntryX=NULL</otherwise></choose>
+			 <choose><when test="EntryY != null and EntryY != ''">, EntryY=${EntryY}</when><otherwise>, EntryY=NULL</otherwise></choose> 
+			 <choose><when test="EntryPerimeter != null and EntryPerimeter != ''">, EntryPerimeter=${EntryPerimeter}</when><otherwise>, EntryPerimeter=NULL</otherwise></choose>
+			 <choose><when test="HTML != null and HTML != ''">, HTML=#{HTML}</when><otherwise>, HTML=NULL</otherwise></choose>
+			 <choose><when test="Link != null and Link != ''">, ObjectID=#{ItemID}</when><otherwise>, Link=NULL</otherwise></choose>
+			 <choose><when test="Parent != null and Parent != ''">, Parent=#{Parent}</when><otherwise>, Parent=NULL</otherwise></choose>
+			 <choose><when test="SymTypeCode != null and SymTypeCode != ''">, SymTypeCode=#{SymTypeCode}</when><otherwise>, SymTypeCode='SB00013'</otherwise></choose>
+			 <choose><when test="Path != null and Path != ''">, Path=#{Path}</when><otherwise>, Path=''</otherwise></choose>
+			 <choose><when test="FontStyle != null and FontStyle != ''">, FontStyle=#{FontStyle}</when><otherwise>, FontStyle=NULL</otherwise></choose>
+			 <choose><when test="Relative != null and Relative != ''">, Relative=#{Relative}</when><otherwise>, Relative=NULL</otherwise></choose>
+			 <choose><when test="Rotation != null and Rotation != ''">, Rotation=#{Rotation}</when><otherwise>, Rotation=NULL</otherwise></choose>
+			 <choose><when test="GradientDirection != null and GradientDirection != ''">, GradientDirection=#{GradientDirection}</when><otherwise>, GradientDirection=NULL</otherwise></choose>
+			 <choose><when test="LabelBackgroundColor != null and LabelBackgroundColor != ''">, LabelBackgroundColor=#{LabelBackgroundColor}</when><otherwise>, LabelBackgroundColor=NULL</otherwise></choose>
+			 <choose><when test="Opacity != null and Opacity != ''">, Opacity=#{Opacity}</when><otherwise>, Opacity=NULL</otherwise></choose>
+			 <choose><when test="Shadow != null and Shadow != ''">, Shadow=#{Shadow}</when><otherwise>, Shadow=NULL</otherwise></choose>
+			 <choose><when test="Dashed != null and Dashed != ''">, Dashed=#{Dashed}</when><otherwise>, Dashed=NULL</otherwise></choose>
+			 <choose><when test="Rounded != null and Rounded != ''">, Rounded=#{Rounded}</when><otherwise>, Rounded=NULL</otherwise></choose>
+			 <choose><when test="LabelBorderColor != null and LabelBorderColor != ''">, LabelBorderColor=#{LabelBorderColor}</when><otherwise>, LabelBorderColor=NULL</otherwise></choose>
+			 <choose><when test="SpacingTop != null and SpacingTop != ''">, SpacingTop=#{SpacingTop}</when><otherwise>, SpacingTop=NULL</otherwise></choose>
+			 <choose><when test="StartFill != null and StartFill != ''">, StartFill=#{StartFill}</when><otherwise>, StartFill=NULL</otherwise></choose>
+			 <choose><when test="EndFill != null and EndFill != ''">, EndFill=#{EndFill}</when><otherwise>, EndFill=NULL</otherwise></choose>
+			 <choose><when test="StartSize != null and StartSize != ''">, StartSize=#{StartSize}</when><otherwise>, StartSize=NULL</otherwise></choose>
+			 <choose><when test="EndSize != null and EndSize != ''">, EndSize=#{EndSize}</when><otherwise>, EndSize=NULL</otherwise></choose>	
+			 <choose><when test="FontColor != null and FontColor != ''">, FontColor=#{FontColor}</when><otherwise>, FontColor=NULL</otherwise></choose> 
+			 <choose><when test="displaySeq != null and displaySeq != ''">, DisplaySeq=#{displaySeq}</when><otherwise>, DisplaySeq=NULL</otherwise></choose> 
+			 <choose><when test="releaseNo != null and releaseNo != ''">, ReleaseNo=#{releaseNo}</when><otherwise>, ReleaseNo=NULL</otherwise></choose> 
+			, LastUpdated = getDate()
+			, LastUser = #{LastUser}
+		WHERE  ElementID=#{ElementID} AND ModelID=#{ModelID}		
+	</update> 	
+	
+	<update id="updateDeletedFieldOfElement" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_ELEMENT
+		SET  
+			Deleted=#{Deleted}, LastUpdated = getDate(), LastUser = #{LastUser}
+		WHERE ModelID=#{ModelID}		
+	</update> 	
+	 
+	 <update id="updateItemAttr" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_ITEM_ATTR
+		SET  
+			 PlainText=#{PlainText},
+			 FontFamily=#{FontFamily}, 
+			 FontStyle=#{FontStyle}, 
+			 FontSize=#{FontSize},
+			 LastUpdated=GetDate()			
+		WHERE ItemID=#{ItemID}
+			AND AttrTypeCode = 'AT00001'
+			AND LanguageID = #{languageID}		
+	</update>
+	 
+	 <update id="updateItemFromToID" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_ITEM
+		SET  
+			 <choose><when test="FromItemID != null and FromItemID != ''">FromItemID=#{FromItemID},</when><otherwise>FromItemID=NULL,</otherwise></choose>
+			 <choose><when test="ToItemID != null and ToItemID != ''">ToItemID=#{ToItemID},</when><otherwise>ToItemID=NULL,</otherwise></choose>
+			 LastUser=#{LastUser},
+			 LastUpdated=getDate()
+			 <!-- CategoryCode=#{CategoryCode},
+			 ItemTypeCode=#{ItemTypeCode},
+			 ClassCode=#{ClassCode},
+			 LastUser=#{LastUser}, 
+			 LastUpdated=GetDate(),
+			 DefSymCode=#{DefSymCode} -->
+		WHERE ItemID=#{ItemID}		
+	</update>
+	<update id="updateItemStatusByItemID" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_ITEM
+		SET  
+			 Status=(CASE Status WHEN 'REL' THEN #{ItemStatus} ELSE Status END),
+			 LastUser=#{LastUser}, 
+			 LastUpdated=GetDate()
+		WHERE ItemID=#{ItemID}		
+	</update>
+	 
+	 <delete  id="deleteElementToDeleteWithModelID" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_ELEMENT WHERE ModelID=#{ModelID} AND Deleted='1'
+	 </delete>
+	 	 
+	 <delete  id="deleteItemAttrFromModelID" parameterType="java.util.HashMap">
+		DELETE TIA FROM  XBOLTADM.TB_ITEM_ATTR TIA, XBOLTADM.TB_ELEMENT TE
+		WHERE TIA.ItemID=TE.ObjectID AND TE.ModelID = #{ModelID} AND TE.Deleted='1'
+	 </delete>	 
+	 <delete  id="deleteItemFromModelID" parameterType="java.util.HashMap">
+		DELETE TI FROM  XBOLTADM.TB_ITEM TI, XBOLTADM.TB_ELEMENT TE
+		WHERE TI.ItemID=TE.ObjectID AND TE.ModelID = #{ModelID} AND TE.Deleted='1'
+	 </delete>
+	 
+	 <select id="getElementToDelete" resultType="java.util.HashMap">
+	 	SELECT *
+		FROM XBOLTADM.TB_ELEMENT	
+		WHERE ModelID = #{ModelID} AND Deleted='1'
+	 </select> 
+	 
+	 <select id="getItemsWhereMDCategory" resultType="java.util.HashMap">
+	 	SELECT C.ItemID, D.PlainText
+		FROM XBOLTADM.TB_ITEM C
+		LEFT OUTER JOIN	XBOLTADM.TB_ITEM_ATTR D
+			ON	C.ItemID = D.ItemID and D.AttrTypeCode = 'AT00001'
+			AND D.LanguageID = #{languageID}
+		WHERE C.CategoryCode = 'OJ'		
+		ORDER BY C.ItemID	
+	 </select> 
+	 
+	 <select id="getModelsWithItemID" resultType="java.util.HashMap">
+	 	SELECT C.ModelID, D.Name as PlainText
+		FROM  XBOLTADM.TB_MODEL C
+		LEFT OUTER JOIN XBOLTADM.TB_MODEL_TXT D
+			ON C.ModelID = D.ModelID
+		WHERE C.ItemID = #{ItemID}
+			AND D.LanguageID = #{languageID}
+		ORDER BY C.ModelID	
+	 </select> 
+	 
+	 <select id="getMaxModelID" resultType="java.util.HashMap">
+		SELECT MAX(ModelID) + 1 as maxModelID
+		FROM XBOLTADM.TB_MODEL
+	 </select>
+	
+	<select id="getTopModelID" resultType="String">
+		SELECT Top 1 ISNULL(TM.ModelID, #{ModelID}) AS ModelID
+		FROM XBOLTADM.TB_MODEL TM
+			Left Outer Join XBOLTADM.TB_MODEL_TXT IA
+			on TM.ModelID =  IA.ModelID
+		WHERE TM.ItemID = #{ModelID}	
+		AND TM.MTCategory = 'ZARIS'
+		ORDER BY
+			TM.MTCategory ASC, TM.ModelID ASC, IA.Name ASC
+	</select>
+	
+	<select id="getMaxModelIDString" resultType="String">
+		SELECT ISNULL(MAX(ModelID),5000000) + 1 as maxModelID FROM XBOLTADM.TB_MODEL
+	</select>
+	
+	<insert id="insertModel" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_MODEL (
+			ModelID
+			, ItemID
+			, ProjectID
+			, ChangeSetID
+			, ModelTypeCode
+			, MTCategory
+			, GlobalID
+			, Creator
+			, LastUser
+			, CreationTime
+			, LastUpdated
+			, Deleted
+			, Status
+			, Blocked
+			<if test="isModel != null and isModel != ''">
+				,IsModel
+			</if>
+		)VALUES(
+			#{ModelID}
+			, #{ItemID}
+			, #{ProjectID}
+			, #{ChangeSetID}
+			, #{ModelTypeCode}
+			, #{MTCategory}
+			, #{GlobalID}
+			, #{Creator}
+			, #{Creator}
+			, GETDATE()
+			, GETDATE()
+			, #{Deleted}
+			, #{Status}
+			, #{Blocked}
+			<if test="isModel != null and isModel != ''">
+				,#{isModel}
+			</if>
+		)
+	</insert>
+	
+	<insert id="insertModelAttr" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_MODEL_TXT (
+			ModelID, Name, LanguageID, Description
+			<if test="modelXML != null and modelXML != ''">
+			, ModelXML
+			</if>
+			, LastUser, LastUpdated
+			)
+		VALUES (#{ModelID}, #{Name}, #{LanguageID}, #{Description}
+			<if test="modelXML != null and modelXML != ''">
+			, #{modelXML}
+			</if>
+			, #{lastUser}, getDate()
+		)
+	</insert>
+	
+	<select id="getAllSymType" resultType="java.util.HashMap">
+	 	SELECT * FROM  XBOLTADM.TB_SYMBOL_TYPE
+	</select>
+	 
+	<select id="getSymTypeWithImagePath" resultType="java.util.HashMap">
+		SELECT * FROM XBOLTADM.TB_SYMBOL_TYPE WHERE ImagePath=#{ImagePath}		
+	</select>
+	
+	<select id="getSymAlloc" resultType="java.util.HashMap">
+		SELECT * FROM XBOLTADM.TB_SYMTYPE_ALLOCATION 
+		WHERE SymTypeCode=#{SymTypeCode} 		
+		<if test='"Y".equals(cxnCategoryCode)'>And ItemCategoryCode IN ('ST1', 'MCN') </if>
+		<choose>
+    		<when  test="modelTypeCode != null and modelTypeCode !='' " >
+				AND ModelTypeCode=#{modelTypeCode}
+			</when>
+			<otherwise>
+				AND ModelTypeCode='MT001'	
+			 </otherwise>
+		 </choose>
+	</select> 
+	 
+	<select id="getSymTypeWithFromToSymtype" resultType="java.util.HashMap">
+		SELECT * FROM XBOLTADM.TB_SYMBOL_TYPE WHERE FromSymType=#{FromSymType} and ToSymType=#{ToSymType}
+	</select>
+	
+	<update id="updateElementCodes" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_ELEMENT
+		SET  
+			 CategoryCode=#{CategoryCode},
+			 ItemTypeCode=#{ItemTypeCode},
+			 ClassCode=#{ClassCode},
+			 SymTypeCode=#{SymTypeCode},
+			 LastUpdated = getDate(),
+			 LastUser = #{LastUser}
+		WHERE ElementID=#{ElementID} AND ModelID=#{ModelID}		
+	</update>
+	
+	<update id="updateModelBlocked" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_MODEL
+		SET  
+			 Blocked=#{Blocked}	 
+		WHERE ModelID=#{ModelID} AND ItemID=#{ItemID}		
+	</update>
+	
+	<update id="updateModelBlockedOfItem" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_MODEL
+		SET  Blocked=#{Blocked}	 
+		WHERE ItemID=#{ItemID}	
+		<if test="MTCategory != null and MTCategory !='' " >And MTCategory = #{MTCategory}</if>	
+		<if test="changeSetID != null and !changeSetID.equals('')"> And ChangeSetID = #{changeSetID}</if>	
+	</update>
+		
+	<update id="updateModelDefInfo" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_MODEL
+		SET  
+			  LastUpdated = GETDATE()
+			 <if test="Status != null and Status != ''">,Status = #{Status}</if>
+			 <choose>
+		  		<when test="Zoom != null and Zoom != ''">,Zoom=#{Zoom}</when>
+		  		<otherwise>,Zoom=1</otherwise>
+		  	</choose>
+			<if test="Width != null and Width != ''">,Width=#{Width}</if>
+			<if test="Height != null and Height != ''">,Height=#{Height}</if>
+			<if test="Dx != null and Dx != ''">,Dx=#{Dx}</if>
+			<if test="Dy != null and Dy != ''">,Dy=#{Dy}</if>	
+			<if test="refCModelID != null and refCModelID != ''">,RefCModelID = #{refCModelID}</if>
+			,LastUser = #{LastUser}
+		WHERE ModelID=#{ModelID}
+	</update>
+	<select id="getModelTypeCode" resultType="java.util.HashMap">
+	 	SELECT * FROM  XBOLTADM.TB_MODEL WHERE ModelID = #{s_itemID}
+	</select>
+	
+	<update id="updateModelType" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_MODEL 
+		SET
+			ModelTypeCode = #{ModelTypeCode}
+		WHERE ModelID = #{ModelID} 
+	</update>
+	
+	<update id="updateModelMTCategory" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_MODEL 
+		SET
+			Status = #{Status},
+			MTCategory = #{MTCTypeCode},
+			Blocked = #{Blocked},
+			IsPublic = #{IsPublic},
+			ValidFrom = #{ValidFrom},
+			ValidTo = #{ValidTo}
+		WHERE ModelID = #{ModelID} 
+	</update>
+	
+	<update id="updateModelTxt" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_MODEL_TXT 
+		SET
+			Name = #{Name},
+			Description = #{Description}
+		WHERE ModelID = #{ModelID} AND LanguageID = #{languageID}
+	</update>
+	
+	<select id="getModelViewer" resultType="java.util.HashMap">
+		SELECT Top 1 ISNULL(TM.ModelID, #{ItemID}) AS ModelID, TM.ModelTypeCode,
+			TM.ItemID, TM.Status, TMT.ModelXML, TM.Blocked AS ModelBlocked,
+			TM.IsPublic AS ModelIsPublic, TMT.Name As ModelName, TM.MTCategory,
+			TCD.Name AS ModelTypeName, TM.Dx, TM.Dy, TM.IsModel, TM.ChangeSetID,
+			ISNULL(TMNU.URL,'') AS MenuURL, ISNULL(TM.Zoom,1) AS Zoom,
+			ISNULL(TMTP.ZoomOption,'') AS ZoomOption, TD.Name AS MCName,
+			ISNULL(Convert(nvarchar(20),TM.LastUpdated, 111),'-') AS LastUpdated
+		FROM XBOLTADM.TB_MODEL TM WITH (NOLOCK)
+			LEFT OUTER JOIN XBOLTADM.TB_MODEL_TXT TMT WITH (NOLOCK) ON TM.ModelID = TMT.ModelID AND TMT.LanguageID = #{languageID}		 
+			Left Outer Join XBOLTADM.TB_DICTIONARY	TCD WITH (NOLOCK) ON TCD.TypeCode = TM.ModelTypeCode AND TCD.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD WITH (NOLOCK) ON TD.TypeCode = TM.MTCategory AND TD.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MODEL_TYPE TMTP WITH (NOLOCK) ON TMTP.ModelTypeCode = TM.ModelTypeCode
+			Left Outer Join XBOLTADM.TB_MENU TMNU WITH (NOLOCK) ON TMNU.MenuID = TMTP.MenuID
+		WHERE Status IS NOT NULL
+	    	<choose>
+		  		<when test="ModelID != null and ModelID != ''">
+		  			AND TM.ModelID = #{ModelID}
+		  		</when>
+		  		<otherwise>
+		  			AND TM.MTCategory = #{MTCategory}
+		  			AND TM.ItemID = #{ItemID}
+		  		</otherwise>
+		  	</choose>	
+	</select>
+	
+	<select id="getModelInfo" resultType="java.util.HashMap">
+		SELECT 
+			Top 1 ISNULL(TM.ModelID,'') AS ModelID
+			, TM.ItemID, TM.Status
+			, TMT.ModelXML
+			, TM.Blocked AS ModelBlocked
+			, TM.IsPublic AS ModelIsPublic
+			, TMT.Name As ModelName
+			, TCD.Name AS ModelTypeName
+			, TM.ModelTypeCode
+			, TM.Dx, TM.Dy, TM.IsModel
+			, TM.ChangeSetID
+			, ISNULL(TM.Zoom,1) AS Zoom
+			, TD.Name As StatusName
+			, ISNULL(TMT.Description,'') As Description
+		FROM XBOLTADM.TB_MODEL TM
+			LEFT OUTER JOIN XBOLTADM.TB_MODEL_TXT TMT ON TM.ModelID = TMT.ModelID AND TMT.LanguageID = #{languageID}		 
+			Left Outer Join XBOLTADM.TB_DICTIONARY TCD ON TCD.TypeCode = TM.ModelTypeCode AND TCD.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TM.Status AND TD.LanguageID = #{languageID}
+		WHERE TM.ModelID = #{modelID}
+			AND Status IS NOT NULL	
+	</select>
+	
+	<select id="getModelCnt" resultType="String">
+		SELECT COUNT(*) AS CNT_MDL
+		FROM XBOLTADM.TB_MODEL TM
+		WHERE TM.ItemID = #{ItemID} 
+			AND Status IS NOT NULL	
+	</select>	
+	
+	<delete id="delModelTxt" parameterType="java.util.HashMap">
+		DELETE FROM	 XBOLTADM.TB_MODEL_TXT		
+		WHERE ModelID=#{ModelID} 
+	</delete>
+	
+	<delete id="delModel" parameterType="java.util.HashMap">
+		DELETE FROM	 XBOLTADM.TB_MODEL	
+		WHERE ModelID=#{ModelID} 
+	</delete>
+	
+	<select id="createBaseModel" parameterType="java.util.HashMap" statementType="CALLABLE">		
+		{CALL XBOLTADM.${dbFuncCode} (#{ItemID},#{LanguageID},#{UserId},#{FontFamily},#{FontStyle},#{FontSize},#{FontColor}) }
+	</select>
+	
+	<select id="getCpElementList" resultType="java.util.HashMap">
+		SELECT * FROM XBOLTADM.TB_ELEMENT 
+		WHERE ModelID=#{orgModelID} Order By ElementID
+	</select>
+	
+	<select id="getElementListWOLink" resultType="java.util.HashMap">
+		SELECT TE.ModelID, TE.ObjectID, TE.RefLink, TE.ElementID
+		FROM XBOLTADM.TB_ELEMENT TE
+		WHERE TE.ModelID=#{modelID} And ISNULL(TE.Link,'') = ''	And TE.CategoryCode = 'OJ' 
+		      AND TE.RefLink In (Select ToItemID From XBOLTADM.TB_Item Where FromItemID = #{itemID} And CategoryCode = 'ST1' And Deleted != 1 )
+	</select>
+		
+	<insert id="copyModel" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_MODEL 
+			(ModelID,ItemID,ProjectID,ChangeSetID,ModelTypeCode,MTCategory,Status,Blocked,Deleted,Deactivated,Creator,LastUser,CreationTime,LastUpdated,Width,Height,IsModel,RefModelID)
+			SELECT 
+			#{newModelID}
+			<choose>
+				<when test="itemID != null and itemID != ''">,#{itemID}</when>
+				<otherwise>,ItemID</otherwise>
+			</choose>
+			<choose>
+				<when test='"Y".equals(csrYN)'>
+					<if test="projectID != null and projectID != ''">
+						,#{projectID}
+					</if>
+					<if test="changeSetID != null and changeSetID != ''">
+						,#{changeSetID}
+					</if>
+				</when>
+				<otherwise>
+					,ProjectID
+					<choose><when test="changeSetID != null and changeSetID != ''">,#{changeSetID}</when><otherwise>,ChangeSetID</otherwise></choose>
+				</otherwise>
+			</choose>
+			
+			,ModelTypeCode,#{newMTCTypeCode},Status
+			<choose>
+				<when test="blocked != null and blocked != ''">,#{blocked}</when>
+				<otherwise>,0</otherwise>
+			</choose>
+			,Deleted,Deactivated,#{Creator},#{Creator},GETDATE(),GETDATE(),Width,Height,IsModel,#{orgModelID}
+			FROM XBOLTADM.TB_MODEL WHERE ModelID = #{orgModelID}
+	</insert>
+	
+	<insert id="copyModelTxt" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_MODEL_TXT 
+			(ModelID, Name, LanguageID)
+			SELECT 
+				#{newModelID}
+				,#{newModelName}
+				<choose>
+					<when test="LanguageID != null and LanguageID != ''">,#{LanguageID}</when>
+					<otherwise>,languageID</otherwise>
+				</choose>
+			FROM XBOLTADM.TB_MODEL_TXT 
+			WHERE ModelID = #{orgModelID} 
+			<if test="LanguageID != null and LanguageID != ''">AND LanguageID = #{LanguageID}</if>
+				
+	</insert>
+	
+	<insert id="copyModelElement" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_ELEMENT
+			(ModelID, ElementID, ObjectID, CategoryCode, ItemTypeCode, ClassCode,SymTypeCode,
+			<if test="includeItemMaster != null and includeItemMaster != '' and includeItemMaster.equalsIgnoreCase('Y')">
+				Link,
+			</if>
+			RefLink,Deactivated,Deleted,Parent,FromID,ToID,PositionX,PositionY,Width,Height,Style,
+			StrokeColor,StrokeWidth,GradientColor,FillColor,StartArrow,EndArrow,EdgeStyle,ExitX,ExitY,ExitPerimeter,EntryX,EntryY,EntryPerimeter,Path,FontStyle,FontColor,FontSize,
+			Relative,Rotation,GradientDirection,LabelBackgroundColor,Opacity,Shadow,Dashed,Rounded,LabelBorderColor,SpacingTop,FontFamily,StartFill,EndFill,StartSize,SortNum
+			, LastUpdated, LastUser
+			)
+		Select #{newModelID}, ElementID+(#{newModelID}-ModelID), ObjectID,CategoryCode,ItemTypeCode,ClassCode,SymTypeCode,
+			<if test="includeItemMaster != null and includeItemMaster != '' and includeItemMaster.equalsIgnoreCase('Y')">
+				Link,
+			</if>
+			 Link,Deactivated,Deleted,#{newModelID}+(Parent-ModelID)
+			,FromID+(#{newModelID}-ModelID),ToID+(#{newModelID}-ModelID),PositionX,PositionY,Width,Height,Style,StrokeColor,StrokeWidth,GradientColor,FillColor
+			,StartArrow,EndArrow,EdgeStyle,ExitX,ExitY,ExitPerimeter,EntryX,EntryY,EntryPerimeter,Path,FontStyle,FontColor,FontSize,Relative,Rotation
+			,GradientDirection,LabelBackgroundColor,Opacity,Shadow,Dashed,Rounded,LabelBorderColor,SpacingTop,FontFamily,StartFill,EndFill,StartSize,SortNum
+			, getDate(), #{Creator}
+		From XBOLTADM.TB_ELEMENT Where  ModelID = #{orgModelID} AND ElementID=#{orgElementID}	Order By ElementID	
+	</insert>
+	
+	<select id="getModelTxt" resultType="String">
+		SELECT * FROM XBOLTADM.TB_MODEL_TXT
+		WHERE ModelID = #{ModelID} AND LanguageID = #{languageID}
+	</select>	
+	
+	<insert id="insertRefModel" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_MODEL 
+			(ModelID,ItemID,ProjectID,ChangeSetID,ModelTypeCode,MTCategory,Status,Blocked,Deleted,Deactivated
+			,Creator,LastUser,CreationTime,LastUpdated,Width,Height,IsModel,RefModelID)			
+			SELECT #{newModelID},#{ItemID},#{projectID},#{changeSetID},#{newModelTypeCode},#{newMTCTypeCode},Status,0,Deleted,Deactivated
+			,#{Creator},#{Creator},GETDATE(),GETDATE(),Width,Height,IsModel, #{orgModelID} 
+			FROM XBOLTADM.TB_MODEL WHERE ModelID = #{orgModelID}
+	</insert>
+	
+	<insert id="insertRefModelTxt" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_MODEL_TXT (ModelID, LanguageID, Name)
+			VALUES ( #{ModelID}, #{LanguageID}, #{ModelName})
+	</insert>
+	
+	<select id="getSymTypeWithSymCode" resultType="java.util.HashMap">
+		SELECT * FROM XBOLTADM.TB_SYMBOL_TYPE WHERE SymTypeCode=#{SymTypeCode}		
+	</select>
+	
+	<delete  id="delElementS" parameterType="java.util.HashMap">
+		DELETE FROM	XBOLTADM.TB_ELEMENT WHERE ModelID IN (${ModelIDS}) 		
+	</delete>
+	
+	<delete id="delModelTxtS" parameterType="java.util.HashMap">
+		DELETE FROM	 XBOLTADM.TB_MODEL_TXT WHERE ModelID IN (${ModelIDS})
+	</delete>
+	
+	<delete id="delModelS" parameterType="java.util.HashMap">
+		DELETE FROM	 XBOLTADM.TB_MODEL WHERE ModelID IN (${ModelIDS})
+	</delete>
+	
+	<select id="getClassFromItem" resultType="java.util.HashMap">
+		SELECT * FROM XBOLTADM.TB_ITEM WHERE ItemID=#{ItemID}		
+	</select>
+		
+	<select id="getSymbolList_gridList" resultType="java.util.HashMap">		
+		SELECT 
+			Row_Number()OVER(ORDER BY  SymTypeCode DESC ) as RNUM, 
+			SymTypeCode,SymCategory,ItemCategory,ItemTypeCode,ClassCode,DefColor,DefStrokeColor 
+			,TD.Name AS SymTypeName, TD2.Name AS ClassName,'ICON_'+TST.SymTypeCode+'.png' AS SybolIcon
+		FROM XBOLTADM.TB_SYMBOL_TYPE TST
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TST.SymTypeCode AND TD.LanguageID = #{LanguageID}
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = TST.ClassCode AND TD2.LanguageID = #{LanguageID}
+		 WHERE TST.ItemTypeCode = #{ItemTypeCode} And TST.Deactivated != 1
+	</select>
+	
+	<update id="updateSymbolToElement" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_ELEMENT 
+		SET
+			SymTypeCode = #{SymTypeCode}
+			,CategoryCode = #{CategoryCode}
+			,ItemTypeCode = #{ItemTypeCode}
+			,StrokeColor = #{StrokeColor}
+			,FillColor = #{FillColor}
+			,LabelBackgroundColor = #{LabelBackgroundColor}
+			,SpacingTop = #{SpacingTop}
+			,Dashed = #{Dashed}
+			,GradientColor = #{GradientColor}
+			<if test="DefHeight != null and DefHeight != ''">
+				, Height=#{DefHeight} * 10
+			</if>
+			<if test="DefWidth != null and DefWidth != ''">
+				, Width=#{DefWidth} * 10
+			</if>
+			, LastUpdated = getDate()
+			, LastUser = #{UserId}
+		WHERE ModelID = #{ModelID} AND ObjectID = #{ItemID}
+	</update>
+	
+	<select id="getNeedlessItem" resultType="String">
+		Select ItemID FROM XBOLTADM.TB_ITEM
+      	WHERE ItemID IN (Select ItemID FROM XBOLTADM.TB_ITEM Where CategoryCode In ('MOJ', 'MCN', 'TXT') )
+		AND ItemID NOT IN (Select ObjectID From XBOLTADM.TB_ELEMENT where ObjectID is not null  )
+	</select>
+	
+	<select id="getNeedlessToItem" resultType="String">
+		Select ItemID FROM XBOLTADM.TB_ITEM
+    	Where ItemID  Not In (Select ToItemID From XBOLTADM.TB_ITEM Where ToItemID Is Not Null)
+  		And ClassCode In ( 'CL01005', 'CL01006') And ItemID Not In (Select ObjectID From XBOLTADM.TB_ELEMENT )
+  		And ItemID Not In (Select DocumentID From XBOLTADM.TB_FILE Where DocCategory = 'ITM' )
+  		And ItemID Not In (Select ItemID From XBOLTADM.TB_MY_ITEM)
+  		And ItemID Not In (Select ItemID From XBOLTADM.TB_BOARD Where ItemID Is Not Null)
+	</select>
+	
+	<delete  id="deleteNeedlessItemAttr" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_ITEM_ATTR
+      	WHERE ItemID IN (Select ItemID From XBOLTADM.TB_ITEM Where CategoryCode In ('MOJ', 'MCN', 'TXT') )
+   		AND  ItemID NOT IN (Select ObjectID From XBOLTADM.TB_ELEMENT where ObjectID is not null)	
+   		
+	</delete>
+	
+	<delete  id="deleteNeedlessItem" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_ITEM
+      	WHERE ItemID IN (Select ItemID FROM XBOLTADM.TB_ITEM Where CategoryCode In ('MOJ', 'MCN', 'TXT') )
+		AND ItemID NOT IN (Select ObjectID From XBOLTADM.TB_ELEMENT where ObjectID is not null  )
+	</delete>
+	
+	<delete  id="deleteNeedlessItemAttrTo" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_ITEM_ATTR
+	    WHERE ItemID In
+	      (Select ItemID From XBOLTADM.TB_ITEM
+	 		 WHERE ItemID  Not In (Select ToItemID From XBOLTADM.TB_ITEM Where ToItemID IS NOT NULL)
+	  	AND ClassCode IN ( 'CL01005', 'CL01006') AND ItemID Not In(Select ObjectID From XBOLTADM.TB_ELEMENT)
+	 	  )
+	</delete>
+	
+	<delete  id="deleteNeedlessItemInfo" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_ITEM_ATTR
+    	Where ItemID  Not In (Select ToItemID From XBOLTADM.TB_ITEM Where ToItemID Is Not Null)
+  		And ClassCode In ( 'CL01005', 'CL01006') And ItemID Not In (Select ObjectID From XBOLTADM.TB_ELEMENT )
+		And ItemID Not In (Select DocumentID From XBOLTADM.TB_FILE Where DocCategory = 'ITM' )
+  		And ItemID Not In (Select ItemID From XBOLTADM.TB_MY_ITEM)
+  		And ItemID Not In (Select ItemID From XBOLTADM.TB_BOARD Where ItemID Is Not Null)
+	
+	</delete>
+	
+	<delete  id="deleteNeedlessItemTo" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_ITEM
+    	Where ItemID  Not In (Select ToItemID From XBOLTADM.TB_ITEM Where ToItemID Is Not Null)
+  		And ClassCode In ( 'CL01005', 'CL01006') And ItemID Not In (Select ObjectID From XBOLTADM.TB_ELEMENT )
+		And ItemID Not In (Select DocumentID From XBOLTADM.TB_FILE Where DocCategory = 'ITM' )
+  		And ItemID Not In (Select ItemID From XBOLTADM.TB_MY_ITEM)
+  		And ItemID Not In (Select ItemID From XBOLTADM.TB_BOARD Where ItemID Is Not Null)
+	</delete>
+	
+	<delete  id="deleteRootError" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_ITEM
+    	 where ToItemID = 0 and CategoryCode In ('ST1' , 'CN') 
+    	       AND ItemID Not In (Select ItemID from XBOLTADM.TB_ITEM_ATTR where AttrTypeCode = 'AT00001')
+	</delete>
+	
+	<select id="getModelIDWithItemID" resultType="java.util.HashMap">
+		SELECT Top 1 * FROM XBOLTADM.TB_MODEL WHERE ItemID = #{ItemID} And MTCategory = 'ZARIS'	
+	</select>
+	
+	<insert id="insertArisModelTxt" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_MODEL_TXT (ModelID, LanguageID, Name)
+			Select #{newModelID}, #{LanguageID}, Name From XBOLTADM.TB_MODEL_TXT
+			Where ModelID = #{orgModelID} And LanguageID = #{LanguageID} 
+	</insert>
+	
+	<select id="getItemOccList" resultType="java.util.HashMap">
+		Select 
+			TIO.SymbolNum, ISNULL(TST.SymTypeCode,'SB00007') AS SymTypeCode, 
+			TST.ArisTypeNum, TIO.ObjectID, TIO.PositionX, TIO.PositionY, TIO.LinkType,
+			TIO.ItemTypeCode, TIO.ClassCode,
+			Case 
+				When ISNULL(TIO.CategoryCode,'') = 'MD' Then 'OJ'
+				ELSE ISNULL(TIO.CategoryCode,'') END CategoryCode
+	    From XBOLTADM.TB_ITEM_OCC TIO
+	    Left Outer Join XBOLTADM.TB_SYMBOL_TYPE TST ON  TST.ArisTypeNum = TIO.SymbolNum 
+	    Where TIO.ModelID = #{orgModelID}
+	</select>
+	
+	<select id="getItemOccPosition" resultType="java.util.HashMap">
+		Select FLOOR(MAX(PositionX) * 0.4) AS MaxPositionX, 
+			   FLOOR(MAX(PositionY) * 0.5) AS MaxPositionY,
+			   FLOOR(50-MIN(PositionY) * 0.5) AS MinPositionY 
+	    From XBOLTADM.TB_ITEM_OCC Where ModelID = #{orgModelID}
+	</select>
+	
+	<insert id="insertOccElement" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_ELEMENT 
+				(ModelID,ElementID,ObjectID,CategoryCode,ItemTypeCode,ClassCode,SymTypeCode,
+				Link,Deactivated,Deleted,Parent,PositionX,PositionY,
+				Width,Height,Style,StrokeColor,FillColor,SpacingTop,LabelBackgroundColor,
+				GradientColor,Shadow,LastUpdated,LastUser)
+		Values (
+				 #{ModelID},#{ElementID},#{ObjectID},#{CategoryCode},#{ItemTypeCode},#{ClassCode},#{SymTypeCode},
+				 #{ObjectID},'1','0',#{Parent},FLOOR(#{PositionX}*3),FLOOR(#{PositionY}*5) + #{MinPositionY}*10,
+				 FLOOR(#{Width}*10),FLOOR(#{Height}*10),#{Style},#{StrokeColor},#{FillColor},#{SpacingTop},#{LabelBackgroundColor},
+				 #{GradientColor},#{Shadow},getDate(),#{Creator}
+				)	
+	</insert>
+	
+	<insert id="insertArisModel" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_MODEL 
+			(ModelID,ItemID,ModelTypeCode,MTCategory,Status,Blocked,Deleted,Deactivated
+			 ,Creator,LastUser,CreationTime,LastUpdated,Width,Height)
+			SELECT #{newModelID}, #{ItemID}, #{newModelTypeCode},#{newMTCTypeCode},#{Status},ISNULL(Blocked,0),Deleted,Deactivated 
+			       ,#{Creator},#{Creator},GETDATE(),GETDATE()
+				   ,FLOOR(Width * 0.4),FLOOR(Height *  0.5)
+			FROM XBOLTADM.TB_MODEL WHERE ModelID = #{orgModelID}
+	</insert>
+	
+	<select id="selectCompareModelList_gridList" resultType="java.util.HashMap">
+		Select Row_Number()OVER(ORDER BY  TM.ModelID DESC ) as RNUM,
+			TM.ModelID, TMT.Name, TD.Name AS MTCategory, TD2.Name AS ModelTypeName, TM.ModelTypeCode, TCS.Version
+		From XBOLTADM.TB_MODEL TM
+			Left Outer Join XBOLTADM.TB_MODEL_TXT TMT On TM.ModelID = TMT.ModelID And TMT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD On TM.MTCategory = TD.TypeCode  And TD.LanguageID = #{languageID} And TD.Category = 'MC'
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD2 On TM.ModelTypeCode = TD2.TypeCode  And TD2.LanguageID = #{languageID} And  TD2.Category = 'MT'
+			Left Outer Join XBOLTADM.TB_CHANGE_SET TCS ON TM.ChangeSetID = TCS.ChangeSetID
+		Where TM.ItemID = #{ItemID}
+		<if test="ReportCode != null and ReportCode != ''">
+			And MTCategory In ('BAS','TOBE')
+		</if> 
+		
+		ORDER BY TM.ModelID DESC	
+	 </select>
+	 
+	 <select id="getCompareModelList_gridList" resultType="java.util.HashMap">
+		Select Row_Number()OVER(ORDER BY  TM.ModelID DESC ) as RNUM,
+			TM.ModelID, TMT.Name, TD.Name AS MTCategory
+		From XBOLTADM.TB_MODEL TM
+			Left Outer Join XBOLTADM.TB_MODEL_TXT TMT On TM.ModelID = TMT.ModelID And TMT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD On TM.MTCategory = TD.TypeCode  And TD.LanguageID = #{languageID}
+		Where TM.ItemID = #{ItemID} And MTCategory In ('BAS','TOBE')
+		ORDER BY TM.ModelID DESC	
+	 </select>
+	 
+	 <select id="getTobeBasModelList_gridList" resultType="java.util.HashMap">
+	 	Select 
+	 		Row_Number()OVER( ORDER BY SymTypeCode1 ,SymTypeCode2 DESC) as RNUM,
+			ISNULL(Symbol1,'X') AS SymbolBAS,
+			ISNULL(Symbol2,'X') AS SymbolTOBE, 
+			ISNULL(ElementID1,'') AS ElementID1,
+			ISNULL(ElementID2,'') AS ElementID2,
+			ISNULL(PlainText1,'X') AS PlainTextBAS,
+			ISNULL(PlainText2,'X') AS PlainTextTOBE,
+			ISNULL(ClassName1,ClassName2) AS ClassName,
+			ISNULL(SymbolIcon1,'blank.png') AS SymbolIconBAS,
+			ISNULL(SymbolIcon2,'blank.png') AS SymbolIconTOBE,
+			CASE
+					WHEN ISNULL(ObjectID1,'') = '' THEN 'N'
+					WHEN ISNULL(ObjectID2,'') = '' THEN 'D'
+				  ELSE  '-'
+				  END ChangeMode,
+		    ISNULL(ObjectID1,'') AS ObjectID1,
+		    ISNULL(ObjectID2,'') AS ObjectID2	
+		From (Select TE1.ElementID AS ElementID1, TI1.ClassCode AS ClassCode1, TD1.Name AS Symbol1, TIA1.PlainText AS PlainText1, TE1.SymTypeCode AS SymTypeCode1, 
+			    TE1.ObjectID AS ObjectID1, TDCL1.Name AS ClassName1, 'ICON_'+TE1.SymTypeCode+'.png' AS SymbolIcon1
+				From XBOLTADM.TB_ELEMENT TE1 
+				Left Outer Join XBOLTADM.TB_DICTIONARY TD1 On TD1.TypeCode = TE1.SymTypeCode And TD1.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA1 On TIA1.ITEMID = TE1.ObjectID And TIA1.LanguageID = #{languageID} and TIA1.AttrTypeCode = 'AT00001'
+				Left Outer Join XBOLTADM.TB_ITEM TI1 On TI1.ItemID = TE1.ObjectID  
+				Left Outer Join XBOLTADM.TB_DICTIONARY TDCL1 On TDCL1.TypeCode = TI1.ClassCode And TDCL1.LanguageID = #{languageID}
+			  Where TE1.ModelID = #{ModelIDBas} AND TE1.CategoryCode != 'MCN'   ) T1
+		Full Outer JOIN (Select TE2.ElementID AS ElementID2, TI2.ClassCode AS ClassCode2, TD2.Name As Symbol2, TIA2.PlainText AS PlainText2, TE2.SymTypeCode AS SymTypeCode2,
+							TE2.ObjectID AS ObjectID2, TDCL2.Name AS ClassName2, 'ICON_'+TE2.SymTypeCode+'.png' AS SymbolIcon2    
+						 From XBOLTADM.TB_ELEMENT TE2
+					     Left Outer Join XBOLTADM.TB_DICTIONARY TD2 On TD2.TypeCode = TE2.SymTypeCode And TD2.LanguageID = #{languageID}
+					     Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 On TIA2.ITEMID = TE2.ObjectID And TIA2.LanguageID = #{languageID} and TIA2.AttrTypeCode = 'AT00001'
+					     Left Outer Join XBOLTADM.TB_ITEM TI2 On TI2.ItemID = TE2.ObjectID  
+						 Left Outer Join XBOLTADM.TB_DICTIONARY TDCL2 On TDCL2.TypeCode = TI2.ClassCode And TDCL2.LanguageID = #{languageID}
+				  Where TE2.ModelID = #{ModelIDTobe} AND TE2.CategoryCode != 'MCN'  ) T2
+		 ON  ObjectID1 = ObjectID2
+		Order by ISNULL(ClassCode1, ClassCode2)
+	 </select>
+	 
+	 <update id="updateDefSymCodeToItem" parameterType="java.util.HashMap">
+	 	Update XBOLTADM.TB_ITEM Set 
+	 		DefSymCode = #{DefSymCode}
+	 	Where ItemID = #{ItemID}
+	 </update>
+	
+	<select id="selectValidateItemList_gridList" resultType="java.util.HashMap">
+		Select
+			Row_Number()OVER(ORDER BY TI.Identifier) as RNUM 
+		    , XBOLTADM.fn_GetPrePostFromElement(TE.ModelID,TE.ObjectID) AS KBN
+			, TE.ElementID
+			, TE.ModelID AS ModelIDofItem
+			, TE.ObjectID 
+			, Case when XBOLTADM.fn_GetObjectFromElement(TE.ObjectID,#{ItemID}) > 0 then 'model/display/green_link.png'
+				Else 'model/display/red_link.png'
+				End VrfctnLink
+			, ISNULL(TIA.PlainText, 'Untitled' ) AS Name
+			, TI.Identifier			
+			, ISNULL(TMD.Name,'-') AS MTCName
+			, ISNULL(TST.Name,'-') AS StatusName
+			, ISNULL(TB.Name,'-') AS UserName
+			, ISNULL(Convert(nvarchar(20),TM2.LastUpdated, 111),'-') AS LastUpdated	
+			, TI.Blocked As ItemBlocked
+			, TM2.MTCategory
+			, Case When TM2.Blocked  = '1' Then 'btn_view2.png'
+						When TM2.MTCategory  = 'VER' Then 'btn_view2.png'
+			   	 		When TI.AuthorID = #{userId} Then 'btn_gedit.png'
+			   	  		When TI.LockOwner  = #{userId} Then 'btn_gedit.png'
+			   	  		When 1 = #{authLev} Then 'btn_gedit.png'
+			   	  		Else 'btn_view2.png'
+			  End BtnControl
+		  	, TM2.IsPublic
+		  	, TI.AuthorID As ItemAuthorID
+		  	, TM2.Blocked As ModelBlocked
+		  	, TCD.Name AS ModelTypeName
+		  	, ISNULL(TMU.URL,'') AS URL
+		 	, ISNULL(TM2.ChangeSetID,'') AS ChangeSetID
+		 	, TM2.ModelID
+ 		From  XBOLTADM.TB_ELEMENT TE 
+ 		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA On TIA.ItemID = TE.ObjectID And TIA.LanguageID = #{languageID} And TIA.AttrTypeCode='AT00001'
+ 		Left Outer Join XBOLTADM.TB_ITEM TI On TI.ItemID = TE.ObjectID 
+ 		Left Outer Join XBOLTADM.TB_MODEL TM On TM.ModelID = TE.ModelID 
+ 		Left Outer Join (	select * from(
+											select *, ROW_NUMBER() over(partition by ItemID order by LastUpdated Desc) AS tmpMTC From XBOLTADM.TB_MODEL where MTCategory != 'VER'
+										) as tmpModelTbl where tmpMTC = 1
+									) TM2 On TM2.ItemID = TE.ObjectID
+									Left Outer Join XBOLTADM.TB_DICTIONARY TST on TST.TypeCode = TM2.Status AND TST.LanguageID = #{languageID} AND TST.Category= 'MDLSTS'	
+		Left Outer Join XBOLTADM.TB_MEMBER TB on TM2.LastUser = TB.MemberID
+ 		Left Outer Join XBOLTADM.TB_DICTIONARY	TCD on TCD.TypeCode = TM2.ModelTypeCode AND TCD.LanguageID = #{languageID} And TCD.Category = 'MT'
+ 		Left Outer Join XBOLTADM.TB_MODEL_TYPE TMTYP On TMTYP.ModelTypeCode = TM2.ModelTypeCode
+ 		Left Outer Join XBOLTADM.TB_MENU TMU ON TMU.MenuID = TMTYP.MenuID
+ 		Left Outer Join XBOLTADM.TB_DICTIONARY TMD on TMD.TypeCode = TM2.MTCategory AND TMD.LanguageID = #{languageID}
+ 		Where TE.ModelID =#{ModelID} And TM.ModelTypeCode = #{ModelTypeCode}  
+ 		And TE.SymTypeCode in (Select SymTypeCode From XBOLTADM.TB_SYMTYPE_ALLOCATION Where ModelTypeCode =#{ModelTypeCode} and MdlIF='Y')
+ 		And TI.Deleted != 1
+	</select>
+	
+	<select id="selectValidateItemListCnt" resultType="java.util.HashMap">
+		Select count(*) As CNT
+ 		From XBOLTADM.TB_ELEMENT TE
+ 		Left Outer Join XBOLTADM.TB_MODEL TM On TM.ModelID = TE.ModelID  	
+ 		Where TE.ModelID =#{ModelID}
+ 		And TE.SymTypeCode in (Select SymTypeCode From XBOLTADM.TB_SYMTYPE_ALLOCATION Where ModelTypeCode =#{ModelTypeCode} and MdlIF='Y')
+ 		And TM.ModelTypeCode = #{ModelTypeCode}
+ 		<if test="CntType != null and CntType != ''">
+			<choose>
+				<when test="CntType.equals('Consistent')"> 
+				And (Select COUNT(TB.ItemID) From (Select ItemID  from XBOLTADM.TB_ITEM Where ItemID = #{ItemID}) TB Where TB.ItemID in(
+								Select ObjectID From XBOLTADM.TB_ELEMENT Where ModelID = (
+									Select Top 1 ModelID From XBOLTADM.TB_MODEL Where ItemID = TE.ObjectID And MTCategory = 'BAS'))) > 0
+				</when>
+				<when test="CntType.equals('Inconsistent')"> 
+				And (Select COUNT(TB.ItemID) From (Select ItemID  from XBOLTADM.TB_ITEM Where ItemID = #{ItemID}) TB Where TB.ItemID in(
+								Select ObjectID From XBOLTADM.TB_ELEMENT Where ModelID = (
+									Select Top 1 ModelID From XBOLTADM.TB_MODEL Where ItemID = TE.ObjectID And MTCategory = 'BAS'))) = 0
+				</when>
+			</choose>
+		</if>
+	</select>
+	
+	<select id="getTobeBasModelCnt" resultType="java.util.HashMap">
+		Select Count(ISNULL(ElementID1,ElementID2)) As ElementCnt			
+		From (Select TE1.ElementID AS ElementID1,
+			    TE1.ObjectID AS ObjectID1
+			    <choose>
+					<when test="preChangeSet != null and preChangeSet != ''">
+						, TIA1.PlainText AS plainText1
+					</when>
+					<otherwise>
+						,TIA3.PlainText AS plainText1 
+					</otherwise>
+				</choose>
+			  From XBOLTADM.TB_ELEMENT TE1 
+			  <choose>
+					<when test="preChangeSet != null and preChangeSet != ''">
+						Left Outer Join XBOLTADM.TB_ITEM_ATTR_REV TIA1 ON TE1.ObjectID = TIA1.ItemID And TIA1.AttrTypeCode = 'AT00001' And TIA1.LanguageID = #{languageID} And TIA1.ChangeSetID=#{preChangeSet}
+					</when>
+					<otherwise>
+						Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA3 ON TE1.ObjectID = TIA3.ItemID And TIA3.AttrTypeCode = 'AT00001' And TIA3.LanguageID = #{languageID}
+					</otherwise>
+				</choose>
+			  Where TE1.ModelID = #{ModelIDBas} AND TE1.CategoryCode != 'MCN'   ) T1
+		Full Outer JOIN (Select TE2.ElementID AS ElementID2, TE2.ObjectID AS ObjectID2 
+		 <choose>
+					<when test="changeSetID != null and changeSetID != ''">
+						, TIA2.PlainText AS plainText2
+					</when>
+					<otherwise>
+						,TIA4.PlainText AS plainText2 
+					</otherwise>
+				</choose>
+						 From XBOLTADM.TB_ELEMENT TE2
+						 <choose>
+							<when test="changeSetID != null and changeSetID != ''">
+								Left Outer Join XBOLTADM.TB_ITEM_ATTR_REV TIA2 ON TE2.ObjectID = TIA2.ItemID And TIA2.AttrTypeCode = 'AT00001' And TIA2.LanguageID = #{languageID} And TIA2.ChangeSetID=#{changeSetID}
+							</when>
+							<otherwise>
+								Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA4 ON TE2.ObjectID = TIA4.ItemID And TIA4.AttrTypeCode = 'AT00001' And TIA4.LanguageID = #{languageID}
+							</otherwise>
+						</choose>
+				         Where TE2.ModelID = #{ModelIDTobe} AND TE2.CategoryCode != 'MCN'  ) T2
+		 ON  ObjectID1 = ObjectID2
+		 <where>
+			<if test="CntType != null and CntType != ''">
+				<choose>
+					<when test="CntType.equals('New')"> ISNULL(ObjectID1,'') = '' </when>
+					<when test="CntType.equals('Deleted')"> ISNULL(ObjectID2,'') = '' </when>
+					<when test="CntType.equals('NoChange')"> ISNULL(ObjectID1,'') != '' And ISNULL(ObjectID2,'') != '' </when>
+					<when test="CntType.equals('Modified')"> plainText1 != plainText2 </when>
+				</choose>
+			</if>
+		</where>
+	</select>
+	
+	<select id="selectValidateItemListFromModel_gridList" resultType="java.util.HashMap">
+		Select Row_Number()OVER(ORDER BY TI.Identifier) as RNUM 
+			, TM.ModelID
+			, TM.ItemID
+			, TI.Identifier AS Identifier
+			, ISNULL(TIA.PlainText,'Untitled') AS Name, TE.ElementID
+			, Case when XBOLTADM.fn_GetExistObjectFromElement( TM.ItemID, #{ModelID}) > 0 then 'model/display/green_link.png'
+				Else 'model/display/red_link.png'
+				End VrfctnLink
+			, XBOLTADM.fn_GetPrePostFromElement(TE.ModelID,TE.ObjectID) AS KBN
+			, TMD.Name AS MTCName
+			, TST.Name AS StatusName
+			, TB.Name AS UserName
+			, Convert(nvarchar(20),TM.LastUpdated, 111) AS LastUpdated
+			, TI.Blocked As ItemBlocked
+			, TM.MTCategory
+			, Case When TM.Blocked  = '1' Then 'btn_view2.png'
+						When TM.MTCategory  = 'VER' Then 'btn_view2.png'
+			   	 		When TI.AuthorID = #{userId} Then 'btn_gedit.png'
+			   	  		When TI.LockOwner  = #{userId} Then 'btn_gedit.png'
+			   	  		When 1 = #{authLev} Then 'btn_gedit.png'
+			   	  		Else 'btn_view2.png'
+			  End BtnControl
+		  	, TM.IsPublic
+		  	, TI.AuthorID As ItemAuthorID
+		  	, TM.Blocked As ModelBlocked
+		  	, TCD.Name AS ModelTypeName
+		  	, ISNULL(TMU.URL,'') AS URL
+		 	, ISNULL(TM.ChangeSetID,'') AS ChangeSetID
+		From XBOLTADM.TB_MODEL TM
+		Left Outer Join XBOLTADM.TB_ELEMENT TE On TE.ObjectID = #{ItemID}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA On TIA.ItemID = TM.ItemID 
+			And TIA.LanguageID = #{languageID} And TIA.AttrTypeCode='AT00001'
+		Left Outer Join XBOLTADM.TB_ITEM TI On TI.ItemID = TM.ItemID 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TMD on TMD.TypeCode = TM.MTCategory AND TMD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TST on TST.TypeCode = TM.Status AND TST.LanguageID = #{languageID} AND TST.Category= 'MDLSTS'	
+		Left Outer Join XBOLTADM.TB_MEMBER TB on TM.LastUser = TB.MemberID
+		Left Outer Join XBOLTADM.TB_DICTIONARY	TCD on TCD.TypeCode = TM.ModelTypeCode AND TCD.LanguageID = #{languageID} And TCD.Category = 'MT'
+		Left Outer Join XBOLTADM.TB_MODEL_TYPE TMTYP On TMTYP.ModelTypeCode = TM.ModelTypeCode
+ 		Left Outer Join XBOLTADM.TB_MENU TMU ON TMU.MenuID = TMTYP.MenuID
+ 		Where TM.ModelID = TE.ModelID AND TM.ModelTypeCode = #{ModelTypeCode} AND TM.MTCategory IN (${InboundChks})
+ 		And TE.SymTypeCode in (Select SymTypeCode From XBOLTADM.TB_SYMTYPE_ALLOCATION Where ModelTypeCode =#{ModelTypeCode} and MdlIF='Y')
+ 		And TI.Deleted != 1
+	</select>
+	
+	<select id="selectValidateItemListFromModelCnt" resultType="java.util.HashMap">
+		Select Count(TM.ItemID) AS CNT
+		From XBOLTADM.TB_MODEL TM
+		Left Outer Join XBOLTADM.TB_ELEMENT TE On TE.ObjectID = #{ItemID}
+		Where TM.ModelID = TE.ModelID And TM.ModelTypeCode = #{ModelTypeCode}
+		<if test="CntType != null and CntType != ''">
+			<choose>
+				<when test="CntType.equals('Consistent')"> And XBOLTADM.fn_GetExistObjectFromElement(TM.ItemID, #{ModelID}) > 0 </when>
+				<when test="CntType.equals('Inconsistent')"> And XBOLTADM.fn_GetExistObjectFromElement(TM.ItemID, #{ModelID}) = 0 </when>
+			</choose>
+		</if>
+		<if test="InboundChks != null and InboundChks != ''">
+			And TM.MTCategory IN (${InboundChks})
+		</if>
+	</select>
+	
+	<select id="getItemPathName" resultType="java.util.HashMap">
+		SELECT 
+			CONVERT(NVARCHAR(MAX), XBOLTADM.fn_GetMyAbsPathForList(T1.ItemID, #{languageID}) + '/' + CONVERT(NVARCHAR(MAX), T2.PlainText)) AS Path,
+			T2.PlainText As ItemText
+		FROM 
+			XBOLTADM.TB_ITEM T1,
+			XBOLTADM.TB_ITEM_ATTR T2
+		WHERE 	
+			T1.ItemID = #{s_itemID}
+			AND T1.ItemID = T2.ItemID 
+			AND T2.AttrTypeCode = 'AT00001'
+			AND T2.LanguageID = #{languageID}
+	</select>
+	
+	<select id="getValidateElementLst_gridList" resultType="java.util.HashMap">
+		Select  Row_Number()OVER(ORDER BY  TE.ModelID DESC ) as RNUM,
+				TE.FromID, 
+				XBOLTADM.fn_GetExistElement(TE.ModelID,TE.FromID,TE.ToID) AS FromIDEx,
+				TE.ToID, 
+				XBOLTADM.fn_GetExistElement(TE.ModelID,TE.ToID,TE.FromID) AS ToIDEx,
+				ISNULL((Select Identifier From XBOLTADM.TB_ITEM Where ItemID = TIAF.ItemID),'') +' '+TIAF.PlainText As FromName, 
+				ISNULL((Select Identifier From XBOLTADM.TB_ITEM Where ItemID = TIAT.ItemID),'') +' '+TIAT.PlainText As ToName,
+				TIAF.ItemID As FromItemID, 
+				TIAT.ItemID As ToItemID
+		From XBOLTADM.TB_ELEMENT TE
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIAF On TIAF.ItemID = (Select TEFR.ObjectID From XBOLTADM.TB_ELEMENT TEFR Where TEFR.ElementID = TE.FromID And TEFR.ModelID = #{ModelID}) And TIAF.LanguageID = #{languageID} And TIAF.AttrTypeCode='AT00001'
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIAT On TIAT.ItemID = (Select TETO.ObjectID From XBOLTADM.TB_ELEMENT TETO Where TETO.ElementID = TE.ToID And TETO.ModelID = #{ModelID}) And TIAT.LanguageID = #{languageID} And TIAT.AttrTypeCode='AT00001'
+		Where TE.ModelID = #{ModelID}
+		And TE.CategoryCode = 'MCN'
+		And (Select TEF.SymTypeCode From XBOLTADM.TB_ELEMENT TEF Where TEF.ElementID = TE.FromID And TEF.ModelID = #{ModelID}) = 'SB00004'
+		And (Select TET.SymTypeCode From XBOLTADM.TB_ELEMENT TET Where TET.ElementID = TE.ToID And TET.ModelID = #{ModelID}) = 'SB00004'
+		Order By TE.ElementID 
+	</select>
+	
+	
+ 	 
+ 	 <select id="getItemInfoByST1Item" resultType="java.util.HashMap">
+ 	 	Select * From XBOLTADM.TB_ITEM 
+ 	 	Where ToItemID = #{elm_link} 
+ 	 	<choose>
+	    <when test="CategoryCode != null and CategoryCode != ''" >
+	    	And CategoryCode = #{CategoryCode}
+	    </when>
+	    <otherwise> 
+	    	And CategoryCode = 'ST1'
+	    </otherwise>
+	    </choose>
+ 	 </select>
+ 	
+ 	<select id="getElmtsObjectList_gridList" resultType="java.util.HashMap">
+		Select Row_Number()OVER(ORDER BY TE.CategoryCode desc, TI.ClassCode, TI.Identifier) as RNUM
+			, TI.Identifier AS Identifier, TIA.PlainText AS PlainText
+			, TI.ItemID AS ItemID, TE.ElementID
+			, 'ICON_'+TE.SymTypeCode+'.png' AS SymbolIcon
+			, TI.ClassCode, TD.Name As ClassName 
+			, TD2.Name AS ItemStatus
+			, TM.Name AS AuthorName
+		From XBOLTADM.TB_ELEMENT TE
+		Left Outer Join XBOLTADM.TB_ITEM TI ON TE.ObjectID = TI.ItemID 
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TE.ObjectID And TIA.LanguageID = #{languageID} And TIA.AttrTypeCode = 'AT00001'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TI.ClassCode  And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 ON TI.Status = TD2.TypeCode And TD2.LanguageID = #{languageID} AND TD2.Category = 'ITMSTS'
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TI.AuthorID = TM.MemberID 
+		Where TE.ModelID = #{refModelID}
+		And TE.CategoryCode IN ('OJ','MOJ')
+		And TI.Deleted != 1
+		Order by TE.CategoryCode desc, TI.ClassCode, TI.Identifier
+	</select>
+	
+	<select id="getElementsToCombine" resultType="java.util.HashMap">
+		Select *
+		From XBOLTADM.TB_ELEMENT
+		Where ModelID =   (
+							Select Top 1 ModelID 
+							From XBOLTADM.TB_Model
+							Where ItemID = (
+											Select Top 1 ObjectID 
+											From XBOLTADM.TB_ELEMENT 
+											Where ModelID = #{orgModelID} And CategoryCode IN('MOJ','OJ') 
+											And SymTypeCode NOT IN('SB00001','SB00019')
+											Order by ElementID ASC 
+											)
+		And MTCategory = 'BAS'
+		)
+		Order by ElementID
+	</select>
+	
+	<select id="getOjbectListFromModel"  resultType="String">
+		Select ObjectID
+		From XBOLTADM.TB_ELEMENT 
+		Where ModelID = #{orgModelID}
+		 And CategoryCode IN('MOJ','OJ') 
+		 And SymTypeCode NOT IN('SB00001','SB00019')
+		 Order by ElementID ASC 
+	</select>
+	
+	<select id="getElementListToCombineMdl"  resultType="java.util.HashMap">
+		Select TI.Identifier, TE.* 
+		From XBOLTADM.TB_ELEMENT TE
+		Left Outer Join XBOLTADM.TB_ITEM TI ON TE.ObjectID = TI.ItemID 
+		 Where ModelID = (	Select Top 1 ModelID  
+							From XBOLTADM.TB_MODEL 
+							Where ItemID = #{itemIDCom} 
+							And MTCategory = 'BAS')
+		Order By TI.Identifier
+	</select>
+	
+	<select id="getMaxElementSFromNewModel"  resultType="java.util.HashMap">
+		Select MAX(ElementID) As maxElementID, MAX(PositionY)+MAX(Height) As maxPositionY From XBOLTADM.TB_ELEMENT Where ModelID = #{newModelID} 
+	</select>
+	
+	<insert id="insertCombineModelElement" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_ELEMENT
+			(ModelID, ElementID, ObjectID, CategoryCode, ItemTypeCode, ClassCode,SymTypeCode,Link,
+			Deactivated,Deleted,Parent,FromID,ToID,PositionX,PositionY,Width,Height,Style,
+			StrokeColor,StrokeWidth,GradientColor,FillColor,StartArrow,EndArrow,EdgeStyle,ExitX,ExitY,ExitPerimeter,EntryX,EntryY,EntryPerimeter,Path,FontStyle,FontColor,FontSize,
+			Relative,Rotation,GradientDirection,LabelBackgroundColor,Opacity,Shadow,Dashed,Rounded,LabelBorderColor,SpacingTop,FontFamily,StartFill,EndFill,StartSize
+			,LastUpdated,LastUser)
+		Select #{newModelID}, #{maxElementID}+(#{maxElementID}-ElementID), ObjectID,CategoryCode,ItemTypeCode,ClassCode,SymTypeCode,Link
+			,Deactivated,Deleted,
+			Case 
+				When Parent = ModelID +1 Then #{newModelID}+1
+				Else #{maxElementID}+(#{maxElementID}-Parent)
+				End
+			,#{maxElementID}+(#{maxElementID}-FromID),#{maxElementID}+(#{maxElementID}-ToID),PositionX
+			,Case
+				When SymTypeCode = 'SB00001' Then PositionY+#{maxPositionY}
+				When Parent = ModelID +1 Then PositionY+#{maxPositionY}
+				Else PositionY
+				End
+			,Width,Height,Style,StrokeColor,StrokeWidth,GradientColor,FillColor
+			,StartArrow,EndArrow,EdgeStyle,ExitX,ExitY,ExitPerimeter,EntryX,EntryY,EntryPerimeter,Null,FontStyle,FontColor,FontSize,Relative,Rotation
+			,GradientDirection,LabelBackgroundColor,Opacity,Shadow,Dashed,Rounded,LabelBorderColor,SpacingTop,FontFamily,StartFill,EndFill,StartSize
+			,getDate(),#{LastUser}
+		From XBOLTADM.TB_ELEMENT Where ModelID = #{orgModelID} AND ElementID=#{orgElementID}	Order By ElementID	
+	</insert>
+	
+	<select id="getModelIDFromItem" resultType="String">
+		Select Top 1 ModelID From XBOLTADM.TB_MODEL Where ItemID = #{itemID} And MTCategory = 'BAS'
+	</select>
+	<select id="selectPrcssCnnChkList_gridList" resultType="java.util.HashMap">
+		Select
+			Row_Number()OVER(ORDER BY  TI2.Identifier ASC ) as RNUM 
+			,TI2.Identifier As Identifier2
+			,TIA2.PlainText As itemName
+			,TM.ItemID
+			,TI.Identifier As Identifier 
+			,TIA.PlainText AS prePstItemName
+		    , XBOLTADM.fn_GetPrePostFromElement(TE.ModelID,TE.ObjectID) AS KBN
+			,TE.ElementID
+			,TE.ModelID
+			,TE.ObjectID 
+			,Case When XBOLTADM.fn_GetObjectFromElement(TE.ObjectID, TM.ItemID) > 0 Then 'O'
+			Else 'X'
+			End VrfctnLink
+ 		From  XBOLTADM.TB_ELEMENT TE 
+ 		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA On TIA.ItemID = TE.ObjectID And TIA.LanguageID = #{languageID} And TIA.AttrTypeCode='AT00001'
+ 		Left Outer Join XBOLTADM.TB_ITEM TI On TI.ItemID = TE.ObjectID  
+ 		Left Outer Join XBOLTADM.TB_MODEL TM On TM.ModelID = TE.ModelID And TM.ModelTypeCode = 'MT001' 
+ 		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 On TIA2.ItemID = TM.ItemID And TIA2.LanguageID = #{languageID} And TIA2.AttrTypeCode='AT00001'
+ 		Left Outer Join XBOLTADM.TB_ITEM TI2 On TI2.ItemID = TM.ItemID  		
+		<if test="dimValueID != null and !dimValueID.equals('')">
+		Left Outer Join XBOLTADM.TB_ITEM_DIM TID ON TID.ItemID = TI2.ItemID 
+		</if>
+ 		Where TE.ModelID IN(
+					 		Select A.ModelID 
+					 		From (Select * from(
+								Select *, ROW_NUMBER() over(partition by ItemID order by LastUpdated Desc) AS tmpMTC From XBOLTADM.TB_MODEL where MTCategory != 'VER'
+								) AS tmpModelTbl where tmpMTC = 1
+							) A					 		
+						    Where ItemID IN(	
+											 Select TP.ItemID
+											  From XBOLTADM.TW_PROCESS TP
+											  Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA On TIA.ItemID = TP.ItemID And TIA.LanguageID = #{languageID} And TIA.AttrTypeCode = 'AT00001'
+											 Where TP.ItemClassCode = 'CL01005' 
+											   And (TP.L1ItemID = #{ItemID}  or TP.L0ItemID = #{ItemID} )
+									  		)  
+							)
+ 	    And TE.SymTypeCode='SB00004' And TM.ModelTypeCode='MT001' AND TI.Deleted != 1 AND TI2.Deleted != 1
+ 	    <if test="dimValueID != null and !dimValueID.equals('')">And TID.DimValueID = #{dimValueID}</if>
+ 	    Order by  Identifier2
+ 	 </select>
+ 	 
+	<select id="selectPrcssCnnChkInBndList_gridList" resultType="java.util.HashMap">
+		Select
+			Row_Number()OVER(ORDER BY  TI.Identifier ASC ) as RNUM 
+			,TI.Identifier As Identifier2
+			,TIA.PlainText As itemName
+			,TM.ItemID
+			, XBOLTADM.fn_GetPrePostFromElement(TE.ModelID,TE.ObjectID) AS KBN
+			, TE.ObjectID
+			, TI2.Identifier As Identifier
+			, TIA2.PlainText AS prePstItemName	
+			, TE.ElementID	As ElementID
+			, Case When XBOLTADM.fn_GetObjectFromElement(TE.ObjectID, TM.ItemID) > 0 Then 'O'
+			Else 'X'
+			End VrfctnLink
+ 		From   (Select Distinct ModelID From XBOLTADM.TB_ELEMENT Where Link IN(
+							Select TP.ItemID From XBOLTADM.TW_PROCESS TP								
+							Where TP.ItemClassCode = 'CL01005' 
+							And (TP.L1ItemID = #{ItemID} or TP.L0ItemID = #{ItemID})
+						) 	
+				) OBM			
+        Left Outer Join XBOLTADM.TB_MODEL TM ON TM.ModelID = OBM.ModelID
+ 		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA On TIA.ItemID = TM.ItemID And TIA.LanguageID =  #{languageID} And TIA.AttrTypeCode='AT00001'
+ 		Left Outer Join XBOLTADM.TB_ITEM TI On TI.ItemID = TM.ItemID 	
+ 		Left Outer Join XBOLTADM.TB_ELEMENT TE On TE.ModelID = TM.ModelID And ObjectID IN(
+							Select TP.ItemID From XBOLTADM.TW_PROCESS TP								
+							Where TP.ItemClassCode = 'CL01005' 
+							And (TP.L1ItemID = #{ItemID} or TP.L0ItemID = #{ItemID})
+						)
+ 		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 On TIA2.ItemID = TE.ObjectID And TIA2.LanguageID =  #{languageID} And TIA2.AttrTypeCode='AT00001'
+ 		Left Outer Join XBOLTADM.TB_ITEM TI2 On TI2.ItemID = TE.ObjectID
+		 <if test="dimValueID != null and !dimValueID.equals('')">Left Outer Join XBOLTADM.TB_ITEM_DIM TID ON TID.ItemID = TI.ItemID </if>
+ 		Where TM.ModelTypeCode= 'MT001' And TM.MTCategory IN ('BAS','TOBE') AND TI.Deleted != 1
+ 		<if test="dimValueID != null and !dimValueID.equals('')">And TID.DimValueID = #{dimValueID}</if>
+ 	 	order by TI.Identifier, KBN desc, TI2.Identifier
+	</select>
+	
+	<update id="updateProjectID" parameterType="java.util.HashMap">
+		Update XBOLTADM.TB_ITEM Set ProjectID = #{projectID} Where ItemID = #{ItemID}
+	</update>
+	
+	<select id="getIsModel"   resultType="String">
+		Select IsModel From XBOLTADM.TB_MODEL_TYPE Where ModelTypeCode = #{modelTypeCode} 
+	</select>
+	
+	<update id="updateDefSymCodeCl45" parameterType="java.util.HashMap">
+		Update XBOLTADM.TB_ITEM Set DefSymCode = 'SB00004' 
+		Where ItemID in (
+			Select ItemID From XBOLTADM.TB_ITEM
+			Where ItemID IN(Select ToItemID From XBOLTADM.TB_ITEM Where FromItemID = #{ItemID} And CategoryCode='ST1')
+			And ItemTypeCode = 'OJ00001' And ClassCode  in ('CL01004', 'CL01005' )
+		 )
+	 </update>
+	 
+	 <select id="getToItemListCl6" resultType="java.util.HashMap">
+	 	 Select ItemID
+		 From XBOLTADM.TB_ITEM
+		 Where ItemID IN(Select ToItemID From XBOLTADM.TB_ITEM Where FromItemID = #{ItemID} And CategoryCode='ST1')
+		 And ItemTypeCode = 'OJ00001' And ClassCode = 'CL01006' 	
+	 </select>
+	 
+	 <update id="updateDefSymCodeCl6" parameterType="java.util.HashMap">
+	 	Update XBOLTADM.TB_ITEM Set DefSymCode = #{defSymCode} Where ItemID = #{ItemID}	
+	 </update>
+	 
+	 <select id="getPlainText" resultType="String">
+	 	Select PlainText From XBOLTADM.TB_ITEM_ATTR 
+			Where ItemID = #{ItemID} And AttrTypeCode = 'AT00013' And LanguageID = #{LanguageID}
+	 </select>
+	 
+	 <select id="getItemProjectID" resultType="String">
+	 	Select projectID From XBOLTADM.TB_ITEM
+		 where itemID = #{DocumentID}
+	 </select>
+	
+	<select id="getModelNM" resultType="String">
+		SELECT ISNULL(TMT.Name, N'Untitled') +' '+ TD.Name AS ModelName 
+		From XBOLTADM.tb_Model TM
+		Left Outer Join XBOLTADM.TB_MODEL_TXT TMT ON TMT.ModelID = TM.ModelID And TMT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TM.MTCategory And TD.LanguageID = #{languageID}
+		WHERE TM.ModelID = #{modelID} 
+	</select>
+	
+	<update id="updateModelCat" parameterType="java.util.HashMap" >
+		Update XBOLTADM.TB_MODEL Set MTCategory = #{updateMTCategory} 
+		Where MTCategory = #{orgMTCategory}
+		And ItemID = #{itemID} 
+		 <if test="changeSetID != null and !changeSetID.equals('')">And ChangeSetID = #{changeSetID}</if>
+	</update>
+	<update id="updateModelCatOfItem" parameterType="java.util.HashMap" >
+		Update XBOLTADM.TB_MODEL Set MTCategory = #{updateMTCategory} 
+		Where MTCategory = #{orgMTCategory}
+		<choose>
+	    <when test="s_itemIDs != null and s_itemIDs != ''" >
+	    	AND ItemID IN (${s_itemIDs}) 
+	    </when>
+	    <otherwise> 
+	    	<if test="csrID != null and csrID != '' " >
+	    		And ItemID IN(Select ItemID From XBOLTADM.TB_CHANGE_SET Where ProjectID = #{csrID})
+	    	</if> 
+	    </otherwise>
+	    </choose>
+	</update>
+	
+	<select id="getMDLCNT" resultType="String" >
+		Select Count(*) AS MDLCNT From XBOLTADM.TB_MODEL Where ItemID = #{itemID} And Status = #{Status}
+	</select>
+	
+	<!-- Image Get  -->
+<!-- 	<select id="getBatchList" resultType="java.util.HashMap">  		 -->
+<!--  		SELECT TI.ItemID, TM.ModelID, TI.Identifier, (TM.Width+2) as width, (TM.Height+2) as height , TMT.Name, TMT.ModelXML -->
+<!-- 		FROM XBOLTADM.TB_ITEM TI  -->
+<!-- 			INNER JOIN XBOLTADM.TB_MODEL TM ON TI.ItemID = TM.ItemID -->
+<!-- 			INNER JOIN XBOLTADM.TB_MODEL_TXT TMT ON TMT.ModelID = TM.ModelID AND TMT.LanguageID = #{languageID} -->
+<!-- 			<if test="fromItemID != null and fromItemID != ''"> -->
+<!-- 			INNER JOIN XBOLTADM.TW_PROCESS TP ON TI.ItemID = TP.ItemID -->
+<!-- 			</if> -->
+<!-- 		WHERE IsModel = 1 AND TM.MTCategory = 'BAS' AND TMT.ModelXML is Not Null and TM.ModelTypeCode = 'MT001' -->
+<!-- 			<if test="fromItemID != null and fromItemID != ''"> -->
+<!-- 				<choose> -->
+<!-- 					<when test='"1".equals(level)'> -->
+<!-- 						AND L1ItemID = #{fromItemID} -->
+<!-- 					</when> -->
+<!-- 					<when test='"2".equals(level)'> -->
+<!-- 						AND L2ItemID = #{fromItemID} -->
+<!-- 					</when> -->
+<!-- 					<when test='"3".equals(level)'> -->
+<!-- 						AND L3ItemID = #{fromItemID} -->
+<!-- 					</when> -->
+<!-- 				</choose> -->
+<!-- 			</if> -->
+<!-- 		ORDER BY Identifier -->
+<!-- 	</select> -->
+
+		<!-- Image Get  -->
+	<select id="getBatchList" resultType="java.util.HashMap">  		
+ 		SELECT TI.ItemID, TM.ModelID, TI.Identifier, (TM.Width+2) as width, (TM.Height+2) as height , TMT.Name, TMT.ModelXML 
+		FROM XBOLTADM.TB_ITEM TI 
+		INNER JOIN XBOLTADM.TB_MODEL TM ON TI.ItemID = TM.ItemID 
+		INNER JOIN XBOLTADM.TB_MODEL_TXT TMT ON TMT.ModelID = TM.ModelID AND TMT.LanguageID = 1042
+		WHERE IsModel = 1 AND TM.MTCategory = 'BAS' 
+		and TM.ModelTypeCode in ('MT031A','MT032A','MT033A','MT00031AP','MT00032CP','MT00033GDP','MT00033POP','MT00033PSP','MT00033VXI')  
+		and TI.Identifier not like '$%'
+		ORDER BY TI.Identifier ;
+	</select>
+	
+	
+	<select id="getSymbolTypeList" resultType="java.util.HashMap">  		
+		Select
+			TSA.SymTypeCode
+			, ISNULL(TD2.Name, '') AS SymbolNm
+			, ISNULL(TD.Name, '') AS SymbolTitle
+			, TST.SymCategory, TST.ItemCategory
+			, TST.ItemtypeCode, TST.ClassCode
+			, TST.ImagePath, TST.DefFontColor
+			, TST.DefColor, TST.DefStrokeColor, TST.DefFillColor
+			, TST.DefStrokeWidth, TST.DefGradientColor
+			, TST.DefWidth, TST.DefHeight
+			, TST.DefShadow, TST.Deactivated
+			, ISNULL(TST.DefFontFamily, ISNULL(TL.FontFamily,(Select FontFamily From XBOLTADM.TB_LANGUAGE Where IsDefault = 1))) AS DefFontFamily
+			, ISNULL(TST.DefFontStyle, TL.FontStyle) AS DefFontStyle
+			, ISNULL(TST.DefFontSize, TL.FontSize) As DefFontSize
+		From XBOLTADM.TB_SYMTYPE_ALLOCATION TSA WITH (NOLOCK)
+		Left Outer Join XBOLTADM.TB_SYMBOL_TYPE TST WITH (NOLOCK) ON TSA.SymTypeCode = TST.SymTypeCode
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD WITH (NOLOCK) ON TD.TypeCode = TSA.SymTypeCode And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 WITH (NOLOCK) ON TD2.TypeCode = TSA.SymTypeCode And TD2.LanguageID =#{languageID} And TD2.Editable = 1
+		Left Outer Join XBOLTADM.TB_LANGUAGE TL WITH (NOLOCK) ON TL.LanguageID = #{languageID}
+		Where ModelTypeCode = #{modelTypeCode}
+		<if test="mdlIF != null and mdlIF != ''">
+			And TSA.MdlIF = #{mdlIF}
+		</if>
+		<if test="symTypeCodeList != null and symTypeCodeList != ''">
+			And TSA.SymTypeCode IN(${symTypeCodeList})
+		</if>
+		Order by TSA.SortNum
+	</select>
+	
+	<select id="getPlainTextByDataType" resultType="String" >
+		Select 			
+			Case
+			When TAT.DataType = 'LOV' Then TATL.Value
+			When TAT.DataType = 'MLOV' Then ''
+			WHEN #{maxTextLen} IS NOT NULL AND #{maxTextLen}!='' THEN 	
+				CASE
+	                WHEN LEN(ISNULL(Replace(TIA.PlainText, '"', '/quo'), '')) > CAST(#{maxTextLen} AS INT )AND CAST(#{maxTextLen} AS INT ) > 0
+	                THEN SUBSTRING(ISNULL(Replace(Replace(TIA.PlainText, '"', '/quo'), CHAR(13) + CHAR(10), '&lt;br&gt;'), ''), 1,CAST(#{maxTextLen} AS INT )) + '...'
+	                ELSE ISNULL(Replace(Replace(TIA.PlainText, '"', '/quo'), CHAR(13) + CHAR(10), '&lt;br&gt;'), '')
+	            END
+			Else Replace(ISNULL(TIA.PlainText,''), CHAR(13)+CHAR(10), '&lt;br&gt;')
+			End PlainText
+		From XBOLTADM.TB_ITEM_ATTR TIA WITH (NOLOCK)
+		Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT WITH (NOLOCK) ON TAT.AttrTypeCode = TIA.AttrTypeCode 
+		Left Outer Join XBOLTADM.TB_ATTR_TYPE_LOV TATL WITH (NOLOCK) ON TATL.AttrTypeCode = TIA.AttrTypeCode 
+			And TATL.LovCode = TIA.LovCode And TATL.LanguageID = #{languageID}
+		Where TIA.ItemID = #{itemID}
+		And TIA.AttrTypeCode = #{attrTypeCode}
+		And TIA.LanguageID = #{languageID}
+	</select>
+	
+	<select id="getPlainTextByImage" resultType="String" >
+		Select T.PlainText 
+		From (
+			Select Top 1 TIA.AttrTypeCode
+					,Case TAT.DataType
+					When 'LOV' Then TATL.LovCode
+					When 'MLOV' Then ''
+					Else ISNULL(TIA.PlainText,'')
+					End PlainText				
+			From 
+			<choose>
+				<when test='attrRevYN != null and "Y".equals(attrRevYN)'>
+					XBOLTADM.TB_ITEM_ATTR_REV TIA WITH (NOLOCK)
+				</when>
+				 <otherwise> 
+					XBOLTADM.TB_ITEM_ATTR TIA WITH (NOLOCK)
+				</otherwise>
+			</choose>			
+			Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT WITH (NOLOCK) ON TAT.AttrTypeCode = TIA.AttrTypeCode 
+			Left Outer Join XBOLTADM.TB_ATTR_TYPE_LOV TATL WITH (NOLOCK) ON TATL.AttrTypeCode = TIA.AttrTypeCode And TATL.LovCode = TIA.LovCode And TATL.LanguageID = #{defLanguageID}
+			Where TIA.ItemID = #{itemID}
+			And TIA.AttrTypeCode = #{attrTypeCode}
+			) T
+			
+	</select>
+	
+	<select id="getMinPositionXYInfo" resultType="java.util.HashMap" >
+		Select TOP 1 ElementID, Parent, ISNULL(PositionX,'') AS PositionX, ISNULL(PositionY,'') AS PositionY From XBOLTADM.TB_ELEMENT 
+		WHere ModelID = #{modelID} And Link = #{itemID}
+		Order By ISNULL(PositionX,''), ISNULL(PositionY,'') ASC
+	</select>
+	
+	<select id="getPositionXYInfo" resultType="java.util.HashMap" >
+		Select Parent, ElementID, PositionX, PositionY  
+		From XBOLTADM.TB_ELEMENT 
+		Where ElementID = #{elementID}
+		And ModelID = #{modelID}
+	</select>
+	
+	<select id="getElementCNT" resultType="String" >
+		Select COUNT(*)
+		From XBOLTADM.TB_ELEMENT 
+		Where ModelID = #{modelID}
+		<if test="categoryCode != null and categoryCode != ''">
+			And CategoryCode IN('OJ','MOJ')
+		</if>
+	</select>
+	
+	<update id="adjustARISModel" parameterType="java.util.HashMap" >
+		UPDATE XBOLTADM.TB_ELEMENT SET PositionY = PositionY - 300 Where CategoryCode In ('OJ' , 'MOJ') and SymTypeCode != 'SB00001'
+	
+		UPDATE XBOLTADM.TB_ELEMENT  SET PositionX = positionX + 50 , PositionY = PositionY + 70 WHERE symtypeCode = 'SB00002'
+		UPDATE XBOLTADM.TB_ELEMENT  SET PositionY = PositionY + 30 WHERE symtypeCode = 'SB00004'
+		UPDATE XBOLTADM.TB_ELEMENT  SET PositionX = positionX + 240 , PositionY = PositionY - 20 WHERE symtypeCode = 'SB00008'
+		UPDATE XBOLTADM.TB_ELEMENT  SET PositionX = PositionX - 10, PositionY = PositionY - 60 WHERE symtypeCode in ('SB00009' , 'SB00010')
+		UPDATE XBOLTADM.TB_ELEMENT  SET PositionX = PositionX + 90 WHERE symtypeCode = 'SB00012'
+		
+		UPDATE XBOLTADM.TB_ELEMENT  SET ObjectID = ATR2.ItemID ,Link = ATR2.ItemID
+		From XBOLTADM.TB_ELEMENT ELM, XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ITEM_ATTR ATR2
+		WHERE ELM.Link = ATR.ItemID 
+			And ATR.AttrTypeCode = 'AT00001' 
+			And ATR.LanguageID = #{languageID}
+			And ATR.Classcode = 'CL02004'
+			And ATR.PlainText = ATR2.PlainText  
+			And ATR2.AttrTypeCode = 'AT00001' 
+			And ATR2.LanguageID = #{languageID}
+			And ATR2.ClassCode = 'CL02003'
+	</update>
+	
+	<select id="getCurChangeSetID" resultType="String" >
+		Select CurChangeSet From XBOLTADM.tb_Item WITH (NOLOCK) Where ItemID = (Select ItemID From XBOLTADM.TB_MODEL Where ModelId = #{orgModelID})
+	</select>
+
+	<select id="getElementItemList_gridList" resultType="java.util.HashMap">
+		Select 
+			Row_Number()OVER(ORDER BY  TE.SortNum ASC ) AS RNUM,
+			ISNULL(TI.Identifier,'') AS Identifier,
+			TIA.PlainText AS ItemName,
+			TD.Name AS ClassName,
+			TI.ItemID, 
+			TE.ModelID,
+			TE.ElementID,
+			ISNULL(TIT.Icon, 'img_job.png') ItemTypeImg,
+            ISNULL(XBOLTADM.fn_GetMyAbsPathForList( TI.ItemID, #{languageID}),'') AS Path,
+            COM.Name AS ComTeamName,
+            OWN.TeamID AS OwnerTeamID,
+            OWN.Name AS OwnerTeamName,
+            ISNULL(TM.Name,'') + Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')' Else '' End AS AuthorName,
+            ISNULL(TE.SortNum,'') AS SortNum, 
+			Convert(nvarchar(20),TI.LastUpdated, 111) AS LastUpdated,
+			TI.Status,
+			TDS.Name As StatusName,
+			TI.ClassCode,
+			TI.AuthorID,		
+			TI.Blocked,
+			TI.Deleted,
+			TIA2.PlainText AS ProcType,
+			<![CDATA[
+				Case TI.Status When 'NEW1' Then '<span style=color:blue;font-weight:bold>' + TDS.Name + '</span>'
+								When 'MOD1' Then '<span style=color:orange;font-weight:bold>' + TDS.Name + '</span>'
+								When 'MOD2' Then '<span style=color:orange;font-weight:bold>' + TDS.Name + '</span>'
+				ELSE '<span style=color:#000000>' + TDS.Name + '</span>' END 		
+			]]>  AS ItemStatusText,
+			ISNULL(TIC.Icon, '') AS ClassIcon
+		From XBOLTADM.Tb_Element TE, XBOLTADM.TB_Item TI
+		Left Outer join XBOLTADM.TB_Item_Attr TIA ON TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+		Left Outer join XBOLTADM.TB_Item_Attr TIA2 ON TIA2.ItemID = TI.ItemID And TIA2.AttrTypeCode = 'AT00036' And TIA2.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TI.ClassCode And TD.LanguageID = #{languageID}
+		Left Outer JOIN XBOLTADM.TB_ITEM_TYPE TIT ON TI.ItemTypeCode = TIT.ItemTypeCode
+		Left outer join XBOLTADM.TB_TEAM_TXT COM ON TI.CompanyID = COM.TeamID AND COM.LanguageID = #{languageID}
+		Left outer join XBOLTADM.TB_TEAM_TXT OWN ON TI.OwnerTeamID = OWN.TeamID AND OWN.LanguageID = #{languageID}
+		Left outer join XBOLTADM.TB_MEMBER TM ON TI.AuthorID = TM.MemberID
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDS ON TDS.TypeCode = TI.Status And TDS.LanguageID = #{languageID} And TDS.Category = 'ITMSTS'
+		Left outer join XBOLTADM.TB_ITEM_CLASS TIC on TI.ClassCode = TIC.ItemClassCode
+		Where TE.ModelID = #{modelID}
+		And TE.Link = TI.ItemID
+		<choose>
+	    <when test='cxnYN != "Y"' >	    	
+	    	AND TE.CategoryCode IN ('OJ','MOJ','TXT')
+	    </when>
+	    <otherwise> 
+	    	AND TE.CategoryCode IN ('MCN')
+	    </otherwise>
+	    </choose>		
+		<if test="itemIDs != null and itemIDs != ''" >
+			And TE.Link IN (${itemIDs})
+		</if>
+		<if test="classCode != null and classCode != ''">
+			And TI.ClassCode = #{classCode}
+		</if>
+		<if test="searchValue != null and searchValue != ''">
+			<choose>
+				<when test="searchKey.equals('Name')">
+					AND TIA.PlainText like N'%'+#{searchValue}+'%'
+				</when>
+				<when test="searchKey.equals('ID')">
+					AND TI.Identifier Like N'%'+#{searchValue}+'%'	
+				</when>
+			</choose>
+		</if>	
+		<if test="itemTypeCode != null and itemTypeCode != ''">
+			AND TI.ItemTypeCode = #{itemTypeCode}
+		</if>
+		<if test="srType != null and srType != ''">
+			AND TIA2.PlainText = #{srType}
+		</if>
+		Order By TI.ClassCode,TE.SortNum,TI.Identifier,TD.Name ASC
+	</select>
+	
+	<update id="updateModelSortNum" parameterType="java.util.HashMap" >
+		Update XBOLTADM.TB_Element SET 
+			SortNum = #{sortNum}
+		Where ModelID = #{modelID}
+		And ElementID = #{elementID}
+	</update>
+	
+	<select id="getElementCxnItemList_gridList" resultType="java.util.HashMap">
+		Select 
+			Row_Number()OVER(ORDER BY  TE.SortNum ASC ) AS RNUM
+			, TEF.ElementID FromID
+			, ISNULL(TIF.Identifier,'') AS SourceID
+			, TIAF.PlainText AS SourceName
+			, TET.ElementID As ToID
+			, ISNULL(TIT1.Icon, 'img_job.png') FromItemTypeImg
+			, TDF.Name AS SourceClassName
+			, ISNULL(TIT.Identifier,'') AS TargetID
+			, TIAT.PlainText AS TargetName
+			, ISNULL(TIT2.Icon, 'img_job.png') ToItemTypeImg
+			, TDT.Name AS TargetClassName
+			, TIAC.PlainText AS ConnectionName
+			, TE.ObjectID
+			, TE.ElementID AS ElementID
+			, ISNULL(TE.SortNum,'') AS SortNum
+			, TIF.ItemID As SourceItemID
+			, TIT.ItemID As TargetItemID
+		From XBOLTADM.TB_ELEMENT TE
+		Left Outer Join XBOLTADM.TB_ELEMENT TEF ON TEF.ElementID = TE.FromID And TEF.ModelID = TE.ModelID
+		Left Outer join XBOLTADM.TB_ITEM_ATTR TIAF ON TIAF.ItemID = TEF.ObjectID And TIAF.AttrTypeCode = 'AT00001' And TIAF.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_Item TIF ON TIF.ItemID = TEF.Link 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDF ON TDF.TypeCode = TIF.ClassCode And TDF.LanguageID = #{languageID} AND TDF.Category = 'CLS'
+		Left Outer Join XBOLTADM.TB_ELEMENT TET ON TET.ElementID = TE.ToID And TET.ModelID = TE.ModelID
+		Left Outer join XBOLTADM.TB_ITEM_ATTR TIAT ON TIAT.ItemID = TET.ObjectID And TIAT.AttrTypeCode = 'AT00001' And TIAT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_Item TIT ON TIT.ItemID = TET.Link 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDT ON TDT.TypeCode = TIT.ClassCode And TDT.LanguageID = #{languageID} AND TDT.Category = 'CLS'		
+		Left Outer join XBOLTADM.TB_ITEM_ATTR TIAC ON TIAC.ItemID = TE.ObjectID And TIAC.AttrTypeCode = 'AT00001' And TIAC.LanguageID = #{languageID}
+		Left Outer JOIN XBOLTADM.TB_ITEM_TYPE TIT1 ON TIF.ItemTypeCode = TIT1.ItemTypeCode
+		Left Outer JOIN XBOLTADM.TB_ITEM_TYPE TIT2 ON TIT.ItemTypeCode = TIT2.ItemTypeCode
+		Where TE.ModelID = #{modelID}
+		And TE.CategoryCode = 'MCN' AND TE.FromID IS NOT NULL AND TE.ToID IS NOT NULL
+		<if test="sourceClassCode != null and sourceClassCode != ''">
+			And TIF.ClassCode = #{sourceClassCode}
+		</if>
+		<if test="targetClassCode != null and targetClassCode != ''">
+			AND TIT.ClassCode = #{targetClassCode}
+		</if>
+		
+		<if test="sourceName != null and sourceName != ''">
+			And TIAF.PlainText Like '%'+#{sourceName}+'%'
+		</if>
+		<if test="targetName != null and targetName != ''">
+			And TIAT.PlainText Like '%'+#{targetName}+'%'
+		</if>
+	</select>
+	
+	<select id="getGroupElementItemList_gridList" resultType="java.util.HashMap">
+		Select
+			 Row_Number()OVER(ORDER BY  ISNULL(TIC.ClassCode,TEC.SortNum),TIC.ClassCode,TIC.Identifier,TIAC.PlainText ASC ) AS RNUM
+			, TDG.Name AS GroupClassName
+			, ISNULL(TIG.Identifier,'') AS GroupID
+			, ISNULL(TIAG.PlainText,'') AS GroupItemName
+			, TEG.Link AS GroupItemID
+			, TDC.Name AS ChildClassName
+			, ISNULL(TIT.Icon, '') ItemTypeImg
+			, ISNULL(TIC.Identifier,'') AS ChildID
+			, ISNULL(TIAC.PlainText,'') AS ChildItemName
+			, ISNULL(XBOLTADM.fn_GetMyAbsPathForList( TIC.ItemID, #{languageID}),'') AS Path
+			, OWN.Name AS OwnerTeamName
+			, TM.Name AS AuthorName
+			, Convert(nvarchar(20),TIC.LastUpdated, 111) AS LastUpdated
+			, TDS.Name As StatusName
+			, TEC.ObjectID As ChildItemID 
+			, ISNULL(TEC.SortNum,'') AS ChildSourtNum 
+			, TIC.AuthorID
+			, TIC.ClassCode
+			, TIC.Blocked
+		From XBOLTADM.TB_ELEMENT TEC 
+		Left Outer Join XBOLTADM.TB_ELEMENT TEG ON TEG.ModelID = #{modelID} And TEG.Parent IN (Select DisTinct Parent From XBOLTADM.TB_ELEMENT Where ModelId = #{modelID} And Parent != ${modleID}+1)
+		left Outer Join XBOLTADM.TB_Item TIG ON TIG.ItemID = TEG.Link
+		Left Outer join XBOLTADM.TB_Item_Attr TIAG ON TIAG.ItemID = TEG.ObjectID And TIAG.AttrTypeCode = 'AT00001' And TIAG.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDG ON TDG.TypeCode = TIG.ClassCode And TDG.LanguageID = #{languageID}
+		left Outer Join XBOLTADM.TB_Item TIC ON TIC.ItemID = TEC.Link
+		Left Outer join XBOLTADM.TB_Item_Attr TIAC ON TIAC.ItemID = TEC.ObjectID And TIAC.AttrTypeCode = 'AT00001' And TIAC.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDC ON TDC.TypeCode = TIC.ClassCode And TDC.LanguageID = #{languageID}
+		Left outer join XBOLTADM.TB_TEAM_TXT OWN ON TIC.OwnerTeamID = OWN.TeamID AND OWN.LanguageID = #{languageID}
+		Left outer join XBOLTADM.TB_MEMBER TM ON TIC.AuthorID = TM.MemberID
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDS ON TDS.TypeCode = TIC.Status And TDS.LanguageID = #{languageID} And TDS.Category = 'ITMSTS'
+		Left Outer JOIN XBOLTADM.TB_ITEM_TYPE TIT ON TIC.ItemTypeCode = TIT.ItemTypeCode
+		Where TEC.ModelId = #{modelID} 
+		And TEC.ModelID = TEG.ModelID 
+		And TEC.Parent = TEG.ElementID 
+		And TEC.CategoryCode IN ('OJ','MOJ')
+		<if test="groupElementCode != null and groupElementCode != ''">
+			AND TEG.ElementID = #{groupElementCode}
+		</if>
+		<if test="groupClassCode != null and groupClassCode != ''">
+			AND TEG.ClassCode = #{groupClassCode}
+		</if>
+		Order By TIC.ClassCode,TEC.SortNum,TIC.Identifier,TIAC.PlainText
+	</select>
+	
+	
+	 <select id="getItemDefSymCode" resultType="java.util.HashMap">
+	 	SELECT TI.ClassCode
+	 		, ISNULL(TI.DefSymCode, '') AS DefSymCode
+	 		, ISNULL(TIC.DefSymCode,'') As DefSymCodeClass 
+	 	FROM XBOLTADM.TB_ITEM TI
+	 	Left Outer Join XBOLTADM.TB_ITEM_CLASS TIC ON TIC.ItemClassCode = TI.ClassCode
+	 		WHERE ItemID in(${e2eItemIDS})  
+	 </select>  
+	 
+	 <select id="updateDefSymTypeCode" parameterType="java.util.HashMap" statementType="CALLABLE">
+		 { CALL XBOLTADM.UPDATE_DEF_SYMTYPECODE }
+	</select>
+	
+	<select id="getSymTypeCodeItemType" resultType="String">
+		Select Top 1 SymTypeCode 
+		From XBOLTADM.TB_SYMBOL_TYPE 
+		Where itemTypeCode = #{itemTypeCode}
+		And Deactivated != 1 
+	</select>
+	
+	<select id="getModelCount" resultType="String">
+		Select Count(*)
+		From XBOLTADM.TB_MODEL
+		Where ItemID = #{ItemID}
+		And MTCategory = #{MTCategory}
+		And Deactivated != 1 
+	</select>
+	
+	<select id="getModelIDCSID" resultType="String">
+		SELECT Top 1 ModelID FROM XBOLTADM.TB_MODEL WHERE ChangeSetID = #{changeSetID}
+	</select>
+	
+	<select id="getModelBlocked" resultType="String">
+		Select Blocked
+		From XBOLTADM.TB_MODEL WITH (NOLOCK)
+		Where ModelID = #{modelID}
+	</select>
+	
+	<select id="selectModelList" resultType="java.util.HashMap">
+		Select 
+			TMT.ModelID AS CODE,
+			ISNULL(TMT.Name, N'Untitled')+'('+TD.Name+')' AS NAME
+		From XBOLTADM.TB_MODEL TM
+		Left Outer Join XBOLTADM.TB_MODEL_TXT TMT ON TMT.ModelID = TM.ModelID And TMT.LanguageID = #{languageID} 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TM.MTCategory And TD.LanguageID = #{languageID} And TD.Category = 'MC'
+		Where ItemID = #{itemID}
+		And MTCategory != 'VER'
+	</select>
+	
+	<select id="selectModelCategory" resultType="java.util.HashMap">
+	Select distinct TD.Name, TM.MTCategory
+	From XBOLTADM.TB_MODEL TM
+	Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TM.MTCategory = TD.TypeCode AND TD.LanguageID = #{languageID}
+	Where TD.Category = 'MC' AND TD.Editable = 1
+	order by TD.Name
+	</select>
+		
+	<select id="getElementLink" resultType="String">
+		Select Link From XBOLTADM.TB_ELEMENT Where ModelID = #{modelID} And ElementID = #{elementID}
+	</select>
+	
+	<update id="updateElementObject" parameterType="java.util.HashMap">
+		Update XBOLTADM.TB_ELEMENT SET
+			<if test="objectID != null and objectID != ''"> ObjectID = #{objectID}, </if>
+			<if test="link != null and link != ''"> Link = #{link}, </if>
+			LastUpdated = getDate()
+		Where ModelID = #{modelID} And ElementID = #{elementID}			
+	</update>
+	
+	<select id="getModelName_commonSelect" resultType="java.util.HashMap">
+		SELECT TM.ModelID AS CODE, TMT.Name+'('+TD.Name+')' AS NAME
+		FROM XBOLTADM.TB_MODEL TM
+		LEFT OUTER JOIN XBOLTADM.TB_MODEL_TXT TMT ON TM.ModelID = TMT.ModelID AND TMT.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TM.MTCategory = TD.TypeCode AND TD.LanguageID = #{languageID}
+		WHERE TM.ItemID = #{s_itemID}
+		ORDER BY TMT.ModelID DESC
+	</select>
+	
+	<select id="getItemTypeCodeFromSymType" resultType="String">
+		Select ItemTypeCode From XBOLTADM.TB_SYMBOL_TYPE Where SymTypeCode = #{symTypeCode}
+	</select>
+	
+	<select id="getObjectConnIDs" resultType="java.util.HashMap">
+		Select
+			 Row_Number()OVER(ORDER BY LastUpdated ASC ) AS RNUM,  
+			 ItemID 
+		From XBOLTADM.TB_ITEM 
+		Where FromItemID = #{fromObjectID}
+		And ToItemID = #{toObjectID}
+		And Deleted != 1
+		And Categorycode = 'MCN'
+	</select>
+	
+	<select id="getElementCNTFromObjectID" resultType="String">
+		Select COUNT(*) From XBOLTADM.TB_ELEMENT 
+		Where ObjectID = #{itemID} 
+	</select>
+	
+	<select id="getInfoTabURL"  resultType="String">
+		Select ISNULL(InfoTabURL,#{defaultUrl}) From XBOLTADM.TB_MODEL_TYPE Where ModelTypeCode = #{modelTypeCode} 
+	</select>
+	
+	 <select id="getChangeSetModelList_gridList" resultType="java.util.HashMap">
+	 	Select 
+			Row_Number()OVER( ORDER BY SymTypeCode1 ,SymTypeCode2 DESC) as RNUM,
+			ISNULL(Symbol1,Symbol2) AS SymbolName,
+			ISNULL(PlainText1,'-') AS PlainTextBAS,
+			ISNULL(PlainText2,'-') AS PlainTextTOBE,
+			ISNULL(ClassName1,ClassName2) AS ClassName,
+			ISNULL(SymbolIcon1,'blank.png') AS SymbolIconBAS,
+			ISNULL(SymbolIcon2,'blank.png') AS SymbolIconTOBE,
+			CASE
+				WHEN ISNULL(ObjectID1,'') = '' THEN 'New'
+				WHEN ISNULL(ObjectID2,'') = '' THEN 'Deleted'
+				WHEN PlainText1 != PlainText2 THEN 'Modified'
+				ELSE  '-'
+				END ChangeMode,
+			ISNULL(ObjectID1,ObjectID2) AS ObjectID,
+			BaseElementID,
+			TobeElementID,
+			PreChangeSetID,
+			ChangeSetID,
+			ISNULL(ItemTypeCode1,ItemTypeCode2) AS ItemTypeCode,
+			ISNULL(ClassCode1,ClassCode2) AS ItemTypeCode,
+			ISNULL(Identifier1,Identifier2) AS Identifier,
+			ISNULL(SymTypeCode1,SymTypeCode2) AS SymTypeCode
+		From (
+			Select distinct TE1.ObjectID AS ObjectID1, TI1.ClassCode AS ClassCode1, TD1.Name AS Symbol1, 
+			<choose>
+				<when test="releaseNo != null and releaseNo != ''">
+				Case When TIA3.ChangeSetID is not null Then TIA3.PlainText
+				Else TIA1.PlainText 
+				End PlainText1,
+				</when>
+				<otherwise>
+					TIA1.PlainText AS PlainText1,
+				</otherwise>
+			</choose>
+			TE1.SymTypeCode AS SymTypeCode1, 
+			TDCL1.Name AS ClassName1, 'ICON_'+TE1.SymTypeCode+'.png' AS SymbolIcon1,
+			TE1.ElementID AS BaseElementID, 
+			<choose>
+				<when test="releaseNo != null and releaseNo != ''">
+					TIA3.ChangeSetID AS PreChangeSetID
+				</when>
+				<otherwise>
+					TI1.CurChangeSet AS PreChangeSetID
+				</otherwise>
+			</choose>
+			,TI1.ItemTypeCode as ItemTypeCode1
+			,TI1.Identifier AS Identifier1
+			From XBOLTADM.TB_ELEMENT TE1 
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD1 On TD1.TypeCode = TE1.SymTypeCode And TD1.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA1 On TIA1.ITEMID = TE1.ObjectID And TIA1.LanguageID = #{languageID} and TIA1.AttrTypeCode = 'AT00001'
+			<if test="releaseNo != null and releaseNo != ''">
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR_rev TIA3 On TIA3.ITEMID = TE1.ObjectID And TIA3.LanguageID = #{languageID} and TIA3.AttrTypeCode = 'AT00001' and TIA3.ChangeSetID= #{releaseNo}
+			</if>
+			Left Outer Join XBOLTADM.TB_ITEM TI1 On TI1.ItemID = TE1.ObjectID  
+			Left Outer Join XBOLTADM.TB_ITEM TI3 On TI3.ToItemID = TE1.ObjectID and TI3.CategoryCode = 'ST1'
+			Left Outer Join XBOLTADM.TB_DICTIONARY TDCL1 On TDCL1.TypeCode = TI1.ClassCode And TDCL1.LanguageID = #{languageID}
+			Where TE1.ModelID = #{ModelIDBas} AND TE1.CategoryCode != 'MCN'
+		) T1
+		full Outer JOIN (
+			Select  distinct TE2.ObjectID AS ObjectID2,TI2.ClassCode AS ClassCode2, TD2.Name As Symbol2, 
+			<choose>
+				<when test="changeSetID != null and changeSetID != ''">
+				Case When TIA4.ChangeSetID is not null Then TIA4.PlainText
+				Else TIA2.PlainText 
+				End PlainText2,
+				</when>
+				<otherwise>
+					TIA2.PlainText AS PlainText2,
+				</otherwise>
+			</choose>
+			 TE2.SymTypeCode AS SymTypeCode2,
+			TDCL2.Name AS ClassName2, 'ICON_'+TE2.SymTypeCode+'.png' AS SymbolIcon2,
+			TE2.ElementID AS TobeElementID,
+			<choose>
+				<when test="changeSetID != null and changeSetID != ''">
+					TIA4.ChangeSetID AS ChangeSetID
+				</when>
+				<otherwise>
+					TI2.CurChangeSet AS ChangeSetID 
+				</otherwise>
+			</choose>
+			,TI2.ItemTypeCode as ItemTypeCode2
+			,TI2.Identifier AS Identifier2
+			From XBOLTADM.TB_ELEMENT TE2
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD2 On TD2.TypeCode = TE2.SymTypeCode And TD2.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 On TIA2.ITEMID = TE2.ObjectID And TIA2.LanguageID = #{languageID} and TIA2.AttrTypeCode = 'AT00001'
+			<if test="changeSetID != null and changeSetID != ''">
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR_rev TIA4 On TIA4.ITEMID = TE2.ObjectID And TIA4.LanguageID = #{languageID} and TIA4.AttrTypeCode = 'AT00001' and TIA4.ChangeSetID= #{changeSetID}
+			</if>
+			Left Outer Join XBOLTADM.TB_ITEM TI2 On TI2.ItemID = TE2.ObjectID  
+			Left Outer Join XBOLTADM.TB_DICTIONARY TDCL2 On TDCL2.TypeCode = TI2.ClassCode And TDCL2.LanguageID = #{languageID}
+			Where TE2.ModelID = #{ModelIDTobe} AND TE2.CategoryCode != 'MCN' 
+		) T2
+		ON  ObjectID1 = ObjectID2
+		Order by ISNULL(ItemTypeCode1,ItemTypeCode2),ISNULL(ClassCode1,ClassCode2),ISNULL(Identifier1,Identifier2),ISNULL(SymTypeCode1,SymTypeCode2)
+	 </select>
+	 
+	 <select id="getModelXML" resultType="String">
+		 Select ModelXML
+		 From XBOLTADM.TB_MODEL_TEMPL
+		 Where ModelTypeCode = #{modelTypeCode}
+		 And Deactivated != 1
+	</select>
+	
+	<select id="getDiagramList_gridList" resultType="java.util.HashMap">
+		Select 
+			Row_Number()OVER( ORDER BY TDA.DiagramID DESC) AS RNUM, 
+			TDA.DiagramID, TDA.DiagramNM, TDA.DiagramNM_EN,
+			TDA.ModelTypeCode, TDA.ModelXML, TDA.ItemID,
+			TDA.IsPublic, TDA.Deactivated, TDA.Creator,
+			Convert(nvarchar(20),TDA.LastUpdated, 111) AS LastUpdated,
+			TM.Name AS CreatorName,
+			TD.Name AS ModelTypeName,
+			ISNULL(TMT.ZoomOption,'') AS ZoomOption,
+			'btn_view2.png' AS ViewDiagram,
+			Case When TDA.Creator = #{userID} Then 'btn_gedit.png' Else 'blank.png' End AS EditDiagram
+		From XBOLTADM.TB_DIAGRAM TDA
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TDA.Creator 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TDA.ModelTypeCode And TD.LanguageID = #{languageID} And TD.Category = 'MT'
+		Left Outer Join XBOLTADM.TB_MODEL_TYPE TMT ON TMT.ModelTypeCode = TDA.ModelTypeCode 
+		<where>
+			<!-- <if test="userID != null and userID != ''">TDA.Creator=#{userID}</if> -->
+			<if test="diagramID != null and diagramID != ''">
+			    TDA.DiagramID = #{diagramID}
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+			    TDA.DiagramNM like '%' + #{searchValue} + '%'
+			</if>
+		</where>	
+	</select>
+	
+	<select id="getMaxDiagramID" resultType="String">
+		SELECT ISNULL(MAX(DiagramID), 3000) + 1 AS MaxDiagramID FROM XBOLTADM.TB_Diagram
+	</select>
+	
+	<insert id="insertDiagram" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_DIAGRAM (
+							DiagramID, DiagramNM, ModelTypeCode
+							<if test="diagramNM != null and diagramNM != ''">, DiagramNM_EN</if>							
+							<if test="modelXML != null and modelXML != ''">, ModelXML</if>
+							<if test="itemID != null and itemID != ''">, ItemID</if>
+							<if test="isPublic != null and isPublic != ''">, IsPublic</if>
+							<if test="deactivated != null and deactivated != ''">, Deactivated</if>
+							, Creator, LastUser, CreationTime, LastUpdated
+		) VALUES(
+					#{diagramID}, #{diagramNM}, #{modelTypeCode}
+					<if test="diagramNM != null and diagramNM != ''">, #{diagramNM}</if>
+					<if test="modelXML != null and modelXML != ''">, #{modelXML}</if>
+					<if test="itemID != null and itemID != ''">, #{itemID}</if>
+					<if test="isPublic != null and isPublic != ''">, #{isPublic}</if>
+					<if test="deactivated != null and deactivated != ''">, #{deactivated}</if>
+					, #{userID}, #{userID}, GetDate(), GetDate()
+		)		
+	</insert> 
+	
+	<select id="getDiagramNM" resultType="String">
+		SELECT ISNULL(DiagramNM, N'Untitled') AS DiagramNM 
+		From XBOLTADM.TB_DIAGRAM
+		WHERE DiagramID = #{diagramID} 
+	</select>
+	
+	<update id="updateDiagramXML" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_DIAGRAM
+		SET ModelXML = #{modelXML}, LastUser = #{userID}, LastUpdated = GetDate() 
+		WHERE DiagramID = #{diagramID} 
+	</update>
+	
+	<update id="deleteDiagram" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_DIAGRAM WHERE DiagramID = #{diagramID} 
+	</update>
+	
+	<select id="getDhxDiagramList" resultType="java.util.HashMap">
+		Select 
+			TE.ElementID AS id,
+			Case CategoryCode When 'MCN' Then 'line' Else 'rectangle' End AS type,
+			TIA.PlainText As text,
+			TE.FillColor AS fill,
+			TE.StrokeColor As stroke,
+			'#B8C6D6' AS extraLinesStroke, 
+			TE.PositionX/CONVERT(float, 10) AS x,
+			TE.PositionY/CONVERT(float, 10) AS y,
+			TE.FromID AS fromID,
+			TE.ToID As toID,
+			'' AS fromSide,
+			'' As toSide
+		From XBOLTADM.TB_ELEMENT TE
+		Left Outer Join XBOLTADM.TB_Item_Attr TIA ON TIA.ItemID = TE.Link And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+		Where TE.ModelID = #{modelID}
+	</select>
+	
+	
+	<update id="updateElementReleaseNo" parameterType="java.util.HashMap">
+		Update XBOLTADM.TB_ELEMENT
+		   Set ReleaseNo = ITM.ReleaseNo		
+		  From XBOLTADM.TB_ELEMENT ELM
+		       INNER JOIN XBOLTADM.TB_ITEM ITM ON ELM.Link = ITM.ItemID
+		 Where ELM.ModelID In (Select ModelID from XBOLTADM.TB_MODEL Where ChangeSetID = #{changeSetID} ) 
+	</update>
+	
+	<update id="deleteModelFromChangeSet" parameterType="java.util.HashMap">
+		Delete From XBOLTADM.TB_ELEMENT Where ModelID IN (Select ModelID From XBOLTADM.TB_Model Where ChangeSetID = #{changeSetID} And ItemID = #{s_itemID})
+		Delete from XBOLTADM.TB_MODEL_TXT Where ModelID IN (Select ModelID from XBOLTADM.TB_Model Where ChangeSetID = #{changeSetID} And ItemID = #{s_itemID})
+		Delete From XBOLTADM.TB_Model Where ChangeSetID = #{changeSetID} And ItemID = #{s_itemID}
+		Update XBOLTADM.TB_Model Set MTCategory = 'BAS' Where ChangeSetID = #{releaseNo} And ItemID = #{s_itemID}
+	</update>
+	
+	<select id="getElementReleaseNo" resultType="String">
+		SELECT Top 1 ReleaseNo 
+		FROM XBOLTADM.TB_ELEMENT WITH (NOLOCK)
+		Where ModelID = #{modelID}
+		<if test="link != null and link != ''">
+			And Link = #{link}
+		</if>
+		<if test="elementID != null and elementID != ''">
+			And ElementID = #{elementID}
+		</if>
+	</select>
+	
+	<select id="getModelListFromElmLink" resultType="java.util.HashMap">
+		Select TE.ModelID, 
+			(Select ItemID From XBOLTADM.Tb_Model Where ModelID = TE.ModelID) AS ItemID
+		From XBOLTADM.TB_ELEMENT TE 
+		Where ( TE.Link = #{itemID} OR TE.Link IN (Select ToItemID From XBOLTADM.TB_ITEM Where ItemID = #{itemID}) )
+		
+	</select>
+	
+	<select id="getMaxModelIDofItem" resultType="String">
+		SELECT ISNULL(MAX(ModelID),5000000)  as maxModelID FROM XBOLTADM.TB_MODEL WHERE itemID = #{ItemID}
+	</select>
+	
+	<select id="getDiagramType" resultType="String">
+		Select IsModel From XBOLTADM.TB_MODEL Where ModelID = #{modelID} 
+	</select>
+
+	
+</mapper>

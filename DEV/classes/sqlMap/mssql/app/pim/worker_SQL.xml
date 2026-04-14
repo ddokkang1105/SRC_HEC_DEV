@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+       
+<mapper namespace="worker_SQL">
+	
+	<select id="getProcWorkerList_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY TM.EmployeeNum desc) as RNUM
+			,TM.EmployeeNum
+			,TM.Name
+			,TM.Position
+			,XBOLTADM.fn_GetMyAbsPathForOrg(TW.WorkerTeamID , #{languageID}) + '/' + TTT.Name AS TeamPath
+			,TIA.PlainText AS Role
+			,TD.Name As Status
+			,TM.Email
+			,Convert(nvarchar(20),TW.CreationTime, 111) AS CreationTime
+			,TM.MemberID
+			,TM.Authority
+			,'' AS CNT
+			, TM.Name+Case When ISNULL(TM.EMAIL,'') != '' Then '/' +ISNULL(TM.EMAIL,'') Else '' End AS MemberName
+			, <![CDATA[
+			TM.EmployeeNum+'.jpg' As EmployeeNums2,	
+			ISNULL(TM.Name,'') +'/'+ISNULL(TTT2.Name,'') + '<BR>' + ISNULL(TM.Email,'') +'<BR>'
+			+ ISNULL(TM.MTelNum,'') + Case When ISNULL(TM.TelNum,'') != '' Then  ', '  Else '' End + ISNULL(TM.TelNum,'') AS MemberInfo
+			]]> 
+			<if test='"Y".equals(assignmentYN )'>
+			,Case When ISNULL(TM.Photo,'blank_photo.png') = 'blank_photo.png' Then #{blankPhotoUrlPath}
+			Else CAST(#{photoUrlPath} AS varchar(50)) + ISNULL(TM.Photo,'blank_photo.png') END AS Photo
+			</if>
+		FROM XBOLTAPP.PIM_WORKER TW
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TW.MemberID = TM.MemberID
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TTT On TM.TeamID = TTT.TeamID  AND TTT.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TTT2 On TM.CompanyID = TTT2.TeamID  AND TTT2.LanguageID = #{languageID}	  
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA ON TW.RoleID = TIA.ItemID AND TIA.LanguageID = #{languageID} AND TIA.AttrTypeCode='AT00001'
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TW.Status AND TD.Category = 'WKRSTS' AND TD.LanguageID = #{languageID}
+		WHERE TW.ProcInstNo = #{instanceNo}
+		<if test="teamId != null and teamId != ''">
+			AND TM.TeamID = #{teamId}
+		</if>
+		<if test="searchValue != null and searchValue != ''">
+			<choose>
+				<when test="searchKey.equals('Name')">
+					AND TM.Name Like N'%'+#{searchValue}+'%'
+				</when>
+				<when test="searchKey.equals('ID')">
+					AND TM.LoginID Like N'%'+#{searchValue}+'%'
+				</when>
+			</choose>
+		</if>
+	</select>
+	
+	<select id="getStepWorkerList_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY TM.EmployeeNum desc) as RNUM
+			,TM.EmployeeNum
+			,TM.Name
+			,TM.Position
+			,XBOLTADM.fn_GetMyAbsPathForOrg(TW.WorkerTeamID , #{languageID}) + '/' + TTT.Name AS TeamPath
+			,TIA.PlainText AS Role
+			,TD.Name As Status
+			,TM.Email
+			,Convert(nvarchar(20),TW.CreationTime, 111) AS CreationTime
+			,TM.MemberID
+			,TM.Authority
+			,'' AS CNT
+			, TM.Name+Case When ISNULL(TM.EMAIL,'') != '' Then '/' +ISNULL(TM.EMAIL,'') Else '' End AS MemberName
+			, <![CDATA[
+			TM.EmployeeNum+'.jpg' As EmployeeNums2,	
+			ISNULL(TM.Name,'') +'/'+ISNULL(TTT2.Name,'') + '<BR>' + ISNULL(TM.Email,'') +'<BR>'
+			+ ISNULL(TM.MTelNum,'') + Case When ISNULL(TM.TelNum,'') != '' Then  ', '  Else '' End + ISNULL(TM.TelNum,'') AS MemberInfo
+			]]> 
+			<if test='"Y".equals(assignmentYN )'>
+			,Case When ISNULL(TM.Photo,'blank_photo.png') = 'blank_photo.png' Then #{blankPhotoUrlPath}
+			Else CAST(#{photoUrlPath} AS varchar(50)) + ISNULL(TM.Photo,'blank_photo.png') END AS Photo
+			</if>
+		FROM XBOLTAPP.PIM_WORKER TW
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TW.MemberID = TM.MemberID
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TTT On TM.TeamID = TTT.TeamID  AND TTT.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TTT2 On TM.CompanyID = TTT2.TeamID  AND TTT2.LanguageID = #{languageID}	  
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA ON TW.RoleID = TIA.ItemID AND TIA.LanguageID = #{languageID} AND TIA.AttrTypeCode='AT00001'
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TW.Status AND TD.Category = 'WKRSTS' AND TD.LanguageID = #{languageID}
+		WHERE TW.ElmInstNo = #{instanceNo}
+		<if test="teamId != null and teamId != ''">
+			AND TM.TeamID = #{teamId}
+		</if>
+		<if test="searchValue != null and searchValue != ''">
+			<choose>
+				<when test="searchKey.equals('Name')">
+					AND TM.Name Like N'%'+#{searchValue}+'%'
+				</when>
+				<when test="searchKey.equals('ID')">
+					AND TM.LoginID Like N'%'+#{searchValue}+'%'
+				</when>
+			</choose>
+		</if>
+	</select>
+	
+	<select id="getProcRelTeam" resultType="java.util.HashMap">
+		SELECT Distinct
+	      	T2.TeamID As CODE
+	      	,T3.Name As NAME
+		  FROM XBOLTAPP.PIM_WORKER T1
+		  Left outer join XBOLTADM.TB_MEMBER T2 on T1.MemberID = T2.MemberID
+		  Left outer join XBOLTADM.TB_TEAM_TXT T3 on T2.TeamID = T3.TeamID AND T3.LanguageID  = #{sessionCurrLangType}
+		  where T1.ProcInstNo = #{instanceNo}
+	</select>
+	
+	<select id="getStepRelTeam" resultType="java.util.HashMap">
+		SELECT Distinct
+	      	T2.TeamID As CODE
+	      	,T3.Name As NAME
+		  FROM XBOLTAPP.PIM_WORKER T1
+		  Left outer join XBOLTADM.TB_MEMBER T2 on T1.MemberID = T2.MemberID
+		  Left outer join XBOLTADM.TB_TEAM_TXT T3 on T2.TeamID = T3.TeamID AND T3.LanguageID  = #{sessionCurrLangType}
+		  where T1.ElmInstNo = #{instanceNo}
+	</select>
+	
+	<select id="getMaxWorkerCode" resultType="String">
+		Select Max(WorkerCode)+1 As Seq From XBOLTAPP.PIM_WORKER
+	</select>
+	
+	<insert id="createWorkerMemberRel" parameterType="java.util.HashMap">
+ 		INSERT INTO
+ 			XBOLTAPP.PIM_WORKER(WorkerCode, MemberID, WorkerTeamID, ProcInstNo, ElmInstNo, ProcOrgCode, Creator, CreationTime )
+		VALUES(
+			#{WorkerCode}
+			,#{MemberID}
+			,(SELECT TeamID FROM XBOLTADM.TB_MEMBER WHERE MemberID = #{MemberID})
+			,#{ProcInstNo}
+			,#{ElmInstNo}
+			,(SELECT ProcOrg FROM XBOLTAPP.PIM_PROC_INST WHERE ProcInstNo = #{ProcInstNo})
+			,#{Creator}
+			,getDate()
+		)
+ 	</insert>
+ 	
+ 	<delete id="delWorkerMemberRel" parameterType="java.util.HashMap">
+ 		DELETE 
+ 		FROM
+ 			XBOLTAPP.PIM_WORKER
+		WHERE
+			ProcInstNo = #{ProcInstNo}
+			<if test="ElmInstNo != null and ElmInstNo != ''">
+			AND ElmInstNo = #{ElmInstNo}
+			</if>
+			<if test="MemberID != null and MemberID != ''">
+			AND MemberID = #{MemberID}
+			</if>
+			<if test="teamID != null and teamID != ''">
+			AND MemberID IN (Select MemberID From XBOLTADM.TB_MEMBER Where TeamID = #{teamID} )
+			</if>
+ 	</delete>
+	
+	<insert id="createPimWorker" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTAPP.PIM_WORKER
+		(	
+			WorkerNo
+			, MemberID
+			,WorkerTeamID
+			,ProcInstNo
+			,ElmInstNo
+			,RoleID
+			,Status
+			,Creator
+			,CreationTime
+			,LastUser
+			,LastUpdated
+		)
+		VALUES
+		(
+			 #{workerNo}
+			, #{memberID}
+			, #{workerTeamID}
+			, #{procInstNo}
+			, #{elmInstNo}
+			, #{roleID}
+			, #{status}
+			, #{Creator}
+			, getdate()
+			, #{LastUser}
+			, getdate()
+		)
+	</insert>
+	
+	<delete id="deletePimWorker" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTAPP.PIM_WORKER
+		WHERE ProcInstNo = #{procInstNo}
+		<if test="elmInstNo != null and elmInstNo != ''">
+			AND ElmInstNo = #{elmInstNo}
+		</if>
+	</delete>
+	
+	<select id="maxWorkerNo" resultType="String">    
+		SELECT
+			ISNULL(MAX(WorkerNo), 'W000000000') AS MaxWorkerNo 
+		FROM
+			XBOLTAPP.PIM_WORKER
+			Where WorkerNo like 'W%' 
+	</select>
+	
+	<select id="getPimWorkerList" resultType="java.util.HashMap">    
+		SELECT 
+			PW.MemberID AS memberID
+			, TM.Name AS memberName
+			, TTT.Name AS teamName
+		FROM XBOLTAPP.PIM_WORKER PW			 
+			Left Join XBOLTADM.TB_MEMBER TM ON PW.MemberID = TM.MemberID
+			Left Join XBOLTADM.TB_TEAM_TXT TTT ON TM.TeamID = TTT.TeamID AND TTT.LanguageID = 1042
+		WHERE PW.ProcInstNo = #{procInstNo}
+		AND PW.ElmInstNo = #{elmInstNo}
+		<if test="MemberID != null and MemberID != ''">
+			AND PW.MemberID = #{MemberID}
+		</if>
+	</select>
+	
+</mapper>

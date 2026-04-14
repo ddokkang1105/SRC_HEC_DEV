@@ -1,0 +1,1485 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="esm_SQL">
+
+
+ 	<select id="getESTypeInfo" resultType="java.util.HashMap">
+	 	Select ESTP.ESTypeCode,
+			ESTP.ItemTypeCode,
+			ESTP.MenuID,
+			ESTP.ProcessID,
+			ESTP.VarFilter,
+			ESTP.DocCategory,
+			TM.URL AS ESTypeUrl,
+			ESTP.ManagerID AS ESManagerID,
+			ESTP.MgtGRID AS ESMgtGRID,			
+			MBR.TeamID AS ESMgtTeamID,
+			ESTP.DefARC AS DefArcCode,
+			ESTP.DefTempl AS DefTemplCode
+	 	From XBOLTAPP.ESM_ES_TYPE ESTP
+	 	Left Outer Join XBOLTADM.TB_MENU TM ON TM.MenuID = ESTP.MenuID
+	 	Left Outer Join XBOLTADM.TB_MEMBER MBR ON MBR.MemberID = ESTP.ManagerID 
+ 		Where ESTypeCode = #{esTypeCode}
+ 	</select>
+ 	
+ 	<select id="getESMSRTypeInfo" resultType="java.util.HashMap">
+	 	Select EST.SRTypeCode,
+			EST.ItemTypeCode,
+			EST.MenuID,
+			EST.ProcModelID,
+			EST.VarFilter,
+			EST.WFDocURL,
+			EST.WFAprvURL,
+			EST.DocCategory,
+			EST.EvalTypeCode,
+			EST.DefWFID,
+			EST.ItemProposal,
+			TM.URL AS SRTypeUrl,
+			EST.ManagerID,
+			EST.MgtGRID,
+			MBR.TeamID,
+			EST.DefARC AS DefArcCode,
+			EST.DefTempl AS DefTemplCode
+	 	From XBOLTAPP.ESM_SR_TYPE EST
+	 	Left Outer Join XBOLTADM.TB_MENU TM ON TM.MenuID = EST.MenuID
+	 	Left Outer Join XBOLTADM.TB_MEMBER MBR ON MBR.MemberID = EST.ManagerID 
+ 		Where SRTypeCode = #{srTypeCode}
+ 	</select>
+ 	
+ 	<select id="getESMSRAreaLabelName" resultType="String">
+	 	Select TD.Name AS SRAreaLabelName 
+		From XBOLTAPP.ESM_SR_AREA TSA
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TSA.ItemClassCode And TD.LanguageID = #{languageID} And TD.Category = 'CLS'
+		<if test="itemTypeCode != null and itemTypeCode != ''">
+		Left Outer Join XBOLTADM.TB_ITEM_CLASS TIC ON TIC.ItemClassCode = TSA.ItemClassCode
+		</if>
+		Where SRTypeCode = #{srType} And TSA. Level = #{level}
+		<if test="itemTypeCode != null and itemTypeCode != ''">
+		AND TIC.ItemTypeCode = #{itemTypeCode}
+		</if>
+		Order By TSA.Level ASC
+ 	</select>
+
+ 	<select id="getProcPathList" resultType="java.util.HashMap">
+	 	Select TE.ElementID AS StatusCode, TIA.PlainText AS StatusName, TE.SortNum, TE.CategoryCode
+		From XBOLTADM.TB_ELEMENT TE
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TE.ObjectID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+		Where TE.ModelID = #{procPathID} And TE.CategoryCode = 'MOJ'
+		Order By TE.SortNum ASC
+	</select> 	
+	
+	<insert id="insertIspNip" parameterType="java.util.HashMap">
+		Insert Into 
+			XBOLTAPP.ESM_ITMP_MST(
+				SRID,
+				SRType,
+				ItemID,
+				ParentID,
+				Description,
+				ProposalType,
+				Status,
+				ProposerID,
+				ProposerTeamID,
+				CreationTime,
+				LastUpdated,
+				LastUser
+			)Values(
+				#{srID},
+				#{srType},
+				#{srArea3},
+				#{parentID},
+				#{description},
+				#{proposalType},
+				#{status},
+				#{proposerID},
+				#{proposerTeamID},
+				getdate(),
+				getdate(),
+				#{requestUserID}
+			)
+	</insert>
+	
+	<select id="getMaxITMPID" resultType="String">
+		Select ISNULL(MAX(ITMPID),0)+1 
+		  From XBOLTAPP.ESM_ITMP_MST 			
+	</select>
+	
+	<select id="getItemProposalID" resultType="String">
+		Select ItemProposalID 
+		  From XBOLTADM.TB_CR_MST 
+		 WHERE ItemID = #{itemID} 
+		       AND SRID = #{srID} 				
+	</select>
+	
+	<delete id="deleteItemProposalIDForSRID" parameterType="java.util.HashMap">
+		DELETE
+		  From XBOLTAPP.ESM_ITMP_MST 
+		 WHERE SRID = #{srID} 				
+	</delete>
+		
+	<select id="getItemInfoForSRType" resultType="String">
+		
+		SELECT  TST.ItemTypeCode
+		  FROM  XBOLTAPP.ESM_SR_TYPE TST
+		 WHERE TST.SRTypeCode =  #{srType}
+	</select>
+	
+	<select id="getSRMenuURL" resultType="String">
+		Select TM.URL AS SRMenuURL
+		From XBOLTAPP.ESM_SR_TYPE TRT
+		Left Outer Join XBOLTADM.TB_MENU TM ON TM.MenuID = TRT.MenuID 
+		Where SRTypeCode = #{srTypeCode}
+ 	</select>
+ 	
+ 	<select id="getSrItemList_gridList" resultType="java.util.HashMap" >
+		Select Top 1000
+			 Row_Number() OVER(ORDER BY  TI.ItemTypeCode ASC, TI.Identifier ASC, TIA.PlainText ASC ) AS RNUM
+			, 1 AS CHK 
+			, TI.Identifier  
+			, ISNULL(TIA.PlainText,'') As ItemNM
+			, TDC.Name AS ClassName
+			, TI.ClassCode
+			, ISNULL(TM.Name,'') AS AuthorName
+			, ISNULL(XBOLTADM.fn_GetMyAbsPathForList( TI.ItemID, #{languageID}),'') AS Path
+			, TI.Status
+			, TI.ItemID
+			, TDS.Name AS StatusNM
+			, Convert(nvarchar(20),TI.LastUpdated, 120) AS LastUpdated
+		From XBOLTADM.TB_ITEM TI
+		Left Outer Join XBOLTADM.TB_Item_Attr TIA ON TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDC ON TDC.TypeCode = TI.ClassCode And TDC.LanguageID = #{languageID} 
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TI.AuthorID = TM.MemberID
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_CLASS TCLS ON TCLS.ItemClassCode = TI.ClassCode
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TDS ON TI.Status = TDS.TypeCode AND TDS.Category = 'ITMSTS' AND TDS.LanguageID = #{languageID}
+    	LEFT OUTER JOIN XBOLTAPP.ESM_ITMP_MST TIP ON TI.ItemID = TIP.ItemID    	
+		Where TI.Deleted != 1 AND TI.CategoryCode = 'OJ' AND TCLS.ChangeMgt = '1'
+		<if test="srID != null and srID != ''">
+			AND TIP.SRID = #{srID} 
+			And TIP.ItemID IS NOT NULL
+		</if>
+		<if test="itemTypeCode != null and itemTypeCode != ''">
+			And TI.ItemTypeCode = #{itemTypeCode}
+		</if>
+		<if test="itemIDs != null and itemIDs != ''">
+			And TI.itemID in (${itemIDs})
+		</if>
+		<if test="isNew != null and isNew != ''">
+			And TI.itemID not in (SELECT ItemID FROM XBOLTAPP.ESM_ITMP_MST WHERE Status = '00')
+		</if>
+		Order By TI.ItemTypeCode, TI.Identifier , ItemNM, CHK		
+	</select>	
+		
+ 	<select id="getProcStatusList" resultType="java.util.HashMap">
+	 	SELECT
+	 		Row_Number() OVER(ORDER BY  TE.SortNum, TI.IDENTIFIER ) AS RNUM 
+	 		, TI.IDENTIFIER AS TypeCode
+	 		, TIA.PlainText AS StsName
+		  FROM XBOLTAPP.ESM_SR_MST TSC 
+		       INNER JOIN XBOLTADM.TB_ELEMENT TE ON TSC.ProcPathID = TE.ModelID
+		       INNER JOIN XBOLTADM.TB_ITEM TI ON TE.ObjectID = TI.ItemID And TE.ClassCode = #{itemClassCode}
+      		   LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA ON TI.ItemID = TIA.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+		 WHERE TSC.SRID = #{srID} 
+		 And ISNULL(TI.IDENTIFIER,'') != '' AND TI.ClassCode = 'CL03004'
+		 <if test="srStatus != null and srStatus != ''">
+		 	And ISNULL(TI.IDENTIFIER,'') = #{srStatus}
+		 </if>
+		 ORDER BY  TE.SortNum ,TI.IDENTIFIER
+	</select>
+	
+	<select id="getSRCategoryForID" resultType="String">
+		Select ISNULL(SubCategory,Category) AS SRCatID
+		From XBOLTAPP.ESM_SR_MST
+		Where SRID = #{srID}
+ 	</select>
+ 	
+ 	<select id="getEsrMSTList_gridList" resultType="java.util.HashMap">
+	 	Select 
+			Top 1000  TBD.*
+		From(
+		 	Select
+		 		Row_Number()OVER(ORDER BY TSM.SRCODE DESC ) as RNUM,
+		 	 	TSM.SRID, TSM.SRCode, TSM.SRType, TD5.Name AS SRTypeNM,
+				TSM.CustGRNo, TEAM6.Name AS CustGRName,
+				TSM.ProjectID, TPT.Name As ProjectName, 
+				TSM.Subject, TSM.Comment,TSM.Description,
+				TSM.ProcPathID, TSM.SRArea1, TIA.PlainText As SRArea1Name,
+				TSM.SRArea2, TIA2.PlainText As SRArea2Name, ISNULL(TSM.SRArea3,'0') AS SRArea3,
+				TSM.Category,  TD4.Name As CategoryNM,
+				TSM.SubCategory, ISNULL(TD3.Name, TD4.Name) As SubCategoryNM,
+				TSM.Priority, TD.Name As PriorityName,
+				TSM.Status, TISA.PlainText As StatusName, TSM.RegUserID, TM2.Name As RegUserName,
+				TSM.RegTeamID, TEAM1.Name As RegTeamName,
+				ISNULL(CONVERT(char(10),TSM.RegDT, 120),'') as RegDate,				
+				TSM.RequestUserID, TM3.Name As ReqUserNM,
+				TSM.RequestTeamID, TEAM2.Name As ReqTeamNM,
+				ISNULL(CONVERT(char(10),TSM.DueDate, 120),'') as SRDueDate,				
+				ISNULL(CONVERT(char(10),TSM.ReqDueDate, 120),'') as ReqDueDate,				
+				TSM.ReceiptUserID, TM4.Name As ReceiptName, TD7.Name As SRReasonNM,
+				TSM.ReceiptTeamID, TEAM3.Name As ReceiptTeamName,
+				TM4.Name + '(' + TEAM3.Name + ')' as ReceiptInfo,
+				TM3.Name + '(' + TEAM2.Name + ')' as RequestInfo,
+				TSM.ResponseUserID, TM5.Name As ResponseUserName,
+				TSM.ResponseTeamID, TEAM4.Name As ResponseTeamName,
+				ISNULL(CONVERT(char(10),TSM.CompletionDT, 120),'') as SRCompletionDT,
+				
+				TSM.RegDT As RegDTOrg,
+				TSM.ReqDueDate AS ReqDueDateOrg,
+				TSM.DueDate as DueDateOrg,
+				TSM.CompletionDT As CompletionDTOrg,
+				TSM.CompanyID,TEAM5.Name As CompanyName,
+				TSM.Classification As Classification,
+				TSM.ReceiptTeamID As SRReceiptTeamID,
+				Case When CompletionDT IS NULL Then 'N' Else 'Y' End AS SvcCompl,
+				XBOLTAPP.fn_GetStartEventCode(TSM.SRID, TSM.ProcPathID)  AS FirstSpeCode,
+				
+				ReceiptDelay = CASE WHEN TSM.Duedate is null THEN 
+												CASE WHEN CONVERT(INT, DATEDIFF(HH, TSM.RegDT, GETDATE())) >= 12 THEN 'Y'
+														ELSE 'N'
+												END
+											ELSE 'N'
+										END,
+			 	CompletionDelay = CASE WHEN TSM.CompletionDT is null THEN 
+														CASE 
+															<![CDATA[ WHEN TSM.Duedate < GETDATE() THEN 'Y' ]]>
+															ELSE 'N'
+														END
+														WHEN TSM.CompletionDT is not null THEN 
+															CASE 
+																<![CDATA[WHEN TSM.Duedate < tsm.CompletionDT THEN 'Y']]>
+																ELSE 'N'
+															END
+														END,
+				ISNULL(CONVERT(char(10),SRVIEW.MaxCRDueDate, 21),'') as CRDueDate,
+				SRVIEW.CRReceiptTeamID,
+				ISNULL(CONVERT(char(10),SRVIEW.maxCRCompletionDT, 21),'') as CRCompletionDT,
+				TI.Identifier AS ItemCode,
+				TIA3.PlainText AS ItemName,
+				TSM.ItemTypeCode,
+				ISNULL(TD2.Name, TD6.Name) AS ItemTypeCodeNM,
+				TI.Identifier+' '+TIA3.PlainText+' ('+TIA.PlainText+'/'+TIA2.PlainText+')' AS ItemInfo,
+				TIA.PlainText+'/'+TIA2.PlainText AS SRAreaNM
+			From XBOLTAPP.ESM_SR_MST TSM
+			Left Outer Join XBOLTADM.TB_MEMBER TM2 On TM2.MemberID = TSM.RegUserID
+			Left Outer Join XBOLTADM.TB_MEMBER TM3 On TM3.MemberID = TSM.RequestUserID
+			Left Outer Join XBOLTADM.TB_MEMBER TM4 On TM4.MemberID = TSM.ReceiptUserID
+			Left Outer Join XBOLTADM.TB_MEMBER TM5 On TM5.MemberID = TSM.ResponseUserID
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT ON TPT.ProjectID = TSM.ProjectID And TPT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD4 On TD4.TypeCode = TSM.Category AND TD4.Category = 'SRCAT' And TD4.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD3 On TD3.TypeCode = TSM.SubCategory And TD3.Category = 'SRCAT' And TD3.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TSM.Priority And TD.Category = 'PRT' And TD.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM TIS ON TSM.Status = TIS.Identifier
+			Left Outer Join XBOLTADM.TB_ELEMENT TE ON TSM.ProcPathID = TE.ModelID AND TE.CategoryCode = 'MOJ' AND TIS.ItemID = TE.ObjectID
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TISA ON TISA.ItemID = TIS.ItemID And TISA.AttrTypeCode = 'AT00001' And TISA.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM1 ON TEAM1.TeamID = TSM.RegTeamID And TEAM1.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM2 ON TEAM2.TeamID = TSM.RequestTeamID And TEAM2.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM3 ON TEAM3.TeamID = TSM.ReceiptTeamID And TEAM3.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM4 ON TEAM4.TeamID = TSM.ResponseTeamID And TEAM4.LanguageID = #{languageID} 
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM5 ON TEAM5.TeamID = TSM.CompanyID And TEAM5.LanguageID = #{languageID} 
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TSM.SRArea1 And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID  =  #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 ON TIA2.ItemID = TSM.SRArea2 And TIA2.AttrTypeCode = 'AT00001' And TIA2.LanguageID  =  #{languageID}
+			Left Outer Join XBOLTADM.OLM_SRSUMMARY_VIEW SRVIEW ON SRVIEW.SRID = TSM.SRID
+			Left Outer Join XBOLTADM.TB_ITEM TI ON TSM.SRArea3 = TI.ItemID
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA3 ON TIA3.ItemID = TSM.SRArea3 And TIA3.AttrTypeCode = 'AT00001' And TIA3.LanguageID  =  #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD2 On TD2.TypeCode = TSM.ItemTypeCode And TD2.Category = 'OJ' And TD2.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD5 On TD5.TypeCode = TSM.SRType And TD5.Category = 'SRTP' And TD5.LanguageID = #{languageID}
+			Left Outer Join XBOLTAPP.ESM_SR_TYPE EST On EST.srtypecode = TSM.srtype
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD6 On TD6.TypeCode = EST.ItemTypeCode And TD6.Category = 'OJ' And TD6.LanguageID = #{languageID}
+			Left Outer Join XBOLTAPP.CRM_CUST_MST CCM ON TSM.CustGRNo = CCM.CustomerNo
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM6 ON TEAM6.TeamID = CCM.TeamID And TEAM6.LanguageID = #{languageID} 
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD7 On TD7.TypeCode = TSM.Reason And TD7.Category = 'SRRSN' And TD7.LanguageID = #{languageID}
+		) AS TBD 
+		<where>
+		    <if test="esType != null and esType != ''">
+				TBD.ESType = #{esType}
+			</if>
+			<if test="srType != null and srType != ''">
+				TBD.SRType = #{srType}
+			</if>
+			<if test="srMode != null and srMode.equals('mySR')">
+				AND #{loginUserId}  In (RequestUserID, ReceiptUserID , RegUserID)
+			</if>
+			<if test="srMode != null and srMode.equals('myVOC')">
+				AND #{loginUserId}  In (RequestUserID, ReceiptUserID)
+			</if>
+			<if test="srMode != null and srMode.equals('myTR')">
+				AND TBD.SRID In (Select PID from XBOLTADM.TB_PROC_LOG where ActorID = #{loginUserId} and ActivityID = 'ACTP003')
+			</if>
+			<if test="srMode != null and srMode.equals('myTeam')">
+				AND #{myTeamId}  In (TBD.RequestTeamID, TBD.ReceiptTeamID)
+			</if>		
+			<if test="srStatus != null and srStatus != ''">
+				<choose>
+					<when test="srStatus.equals('ING')">
+						And SvcCompl = 'N' 
+					</when>
+					<when test="srStatus.equals('COMPL')">
+						And SvcCompl = 'Y' 
+					</when>
+					<when test="srStatus.equals('ALL')">
+					</when>
+					<otherwise>
+						AND TBD.Status = #{srStatus}
+					</otherwise>
+				</choose>
+			</if>
+			<if test="srStatusArr != null and srStatusArr != ''">
+				AND TBD.Status IN (${srStatusArr})
+			</if>
+			<if test="srMode != null and srMode.equals('PG')">
+				AND TBD.ProjectID IN(Select ProjectID From XBOLTADM.TB_PROJECT Where RefPGID = #{refID} And ProjectType = 'PJT' )
+			</if>	
+			<if test="srMode != null and srMode.equals('PJT')">
+				AND TBD.ProjectID = #{refID} 
+			</if>	
+			<if test="requestUserName != null and requestUserName != ''">
+				AND ReqUserNM like N'%'+#{requestUserName}+'%'
+			</if>
+			<if test="regUserName != null and regUserName != ''">
+				AND RegUserName like N'%'+#{regUserName}+'%'
+			</if>
+			<if test="receiptUserName != null and receiptUserName != ''">
+				AND ReceiptName like N'%'+#{receiptUserName}+'%'
+			</if>
+			<if test="regStartDate != null and regStartDate != ''">
+				AND <![CDATA[ CONVERT(varchar(10), TBD.RegDate, 120) BETWEEN #{regStartDate} AND #{regEndDate}  ]]>
+			</if>
+			<if test="srArea1 != null and srArea1 != ''">
+				AND TBD.SRArea1 = #{srArea1}
+			</if>
+			<if test="srArea2 != null and srArea2 != ''">
+				AND TBD.SRArea2 = #{srArea2}
+			</if>
+			<if test="category != null and category != ''">
+				AND TBD.Category = #{category} 
+			</if>
+			<if test="subCategory != null and subCategory != ''">
+				AND TBD.SubCategory = #{subCategory}
+			</if>
+			<if test="priority != null and priority != ''">
+				AND TBD.Priority = #{priority} 
+			</if>
+			<if test="stSRDueDate != null and stSRDueDate != ''">
+				AND <![CDATA[ CONVERT(varchar(10), TBD.SRdueDate, 120) BETWEEN #{stSRDueDate} AND #{endSRDueDate}  ]]>
+			</if>
+			<if test="stCRDueDate != null and stCRDueDate != ''">
+				AND <![CDATA[ CONVERT(varchar(10), TBD.CRdueDate, 120) BETWEEN #{stCRDueDate} AND #{endCRDueDate}  ]]>
+			</if>
+			<if test="completionDT != null and completionDT != ''">
+				AND <![CDATA[ Convert(varchar(10),TBD.CompletionDT, 120)  <= #{completionDT}  ]]>
+			</if>
+			<if test="srCode != null and srCode != ''">
+				AND TBD.SRCode like N'%'+#{srCode}+'%'
+			</if>
+			<if test="srID != null and srID != ''">
+				AND TBD.SrID = #{srID}
+			</if>
+			<if test="requestTeam != null and requestTeam != ''">
+				AND TBD.RequestTeamID = #{requestTeam}
+			</if>
+			<if test="responseTeamID != null and responseTeamID != ''">
+				AND TBD.ResponseTeamID = #{responseTeamID}
+			</if>
+			<if test="srReceiptTeam != null and srReceiptTeam != ''">
+				AND TBD.SRReceiptTeamID = #{srReceiptTeam}
+			</if>
+			<if test="receiptDelay != null and receiptDelay != ''">
+				AND TBD.ReceiptDelay = #{receiptDelay}
+			</if>
+			<if test="completionDelay != null and completionDelay != ''">
+				AND TBD.CompletionDelay = #{completionDelay}
+			</if>
+			<if test="subject != null and subject != ''">
+				AND TBD.Subject like N'%'+#{subject}+'%'
+			</if>
+			<if test="itemID != null and itemID != ''">
+				AND #{itemID}  IN (TBD.SRArea1, TBD.SRArea2, TBD.SRArea3)
+			</if>
+			<if test="classification != null and classification != ''">
+				AND Classification = #{classification}
+			</if>
+			<if test="requestTeamList != '' and requestTeamList != null">
+				AND TBD.RequestTeamID IN (${requestTeamList})
+			</if>
+			<if test="companyList != '' and companyList != null" >
+				AND ( TBD.CompanyID IN (${companyList}) OR TBD.RequestTeamID IN (${companyList}) )
+			</if>
+			<if test="custGRNo != '' and custGRNo != null" >
+				AND TBD.CustGRNo = #{custGRNo}
+			</if>
+			<if test="custNo != '' and custNo != null" >
+				AND TBD.CompanyID = (Select teamID From XBOLTAPP.CRM_CUST_MST where CustomerNo = #{custNo})
+			</if>
+			<if test="companyID != '' and companyID != null" >
+				AND TBD.CompanyID IN (#{companyID})
+			</if>
+			<if test="itemCode != null and itemCode != ''">
+				AND TBD.ItemCode like N'%'+#{itemCode}+'%'
+			</if>
+			<if test="itemName != null and itemName != ''">
+				AND TBD.ItemName like N'%'+#{itemName}+'%'
+			</if>
+			<if test="itemID == null and itemTypeCode != null and itemTypeCode != ''">
+				AND TBD.ItemTypeCode = #{itemTypeCode}
+			</if>
+			<if test="fromSRID != null and fromSRID != ''">
+				AND TBD.SRID in (Select ToSRID From XBOLTAPP.ESM_SR_CXN Where FromSRID = #{fromSRID})
+			</if>
+			<if test="pageNo != null and pageNo != ''">
+				AND TBD.RNUM BETWEEN ((${pageNo}-1)*${LIST_PAGE_SCALE}  + 1) AND (${pageNo}*${LIST_PAGE_SCALE})
+			</if>
+			</where>
+		Order By  TBD.SRCode DESC
+	</select>
+	
+	
+	<insert id="insertSRMst" parameterType="java.util.HashMap">
+		Insert Into 
+			XBOLTAPP.ESM_SR_MST(
+				SRType,
+				SRID,
+				SRCode,
+				ProjectID,
+				Subject,
+				Description,
+				ItemTypeCode,
+				SRArea1,
+				SRArea2,
+				SRArea3,
+				Category,
+				SubCategory,
+				Priority,
+				Reason,
+				Status,
+				RegUserID,
+				RegTeamID,
+				RegDT,
+				RequestUserID,
+				RequestTeamID,
+				ReqDueDate,
+				ReceiptUserID,
+				ReceiptTeamID,
+				DueDate,
+				CompletionDT,
+				CompanyID,
+				ITSMIF,
+				Proposal,
+				DefWFID	
+				<if test="custGRNo != null and custGRNo != ''">,CustGRNo</if>
+				<if test="procPathID != null and procPathID != ''">,ProcPathID</if>
+				<if test="ProcInstNo != null and ProcInstNo != ''">,ProcInstNo</if>
+				<if test="opinion != null and opinion != ''">,Opinion</if>
+			)Values(
+				#{srType},
+				#{srID},
+				#{srCode},
+				#{projectID},
+				#{subject},
+				#{description},
+				#{itemTypeCode},
+				#{srArea1},
+				#{srArea2},
+				#{srArea3},
+				#{category},
+				#{subCategory},
+				#{priority},
+				#{srReason},
+				#{status},
+				#{regUserID},
+				#{regTeamID},
+				GETDATE(),
+				#{requestUserID},
+				#{requestTeamID},	
+				<choose>
+					<when test="reqdueDate != null and reqdueDate != ''">
+						#{reqdueDate},
+					</when>
+					<otherwise>
+						GetDate(),
+					</otherwise>
+				</choose>	
+				#{receiptUserID},
+				#{receiptTeamID},	
+				<choose>
+					<when test="dueDate != null and dueDate != ''">
+						#{dueDate},
+					</when>
+					<otherwise>
+						Null,
+					</otherwise>
+				</choose>				
+				<choose>
+					<when test="status.equals('CMP')">
+						GETDATE(),
+					</when>
+					<otherwise>
+						Null,
+					</otherwise>
+				</choose>
+				#{companyID},
+				<choose>
+					<when test="itsmIF != null and itsmIF != ''">
+						#{itsmIF},
+					</when>
+					<otherwise>
+						'N',
+					</otherwise>
+				</choose>	
+				<choose>
+					<when test="proposal != null and !proposal.equals('')">
+						#{proposal}
+					</when>
+					<otherwise>
+						'00'
+					</otherwise>
+				</choose>	
+				, #{defWFID}
+				<if test="custGRNo != null and custGRNo != ''">,#{custGRNo}</if>
+				<if test="procPathID != null and procPathID != ''">,#{procPathID}</if>
+				<if test="ProcInstNo != null and ProcInstNo != ''">,#{ProcInstNo}</if>
+				<if test="opinion != null and opinion != ''">,#{opinion}</if>
+			)
+	</insert>
+	
+	<select id="getMaxProcInstNo" resultType="String">
+  		SELECT ISNULL(MAX(ProcInstNo), 'PROC000001') AS MAXID
+      	FROM XBOLTAPP.PIM_PROC_INST
+	</select>
+		
+ 	<select id="getProcPathItemID" resultType="java.util.HashMap">
+	 	Select TI.ItemID, TI.AuthorID, TI.OwnerTeamID
+		From XBOLTADM.TB_ELEMENT TE
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM TI ON TI.ItemID = TE.ObjectID
+		Where TE.ModelID = #{procPathID} And TE.CategoryCode = 'MOJ'
+		  AND TI.Identifier = #{status}
+	</select> 	
+	
+	<select id="getESMSRAreaFromSrCat" resultType="java.util.HashMap">
+		Select SRArea, RoleType, ProcessType, ProposalOption, ProcPathID, MailOption From XBOLTAPP.ESM_SR_CAT Where SRCatID = #{srCatID} And SRType = #{srType}
+	</select>
+	
+	<update id="updateESMSR" parameterType="java.util.HashMap">
+		Update XBOLTAPP.ESM_SR_MST SET		
+			<if test="projectID != null and projectID != ''">ProjectID = #{projectID},</if>			
+			<if test="comment != null and comment != ''">Comment = #{comment},</if>			
+			<if test="srArea1 != null and srArea1 != ''">SRArea1 = #{srArea1},</if>
+			<if test="srArea2 != null and srArea2 != ''">SRArea2 = #{srArea2},</if>
+			<if test="receiptUserID != null and receiptUserID != ''">ReceiptUserID = #{receiptUserID},</if>
+			<if test="receiptTeamID != null and receiptTeamID != ''">ReceiptTeamID = #{receiptTeamID},</if>
+			<if test="category != null and category != ''">Category = #{category},</if>
+			<if test="subCategory != null and subCategory != ''">SubCategory = #{subCategory},</if>
+			<if test="priority != null and priority != ''">Priority = #{priority},</if>
+			<if test="dueDate != null and dueDate != ''">DueDate = #{dueDate},</if>
+			<if test="status != null and status != ''">
+				<choose>
+					<when test="status.equals('next')">
+						Status = XBOLTAPP.fn_GetSRNextEventCode(#{srID}),
+					</when>
+					<otherwise>
+						Status = #{status},
+					</otherwise>
+				</choose>
+				<if test="status.equals('CMP')">CompletionDT = GETDATE(),</if>
+			</if>
+			<if test="itsmIF != null and itsmIF != ''">ITSMIF = #{itsmIF},</if>
+			<if test="proposal != null and proposal != ''">Proposal = #{proposal},</if>
+			<if test="classification != null and classification != ''">Classification = #{classification},</if>			
+			<if test="curWFInstanceID != null and curWFInstanceID != ''">CurWFInstanceID = #{curWFInstanceID},</if>	
+			<if test="procPathID != null and procPathID != ''">ProcPathID = #{procPathID},</if>	
+			<if test="svcCompl != null and svcCompl != ''"><if test='svcCompl.equals("Y")'>CompletionDT = GetDate(),</if></if>	
+			<if test="blocked != null and blocked != ''">Blocked = #{blocked},</if>	
+			<if test="itemTypeCode != null and itemTypeCode != ''">ItemTypeCode = #{itemTypeCode},</if>
+			<if test="srArea3 != null and srArea3 != ''">SRArea3 = #{srArea3},</if>
+			<if test="srReason != null and srReason != ''">Reason = #{srReason},</if>
+			<if test="responseTeamID != null and responseTeamID != ''">ResponseTeamID = #{responseTeamID},</if>
+			<if test="subject != null and subject != ''">subject = #{subject},</if>
+			<if test="description != null and description != ''">description = #{description},</if>
+			LastUpdated = GETDATE(),
+			LastUser = #{lastUser}			
+		Where SRID = #{srID}
+	</update>
+	
+	<select id="getMaxESMSrID" resultType="String">
+		SELECT	ISNULL(MAX(SRID)+1, 1) AS SRID FROM XBOLTAPP.ESM_SR_MST
+	</select>
+	
+	<select id="getMaxESMSRCode" resultType="String">
+  		SELECT
+      		TOP 1 SRCode
+  		FROM XBOLTAPP.ESM_SR_MST
+  		Where subString(SRCode, 3,6) = #{thisYmd}  order by SRID DESC
+	</select>
+	
+	<insert id="insertESMSRMember" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTAPP.ESM_SR_MBR
+	           (SRID
+	           ,MemberID
+	           ,MbrTeamID
+	           ,AssignmentType
+	           ,RoleType
+	           ,OrderNum
+	           ,Assigned
+	           ,AccessRight
+	           ,AssignedDate
+	           ,DeassignedDate
+	           ,Creator
+	           ,LastUpdated)
+	     VALUES
+	           (
+			    #{SRID}
+	           , #{memberID} 
+	           , #{mbrTeamID}
+	           , #{assignmentType}
+	           , #{roleType}
+	           , #{orderNum}
+	           , #{assigned}
+	           , #{accessRight}
+	           , GetDate()
+	           , GetDate()
+	           , #{creator}
+	           , GetDate()
+			   )
+     </insert>
+     
+     <select id="getESMSRInfo" resultType="java.util.HashMap">
+		Select
+	 		TSM.SRID, TSM.SRCode, TSM.SRType, TD7.Name AS SRTypeName,
+			TSM.CustGRNo, TSM.ProjectID, TPT.Name AS ProjectNM, XBOLTADM.fn_getMyAbsPathForProject(TSM.ProjectID, #{languageID}) AS Path,
+			TSM.Subject, TSM.Description, TSM.Comment,
+			TSM.ProcPathID, TSM.SRArea1, TSM.SRArea2,
+			TIA.PlainText As SRArea1Name, TIA2.PlainText As SRArea2Name,
+			 ISNULL(TSM.SRArea3,'0') AS SRArea3, TI.Identifier AS SRArea3Code, TIA3.PlainText As SRArea3Name,
+			TSM.Category, TSM.SubCategory, TSM.Priority, TD4.Name As CategoryName,
+			TD3.Name As SubCategoryName, TD.Name As PriorityName,
+			
+			TSM.Status, TD2.Name As StatusName, TSM.RegUserID,
+			TM2.Name As RegUserName, TSM.RegTeamID, TEAM1.Name As RegTeamName,			
+			ISNULL(CONVERT(char(10),TSM.RegDT, 120),'') as RegDate,
+			
+			TSM.RequestUserID, TM3.Name As ReqUserNM,
+			TSM.RequestTeamID, TEAM2.Name As ReqTeamNM,		
+			ISNULL(CONVERT(char(10),TSM.ReqDueDate, 120),'') as ReqDueDate,
+			ISNULL(CONVERT(char(8),TSM.ReqDueDate, 108),'') as ReqDueDateTime,	
+			
+			TSM.ReceiptUserID, TM4.Name As ReceiptName,
+			TSM.ReceiptTeamID, TEAM3.Name As ReceiptTeamName,
+			CONVERT(char(10),TSM.DueDate, 120) as DueDate,
+			CONVERT(char(8),TSM.DueDate, 108) AS DueDateTime,
+			
+			TSM.ResponseUserID, TM5.Name As ResponseUserName,	
+			TSM.ResponseTeamID, TEAM4.Name As ResponseTeamName,				
+			ISNULL(CONVERT(char(10),TSM.CompletionDT, 120),'') as CompletionDT,
+			
+			TM6.Name As Area2RManager, TEAM5.Name As Area2RTeamName,			
+			TSM.Spoint, TSM.Opinion, SRCAT.RoleType, 	ISNULL(SRCAT2.ProcessType, SRCAT.ProcessType) as ProcessType,
+			TSM.CompanyID, TEAM6.Name As CompanyName, TSM.ITSMIF , TSM.Proposal	, TD5.Name as ProposalStatusNM, 
+			TSM.Classification, TD6.Name As ClassificationNM,
+			TSM.CurWFInstanceID As WFInstanceID, TSM.EvalSheetID,
+			
+			TD8.Name AS SRArea1NM, TD9.Name AS SRArea2NM, TD8.Name +'/'+ TD9.Name AS System,
+			TSM.Reason AS SRReason, TD10.Name AS SRReasonNM,
+			SRCAT2.FixedPath,
+			
+			XBOLTAPP.fn_GetNextEventCode(TSM.SRID, TSM.Status) AS SRNextStatus,
+			XBOLTAPP.fn_GetLastEventCode(TSM.SRID) AS LastSpeCode,
+			SRTYPE.DefWFID,
+			Case When CompletionDT IS NULL Then 'N' Else 'Y' End AS SvcCompl,
+			TSM.Blocked,
+			XBOLTADM.fn_GetMyAbsPathForList(TSM.SRArea3, #{languageID}) AS srArea3Path,
+			TD1.Name AS ItemTypeCodeNM,
+			SRTYPE.BoardMgtID,
+			TSM.Opinion
+		From XBOLTAPP.ESM_SR_MST TSM
+		Left Outer Join XBOLTADM.TB_MEMBER TM2 On TM2.MemberID = TSM.RegUserID 
+		Left Outer Join XBOLTADM.TB_MEMBER TM3 On TM3.MemberID = TSM.RequestUserID 
+		Left Outer Join XBOLTADM.TB_MEMBER TM4 On TM4.MemberID = TSM.ReceiptUserID 
+		Left Outer Join XBOLTADM.TB_MEMBER TM5 On TM5.MemberID = TSM.ResponseUserID 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 On TD2.TypeCode = TSM.Status And TD2.Category = 'SRSTS' And TD2.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM1 ON TEAM1.TeamID = TSM.RegTeamID And TEAM1.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM2 ON TEAM2.TeamID = TSM.RequestTeamID And TEAM2.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM3 ON TEAM3.TeamID = TSM.ReceiptTeamID And TEAM3.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM4 ON TEAM4.TeamID = TSM.ResponseTeamID And TEAM4.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD3 On TD3.TypeCode = TSM.SubCategory And TD3.Category = 'SRCAT' And TD3.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TSM.Priority And TD.Category = 'PRT' And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD4 On TD4.TypeCode = TSM.Category And TD4.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TSM.SRArea1 And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID} 
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 ON TIA2.ItemID = TSM.SRArea2 And TIA2.AttrTypeCode = 'AT00001' And TIA2.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD5 On TD5.TypeCode = TSM.Proposal And TD5.Category = 'PROPSSTS' And TD5.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD6 On TD6.TypeCode = TSM.Classification And TD6.Category = 'SRCLS' And TD6.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD7 On TD7.TypeCode = TSM.SRType And TD7.Category = 'SRTP' And TD7.LanguageID = #{languageID}		
+		Left Outer Join 
+		  (SELECT Max(Seq) As MaxSeq, AssignmentType, ItemID, RoleType, Assigned, COUNT(*) AS CountX
+            FROM   XBOLTADM.TB_MY_ITEM
+            GROUP BY AssignmentType, ItemID, RoleType, Assigned ) AS TMYITM ON TMYITM.ItemID = TSM.SRArea2 And TMYITM.RoleType = 'R' And TMYITM.AssignmentType = 'SRROLETP' And TMYITM.Assigned = '1' 
+		Left outer Join XBOLTADM.TB_MY_ITEM MYITM on MYITM.Seq = TMYITM.MaxSeq
+		Left Outer Join XBOLTADM.TB_MEMBER TM6 On TM6.MemberID = MYITM.MemberID 
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM5 ON TEAM5.TeamID = TM6.TeamID And TEAM5.LanguageID = #{languageID}
+		
+		Left Outer Join XBOLTAPP.ESM_SR_CAT SRCAT On SRCAT.SRCatID = TSM.Category 
+		Left Outer Join XBOLTAPP.ESM_SR_CAT SRCAT2 On SRCAT2.SRCatID = TSM.SubCategory 
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM6 ON TEAM6.TeamID = TSM.CompanyID And TEAM6.LanguageID = #{languageID}
+		
+		Left Outer Join XBOLTAPP.ESM_SR_AREA TSA1 ON TSA1.SRTypeCode = TSM.SRType And TSA1.Level = 1
+		Left Outer Join XBOLTAPP.ESM_SR_AREA TSA2 ON TSA2.SRTypeCode = TSM.SRType And TSA2.Level = 2
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD8 ON TD8.TypeCode = TSA1.ItemClassCode And TD8.Category = 'CLS' And TD8.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD9 ON TD9.TypeCode = TSA2.ItemClassCode And TD9.Category = 'CLS' And TD9.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD10 On TD10.TypeCode = TSM.Reason And TD10.Category = 'SRRSN' And TD10.LanguageID = #{languageID}
+		Left Outer Join XBOLTAPP.ESM_SR_TYPE SRTYPE ON SRTYPE.SRTypeCode = TSM.SRType
+		Left Outer Join XBOLTADM.TB_ITEM TI ON TSM.SRArea3 = TI.ItemID
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA3 ON TIA3.ItemID = TSM.SRArea3 And TIA3.AttrTypeCode = 'AT00001' And TIA3.LanguageID  =  #{languageID}
+		Left Outer Join XBOLTADM.TB_ITEM TI2 ON TSM.SRArea3 = TI2.ItemID
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD1 On TD1.TypeCode = TSM.ItemTypeCode And TD1.Category = 'OJ' And TD1.LanguageID =  #{languageID}
+		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT On TSM.ProjectID = TPT.ProjectID And TPT.LanguageID = #{languageID}
+		Where TSM.SRID = #{srID}		
+		<if test="srType != null and srType != ''">
+			AND TSM.SRType = #{srType}
+		</if>
+		<if test="srArea1ClsCode != null and srArea1ClsCode != ''">
+			AND TSA1.ItemClassCode = #{srArea1ClsCode}
+		</if>
+		<if test="srArea2ClsCode != null and srArea2ClsCode != ''">
+			AND TSA2.ItemClassCode = #{srArea2ClsCode}
+		</if>
+	</select>
+	
+	<select id="getESMSRArea1" resultType="java.util.HashMap">
+	 	SELECT distinct SRArea1ITM.ItemID AS CODE
+		  ,SRArea1ATR.PlainText AS NAME	
+		  ,ITM.Identifier	
+		FROM XBOLTADM.TB_ITEM_ATTR SRType
+		INNER JOIN XBOLTADM.TB_ITEM_ATTR SRArea1ITM ON SRType.ItemID = SRArea1ITM.ItemID AND SRArea1ITM.LovCode = 'LV38001' 
+		INNER JOIN XBOLTADM.TB_ITEM_ATTR SRArea1ATR ON SRArea1ITM.ItemID = SRArea1ATR.ItemID AND SRArea1ATR.AttrTypeCode  = 'AT00001' AND SRArea1ATR.LanguageID = #{languageID} 
+		INNER JOIN XBOLTADM.TB_ITEM ITM ON SRArea1ATR.ItemID = ITM.ItemID And ITM.Deleted != 1
+	 		<if test="receiptTeam != null and receiptTeam != ''">
+				INNER JOIN XBOLTAPP.ESM_SR_MST  TSM
+		 		ON TSM.SRArea1 = SRType.ItemID
+		 		AND TSM.ReceiptTeamID = #{receiptTeam} 
+			</if>	
+		Where SRType.AttrTypeCode = 'AT00036'  
+		And SRType.PlainText = #{srType} 
+		<if test="itemTypeCode != null and itemTypeCode != ''">
+		And SRType.ItemTypeCode = #{itemTypeCode}
+		</if>
+		Order by NAME
+	
+	</select>
+	
+	<select id="getESMSRCategory" resultType="java.util.HashMap">
+		Select 
+			   TSC.SRCatID AS CODE, TD.Name AS NAME 
+		From XBOLTAPP.ESM_SR_CAT TSC
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode  = TSC.SRCatID And TD.Category = 'SRCAT' And TD.LanguageID = #{languageID}
+		Where TSC.SRType = #{srType}
+		<if test="level != null and level != ''">
+			AND TSC.Level = #{level}
+		</if>
+ 		<if test="parentID != null and parentID != ''">
+			AND TSC.ParentID = #{parentID} 
+		</if>
+		<if test="itemTypeCode != null and itemTypeCode != ''">
+			AND TSC.itemTypeCode IN (#{itemTypeCode},'')
+		</if>
+	</select>
+	
+	<select id="getSRStatusList" resultType="java.util.HashMap">
+		SELECT DISTINCT TI.IDENTIFIER AS CODE, TIA.PlainText AS NAME , TE.SortNum
+		  FROM XBOLTAPP.ESM_SR_TYPE TST
+		       INNER JOIN XBOLTADM.TB_ELEMENT TE ON TST.ProcModelID = TE.ModelID
+		       INNER JOIN XBOLTADM.TB_ITEM TI ON TE.Link = TI.ItemID and TI.ClassCode = #{itemClassCode}
+      		   INNER JOIN XBOLTADM.TB_ITEM_ATTR TIA ON TI.ItemID = TIA.ItemID and TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+  		  WHERE 1=1
+  		  <if test="srType != null and srType != ''">
+  		  And TST.SRTypeCode = #{srType}
+  		  </if>
+		  And ISNULL(TI.Identifier,'') != '' 
+		  ORDER BY  TE.SortNum , TI.Identifier
+	</select>
+	
+	<select id="getESMSRReceiptTeamID" resultType="java.util.HashMap">
+		SELECT 
+			Distinct 
+			SRMST.ReceiptTeamID AS CODE
+			, TMT.Name AS NAME
+		FROM 
+			XBOLTAPP.ESM_SR_MST  SRMST
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT
+		       on SRMST.ReceiptTeamID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+	       <where>
+		       <if test="srType != null and srType != ''">
+					And SRMST.srType = #{srType}
+				</if>
+				<if test="fromSRID != null and fromSRID != ''">
+					AND SRMST.SRID in (Select ToSRID From XBOLTAPP.ESM_SR_CXN Where FromSRID = #{fromSRID})
+				</if>
+			</where>
+		ORDER BY NAME			
+	</select>
+		
+	
+	<select id="getAprvUserInfo" resultType="java.util.HashMap">
+		Select 
+			Top 1 TMI.MemberID, TM.TeamID As TeamID
+		From XBOLTADM.TB_MY_ITEM TMI  
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TMI.MemberID
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TXT ON TXT.TeamID = TM.TeamID And TXT.LanguageID = #{languageID}
+		Where TMI.ItemID = #{itemID} 
+		And TMI.RoleType = #{roleType} 
+		And TMI.AssignmentType = #{assignmentType} 
+		And TMI.Assigned = '1' 
+		Order By TMI.OrderNum ASC
+		
+	</select>
+	
+	<select id="getWFMemberList" resultType="java.util.HashMap">
+		Select 
+			TMI.MemberID
+			, TM.TeamID As TeamID
+			, TMI.RoleType 
+			, TM.Name+'(' + TXT.Name + ')' AS WFStep
+		From XBOLTADM.TB_MY_ITEM TMI  
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TMI.MemberID
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TXT ON TXT.TeamID = TM.TeamID And TXT.LanguageID = #{languageID}
+		Where TMI.ItemID = #{itemID} 
+		And TMI.RoleType = #{roleType} 
+		And TMI.AssignmentType = #{assignmentType} 
+		And TMI.Assigned = '1' 
+		Order By TMI.OrderNum ASC
+		
+	</select>
+	
+	<select id="getESMSRReqTeamID" resultType="java.util.HashMap">
+		SELECT 
+			Distinct ESMSR.RequestTeamID AS CODE
+			, TMT.Name AS NAME
+		FROM 
+			XBOLTAPP.ESM_SR_MST ESMSR
+			, XBOLTADM.TB_TEAM TM 
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TM.TeamID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+			Where TM.TeamID = ESMSR.RequestTeamID
+			<if test="parentIDs != null and parentIDs != ''">
+				And TM.ParentID IN (${parentIDs})
+			</if>
+			<if test="srType != null and srType != ''">
+				And ESMSR.srType = #{srType}
+			</if>
+			<if test="itemID != null and itemID != ''">
+				And ESMSR.SRArea3 = #{itemID}
+			</if>
+			<if test="fromSRID != null and fromSRID != ''">
+				AND ESMSR.SRID in (Select ToSRID From XBOLTAPP.ESM_SR_CXN Where FromSRID = #{fromSRID})
+			</if>
+			<if test="companyID != null and companyID != ''">
+				And TM.CompanyID = #{companyID}
+			</if>
+		ORDER BY NAME			
+	</select>
+	
+	<select id="getESMSRMbr" resultType="java.util.HashMap">
+	  Select 
+	  	TM.Name + '('+ISNULL(TMT.Name,'-')+')' AS esmSRMbr
+	  From XBOLTAPP.ESM_SR_MBR ESM
+	  Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = ESM.MemberID 
+	  Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TMT.TeamID = TM.TeamID And TMT.LanguageID = #{languageID}
+	  Where ESM.SRID = #{srID}
+	</select>
+	
+	<select id="getESMSRMember" resultType="java.util.HashMap">
+     	Select TBM.MemberID, TM.Name + '('+ISNULL(TMXT.Name,'-')+')' AS SRRefMember
+		From XBOLTAPP.ESM_SR_MBR TBM 
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TBM.MemberID 
+		Left OUter Join XBOLTADM.TB_TEAM_TXT TMXT ON TMXT.TeamID = TM.TeamID And TMXT.LanguageID = #{languageID}
+		Where TBM.SRID = #{SRID}
+		<if test="roleType != null and roleType != ''">
+			And TBM.RoleType = #{roleType}
+		</if>
+		<if test="assignmentType != null and assignmentType != ''" >
+			And TBM.AssignmentType = #{assignmentType}
+		</if>
+		<if test="memberID != null and memberID != ''" >
+			And TBM.MemberID = #{memberID}
+		</if>
+	</select>
+	
+	<delete id="deleteSRMbr" parameterType="java.util.HashMap">
+     	Delete From XBOLTAPP.ESM_SR_MBR
+		Where SRID = #{SRID}
+		And RoleType = #{roleType}
+		And AssignmentType = #{assignmentType}
+		<if test="memberIDs != null and memberIDs != ''">
+			And MemberID Not IN (${memberIDs})
+		</if>
+	</delete>
+	
+	<select id="getESMSRReqUserID" resultType="String">
+		Select 
+			 RequestUserID
+		From XBOLTAPP.ESM_SR_MST
+		Where SRID = #{srID}
+	</select>
+	
+	<select id="getESMSRDueDate" resultType="String">
+		Select 
+			ISNULL(CONVERT(char(10),DueDate, 21),'') AS SRDueDate	
+		From XBOLTAPP.ESM_SR_MST
+		Where SRID = #{srID}
+	</select>
+	
+	<select id="getFixedPathYN" resultType="String">
+		Select 	ISNULL(SCAT2.FixedPath,'N') AS FixedPath	
+		From XBOLTAPP.ESM_SR_MST ESM
+		Left Outer Join XBOLTAPP.ESM_SR_CAT SCAT2 on SCAT2.SRCatID = ESM.SubCategory
+		Where SRID = #{srID}
+	</select>
+	
+	<select id="getESMSRArea2" resultType="String">
+		Select SRArea2	
+		From XBOLTAPP.ESM_SR_MST ESM
+		Where SRID = #{srID}
+	</select>
+	
+	<select id="getElmCodeList" resultType="java.util.HashMap">
+		Select TI.Identifier AS elmCode
+		From XBOLTADM.TB_ELEMENT TE	INNER JOIN XBOLTADM.TB_ITEM TI ON TE.Link = TI.ItemID		
+		Where TE.ModelID = #{procPathID} 	
+		<if test="elmItemTypeCode != null and elmItemTypeCode != ''">
+			 And TI.ItemTypeCode = #{elmItemTypeCode}
+		 </if>
+		<if test="elmClassCode != null and elmClassCode != ''">
+			And TI.ClassCode = #{elmClassCode}
+		</if>	
+	</select>
+	
+	<select id="getStartEventCode" resultType="String">
+		Select XBOLTAPP.fn_GetStartEventCode(#{srID}, #{procPathID}) AS StartEventCode 
+	</select>
+	
+	<select id="getNextEventCode" resultType="String">
+		Select XBOLTAPP.fn_GetNextEventCode(#{srID}, #{status}) AS NextEventCode 
+	</select>
+	
+	<select id="getSRWokerList" resultType="java.util.HashMap">
+		Select MemberID, RoleType From XBOLTADM.TB_MY_ITEM 
+		Where ItemID = #{SRArea}  AND AssignmentType = 'SRROLETP' AND Assigned = 1   
+	</select>
+	
+	<select id="getSpePrePostList" resultType="java.util.HashMap">
+	SELECT
+			Row_Number() OVER(ORDER BY TE.SortNum, TI.IDENTIFIER) AS RNUM,
+			TI.Identifier
+		FROM XBOLTAPP.ESM_SR_MST TSC 
+			INNER JOIN XBOLTADM.TB_ELEMENT TE ON TSC.ProcPathID = TE.ModelID
+			INNER JOIN XBOLTADM.TB_ITEM TI ON TE.ObjectID = TI.ItemID And TE.ClassCode = #{itemClassCode}								
+		WHERE TSC.SRID = #{srID}
+		And ISNULL(TI.IDENTIFIER,'') != ''
+	</select>
+	
+	<select id="getReqESMCompanyList" resultType="java.util.HashMap">
+		SELECT 
+			Distinct ESM.CompanyID AS CODE, TMT.Name AS NAME
+		FROM 
+			XBOLTAPP.ESM_SR_MST ESM
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON ESM.CompanyID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+			Where ESM.SRType = #{srType}
+		ORDER BY TMT.NAME		
+	</select>
+			
+	<select id="getSuperiorItemByClass" resultType="String">
+		Select XBOLTADM.fn_GetSuperiorItemByClass(#{itemID}, #{classCode})
+	</select>
+	
+	<select id="getItemListBySRArea" resultType="java.util.HashMap">
+	  		Select
+				Distinct TI.ItemID AS CODE, TI.Identifier + ' ' + TIA.PlainText AS NAME
+			From XBOLTADM.TB_ITEM TI
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TI.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+			Left Outer Join XBOLTAPP.ESM_SR_AREA ESA ON TI.ClassCode = ESA.ItemClassCode 
+			Where ESA.SRTypeCode = #{srType}
+			AND ESA.ItemTypeCode = #{itemTypeCode}
+			AND ESA.Level = #{level}
+			AND TI.CategoryCode = 'OJ' AND TI.Deleted != 1
+			<if test='level == "2"'>
+				AND TI.ItemID in (Select ToItemID From XBOLTADM.TB_ITEM Where FromItemID = #{srArea1})
+			</if>
+			Order by NAME
+	</select>
+	
+	<select id="getItemTypeCodeBySRArea3" resultType="java.util.HashMap">
+		Select
+			Distinct TI.ItemTypeCode AS CODE, TD.Name AS NAME
+		From XBOLTAPP.ESM_SR_MST ESM
+		Left Outer Join XBOLTADM.TB_ITEM TI ON ESM.SRArea3 = TI.ItemID
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TI.ItemTypeCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+		Where SRArea3 IS NOT NULL
+		<if test="itemTypeCode != null and itemTypeCode != ''">
+			And TI.ItemTypeCode = #{itemTypeCode}
+		</if>
+	</select>
+	
+	<select id="getSRAreaClsCode" resultType="String">
+		Select
+			ESA.ItemClassCode
+		FROM XBOLTAPP.ESM_SR_AREA ESA
+		Left Outer Join XBOLTADM.TB_ITEM_CLASS TIC ON ESA.ItemClassCode = TIC.ItemClassCode
+		Where ESA.SRTypeCode = #{srType}
+		<if test="itemTypeCode != null and itemTypeCode != ''">
+		AND TIC.ItemTypeCode = #{itemTypeCode}
+		</if>
+		AND ESA.Level = #{level}
+	</select>
+	
+	<insert id="insertSrCxn" parameterType="java.util.HashMap">
+		Insert Into 
+			XBOLTAPP.ESM_SR_CXN(
+				SRCxnCat,
+				FromSRID,
+				ToSRID,
+				Status,
+				Creator,
+				CreationTime
+			)Values(
+				#{srCxnCat},
+				#{fromSRID},
+				#{toSRID},
+				#{status},
+				#{creator},
+				getDate()
+			)
+	</insert>
+	
+	<select id="getSRMST" resultType="java.util.HashMap">
+		Select 
+			SRID, Category, SRType, Proposal
+			, ReceiptUserID, Subject, RequestUserID
+			, RequestTeamID, SubCategory
+			, RegUserID, RegTeamID
+		From XBOLTAPP.ESM_SR_MST
+		Where SRID = #{srID}
+	</select>
+	
+	<select id="getItemTypeListBySRType" resultType="java.util.HashMap">
+  		  Select 
+			Distinct TIT.ItemTypeCode AS CODE, TD.Name AS NAME
+		  From XBOLTADM.TB_ITEM_TYPE TIT
+		  Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TIT.ItemTypeCode = TD.TypeCode AND TD.LanguageID =#{languageID}
+		  Where TIT.DefSRType = #{srType}
+		  And TIT.Deactivated != 1
+	</select>
+	
+	<select id="getESMSRCatMagager" resultType="java.util.HashMap">
+		   Select
+			ESC.ManagerID AS AuthorID, TM.TeamID AS OwnerTeamID
+		  From XBOLTAPP.ESM_SR_CAT ESC
+		  Left Outer Join XBOLTADM.TB_MEMBER TM ON ESC.ManagerID = TM.MemberID
+		  Where ESC.SRType = #{srType}
+		  and ESC.SRCatID = #{srCatID}
+	</select>
+	
+	<update id="updateESMSRStatus" parameterType="java.util.HashMap">
+		Update XBOLTAPP.ESM_SR_MST SET		
+			LastUpdated = GETDATE(),
+			LastUser = #{lastUser},
+			<if test="status != null and status != ''">
+				Status = #{status},
+			</if>
+			<if test="DueDate != null and DueDate != ''">
+				DueDate = #{DueDate},
+			</if>
+			<choose>
+				<when test="status != null and status.equals('CMP')">
+					CompletionDT = GETDATE()
+				</when>
+				<otherwise>
+					CompletionDT = Null
+				</otherwise>
+			</choose>
+		Where SRID = #{srID}
+	</update>
+	
+	<select id="procPathElmList" resultType="java.util.HashMap">
+	 	SELECT
+	 		ITM.Identifier,
+			TIA.PlainText,
+			TE.Dashed AS Dashed
+		FROM XBOLTADM.TB_ELEMENT TE
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA ON TE.ObjectID = TIA.ItemID and TIA.AttrTypeCode = 'AT00001'	AND TIA.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM ITM ON TE.link = ITM.ItemID
+		WHERE TE.ModelID = #{modelID}
+		Order By TE.DisplaySeq, TE.ElementID
+	</select>
+	
+	<select id="getSRAreaClsName" resultType="java.util.HashMap">
+		Select
+		 	'SRArea'+CAST(TSA.Level as VARCHAR) AS CODE, TD.Name AS NAME
+		From XBOLTAPP.ESM_SR_AREA TSA
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TSA.ItemClassCode And TD.LanguageID = #{languageID} And TD.Category = 'CLS'
+		Where SRTypeCode = #{srType}
+		Order By TSA.Level ASC
+	</select>
+		
+	<select id="getReceiptUser" resultType="java.util.HashMap">
+		Select 
+			Top 1 MYITM.MemberID AS UserID,
+		    TM.Name, 
+			TM.TeamID As TeamID,
+			TXT.Name AS TeamName
+		From XBOLTADM.TB_MY_ITEM MYITM  
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = MYITM.MemberID
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TXT ON TXT.TeamID = TM.TeamID And TXT.LanguageID = #{languageID}
+		Where MYITM.ItemID = #{srArea} and MYITM.RoleType = #{RoleType} and MYITM.AssignmentType = 'SRROLETP' and MYITM.Assigned = '1'
+		Order By MYITM.OrderNum 
+	</select>	
+		
+	<select id="getSRCatAttrList" resultType="java.util.HashMap">
+	 	Select 
+			ESCA.SRCatID
+			, ESCA.SortNum
+			, ESCA.AttrTypeCode AS AttrTypeCode
+			, ISNULL(TD.Name, '') AS AttrTypeName
+			, ESCA.ItemTypeCode
+			, ESCA.SortNum
+			, ESCA.AreaHeight
+			, ESCA.RowNum
+			, ESCA.ColumnNum
+			, ISNULL(ESCA.DefaultValue,'') AS DefaultValue
+			, ISNULL(ESA.Value, ISNULL(ESCA.DefaultValue,'')) AS Value
+			, ESA.LovCode 
+			, TAT.DataType
+			, TAT.HTML	
+			, ISNULL(ESCA.Mandatory,'') AS Mandatory
+		From XBOLTAPP.ESM_SR_CAT_ATTR ESCA
+		Left Outer Join XBOLTAPP.ESM_SR_ATTR ESA ON ESA.AttrTypeCode = ESCA.AttrTypeCode And ESA.SRID = #{srID}
+													And ESA.AttrTypeCode NOT IN(Select AttrTypeCode From XBOLTADM.TB_ATTR_TYPE Where DataType = 'MLOV')
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = ESCA.AttrTypeCode And TD.LanguageID = #{languageID} And TD.Category = 'AT'
+		Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT ON TAT.AttrTypeCode = ESCA.AttrTypeCode 
+		Where ESCA.SRCatID = #{SRCatID}
+		Order By ESCA.SortNum ASC
+	</select>
+	
+	<insert id="insertSRAttr" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTAPP.ESM_SR_ATTR
+	          ( SRID
+	           , AttrTypeCode
+	           , Value
+	           , LovCode
+	           , Creator
+	           , CreationTime
+	           , LastUser
+	           , LastUpdated 
+	     ) VALUES
+	           ( #{srID}
+	           , #{attrTypeCode}
+	           , #{value}
+	           , #{lovCode}
+	           , #{userID}
+	           , GetDate()
+	           , #{userID}
+	           , GetDate() )
+     </insert>   
+     
+     <delete id="deleteSRAttr" parameterType="java.util.HashMap">
+     	Delete From XBOLTAPP.ESM_SR_ATTR Where SRID = #{srID}
+     </delete>  
+     
+     <select id="getSRMSTCount" resultType="String">
+		Select Count(*)
+		From XBOLTAPP.ESM_SR_MST 
+		<where>
+			<if test="srType != null and srType != ''">
+				SRType = #{srType}
+			</if>
+			<if test="srMode != null and srMode.equals('mySR')">
+				AND #{loginUserId}  In (RequestUserID, ReceiptUserID , RegUserID)
+			</if>
+			<if test="srStatus != null and srStatus != ''">
+				<choose>
+					<when test="srStatus.equals('ING')">
+						And ISNULL(CompletionDT,'') = '' 
+					</when>
+					<when test="srStatus.equals('COMPL')">
+						And ISNULL(CompletionDT,'') != '' 
+					</when>					
+					<otherwise>
+						AND Status = #{srStatus}
+					</otherwise>
+				</choose>
+			</if>
+		</where>
+	</select>
+	
+	<select id="getLastSpeCode" resultType="String">
+		Select XBOLTAPP.fn_GetLastEventCode(#{srID})
+	</select>
+	
+	
+	<select id="getSRSummaryList_gridList" resultType="java.util.HashMap">
+		Select
+			Top 1500 Row_Number()OVER(ORDER BY SRCODE ) as RNUM,
+			SRCode,
+			SRSTSNM,
+			SRReqTeamNM,
+			SRReceiptTeamNM,
+			CRReceiptTeamNM,
+			Domain,
+			System,
+			CategoryNM,
+			SubCategoryNM,
+			SRRegDT,
+			SRRDD,
+			SRDueDate,
+			SRCompletionDT,
+			MinSRRCVDT,
+			MaxSRRCVDT,
+			SRRCVCount,
+			SRPOINT,
+			MinCSRDT,
+			MaxAPRVDT,
+			CSRCount,
+			APRVCount,
+			MinCRRegDT,
+			MaxCRRDD,
+			MaxCRDueDate,
+			MinCRReceiptDT,
+			maxCRCompletionDT,
+			CRCount,
+			ProjectID
+		From XBOLTADM.OLM_SRSUMMARY_VIEW 
+		<where>
+			<if test="srRegStartDT != null and srRegStartDT != ''">
+				<![CDATA[ CONVERT(varchar(10), SRRegDT, 120) BETWEEN #{srRegStartDT} AND #{srRegEndDT}  ]]>
+			</if>
+		</where>
+	</select>
+	
+	<select id="getESMSRResponseTeamID" resultType="java.util.HashMap">
+		SELECT 
+			Distinct 
+			SRMST.ResponseTeamID AS CODE
+			, TMT.Name AS NAME
+		FROM 
+			XBOLTAPP.ESM_SR_MST  SRMST
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT
+		       on SRMST.ResponseTeamID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+	       <where>
+		       <if test="srType != null and srType != ''">
+					And SRMST.srType = #{srType}
+				</if>
+			</where>
+			And ISNULL(SRMST.ResponseTeamID,'') != '' 
+		ORDER BY NAME			
+	</select>
+	
+
+	<select id="getSRCountBySRReason_chart" resultType="java.util.HashMap">
+		select 'N/A' label, ESM.Reason code, Count(*) value 
+		from XBOLTAPP.ESM_SR_MST ESM
+		WHERE ESM.Reason IS NULL
+		<if test="srArea1 != null and srArea1 != ''">	 
+			AND SRArea1 = #{srArea1} 
+		</if> 
+		<if test="year != null and year != ''"> 
+			AND YEAR(CONVERT(DATETIME,ESM.RegDT)) = #{year}
+		</if>
+		<if test="month != null and month != ''"> 
+			AND MONTH(CONVERT(DATETIME,ESM.RegDT)) = #{month}
+		</if>
+		GROUP BY ESM.Reason
+	
+		UNION
+	
+		SELECT TD.Name AS label, td.TypeCode AS code, COUNT(ESM.SRID) AS value
+		FROM XBOLTADM.TB_DICTIONARY TD
+		LEFT JOIN XBOLTAPP.ESM_SR_MST ESM ON TD.TypeCode = ESM.Reason
+	 	<if test="srArea1 != null and srArea1 != ''">	 
+			AND ESM.SRArea1 = #{srArea1} 
+		</if>  
+		<if test="year != null and year != ''"> 
+			AND YEAR(CONVERT(DATETIME,ESM.RegDT)) = #{year}
+		</if>
+		<if test="month != null and month != ''"> 
+			AND MONTH(CONVERT(DATETIME,ESM.RegDT)) = #{month}
+		</if>
+		WHERE TD.Category = 'SRRSN' AND TD.LanguageID = #{languageID}
+		GROUP BY TD.NAME, td.TypeCode
+	
+		ORDER BY code
+	</select>
+	
+	<select id="getSRCountBYITSMIF_chart" resultType="java.util.HashMap">
+		SELECT 
+			CASE WHEN ITSMIF IS NULL THEN 'N/A'
+			ELSE ITSMIF END label,
+			ITSMIF code,
+			COUNT(SRID) value
+		FROM XBOLTAPP.ESM_SR_MST
+		<where>			
+  			<if test="srArea1 != null and srArea1 != ''">	
+				AND SRArea1 = #{srArea1}
+			</if>	
+			<if test="year != null and year != ''">
+				AND YEAR(CONVERT(DATETIME,RegDT)) = #{year}
+			</if>
+			<if test="month != null and month != ''"> 
+				AND MONTH(CONVERT(DATETIME,RegDT)) = #{month}
+			</if>
+		</where>
+		Group by ITSMIF
+	</select>
+	
+	<select id="getISPYeartList" resultType="java.util.HashMap">
+		SELECT
+			ESM.YEAR year
+		FROM (
+			SELECT
+				<choose>
+					<when test="status != null and status != '' and status.equals('ISP008')">
+					YEAR(CONVERT(DATETIME,CompletionDT)) as YEAR
+					</when>
+					<otherwise>
+					YEAR(CONVERT(DATETIME,RegDT)) as YEAR
+					</otherwise>				
+				</choose>
+			FROM XBOLTAPP.ESM_SR_MST
+			<if test="status != null and status != ''">WHERE STATUS = #{status}</if>
+		)ESM
+		GROUP BY ESM.YEAR
+	</select>	
+	
+	
+	<select id="getISPReceiptUserID" resultType="java.util.HashMap">
+		SELECT 
+			ESM.ReceiptUserID AS CODE
+			, TM.Name AS NAME
+		FROM 
+			XBOLTAPP.ESM_SR_MST  ESM
+			Left Outer Join XBOLTADM.TB_MEMBER TM
+		       on ESM.ReceiptUserID = TM.MemberID
+	       <where>
+		       <if test="srType != null and srType != ''">
+					And ESM.srType = #{srType}
+				</if>
+			</where>
+			And ISNULL(ESM.ReceiptUserID,'') != ''
+			GROUP BY ESM.ReceiptUserID , TM.Name
+		ORDER BY TM.NAME			
+	</select>
+	
+	<select id="getISPReceiptTeamID" resultType="java.util.HashMap">
+		SELECT 
+			ESM.ReceiptTeamID AS CODE
+			, TXT.Name AS NAME
+		FROM 
+			XBOLTAPP.ESM_SR_MST  ESM
+		    Left Outer Join XBOLTADM.TB_TEAM_TXT TXT
+		    	on ESM.ReceiptTeamID = TXT.TeamID and TXT.LanguageID = #{languageID}
+	       <where>
+		       <if test="srType != null and srType != ''">
+					And ESM.srType = #{srType}
+				</if>
+			</where>
+			And ISNULL(ESM.ReceiptTeamID,'') != ''
+			GROUP BY TXT.Name , ESM.ReceiptTeamID
+		ORDER BY TXT.NAME			
+	</select>
+	
+	<select id="getISPEvaluationCMPList_gridList" resultType="java.util.HashMap">
+		SELECT
+			ESM.SRCode,
+			ESM.Subject,
+			TM.Name + '(' + TT.Name + ')' as RequestUserNM,
+			ATR.PlainText as SRArea1NM,
+			TM2.Name + '(' + TT2.Name + ')' as ReceiptUserNM,
+			Convert(char(10),ESM.RegDT, 21) as RegDT,
+			Convert(char(10),ESM.CompletionDT, 21) as CompletionDT,
+			EEIV.Total,
+			CASE WHEN <![CDATA[ EEIV.Total  >= 91]]> THEN '05'
+				 WHEN EEIV.Total BETWEEN 81 AND 90 THEN '04'
+			     WHEN EEIV.Total BETWEEN 61 AND 80 THEN '03'
+				 WHEN EEIV.Total BETWEEN 51 AND 60 THEN '02'
+				 ELSE '01'
+				 END as Result,
+			ESM.SRID
+		FROM XBOLTAPP.ESM_SR_MST ESM
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TM.MemberID = ESM.RequestUserID 
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM2 ON TM2.MemberID = ESM.ReceiptUserID
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TT ON TT.TeamID = ESM.RequestTeamID AND TT.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TT2 ON TT2.TeamID = ESM.ReceiptTeamID AND TT2.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR ON ATR.ItemID = ESM.SRArea1 AND ATR.AttrTypeCode = 'AT00001' AND ATR.LanguageID = #{languageID}
+		
+		LEFT OUTER JOIN XBOLTAPP.ESM_EVAL_SHEET EES ON EES.DocumentID = ESM.SRID
+		INNER JOIN (
+		SELECT EI.EvalSheetID, SUM(CONVERT(Integer, Value)) Total FROM XBOLTAPP.ESM_EVAL_ITEM_VALUE EI
+		LEFT OUTER JOIN XBOLTADM.TB_ATTR_TYPE AT ON AT.AttrTypeCode = EI.AttrTypeCode 
+		WHERE AT.DataType = 'LOV'
+		GROUP BY EvalSheetID
+		) EEIV ON EEIV.EvalSheetID = EES.EvalSheetID
+		
+		WHERE
+		ESM.Status = 'ISP008'
+		<if test="srArea1 != null and srArea1 != ''">	
+			AND ESM.SRArea1 = #{srArea1}
+		</if>
+		<if test='startDate != null and startDate != "" '>
+		 	AND <![CDATA[ ESM.RegDT >= #{startDate} ]]>
+		</if>
+		<if test='endDate != null and endDate != "" '>
+		 	AND <![CDATA[ ESM.RegDT <= #{endDate} ]]>
+		</if> 
+	</select>
+	
+	<select id="getISPEvalCount" resultType="String">
+		SELECT
+			<choose>
+				<when test='avgMode != null and avgMode != "" and avgMode.equals("Y")'>
+					ISNULL(Avg(A.Total),0)
+				</when>
+				<otherwise>
+					Count(A.Total)
+				</otherwise>
+			</choose>
+		FROM
+		(
+			SELECT
+				EI.EvalSheetID, 
+				SUM(CONVERT(Integer, EI.Value)) Total
+			FROM 
+				XBOLTAPP.ESM_EVAL_ITEM_VALUE EI
+				LEFT OUTER JOIN XBOLTADM.TB_ATTR_TYPE AT ON AT.AttrTypeCode = EI.AttrTypeCode
+				LEFT OUTER JOIN XBOLTAPP.ESM_EVAL_SHEET EES ON EES.EvalSheetID = EI.EvalSheetID
+				LEFT OUTER JOIN XBOLTAPP.ESM_SR_MST ESM ON ESM.EvalSheetID = EI.EvalSheetID AND ESM.SRID = EES.DocumentID
+				WHERE AT.DataType = 'LOV'
+				<if test="srArea1 != null and srArea1 != ''">
+					AND ESM.SRArea1 = #{srArea1}
+				</if>
+				<if test="receiptUserID != null and receiptUserID != ''">
+					AND ESM.ReceiptUserID = #{receiptUserID}
+				</if>
+				<if test="receiptTeamID != null and receiptTeamID != ''">
+					AND ESM.ReceiptTeamID = #{receiptTeamID}
+				</if>
+				<if test="year != null and year != ''">
+					AND YEAR(CONVERT(DATETIME,ESM.CompletionDT)) = #{year}
+				</if>
+				<if test="month != null and month != ''">
+					AND MONTH(CONVERT(DATETIME,ESM.CompletionDT)) = #{month}
+				</if>
+				GROUP BY EI.EvalSheetID
+		) A
+		<where>	
+	  		<if test="status != null and status != ''">
+	  			<choose>
+	  				<when test='status.equals("5")'><![CDATA[ A.Total >= 91]]></when>
+	  				<when test='status.equals("4")'>A.Total BETWEEN 81 AND 90</when>
+	  				<when test='status.equals("3")'>A.Total BETWEEN 61 AND 80</when>
+	  				<when test='status.equals("2")'>A.Total BETWEEN 51 AND 60</when>
+	  				<otherwise><![CDATA[ A.Total <= 50]]></otherwise>
+	  			</choose>
+			</if>
+		</where>
+	</select>
+	
+	<select id="deleteSRMST" parameterType="java.util.HashMap" statementType="CALLABLE">		
+		{CALL XBOLTADM.${dbFuncCode} (#{SRID}) }
+	</select>
+</mapper>

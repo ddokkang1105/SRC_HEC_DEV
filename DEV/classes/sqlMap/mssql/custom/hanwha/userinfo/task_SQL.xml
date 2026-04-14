@@ -1,0 +1,701 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	Task 관련 관련	-->
+<mapper namespace="task_SQL">
+	<select id="getCsrInfo" resultType="java.util.HashMap">
+		Select
+			<if test="itemID != null and itemID != ''">
+				Top 1 TCS.ChangeSetID ,
+			</if>
+			<if test="cngtId != null and cngtId != ''">
+				TCS.ChangeSetID ,
+			</if>
+			TI.Identifier,
+			TIA.PlainText As ItemName,
+			TM.Name As Creator,
+			ISNULL(CONVERT(char(10),TCS.CreationTime, 21),'') as CreateDT,
+			TPTPA.Name+'/'+TPT.Name As ProjectName,
+			TCS.ProjectID,
+			TCS.CurTask,
+			TD.Name As CurTaskName,
+			TCS.Priority,
+			TCS.Difficulty,
+			TCS.CurTask,
+			TCS.AuthorID,
+			TM.Name AuthorName,
+			TCS.Status CsrStatus,
+			TP.RefPjtID As ParentID,
+			TDP.Name As PriorityName,
+			TDD.Name As DifficultyName,
+			TCS.Description,
+			TCS.ItemID 
+		From XBOLTADM.TB_CHANGE_SET TCS 
+		Left Outer Join XBOLTADM.TB_ITEM TI ON TI.ItemID = TCS.ItemID 
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TCS.ItemID And TIA.LanguageID = #{languageID} And TIA.AttrTypeCode = 'AT00001'
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TCS.AuthorID 
+		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT ON TPT.ProjectID = TCS.ProjectID And TPT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_PROJECT TP ON TP.ProjectID = TCS.ProjectID 
+		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPTPA ON TPTPA.ProjectID = TP.RefPjtID And TPTPA.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TCS.CurTask And TD.LanguageID = #{languageID} And TD.Category = 'TSKTP'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDP ON TDP.TypeCode = TCS.Priority And TDP.LanguageID = #{languageID} And TDP.Category = 'PRT'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDD ON TDD.TypeCode = TCS.Difficulty And TDD.LanguageID = #{languageID} And TDD.Category = 'DFCT'
+		<where>
+			<if test="itemID != null and itemID != ''">
+				TCS.ItemID = #{itemID}
+			</if>
+			<if test="cngtId != null and cngtId != ''">
+				AND TCS.ChangeSetID = #{cngtId}
+			</if>
+		</where>
+		Order By ChangeSetID DESC
+	</select> 	
+	
+	<select id="getTaskTypeList" resultType="java.util.HashMap">
+		Select 
+			Row_Number()OVER(ORDER BY  TTT.SortNum) as RNUM,
+			TTT.TaskTypeCode, TD.Name As TaskTypeName
+		From XBOLTADM.TB_PJT_TASK_TP TTT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TTT.TaskTypeCode And TD.LanguageID = #{languageID}
+		Where TTT.ProjectID = #{parentID}
+		Order By TTT.SortNum
+	</select>
+	
+	<select id="getPjtMemberList_gridList" resultType="java.util.HashMap">
+		Select Row_Number()OVER(ORDER BY TM.Name) as RNUM,
+			TM.LoginID,
+			TPMR.ProjectID,
+			TPMR.MemberID,
+			TM.Name As UserName,
+			ISNULL(master.dbo.dec_varchar_sel(0,'HTMAIL',TM.Email),'') AS Email,
+			XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{languageID}) + '/' + TTT.Name AS TeamPath,
+			TTT.TeamID
+		From XBOLTADM.TB_PJT_MEMBER_REL TPMR
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TPMR.MemberID 
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TTT On TM.TeamID = TTT.TeamID  AND TTT.LanguageID = #{languageID}
+		Where TPMR.ProjectID  = #{projectID}
+		<if test="Name != null and Name != ''">
+			AND TM.Name Like N'%'+#{Name}+'%'
+		</if>
+	</select>
+	
+	<select id="getMaxTaskID"  resultType="String">
+		Select ISNULL(Max(TaskID),0) + 1 As TaskID From XBOLTADM.TB_TASK
+	</select>
+	
+	<select id="getMaxTaskSeq"  resultType="String">
+		Select ISNULL(Max(Seq),0) + 1 As Seq From XBOLTADM.TB_TASK
+	</select>
+	
+	<insert id="insertTask">
+		Insert Into XBOLTADM.TB_TASK(
+					TaskID,
+					TaskTypeCode,
+					ChangeSetID,
+					ItemID,
+					Category,
+					Seq,
+					TeamID,
+					Actor,
+					<if test="startDate != null and startDate != ''">StartDate,</if>
+					<if test="endDate != null and endDate != ''">EndDate,</if>
+					<if test="manday != null and manday != ''">Manday,</if>
+					<if test="confirmed != null and confirmed != ''">Confirmed,</if>
+					FileID,
+					CreationTime,
+					Creator,
+					LastUpdated,
+					LastUser
+				)Values(
+					#{taskID},
+					#{taskTypeCode},
+					#{changeSetID},
+					#{itemID},
+					#{category},
+					#{seq},
+					(Select TeamID from XBOLTADM.TB_MEMBER Where MemberID = #{actor}),
+					#{actor},
+					<if test="startDate != null and startDate != ''">#{startDate},</if>
+					<if test="endDate != null and endDate != ''">#{endDate},</if>
+					<if test="manday != null and manday != ''">#{manday},</if>
+					<if test="confirmed != null and confirmed != ''">#{confirmed},</if>
+					#{fileID},
+					GETDATE(),
+					#{userID},
+					GETDATE(),
+					#{userID}
+				)
+	</insert>
+	
+	<update id="updateTask">
+		Update XBOLTADM.TB_TASK Set 
+			Category = #{category},
+			TeamID = (Select TeamID From XBOLTADM.TB_MEMBER Where MemberID=#{actor}),
+			Actor = #{actor},		
+			<choose><when test="startDate != null and startDate != ''">StartDate = #{startDate},</when><otherwise> StartDate=NULL,</otherwise></choose>
+			<choose><when test="endDate != null and endDate != ''">EndDate = #{endDate},</when><otherwise> EndDate=NULL,</otherwise></choose>
+			<choose><when test="manday != null and manday != ''">Manday = #{manday},</when><otherwise> Manday=NULL</otherwise></choose>
+			Confirmed = #{confirmed},
+			LastUpdated = GETDATE(),
+			LastUser = #{userID}
+		Where TaskID = #{taskID}
+	</update>
+	
+	<update id="updateChangeSet">
+		Update XBOLTADM.TB_CHANGE_SET Set
+			CurTask = #{curTask}
+		Where ChangeSetID = #{changeSetID}
+	</update>
+	
+	<select id="getTaskList" resultType="java.util.HashMap">
+		Select 
+			Row_Number()OVER(ORDER BY  TTT.SortNum) as RNUM,
+			TTT.TaskTypeCode,
+			TD.Name As TaskTypeName,
+			TTP.TaskID AS TaskIDP,
+			TTP.ChangeSetID As ChangeSetIDP,
+			TTP.ItemID AS ItemIDP,
+			TTP.Category AS CategoryP,
+			TTP.Seq As SeqP,
+			TTP.TeamID As TeamIDP,
+			TTP.Actor AS ActorP,
+			TMP.Name AS ActorNameP,
+			Convert(varchar(10),TTP.StartDate, 120) AS StartDateP,
+			Convert(varchar(10),TTP.EndDate, 120) AS EndDateP,
+			TTP.Manday AS MandayP,
+			TTP.Confirmed AS ConfirmedP,
+			TTP.LastUpdated AS LastUpdateP,
+			TTP.LastUser AS LastUserP,
+			TEAMP.Name As TeamNameP,
+			
+			TTA.TaskID AS TaskIDA,
+			TTA.ChangeSetID AS ChangeSetIDA,
+			TTA.ItemID AS ItemIDA,
+			TTA.Category ASCategoryA,
+			TTA.Seq AS SeqA,
+			TTA.TeamID AS TeamIDA,
+			TTA.Actor AS ActorA,
+			TMA.Name AS ActorNameA,
+			Convert(varchar(10),TTA.StartDate, 120) AS StartDateA,
+			Convert(varchar(10),TTA.EndDate, 120) AS EndDateA,
+			TTA.Manday AS MandayA,
+			TTA.Confirmed AS ConfirmedA,
+			TTA.LastUpdated AS LastUpdateA,
+			TTA.LastUser AS LastUserA,
+			TEAMA.Name As TeamNameA,
+			TTA.FileID,
+			TIF.FileRealName,
+			TIF.FileName,
+			TF.FilePath,
+			DATEDIFF(DD,TTP.StartDate,TTA.StartDate) AS StartDateGap,
+			DATEDIFF(DD,TTP.EndDate,TTA.EndDate) AS EndDateGap
+		From XBOLTADM.TB_PJT_TASK_TP TTT
+		Left Outer Join XBOLTADM.TB_TASK TTP ON TTP.TaskTypeCode = TTT.TaskTypeCode And TTP.Category = 'P' And TTP.ItemID = #{itemID} And TTP.ChangeSetID = #{changeSetID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TTT.TaskTypeCode And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_MEMBER TMP On TMP.MemberID = TTP.Actor 
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TEAMP On TEAMP.TeamID = TTP.TeamID	And TEAMP.LanguageID = #{languageID}	
+		Left Outer Join XBOLTADM.TB_TASK TTA ON TTA.TaskTypeCode = TTT.TaskTypeCode And TTA.Category = 'A' And TTA.ItemID = #{itemID} And TTA.ChangeSetID = #{changeSetID}
+		Left Outer Join XBOLTADM.TB_MEMBER TMA On TMA.MemberID = TTA.Actor 
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TEAMA On TEAMA.TeamID = TTA.TeamID And TEAMA.LanguageID = #{languageID}	
+		Left Outer Join XBOLTADM.TB_FILE TIF On TIF.Seq = TTA.FileID 		 
+		Left Outer Join XBOLTADM.TB_TASK_TYPE TTTYP On TTTYP.TaskTypeCode = TTT.TaskTypeCode	
+		Left Outer Join XBOLTADM.TB_FLTP TF On TF.FltpCode = TTTYP.FltpCode 	
+		Left Outer Join  XBOLTADM.TB_CHANGE_SET CNGS On CNGS.ChangeSetID = #{changeSetID}
+		Left Outer Join  XBOLTADM.TB_ITEM ITM On ITM.ItemID = CNGS.ItemID			 
+		Where TTT.ProjectID = #{parentID}  AND ITM.ClassCode = TTT.ItemClassCode
+		
+		Order By TTT.SortNum
+	</select>
+	
+	<select id="getTaskEditList" resultType="java.util.HashMap">
+		Select 
+			Row_Number()OVER(ORDER BY  TTT.TaskTypeCode) as RNUM,
+			TTT.TaskTypeCode,
+			TD.Name As TaskTypeName,
+			TT.TaskID,
+			TT.ChangeSetID,
+			TT.ItemID,
+			TT.Category,
+			TT.Seq,
+			TT.TeamID,
+			TT.Actor,
+			TM.Name AS ActorName,
+			ISNULL(Convert(varchar(10),TT.StartDate, 120),'') AS StartDate,
+			ISNULL(Convert(varchar(10),TT.EndDate, 120),'') AS EndDate,
+			TT.Manday,
+			TT.Confirmed,
+			TT.LastUpdated,
+			TT.LastUser,
+			TEAM.Name As TeamName,
+			TT.TeamID,
+			TSTP.Actor As PlanActor
+		From XBOLTADM.TB_PJT_TASK_TP TTT
+		Left Outer Join XBOLTADM.TB_TASK TT ON TT.TaskTypeCode = TTT.TaskTypeCode And TT.Category = #{category} And TT.ItemID = #{itemID} And TT.ChangeSetID = #{changeSetID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TTT.TaskTypeCode And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_MEMBER TM On TM.MemberID = TT.Actor 
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM On TEAM.TeamID = TT.TeamID And TEAM.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_TASK TSTP ON TSTP.TaskTypeCode = TTT.TaskTypeCode And TSTP.Category = 'P' And TSTP.ItemID = #{itemID} And TSTP.ChangeSetID =  #{changeSetID}
+		Left Outer Join XBOLTADM.TB_ITEM TI ON TI.ItemID = #{itemID} 
+		Where TTT.ProjectID = #{parentID}  And TI.ClassCode = TTT.ItemClassCode
+		Order By TTT.SortNum
+	</select>
+
+	<update id="updateTaskComfirmed">
+		Update XBOLTADM.TB_TASK Set 
+			Confirmed = #{confirmed}
+		Where ChangeSetID = #{changeSetID}
+		And ItemID = #{itemID}
+		And Category = #{category}
+	</update>
+	
+	<update id="updateChangeSetTaskStatus">
+		Update XBOLTADM.TB_CHANGE_SET Set
+			CurTask = #{taskStatus}
+		Where ChangeSetID = #{changeSetID}
+	</update>
+	
+	<select id="getTaskItemFileList" resultType="java.util.HashMap">
+		Select
+			Row_Number()OVER(ORDER BY  TPTT.SortNum) as RNUM,
+		    TPTT.ProjectID,
+			TPTT.TaskTypeCode,
+			TTT.FltpCode,
+			TD.Name AS FltpName,
+			TIF.FileRealName,
+			TIF.FileName,
+			Convert(varchar(10),TIF.CreationTime, 120) AS CreationTime,
+			Convert(varchar(10),TIF.LastUpdated, 120) AS LastUpdated,
+			TIF.RegMemberID,
+			TM.Name AS RegMemberName,
+			TMT.Name AS TeamName,
+			TIF.DownCNT,
+			TT.FileID,
+			TT.TaskID,
+			TF.FilePath
+		From XBOLTADM.TB_PJT_TASK_TP TPTT
+		Left Outer Join XBOLTADM.TB_TASK_TYPE TTT ON TTT.TaskTypeCode = TPTT.TaskTypeCode 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TTT.FltpCode And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_TASK TT On TT.TaskTypeCode = TPTT.TaskTypeCode And TT.Category = 'A' And TT.ItemID = #{itemID}
+		Left Outer Join XBOLTADM.TB_FILE TIF ON TIF.FltpCode = TTT.FltpCode And TIF.DocumentID = #{itemID} And TIF.Seq = TT.FileID
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TIF.RegMemberID
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TMT On TMT.TeamID = TM.TeamID  AND TMT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_FLTP TF On TF.FltpCode = TTT.FltpCode 
+		Where TPTT.ProjectID = #{parentID} 
+		And TT.TaskID is NOT NULL 
+		And TT.ChangeSetID = #{changeSetID}
+		And TTT.FltpCode Is Not Null
+		Order By TPTT.SortNum
+	</select>
+	
+	<update id="updateTaskFileID">
+		Update XBOLTADM.TB_Task Set
+			FileID = #{fileID},
+			LastUpdated = GETDATE(),
+			LastUser = #{userId}
+		Where TaskID = #{taskID}
+	</update>
+	
+	<update id="updateChageSetInfo">
+		Update XBOLTADM.TB_CHANGE_SET Set 
+			Priority = #{priority},
+			Difficulty = #{difficulty},
+			Description = #{description}
+		Where ChangeSetID = #{changeSetID}
+	</update>
+	
+	<select id="getTaskCnt"  resultType="String">
+		Select count(taskID) as taskIDCnt From XBOLTADM.TB_TASK Where ChangeSetID = #{changeSetID} and Category = #{category}
+	</select> 
+	
+	<select id="getActorList" resultType="java.util.HashMap">
+		Select Actor from XBOLTADM.TB_TASK Where ChangeSetID = #{changeSetID} And Category = 'A' 
+	</select>
+	
+	<select id="getTaskSearchList" resultType="java.util.HashMap" >
+		Select
+			TOP 1500
+			Row_Number()OVER(ORDER BY  TCS.ChangeSetID) as RNUM,
+			TPT.Name As ProjectName,
+			TEAM.Name AuthorTeamName,
+			TCS.AuthorID,
+			(Select LoginID From XBOLTADM.TB_MEMBER Where MemberID = TCS.AuthorID) LoginID,
+			TM.Name As AuthorName,
+			TCS.ChangeSetID,
+			TPTCSR.Name As Csr,
+			TCS.CurTask As CurrTaskName,
+			TCS.Priority As PriorityName,
+			TCS.Difficulty As DifficultyName,
+			TCS.ItemID,
+			ISNULL(XBOLTADM.fn_GetMyAbsPathForList( TCS.ItemID, #{languageID}),'') AS Path,
+			TI.Identifier,
+			TDC.Name AS ItemClassName,
+			TIA1.PlainText As ItemName, 
+			ISNULL(TIA2.PlainText,'') As TCode,
+			ISNULL((Select Value From XBOLTADM.TB_ATTR_TYPE_LOV Where LanguageID = #{languageID} And LovCode = TIA3.PlainText),'') As CBOType,
+			TCS.ItemClassCode,
+			TP.RefPjtID As ParentID,
+			TCS.ChangeType		
+		From XBOLTADM.TB_CHANGE_SET TCS
+		Left Outer Join XBOLTADM.TB_PROJECT TP ON TP.ProjectID = TCS.ProjectID 
+		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT ON TPT.ProjectID = TP.RefPjtID And TPT.LanguageID = #{languageID}
+		Left outer Join XBOLTADM.TB_TEAM_TXT TEAM ON TEAM.TeamID = TCS.AuthorTeamID And TEAM.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPTCSR ON TPTCSR.ProjectID = TCS.ProjectID And TPTCSR.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TCS.CurTask And TD.LanguageID = #{languageID} And TD.Category = 'TSKTP'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDP ON TDP.TypeCode = TCS.Priority And TDP.LanguageID = #{languageID} And TDP.Category = 'PRT'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDD ON TDD.TypeCode = TCS.Difficulty And TDD.LanguageID = #{languageID} And TDD.Category = 'DFCT'
+		Left Outer Join XBOLTADM.TB_ITEM TI ON TI.ItemID = TCS.ItemID
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDC ON TDC.TypeCode = TCS.ItemClassCode And TDC.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA1 ON TI.ItemID = TIA1.ItemID AND TIA1.AttrTypeCode = 'AT00001' AND TIA1.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 ON TIA2.ItemID = TCS.ItemID And TIA2.AttrTypeCode = 'AT00039' And TIA2.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA3 ON TIA3.ItemID = TCS.ItemID And TIA3.AttrTypeCode = 'AT00063' And TIA3.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TCS.AuthorID 
+		Where TP.RefPjtID = #{parentID}
+		 And TCS.ItemClassCode = #{itemClassCode}
+		<if test="projectID != null and projectID != ''">TCS.ProjectID = #{projectID}</if>
+		<if test="csrTeam != null and csrTeam != ''">TCS.AuthorTeamID = #{csrTeam}</if>
+		<if test="curTask != null and curTask != ''">TCS.CurTask = #{curTask}</if>
+		<if test="screenMode != null and screenMode != ''">
+			TCS.ItemID IN
+			<foreach collection="sessionParamSubItems" index="index" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+		 
+	</select>
+	
+	<select id="getCsrTaskList" resultType="java.util.HashMap" >
+		Select * From XBOLTADM.TB_TASK Where ChangeSetID IN(${changeSetIDs})
+	</select>
+	
+	<select id="getTaskInfoList" resultType="java.util.HashMap" >
+		Select 
+			TPTT.TaskTypeCode,
+			ISNULL(TSk.Actor,'') AS Actor,  
+			ISNULL(TM.LoginID,'') AS LoginID, 
+			ISNULL(TM.Name,'') As ActorName,
+			ISNULL(Convert(varchar(10),TSK.StartDate, 120),'') AS StartDate,
+			ISNULL(Convert(varchar(10),TSK.EndDate, 120),'') AS EndDate	
+		From XBOLTADM.TB_PJT_TASK_TP TPTT 
+		Left Outer Join XBOLTADM.TB_TASK TSK ON TSK.TaskTypeCode  = TPTT.TaskTypeCode And TSK.ChangeSetID = #{changeSetID} And TSK.Category = #{category}
+		Left Outer Join XBOLTADM.TB_MEMBER TM On TM.MemberID = TSK.Actor 
+		Where TPTT.ProjectID = #{parentID} And TPTT.ItemClassCode = #{itemClassCode}
+		Order By TPTT.SortNum
+	</select>
+	
+	<select id="getTaskNameList" resultType="java.util.HashMap" >
+		Select TPTT.TaskTypeCode, TD.Name As TaskName
+		From XBOLTADM.TB_PJT_TASK_TP TPTT 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode  = TPTT.TaskTypeCode And TD.LanguageID =  #{languageID}
+		Where ProjectID = #{parentID} And ItemClassCode = #{itemClassCode}
+		Order By TPTT.SortNum 
+	</select>
+	
+	<select id="getDicName" resultType="String">
+		Select Name From XBOLTADM.TB_DICTIONARY Where Category = #{category} And TypeCode = #{typeCode} And LanguageID = #{languageID}
+	</select>
+	
+	<select id="getPjtTask" resultType="java.util.HashMap">
+		Select TaskTypeCode From XBOLTADM.TB_PJT_TASK_TP 
+		Where ProjectID = (	Select TP.RefPjtID From XBOLTADM.TB_CHANGE_SET TCS
+							Left Outer Join XBOLTADM.TB_PROJECT TP ON TP.ProjectID = TCS.ProjectID 
+							Where TCS.ChangeSetID = #{changeSetID})
+		AND ItemClassCode =(Select ItemClassCode From XBOLTADM.TB_CHANGE_SET Where ChangeSetID = #{changeSetID})
+		Order By SortNum 
+	</select>
+	
+	<update id="updateChageSetInfoExcel">
+		Update XBOLTADM.TB_CHANGE_SET Set 
+			ChangeType = #{changeType},
+			CurTask = #{curTask},
+			Priority = #{priority},
+			Difficulty = #{difficulty}
+		Where ChangeSetID = #{changeSetID}
+	</update>
+	
+	<select id="getTaskCntExcel" resultType="String">
+		Select Count(*) As TaskCnt From XBOLTADM.TB_TASK where ChangeSetID = #{changeSetID} And TaskTypeCode = #{taskTypeCode} And Category = #{category}
+	</select>
+	
+	<select id="getCsrID" resultType="String">
+		Select ChangeSetID From XBOLTADM.TB_CHANGE_SET 
+		 Where ItemID =( Select itemID From XBOLTADM.TB_ITEM Where Identifier = #{identifier})
+	</select>
+	
+	<select id="getCsrItemID" resultType="String">
+		Select itemID 
+		From XBOLTADM.TB_CHANGE_SET
+		Where ChangeSetID = #{changeSetID}
+	</select>
+	
+	<update id="updateTaskInfoExcel">
+		Update XBOLTADM.TB_TASK Set 
+		<if test="actorID != null and actorID != ''">
+		 Actor = (Select MemberID From XBOLTADM.TB_MEMBER Where LoginID = #{actorID}),
+		 TeamID = (Select TeamID From XBOLTADM.TB_MEMBER Where LoginID = #{actorID}),
+		</if>
+		<choose><when test="startDate != null and startDate != ''">StartDate = #{startDate},</when><otherwise> StartDate=NULL,</otherwise></choose>
+		<choose><when test="endDate != null and endDate != ''">EndDate = #{endDate},</when><otherwise> EndDate=NULL,</otherwise></choose>
+		 LastUpdated = GetDate(),
+		 LastUser = #{userID}
+		Where TaskTypeCode = #{taskTypeCode} 
+		And ChangeSetID = #{changeSetID}
+		And Category = #{category}
+	</update>
+	
+	<select id="getMemberID" resultType="String">
+		Select MemberID From XBOLTADM.TB_MEMBER Where LoginID = #{loginID}
+	</select>
+	
+	<select id="getTeamID" resultType="String">
+		Select TeamID From XBOLTADM.TB_MEMBER Where LoginID = #{loginID}
+	</select>
+	
+	<select id="getItemTypeCode" resultType="String">
+		Select ItemTypeCode From XBOLTADM.TB_ITEM Where ItemID = #{itemID}
+	</select>
+	
+	<select id="getTaskResultList_gridList" resultType="java.util.HashMap" >
+		Select Row_Number()OVER(ORDER BY  TI.Identifier) as RNUM,
+			TI.Identifier AS ID,
+			TIA.PlainText AS ItemName,
+			TPTP.Name As ProjectName,
+			TPT.Name As CsrName,
+			TD.Name As TaskName,
+			Convert(varchar(10),TSK.EndDate, 120) AS PlanEndDate,
+			Convert(varchar(10),TSKA.StartDate, 120) AS ActualStartDate,
+			Convert(varchar(10),TSKA.EndDate, 120) AS ActualEndDate,
+			TIAPR.PlainText As ProgramID,
+			TIATC.PlainText As T_Code,
+			TSKA.FileID,
+			CASE WHEN ISNULL(TSKA.FileID,'') != ''  THEN 'btn_file_add.png'  ELSE 'blank.png' END AS AttachFileBtn,
+			'btn_file_attach.png' As UploadFileBtn,
+			TIF.FileName As SysFileName,
+			TIF.FileRealName As OriginalFileName,
+			TF.FilePath,
+			TSK.TaskTypeCode,
+			TSK.ChangeSetID,
+			TSK.ItemID,
+			TTT.FltpCode,
+			TSKA.TaskID As TaskIDA,
+			TM.Name AS ActorName,
+			TSk.TaskID As TaskIDP,
+			TDC.Name AS ChangeTypeName, 
+			TCS.AuthorID As CsrAuthorID,
+			CASE WHEN ISNULL(TSKA.EndDate,'') = ''  THEN DATEDIFF(DD,TSK.EndDate,#{currentDate}) ELSE null END AS EndDateGap
+		From XBOLTADM.TB_TASK TSK
+		Left Outer Join XBOLTADM.TB_TASK TSKA ON TSKA.ChangeSetID = TSK.ChangeSetID AND TSKA.TaskTypeCode = TSK.TaskTypeCode And TSKA.Category = 'A'
+		Left Outer Join XBOLTADM.TB_CHANGE_SET TCS ON TCS.ChangeSetID = TSK.ChangeSetID
+		Left Outer Join XBOLTADM.TB_ITEM TI ON TI.ItemID = TSK.ItemID
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TSK.ItemID And TIA.LanguageID = #{languageID} And TIA.AttrTypeCode = 'AT00001'
+		Left Outer Join XBOLTADM.TB_PROJECT TP ON TP.ProjectID = TCS.ProjectID
+		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPTP ON TPTP.ProjectID = TP.RefPjtID And TPTP.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT ON TPT.ProjectID = TCS.ProjectID And TPT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TSK.TaskTypeCode And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIAPR ON TIAPR.ItemID = TI.ItemID And TIAPR.AttrTypeCode = 'AT00039' And TIAPR.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIATC ON TIATC.ItemID = TI.ItemID And TIATC.AttrTypeCode = 'AT00014' And TIATC.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_FILE TIF ON TIF.Seq = TSKA.FileID 
+		Left Outer Join XBOLTADM.TB_FLTP TF ON TF.FltpCode = TIF.FltpCode 
+		Left Outer Join XBOLTADM.TB_TASK_TYPE TTT ON TTT.TaskTypeCode = TSK.TaskTypeCode 
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TSK.Actor
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDC ON TDC.TypeCode = TCS.ChangeType And TDC.LanguageID = #{languageID}  And TDC.Category = 'CNGT1'
+		<if test="cboType != null and cboType != ''">
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR CBO ON CBO.ItemID = TI.ItemID And CBO.AttrTypeCode = 'AT00063' And CBO.LanguageID = #{languageID}
+		</if>
+		Where TSK.Category = 'P'
+		<choose>
+			<when test="screenMode != null and screenMode.equals('myTask')">
+			And TCS.Status = 'MOD' And TCS.ChangeType != 'DEL'
+			AND	(TSK.Actor = #{userID} or TCS.AuthorID =  #{userID})
+			<if test="actor != null and actor != ''">
+			AND TSK.Actor = #{actor}
+			</if>
+			<if test="itemTypeCode != null and itemTypeCode != ''">
+			AND TI.ItemTypeCode = #{itemTypeCode}
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+				<choose>
+					<when test="searchKey.equals('Name')">AND TIA.PlainText like '%'+#{searchValue}+'%'</when>
+					<when test="searchKey.equals('ID')">AND TI.Identifier like '%'+#{searchValue}+'%'</when>
+				</choose>
+			</if>
+			<if test="planEndDate != null and planEndDate != ''">
+			AND <![CDATA[ Convert(varchar(10),TSK.EndDate, 120)  <= #{planEndDate}  ]]>
+			</if>
+			</when>
+			<when test="screenMode != null and screenMode.equals('report')">
+				<if test="projectID != null and projectID != ''">
+				AND TP.RefPjtID = #{projectID}
+				</if>
+				<if test="csrOrderID != null and csrOrderID != ''">
+				AND TP.ProjectID = #{csrOrderID}
+				</if>
+				<if test="csrType != null and csrType != ''">
+				AND TCS.ChangeType = #{csrType}
+				</if>
+				<if test="fileAttach != null and fileAttach != ''">
+					<choose>
+						<when test='"1".equals(fileAttach)'>And TTT.FltpCode != '' And ISNULL(TSKA.TaskID,'') !='' And ISNULL(TSKA.FileID,'') != ''</when>
+						<when test='"2".equals(fileAttach)'>And ISNULL(TSKA.FileID,'') = ''</when>
+					</choose>
+				</if>
+				<if test="cboType != null and cboType != ''">
+				AND CBO.LovCode = #{cboType}
+				</if>
+				<if test="fromPlanEndDate != null and fromPlanEndDate != ''">
+				AND <![CDATA[ CONVERT(varchar(10), TSK.EndDate, 120) BETWEEN #{fromPlanEndDate} AND #{toPlanEndDate}  ]]>
+				</if>
+				<if test="fromActEndDate != null and fromActEndDate != ''">
+				AND <![CDATA[ CONVERT(varchar(10), TSKA.EndDate, 120) BETWEEN #{fromActEndDate} AND #{toActEndDate}  ]]>
+				</if>
+			</when>
+		</choose>
+		<if test="taskTypeCode != null and taskTypeCode != ''">
+		AND TSK.TaskTypeCode = #{taskTypeCode}
+		</if>
+		<if test="taskStatus != null and taskStatus != ''">
+			<choose> 
+				<when test='"1".equals(taskStatus)'>And ISNULL(TSKA.TaskID,'') != '' And ISNULL(TSKA.EndDate,'') != ''</when>
+				<when test='"2".equals(taskStatus)'>And ISNULL(TSKA.EndDate,'') = ''</when>
+			</choose>
+		</if>
+		Order by ID, TSK.TaskTypeCode
+	</select>
+	
+	<select id="getEditTaskList" resultType="java.util.HashMap" >
+		Select 
+			Row_Number()OVER(ORDER BY  TI.Identifier) as RNUM,
+			TI.Identifier As ID,
+			TIA.PlainText As ItemName,
+			TCS.ChangeSetID,
+			TD.Name As TaskName,
+			Convert(varchar(10),TSK.EndDate, 120) AS PlanEndDate,
+			Convert(varchar(10),TSKA.StartDate, 120) AS ActualStartDate,
+			Convert(varchar(10),TSKA.EndDate, 120) AS ActualEndDate,
+			TIAPR.PlainText As ProgramID,
+			TIATC.PlainText As TCode,
+			TSk.ItemID,
+			TSK.TaskID As TaskIDP,
+			TSKA.TaskID As TaskIDA,
+			TSK.TaskTypeCode,
+			TSKA.FileID,
+			TTT.FltpCode,
+			TIF.FileRealName,
+			TIF.FileName,
+			TF.FilePath+TIF.FileName AS SysFile,
+			TP.RefPjtID As ProjectID
+		From XBOLTADM.TB_TASK TSK
+		Left Outer Join XBOLTADM.TB_TASK TSKA ON TSKA.TaskTypeCode = TSK.TaskTypeCode And TSKA.Category = 'A' And TSKA.ChangeSetID = TSK.ChangeSetID
+		Left Outer Join XBOLTADM.TB_ITEM TI ON TI.ItemID = TSK.ItemID 
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TSK.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{langugeID}
+		Left Outer Join XBOLTADM.TB_CHANGE_SET TCS ON TCS.ChangeSetID = TSK.ChangeSetID
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TSK.TaskTypeCode And TD.LanguageID = #{langugeID}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIAPR ON TIAPR.ItemID = TSK.ItemID And TIAPR.AttrTypeCode = 'AT00039' And TIAPR.LanguageID = #{langugeID}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIATC ON TIATC.ItemID = TSK.ItemID And TIATC.AttrTypeCode = 'AT00014' And TIATC.LanguageID = #{langugeID}
+		Left Outer Join XBOLTADM.TB_TASK_TYPE TTT ON TTT.TaskTypeCode = TSK.TaskTypeCode 
+		Left Outer Join XBOLTADM.TB_FILE TIF ON TIF.Seq = TSKA.FileID
+		Left Outer Join XBOLTADM.TB_FLTP TF ON TF.FltpCode = TIF.FltpCode
+		Left Outer Join XBOLTADM.TB_PROJECT TP ON TP.ProjectID = TCS.ProjectID 
+		Where  1=1
+		AND ${sql}
+		And TSK.Category = 'P'
+		And TSK.ChangeSetID IN (${changeSetID})
+		And TSK.TaskID IN(${taskIDP})
+	</select>
+	
+	<select id="getTaskTypeCode" resultType="java.util.HashMap" >
+		Select TaskTypeCode From XBOLTADM.TB_TASK_TYPE Where TaskTypeCode In (#{taskTypeCode})
+	</select>
+	
+	<update id="updateTaskResult">
+		Update XBOLTADM.TB_TASK Set 
+		<choose><when test="startDate != null and startDate != ''">StartDate = #{startDate},</when><otherwise> StartDate=NULL,</otherwise></choose>
+		<choose><when test="endDate != null and endDate != ''">EndDate = #{endDate},</when><otherwise> EndDate=NULL,</otherwise></choose>  		
+			LastUpdated = GETDATE(),
+			LastUser = #{userID}
+		Where TaskID = #{taskID}		
+	</update>
+	
+	<select id="selectItemAttr" resultType="String" >
+		Select Count(*) 
+		 From XBOLTADM.TB_ITEM_ATTR
+		Where ItemID = #{itemID}
+		And AttrTypeCode = #{attrTypeCode}
+		And LanguageID = #{languageID}
+		And ItemTypeCode = (Select ItemTypeCode From XBOLTADM.TB_ITEM Where ItemID = #{itemID})	
+		And ClassCode = (Select ClassCode From XBOLTADM.TB_ITEM where ItemID = #{itemID})	
+	</select>
+	
+	<insert id="insertItemAttrPlainText" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_ITEM_ATTR
+			(
+				  PlainText
+				, LanguageID
+				, ItemID
+				, AttrTypeCode
+				, ItemTypeCode
+				, ClassCode
+			) VALUES (
+			  	  #{plainText}
+				, #{languageID}
+				, #{itemID}
+				, #{attrTypeCode}
+				, (Select ItemTypeCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{itemID})
+				, (Select ClassCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{itemID})
+			)
+	</insert>
+	
+	<update id="updateItemAttrPlainText">
+		Update XBOLTADM.TB_ITEM_ATTR Set PlainText = #{plainText} 
+		Where ItemID = #{itemID}
+		And AttrTypeCode = #{attrTypeCode} 
+		And LanguageID = #{languageID}
+		And ItemTypeCode = (Select ItemTypeCode From XBOLTADM.TB_ITEM Where ItemID = #{itemID})	
+		And ClassCode = (Select ClassCode From XBOLTADM.TB_ITEM where ItemID = #{itemID})
+	</update>
+	
+	<select id="getTaskID" resultType="String" >
+		Select TaskID 
+		From XBOLTADM.TB_TASK 
+		Where ChangeSetID = #{changeSetID}
+		 And ItemID = #{itemID}
+		 And TaskTypeCode = #{taskTypeCode} 
+		 And Category = #{category}
+	</select>
+	
+	<select id="getEditTaskActorList_gridList"  resultType="java.util.HashMap" >
+		SELECT Row_Number()OVER(ORDER BY TM.Name) as RNUM
+			, TM.Name AS UserName
+			, TM.MemberID AS MemberID
+			, TTT.Name AS TeamName
+			, TM.LoginID
+		FROM
+			XBOLTADM.TB_MEMBER TM
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT On TM.TeamID = TTT.TeamID  AND TTT.LanguageID = #{languageID}
+		WHERE
+			TM.Name Like N'%'+#{Name}+'%'
+			AND TM.Authority != 4
+	</select> 
+	
+	<update id="updateTaskActor">
+		Update XBOLTADM.TB_TASK Set 
+  			Actor = #{actorID},
+			LastUpdated = GETDATE(),
+			LastUser = #{userID}
+		Where TaskTypeCode = #{taskTypeCode}
+		And ChangeSetID = #{changeSetID}
+	</update>
+	
+	<select id="getProjectAuthorID"  resultType="java.util.HashMap" >
+		Select TP.ProjectID AS ProjectID, TPT.Name AS ProjectName, TP.AuthorID AS ProjectAuthorID  
+		From XBOLTADM.TB_PROJECT TP
+		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT ON TPT.ProjectID = TP.ProjectID And TPT.LanguageID =  #{languageID}
+		Where TP.ProjectID = #{parentID}
+	</select> 
+	
+	<update id="updateCurTaskClose">
+		Update XBOLTADM.TB_CHANGE_SET Set
+			CurTask = #{curTask}
+		Where ChangeSetID = #{changeSetID}
+	</update>
+</mapper>

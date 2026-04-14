@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+        
+<mapper namespace="procLog_SQL">
+
+	<select id="procLogConfigList_select" resultType="java.util.HashMap">
+		SELECT	/* getProcLogConfig */
+			ROW_NUMBER()OVER(ORDER BY PLOGCFGID) AS RNUM,
+			PLOGCFGID, FunctionNM, PIDParameter, ActionParameter, EventParameter, EventValue, ActivityCD, CommentParameter, TD.Name AS ActivityCDName
+		FROM XBOLTADM.TB_PROC_LOG_CONFIG LOG
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD on LOG.ActivityCD = TD.TypeCode and Category='ACTP' and LanguageID=#{sessionCurrLangType}
+		<where>
+			<if test="FunctionNM != null and FunctionNM != ''">
+				FunctionNM = #{FunctionNM}
+			</if>
+		</where>	
+	</select>
+	
+	<select id="procLog_nextVal" resultType="String">
+		SELECT ISNULL(MAX(SEQ)+1,'1') AS ID_NEXTVAL FROM XBOLTADM.TB_PROC_LOG
+	</select>	
+	
+	<insert id="insertProcLog" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_PROC_LOG
+			(
+				 PType
+				,ActivityID 
+				,PID 
+				,ActionID 
+				,TeamID 
+				,TeamNM
+				,ActorID 
+				,Comment 
+				,StartTime 
+				,EndTime 
+
+			) VALUES (
+				  'ITSP'
+				, #{ActivityCD}
+				, #{PID}
+				, #{ActionID}
+				, #{TeamID}
+				, #{TeamName}
+				, #{ActorID}
+				, #{Comment}
+				, #{StartTime}
+				, getDate()
+			)
+	</insert>	
+	
+	<select id="maxPlogCfgID" resultType="String">    
+		SELECT ISNULL(MAX(PLOGCFGID), 'PLOG0001') AS MaxProcInstID FROM XBOLTADM.TB_PROC_LOG_CONFIG
+	</select>
+	
+	<insert id="insertProcLogCfg" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_PROC_LOG_CONFIG
+	           (
+	           PLOGCFGID
+	           ,FunctionNM
+	           ,PIDParameter
+	           ,ActionParameter
+	           ,EventParameter
+	           ,EventValue
+	           ,ActivityCD
+	           ,CommentParameter
+	           ,Creator
+	           ,CreationTime
+	           ,LastUpdated
+	           ,LastUser
+	           )
+	     VALUES
+	           (
+	           #{pLogCfgID}
+	           ,#{functionNM}
+	           ,#{pIDParameter}
+	           ,#{actionParameter}
+	           ,#{eventParameter}
+	           ,#{eventValue}
+	           ,#{activityCD}
+	           ,#{commentParameter}
+	           ,#{userID}
+	           ,GetDate()
+	           ,GetDate()
+	           ,#{userID}
+	           )
+	</insert>
+	
+	<update id="updateProcLogConfig" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_PROC_LOG_CONFIG
+		SET
+			FunctionNM = #{functionNM},
+			PIDParameter = #{pIDParameter},
+			ActionParameter = #{actionParameter},
+			EventParameter = #{eventParameter},
+			EventValue = #{eventValue},
+			ActivityCD = #{activityCD},
+			CommentParameter = #{commentParameter},
+			LastUpdated = GetDate(),
+			LastUser = #{userID}
+		WHERE PLOGCFGID=#{pLogCfgID}
+	</update>
+
+	<delete id="delProcLog" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_PROC_LOG_CONFIG WHERE PLOGCFGID=#{pLogCfgID}
+	</delete>
+	
+	<select id="getESMProcConfig" resultType="java.util.HashMap">
+		Select
+		ROW_NUMBER()OVER(ORDER BY EPC.PRCCFGID) AS RNUM,
+		EPC.PRCCFGID, EPC.SRType, EPC.FunctionNM, EPC.PIDParameter, EPC.PIDParameter1, EPC.ActionParameter, EPC.EventParameter, 
+		EPC.EventValue, EPC.SpeCode, EPC.ProcPathID, EPC.CommentParameter, TIA.PlainText AS SpeName, TMT.Name AS procPathName, TM.ItemID
+		From XBOLTAPP.ESM_PROC_CONFIG EPC
+		Left Outer Join XBOLTADM.TB_ITEM TI ON EPC.SpeCode = TI.Identifier
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TI.ItemID = TIA.ITemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_MODEL_TXT TMT ON EPC.ProcPathID = TMT.ModelID And TMT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_MODEL TM ON EPC.ProcPathID = TM.ModelID
+		<where>
+			<if test="FunctionNM != null and FunctionNM != ''">
+		    EPC.FunctionNM = #{FunctionNM}
+		    </if>
+		    <if test="srType != null and srType != ''">
+		    And EPC.SRType = #{srType}
+		    </if>
+		</where>
+	</select>
+	
+	<select id="maxProcCfgID" resultType="String">    
+		SELECT ISNULL(MAX(PRCCFGID), 'PRC0001') AS MaxPrcCfgID FROM XBOLTAPP.ESM_PROC_CONFIG
+	</select>
+	
+	<insert id="insertProcCfg" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTAPP.ESM_PROC_CONFIG
+	           (
+	           PRCCFGID
+	           ,SRType
+	           ,FunctionNM
+	           ,PIDParameter
+	           ,ActionParameter
+	           ,EventParameter
+	           ,EventValue
+	           ,SpeCode
+	           ,ProcPathID
+	           ,Creator
+	           ,CreationTime
+	           ,LastUpdated
+	           ,LastUser
+	           )
+	     VALUES
+	           (
+	           #{prcCfgID}
+	           ,#{srType}
+	           ,#{functionNM}
+	           ,#{pIDParameter}
+	           ,#{actionParameter}
+	           ,#{eventParameter}
+	           ,#{eventValue}
+	           ,#{speCode}
+	           ,#{procPathID}
+	           ,#{userID}
+	           ,GetDate()
+	           ,GetDate()
+	           ,#{userID}
+	           )
+	</insert>
+	
+	<update id="updateProcCfg" parameterType="java.util.HashMap">
+		UPDATE XBOLTAPP.ESM_PROC_CONFIG
+		SET
+			SRType = #{srType},
+			FunctionNM = #{functionNM},
+			PIDParameter = #{pIDParameter},
+			ActionParameter = #{actionParameter},
+			EventParameter = #{eventParameter},
+			EventValue = #{eventValue},
+			SpeCode = #{speCode},
+			ProcPathID = #{procPathID},
+			LastUpdated = GetDate(),
+			LastUser = #{userID}
+		WHERE PRCCFGID=#{prcCfgID}
+	</update>
+
+	<delete id="delProcCfg" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTAPP.ESM_PROC_CONFIG WHERE PRCCFGID=#{prcCfgID}
+	</delete>
+</mapper>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	LF 관련 관련	-->
+<mapper namespace="lf_ORASQL">	
+	<select id="getCheckLogSso1"  resultType="String">
+		Select NVL(Count(*),0) AS ChkCnt From TB_LOGSSO1
+		Where SSO1_USID = #{p1}
+		And SSO1_FRAP = #{p2}
+		And SSO1_TOAP = #{p3}
+		And SSO1_STAT = 'N'
+		And SSO1_IPAD = #{p5}
+		And SSO1_CHK1 = #{p4}
+		<![CDATA[ And (sysdate-to_date(sso1_date||sso1_time,'yyyymmddhh24miss'))*60*60*24 <= 30 ]]>	
+	</select>
+		
+	<update id="updateLogSso1Stat" parameterType="java.util.HashMap">		
+			Update TB_LOGSSO1 
+			Set SSO1_STAT = 'Y'
+			 Where SSO1_USID = #{p1}
+			 And SSO1_FRAP = #{p2}
+			 And SSO1_TOAP = #{p3}
+			 And SSO1_STAT = 'N'
+			 And SSO1_IPAD = #{p5}
+			 And SSO1_CHK1 = #{p4}  
+		</update>
+		
+	<insert id="insertTBSSO1" parameterType="java.util.HashMap">
+			INSERT INTO TB_LOGSSO1(SSO1_USID, SSO1_FRAP, SSO1_TOAP, SSO1_STAT, SSO1_CHK1, SSO1_IPAD,  SSO1_DATE, SSO1_TIME)
+			VALUES(#{userID}, #{p2}, #{p3}, 'N', #{p4}, #{p5}, TO_CHAR(SYSDATE,'YYYYMMDD'), #{sso1_time} )
+	</insert>	
+	
+</mapper>

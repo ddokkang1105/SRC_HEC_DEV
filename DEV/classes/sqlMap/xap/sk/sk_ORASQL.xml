@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="sk_ORASQL">	
+	
+	<select id="zSK_getNextSeqforMenuList" resultType="String">
+		SELECT NVL(MAX(SEQ), 0) + 1 FROM TB_MENU_LIST
+	</select>
+	
+	<select id="zSK_getNextSeqforUserList" resultType="String">
+		SELECT NVL(MAX(SEQ), 0) + 1 FROM TB_USER_STATUS
+	</select>
+		
+	<select id="zSK_insertMenuList" resultType="java.util.HashMap">
+		INSERT INTO TB_MENU_LIST(SYSTEM_NM, MENU_NM, USE_YN, REG_DT, IF_DT)
+			VALUES( #{SYSTEM_NM}, #{MENU_NM}, #{USE_YN}, #{REG_DT}, TO_CHAR(SYSDATE, 'YYYYMMDD') )
+	</select>
+	
+	<select id="zSK_insertUserStatus" resultType="java.util.HashMap">
+		INSERT INTO TB_USER_STATUS(SYSTEM_NM, EMPLOYEE_NO, USE_YN, LAST_EVENT_DT, IF_DT)
+			VALUES( #{SYSTEM_NM}, #{EMPLOYEE_NUM}, #{USE_YN}, TO_TIMESTAMP(#{LAST_EVENT_DT}, 'YYYY-MM-DD HH24:MI:SS.FF3'), TO_CHAR(SYSDATE, 'YYYYMMDD') )
+	</select>
+	
+	<select id="zSK_insertUserConnChk" resultType="java.util.HashMap">
+		INSERT INTO TB_USER_CONN_CHK("SYSTEM", YEAR, MONTH, "DATE", EMPLOYEE_NO, NAME,  DEPARTMENT, LOGINDT)
+			VALUES(#{SYSTEM}, TO_CHAR(SYSDATE -1, 'YYYY'), TO_CHAR(SYSDATE -1, 'MM'), TO_CHAR(SYSDATE -1, 'DD'), #{EMPLOYEE_NUM}, #{NAME}, #{DEPARTMENT}, TO_TIMESTAMP(#{LOGIN_DT}, 'YYYY-MM-DD HH24:MI:SS.FF3') )
+	</select>
+	
+	<select id="zSK_insertMenuConnLog" resultType="java.util.HashMap">
+		INSERT INTO TB_MENU_CONTACTLOG(SYSTEM_NM, REGID, MENUNM, MENUID, REGDT, MENU_1L, MENU_2L, MENU_3L)
+			VALUES(#{SYSTEM_NM}, #{REGID}, #{MENUNM}, #{MENUID}, TO_TIMESTAMP(#{REG_DT}, 'YYYY-MM-DD HH24:MI:SS.FF3'), #{MENUNM}, #{MENUNM}, #{MENUNM})
+	</select>
+	
+</mapper>
+
+

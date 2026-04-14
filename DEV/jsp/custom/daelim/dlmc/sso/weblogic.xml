@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<weblogic-web-app xmlns="http://www.bea.com/ns/weblogic/weblogic-web-app" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.bea.com/ns/weblogic/weblogic-web-app http://www.bea.com/ns/weblogic/weblogic-web-app/1.0/weblogic-web-app.xsd">
+
+	<container-descriptor>
+		<show-archived-real-path-enabled>true</show-archived-real-path-enabled>
+	</container-descriptor>
+
+	<charset-params>
+		<input-charset>
+			<resource-path>/</resource-path>
+			<java-charset-name>UTF-8</java-charset-name>
+		</input-charset>
+	</charset-params>
+
+	<context-root>/SP2018</context-root>
+	
+	<jsp-descriptor>
+		<precompile>true</precompile>
+		<encoding>UTF-8</encoding>
+	</jsp-descriptor>
+
+</weblogic-web-app>

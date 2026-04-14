@@ -1,0 +1,1605 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="common_SQL">
+	<!-- 언어종류 코드 조회   -->
+	<select id="langType_commonSelect" resultType="java.util.HashMap">
+		SELECT LanguageID AS CODE, Name NAME, ISNULL(IsDefault,'') AS IsDefault, UPPER(LanguageCode) LANG_CODE, ExtCode
+		FROM XBOLTADM.TB_LANGUAGE WITH (NOLOCK)
+		WHERE ISNULL(Deactivated,'0')='0' 
+			<if test="SubLanguage != null and SubLanguage != ''">
+				AND IsDefault is Null
+			</if>
+			<if test="otherLangType != null and otherLangType != ''">
+				And LanguageID Not In(#{otherLangType})
+			</if>
+	</select>	
+	<!-- 언어에 따른 Label  조회   -->
+	<!-- 언어에 따른 Label  조회   -->
+	<select id="label_commonSelect" resultType="java.util.HashMap">
+		SELECT TypeCode LABEL_CD, LanguageID LANG_TYPE, ISNULL(Name, '') AS LABEL_NM, ISNULL(Description, '') AS Description
+		FROM XBOLTADM.TB_DICTIONARY WITH (NOLOCK)
+		<where>
+			<choose>
+				<when test="Category != null and Category != ''">
+					Category= #{Category}
+				</when>
+				<otherwise>
+					Category= 'LN'
+				</otherwise>
+			</choose>
+			<if test="TypeCode != null and TypeCode != ''">
+				AND TypeCode= #{TypeCode}
+			</if>			
+			<if test="LanguageID != null and LanguageID != ''">
+				AND LanguageID= #{LanguageID}
+			</if>
+		</where>
+	</select>	
+	<!-- 언어에 따른 법인(회사) 조회 -->
+	<select id="getCompany_commonSelect" resultType="java.util.HashMap">
+		SELECT 
+			RTRIM(TeamID) AS CODE
+			, Name AS NAME 
+		FROM 
+			XBOLTADM.TB_TEAM_TXT
+		WHERE 
+			1=1
+			<if test='!"Y".equals(wfadmin)'>
+				AND TeamID In (SELECT TeamID FROM XBOLTADM.TB_TEAM WHERE TeamType = 2)
+			</if>
+			AND	LanguageID = #{sessionCurrLangType} 
+	</select>
+	
+	<!-- ItemTypeCode SelectBox -->
+	<select id="itemTypeCode_commonSelect" resultType="java.util.HashMap">
+		SELECT DISTINCT  TIT.ItemTypeCode AS CODE, TD.Name NAME
+		FROM XBOLTADM.TB_ITEM_TYPE TIT
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD on TIT.ItemTypeCode = TD.TypeCode AND TD.LanguageID = #{sessionCurrLangType}
+		
+		<where>
+			<choose>
+				<when test="category != null and category != '' and category != 'MOJ' ">
+					TIT.Category = #{category}
+				</when>
+				<otherwise>
+					TIT.Category IN ('OJ' , 'VAR')
+				</otherwise>
+			</choose>
+			<if test="Deactivated != null and Deactivated != ''">
+				AND TIT.Deactivated != #{Deactivated}
+			</if>		
+			<if test="objectType != null and objectType != ''">
+				AND (TIT.FromItemTypeCode = #{objectType} OR TIT.ToItemTypeCode = #{objectType})
+			</if>			
+			<if test="itemID != null and itemID != ''">
+				AND TIT.ItemTypeCode = (Select ItemTypeCode From XBOLTADM.TB_ITEM Where ItemID = #{itemID})
+			</if>
+		</where>
+	 </select>
+	 
+	 <!-- ModelTypeCode SelectBox :: Diagram -->
+	<select id="ModelTypeCode_commonSelect" resultType="java.util.HashMap">
+		SELECT DISTINCT TypeCode AS CODE, Name AS NAME
+		FROM XBOLTADM.TB_DICTIONARY
+		WHERE LanguageID = #{sessionCurrLangType} AND Category = 'MT'		
+	 </select>	 
+	 <!-- ItemTypeCategoryCode SelectBox -->
+	<select id="MTCTypeCode_commonSelect" resultType="java.util.HashMap">
+		SELECT DISTINCT TypeCode AS CODE, Name AS NAME
+		<if test="radioID != null and radioID != ''">
+	   	, #{radioID} AS ID
+	   	</if>
+		FROM XBOLTADM.TB_DICTIONARY
+		WHERE LanguageID = #{sessionCurrLangType} AND Category = 'MC'	And Editable = '1'		
+			<if test="copyMdl != null and copyMdl != ''">		
+			   AND TypeCode != 'BAS'
+			</if>
+	 </select>
+	 
+	 <!-- Dictiony 통합 SelectBox -->
+	<select id="dictionyCode_commonSelect" resultType="java.util.HashMap">
+		SELECT DISTINCT RTRIM(TypeCode) AS CODE, Name AS NAME, SortNum
+		FROM XBOLTADM.TB_DICTIONARY
+		WHERE LanguageID = #{sessionCurrLangType} AND Category = #{Category}
+	 </select>
+	 
+	 <select id="getDicWord_commonSelect" resultType="java.util.HashMap">
+		SELECT DISTINCT RTRIM(TypeCode) AS CODE, Name AS NAME, SortNum
+		FROM XBOLTADM.TB_DICTIONARY
+		WHERE LanguageID = #{sessionCurrLangType} AND Category = #{Category}
+	 </select>
+	 
+	  <!-- AttpopupType_commonSelect  -->
+	<select id="AttpopupType_commonSelect" resultType="java.util.HashMap">
+	
+		SELECT
+			DISTINCT AT.DataType AS CODE
+			, AT.DataType AS NAME
+		FROM
+			XBOLTADM.TB_ATTR_TYPE AT	
+		where
+			1=1
+
+	 </select>
+	 
+	 <!-- Dictionany getCategory -->
+	 <select id="getDictionaryCategory" resultType="String">
+	 	SELECT 
+			Distinct Category
+		From 
+			XBOLTADM.TB_DICTIONARY
+		WHERE 
+			TypeCode = #{s_itemID}
+	 </select>
+	 
+	 <!-- 관련항목 classCode SelectBox -->		
+	<select id="pertinentClassCode_commonSelect" resultType="java.util.HashMap">
+ SELECT 
+ 	Distinct TI.ClassCode AS CODE, TD.Name as NAME
+	FROM
+		XBOLTADM.TB_ITEM TI
+		Left outer join (
+			SELECT FromItemID, ISNULL(COUNT(DISTINCT ToItemID), 0) AS SCOUNT 
+			FROM XBOLTADM.TB_ITEM 
+			WHERE Deleted != '1'
+			GROUP BY FromItemID 
+			) TIS on TIS.FromItemID = TI.ItemID
+		Left outer join XBOLTADM.TB_DICTIONARY TD on TI.ClassCode = TD.TypeCode AND TD.LanguageID = '1042'
+	WHERE TI.ItemID in (
+			Select FromItemID
+				From XBOLTADM.TB_ITEM
+				WHERE ToItemID =  #{s_itemID}
+					AND CategoryCode != 'ST1'
+					AND Deleted != '1'
+			)			
+			OR
+			TI.ItemID in (
+				Select ToItemID
+				From XBOLTADM.TB_ITEM 
+				WHERE FromItemID =  #{s_itemID}
+					AND CategoryCode != 'ST1'
+					AND Deleted != '1'
+			)
+	 order by
+		TI.ClassCode ASC
+	 </select>	
+	 
+	 <!-- ClassCode SelectBox -->
+	  <select id="classCodeOption_commonSelect" resultType="java.util.HashMap">
+	 	SELECT DisTinct TI.ItemClassCode AS CODE , TD.Name AS NAME
+		FROM XBOLTADM.TB_ITEM_CLASS TI
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD on TI.ItemClassCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+		<where>
+			<if test="option != null and option != '' and !option.equals('null')">
+				TI.ItemTypeCode = #{option} 	
+			</if>
+			<if test="srTypeCode != null and srTypeCode != '' and !srTypeCode.equals('null')">
+				TI.ItemTypeCode = (
+					Select TS.ItemTypeCode From XBOLTAPP.ESM_SR_TYPE TS
+					Where TS.SRTypeCode = #{srTypeCode}
+				)
+			</if>
+		</where>
+		And TI.Deactivated != '1'
+		
+	 </select>
+	  <select id="classCodeMgtOption_commonSelect" resultType="java.util.HashMap">
+	 	SELECT  DisTinct TI.ItemClassCode AS CODE , TD.Name AS NAME
+		FROM XBOLTADM.TB_ITEM_CLASS TI
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD on TI.ItemClassCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+		WHERE  TI.ChangeMGT = 1 
+	 </select>	
+	 <!-- ProjectStatus SelectBox -->	  
+	<select id="projectStatus_commonSelect" resultType="java.util.HashMap">
+		SELECT 
+			Distinct TP.Status AS CODE
+			, TD.Name AS NAME
+		FROM 
+			XBOLTADM.TB_PROJECT TP
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD
+				on TP.Status = TD.TypeCode AND TD.LanguageID = 	#{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM TT
+				on TT.TeamID = TP.OwnerTeamID				
+		WHERE 
+			TP.PJCategory = #{category}
+			AND TP.ProjectType = 3
+			<if test="parentID != null and parentID != '' AND !parentID.equals('null')">
+				AND TT.ParentID = #{parentID}
+			</if>
+			<if test="Status != null and Status != '' AND !Status.equals('null')">
+				AND TP.Status = #{Status}
+			</if>
+			<if test="AuthorTeamID != null and AuthorTeamID != '' AND !AuthorTeamID.equals('null')">
+				AND TP.OwnerTeamID = #{AuthorTeamID}
+			</if>
+			<if test="SC_STR_DT != null and SC_STR_DT != '' and SC_END_DT != null and SC_END_DT != ''">
+				AND CONVERT(VARCHAR,TP.CreationTime, 120) BETWEEN #{SC_STR_DT} AND #{SC_END_DT}
+			</if>	
+	</select>
+
+	<select id="projectTeamID_commonSelect" resultType="java.util.HashMap">
+		SELECT 
+			Distinct 
+			TP.OwnerTeamID AS CODE
+			, TMT.Name AS NAME
+		FROM 
+			XBOLTADM.TB_PROJECT TP
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT
+				on TP.OwnerTeamID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_TEAM TT
+				on TT.TeamID = TP.OwnerTeamID			
+		WHERE 
+			TP.PJCategory = #{category}
+			AND TP.ProjectType = 3
+			<if test="parentID != null and parentID != '' AND !parentID.equals('null')">
+				AND TT.ParentID = #{parentID}
+			</if>
+			<if test="Status != null and Status != '' AND !Status.equals('null')">
+				AND TP.Status = #{Status}
+			</if>
+			<if test="AuthorTeamID != null and AuthorTeamID != '' AND !AuthorTeamID.equals('null')">
+				AND TP.OwnerTeamID = #{AuthorTeamID}
+			</if>
+			<if test="SC_STR_DT != null and SC_STR_DT != '' and SC_END_DT != null and SC_END_DT != ''">
+				AND CONVERT(VARCHAR,TP.CreationTime, 120) BETWEEN #{SC_STR_DT} AND #{SC_END_DT}
+			</if>		
+	</select>
+	
+	<select id="projectParentID_commonSelect" resultType="java.util.HashMap">
+		SELECT 
+			Distinct 
+			TT.ParentID AS CODE
+			, TTPT.Name AS NAME
+		FROM 
+			XBOLTADM.TB_PROJECT TP
+			Left Outer Join XBOLTADM.TB_TEAM TT
+				on TT.TeamID = TP.OwnerTeamID			
+			LEFT Outer Join XBOLTADM.TB_TEAM_TXT TTPT
+				on TTPT.TeamID = TT.ParentID	AND TTPT.LanguageID = 	#{languageID}
+		WHERE 
+			TP.PJCategory = #{category}
+			AND TP.ProjectType = 3
+			<if test="parentID != null and parentID != '' AND !parentID.equals('null')">
+				AND TT.ParentID = #{parentID}
+			</if>
+			<if test="Status != null and Status != '' AND !Status.equals('null')">
+				AND TP.Status = #{Status}
+			</if>
+			<if test="AuthorTeamID != null and AuthorTeamID != '' AND !AuthorTeamID.equals('null')">
+				AND TP.OwnerTeamID = #{AuthorTeamID}
+			</if>
+			<if test="SC_STR_DT != null and SC_STR_DT != '' and SC_END_DT != null and SC_END_DT != ''">
+				AND CONVERT(VARCHAR,TP.CreationTime, 120) BETWEEN #{SC_STR_DT} AND #{SC_END_DT}
+			</if>			
+	</select>	
+
+	<!-- 언어종류 코드 조회   -->
+	<select id="dicCategory_commonSelect" resultType="java.util.HashMap">
+		SELECT dicCategory AS CODE, Name NAME
+		FROM XBOLTADM.TB_DIC_MASTER
+		Order By NAME
+	</select>
+
+	<!-- ADD Item ChangeSet 선책 -->
+	<select id="getChangeSet_commonSelect" resultType="java.util.HashMap">
+		SELECT 
+			DISTINCT
+			TP.ProjectID AS CODE
+			, TPT.Name AS NAME
+		FROM
+			XBOLTADM.TB_PROJECT TP
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT
+			on TP.ProjectID = TPT.ProjectID
+			AND LanguageID = #{sessionCurrLangType} 
+		WHERE
+			TP.ProjectType = 'CNGS' 
+			AND TP.ProjectID in (
+				SELECT ProjectID 
+				FROM XBOLTADM.TB_PJT_MEMBER_REL			
+				WHERE MemberID = #{sessionUserId} 
+			) or
+			TP.ProjectType = 'CNGS' 
+			AND TP.ProjectID in (
+				SELECT ProjectID 
+				FROM XBOLTADM.TB_PJT_MEMBER_REL			
+				WHERE MemberID in (
+					SELECT GroupID
+					FROM XBOLTADM.TB_MEMBER_GR
+					 WHERE MemberID = #{sessionUserId} 
+				)
+			)
+				
+	</select>
+
+
+	<select id="companyTreeList_treeList" resultType="java.util.HashMap">
+		WITH C AS (
+		  SELECT DISTINCT COMPANY_ID , PRE_COMPANY_ID , COMPANY_NM FROM( 
+		    SELECT 
+		        COMPANY_ID , PRE_COMPANY_ID , COMPANY_NM
+		      FROM TB_COMPANY C
+		     <where>
+		     	<choose>
+		     		<when test='"1".equals(P_COMPANY_TYP_CD)'>
+		     			AND COMPANY_TYP_CD IN ('001')
+		     		</when>
+		     		<when test='"2".equals(P_COMPANY_TYP_CD)'>
+		     			AND COMPANY_TYP_CD IN ('002')
+		     		</when>
+		     		<when test='"3".equals(P_COMPANY_TYP_CD)'>
+		     			AND COMPANY_TYP_CD IN ('003')
+		     		</when>
+		     		<when test='"23".equals(P_COMPANY_TYP_CD)'>
+		     			AND COMPANY_TYP_CD IN ('002','003')
+		     		</when>
+		     	</choose>
+		     </where>
+			<if test="COMPANY_ID != null and COMPANY_ID != ''">
+				START WITH C.COMPANY_ID = #{COMPANY_ID}
+			    CONNECT BY PRIOR  C.COMPANY_ID = C.PRE_COMPANY_ID 
+			</if>	  
+		  )
+		)
+		
+		
+		SELECT 
+			  TO_NUMBER(SUBSTR(    COMPANY_ID,3,10))     AS TREE_ID
+		    , TO_NUMBER(SUBSTR(PRE_COMPANY_ID,3,10))     AS PRE_TREE_ID
+		    , COMPANY_NM                                 AS TREE_NM
+		FROM  C
+			<where>
+				<if test="COMPANY_NM != null and COMPANY_NM != ''">
+					COMPANY_NM like '%'||#{COMPANY_NM}||'%'
+				</if>	
+			</where>
+	</select>
+	<!-- LanguageCode 조회(Diagram이미지명 확인용) -->
+	<select id="languageCode" resultType="String">
+		SELECT UPPER(LanguageCode)
+		FROM XBOLTADM.TB_LANGUAGE
+		WHERE LanguageID = #{languageID}
+	</select>
+	<select id="templType_commonSelect" resultType="java.util.HashMap">
+		SELECT tmpl.TemplCode AS CODE, ISNULL(dic.Name, tmpl.TemplCode) NAME
+		FROM XBOLTADM.TB_TEMPL tmpl
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY dic ON tmpl.TemplCode = dic.TypeCode
+			<choose>				
+				<when test="sessionCurrLangType != null and sessionCurrLangType != ''">
+					AND dic.LanguageID = #{sessionCurrLangType}
+				</when>
+				<otherwise>
+					AND dic.LanguageID = '1042'
+				</otherwise>
+			</choose>
+			<if test='!"1".equals(sessionAuthLev)'>
+				INNER JOIN (SELECT TemplCode FROM XBOLTADM.TB_ACCESS_RIGHT WHERE MemberID =  #{sessionUserId} or MemberID in (SELECT GroupID FROM XBOLTADM.TB_MEMBER_GR WHERE MemberID = #{sessionUserId} ) GROUP BY TemplCode) acc ON tmpl.TemplCode = acc.TemplCode
+			</if>	
+		WHERE ISNULL(tmpl.Deactivated, 0) != 1
+		ORDER BY tmpl.SortNum	
+	</select>	
+	<select id="templCode_commonSelect" resultType="java.util.HashMap">
+		SELECT
+			TT.TemplCode AS CODE, ISNULL(TD.Name, TT.TemplCode) AS NAME
+		FROM
+			XBOLTADM.TB_TEMPL TT
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD
+			on TT.TemplCode = TD.TypeCode
+			AND TD.LanguageID = #{sessionCurrLangType}
+	</select>
+	<select id="userGrp_commonSelect" resultType="java.util.HashMap">
+		SELECT
+			MemberID as CODE 
+			, Name as NAME 
+		FROM XBOLTADM.TB_MEMBER
+			WHERE UserType = '2'
+	</select>
+	<select id="fltpCode_commonSelect" resultType="java.util.HashMap">
+		SELECT Distinct
+			tfa.FltpCode AS CODE,
+			td.Name AS NAME
+		FROM XBOLTADM.TB_FLTP_ALLOC tfa
+			Left Outer Join XBOLTADM.TB_DICTIONARY td
+			on tfa.FltpCode = td.TypeCode
+		WHERE tfa.LinkType = '01'
+			AND td.LanguageID = #{sessionCurrLangType}
+			<choose>				
+				<when test="docCategory != 'ITM'">
+					AND tfa.docCategory = #{docCategory}
+				</when>
+				<when test="itemClassCode != null and itemClassCode != ''">
+					AND tfa.ItemClassCode = #{itemClassCode}
+				</when>
+			</choose>
+			
+			<if test="itemTypeCode != null and itemTypeCode != ''">
+				AND ItemClassCode IN(Select ItemClassCode From XBOLTADM.TB_ITEM_CLASS Where ItemTypeCode = #{itemTypeCode})
+			</if>
+		ORDER BY CODE
+	</select>
+	
+	<select id="getAuthorityList_commonSelect" resultType="java.util.HashMap">
+		SELECT 
+			MemberID AS CODE	
+			, Name AS NAME
+		FROM 
+			XBOLTADM.TB_MEMBER	
+			WHERE Authority = #{authority}
+			AND UserType = 1
+	</select>
+	<select id="classCodeFile_commonSelect" resultType="java.util.HashMap">
+		SELECT DisTinct TI.ItemClassCode AS CODE , TD.Name AS NAME
+		FROM XBOLTADM.TB_ITEM_CLASS TI
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD on TI.ItemClassCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+		WHERE HasFile = '1'
+	 </select>
+	 
+	 <!--itemTypeCode에 따른  getMDLTypeCode SelectBox :: Diagram -->
+	 <select id="getMDLTypeCode_commonSelect" resultType="java.util.HashMap" >
+		SELECT TMT.ModelTypeCode AS CODE, TD.Name AS NAME 
+		FROM XBOLTADM.TB_MODEL_TYPE TMT
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TMT.ModelTypeCode = TD.TypeCode AND TD.LanguageID = #{sessionCurrLangType}
+			AND TD.Category = 'MT'
+		<where>
+			<if test="ItemTypeCode != null and ItemTypeCode != ''">
+				TMT.ItemTypeCode = #{ItemTypeCode} 
+			</if>
+		</where>
+	</select>		 
+	
+	<!-- Simbol_commonSelect  -->
+	<select id="SimbolName_commonSelect" resultType="java.util.HashMap">
+	
+		Select 
+			Distinct
+				TD.Name AS CODE
+				,TD.Name AS NAME
+		From
+			XBOLTADM.TB_DICTIONARY TD
+		where
+			Category = #{Category}
+			 and LanguageID = #{LanguageID}
+ 	
+	 </select>
+	 
+	  	<!-- ArchiName_commonSelect  -->
+	<select id="ArchiName_commonSelect" resultType="java.util.HashMap">
+	 	Select Distinct TA.ArcCode As CODE, TD.Name As NAME 
+		From XBOLTADM.TB_ARC TA 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TA.ArcCode And Td.LanguageID = #{languageID}
+	</select>
+	 
+	 <select id="getLanguageCode" resultType="String">
+	 	SELECT LanguageCode
+  		FROM XBOLTADM.TB_LANGUAGE
+  		WHERE LanguageID = #{LanguageID}
+	 </select>
+	 
+	 <select id="getItemTypeCode_commonSelect" resultType="java.util.HashMap">
+	 	SELECT
+			distinct
+				TypeCode AS CODE
+				,TypeCode AS NAME
+			FROM
+				XBOLTADM.TB_DICTIONARY
+			where
+				Category IN ('OJ', 'REF')
+	 </select>
+	 
+	  <select id="ObjCategoryCode_commonSelect" resultType="java.util.HashMap">
+	 	SELECT
+			distinct
+				IT.Category AS CODE
+				,IT.Category AS NAME
+		FROM
+			XBOLTADM.TB_ITEM_TYPE AS IT
+		where
+				Category IN ('OJ', 'REF','TXT','VAR','XOJ')
+	 </select>
+	 
+	<select id="CategroyTypeCode_commonSelect" resultType="java.util.HashMap">
+		SELECT DISTINCT TypeCode AS CODE, Name AS NAME
+		FROM XBOLTADM.TB_DICTIONARY
+		WHERE LanguageID = #{sessionCurrLangType}
+		<if test="Category != null and Category != ''">
+			AND Category = #{Category}	
+		</if>
+	 </select>	 
+	 
+	 <select id="modelItemTypeCode_commonSelect" resultType="java.util.HashMap">
+	 	<!-- SELECT Distinct TST.ItemTypeCode AS CODE, TD.Name AS NAME
+		FROM XBOLTADM.TB_SYMBOL_TYPE TST
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TST.ItemTypeCode
+		WHERE TD.LanguageID = #{sessionCurrLangType} -->
+		
+		SELECT Distinct TST.ItemTypeCode AS CODE, TD.Name AS NAME
+		FROM XBOLTADM.TB_SYMBOL_TYPE TST
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TST.ItemTypeCode
+		Inner Join XBOLTADM.TB_ITEM_TYPE TIT ON TIT.ItemTypeCode = TST.ItemTypeCode And TIT.Deactivated != 1
+		WHERE TD.LanguageID = #{sessionCurrLangType}
+		And TST.Deactivated != 1
+	 </select>
+	 
+	 <select id="modelClassCode_commonSelect" resultType="java.util.HashMap">
+	 	SELECT Distinct TST.ClassCode AS CODE, TD.Name AS NAME
+		FROM XBOLTADM.TB_SYMBOL_TYPE TST
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TST.ClassCode
+		WHERE TST.ItemTypeCode = #{ItemTypeCode} AND TD.LanguageID = #{sessionCurrLangType}
+	 </select>
+	 
+	  <select id="conTypeCode_commonSelect" resultType="java.util.HashMap">
+	  	Select TIT.ItemTypeCode As CODE, TD.Name As NAME
+	  	From XBOLTADM.TB_ITEM_TYPE TIT
+	  	Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TIT.ItemTypeCode And TD.LanguageID = #{LanguageID}
+	  	Where TIT.Category In('ST','CN')
+	  </select>
+	  
+	  <select id="classCode_commonSelect" resultType="java.util.HashMap">
+	  	Select TIC.ItemClassCode As CODE, TD.Name As NAME
+	  	From XBOLTADM.TB_ITEM_CLASS TIC
+	  	Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TIC.ItemClassCode And TD.LanguageID = #{languageID}
+	  	<where>
+		  	<if test="arcCodeSClass != null and arcCodeSClass != ''">
+				TIC.ItemClassCode Not In (select SClass from XBOLTADM.TB_ARC_FILTER_CLS Where ArcCode = #{arcCodeSClass} )
+			</if>
+		  	<if test="arcCodeFClass != null and arcCodeFClass != ''">
+				AND TIC.ItemClassCode Not In (select FClass from XBOLTADM.TB_ARC_FILTER_CLS Where ArcCode = #{arcCodeFClass} )
+			</if>
+		  	<if test="itemTypeCode != null and itemTypeCode != ''">
+				AND TIC.ItemTypeCode = #{itemTypeCode}
+			</if>
+	  	</where>
+	  </select>
+	  
+	  <select id="getDimTypeId_commonSelect" resultType="java.util.HashMap">
+	   Select TI.ItemID AS CODE,TIA.PlainText AS NAME From XBOLTADM.TB_ITEM TI
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TI.ItemID And TIA.LanguageID = #{LanguageID}
+		Where TI.ClassCode='CL10002' and TIA.AttrTypeCode = 'AT00001'
+	  </select>
+	  
+	  <select id="getTreeRootItemList_commonSelect" resultType="java.util.HashMap">
+		SELECT	A.ItemID AS CODE
+				, A.Identifier + ' ' +  B.PlainText AS NAME
+		FROM    XBOLTADM.TB_ITEM AS A 
+					Inner Join  XBOLTADM.TB_ITEM_ATTR AS B ON A.ItemID = B.ItemID AND B.AttrTypeCode = 'AT00001'
+		WHERE B.LanguageID = #{languageID}
+		AND A.classCode = #{classCode}
+		AND A.Deleted != 1
+		<if test="clientID != null and clientID != ''">
+			AND A.ClientID = #{clientID}
+		</if>
+		<if test="clientIDs != null and clientIDs != ''">
+			AND A.ClientID in (${clientIDs})
+		</if>
+		ORDER BY NAME, CODE	
+	</select>
+	
+	  <select id="getDimensionTypeID_commonSelect" resultType="java.util.HashMap">
+	  	SELECT Distinct T1.DimTypeID AS CODE
+		  	, ISNULL(T2.PlainText, '') AS NAME		  
+	  	FROM XBOLTADM.TB_DIM_VALUE T1 WITH (NOLOCK)
+	  	Left Outer Join XBOLTADM.TB_ITEM_ATTR T2 WITH (NOLOCK) ON T1.DimTypeID = T2.ItemID AND T2.AttrTypeCode = 'AT00001' AND T2.LanguageID = #{languageID}
+	  	WHERE T1.Deleted = 0
+	  </select>
+	  
+	  <select id="getDimTypeValueId_commonSelect" resultType="java.util.HashMap">
+	   Select dimValueID As CODE, NAME
+		From XBOLTADM.TB_DIM_VALUE_TXT 
+		Where DimTypeID = #{dimTypeId} And LanguageID = #{LanguageID}
+	  </select>
+	  
+	  <select id="getDimValue_commonSelect" resultType="java.util.HashMap">
+	  	Select TDV.DimValueID AS CODE, TDVT.Name AS NAME 
+	  	From XBOLTADM.TB_DIM_VALUE TDV
+		Left Outer Join XBOLTADM.TB_DIM_VALUE_TXT TDVT ON TDVT.DimValueID = TDV.DimValueID And TDVT.LanguageID = #{languageID}
+		Where TDV.DimTypeID = #{dimTypeID}
+		<if test="level != null and level != ''">
+			And TDV.Level = #{level}
+		</if>
+		<if test="parentID != null and parentID != ''">
+			And TDV.ParentID = #{parentID}
+		</if>
+	  </select>
+	  
+	  <select id="getFilterType_commonSelect" resultType="java.util.HashMap">
+		   Select tfilterCode As CODE, sqlName As NAME
+			From XBOLTADM.TB_TFILTER 
+			Where Deactivated = 0
+	  </select>
+	  
+	  <select id="getMenuType_commonSelect" resultType="java.util.HashMap">
+	  	Select TM.MenuID As CODE, ISNULL(TD.Name, TM.MenuID) As NAME
+		From XBOLTADM.TB_MENU TM
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TM.MenuID And TD.LanguageID = #{languageID} And TD.Category = 'MN'
+		Where TM.MenuCat = #{menuCat}
+		<if test="deactivated == null or deactivated == ''">
+			And TM.Deactivated != 1
+		</if>
+		order by NAME
+	  </select>
+	  
+	  <select id="getProject_commonSelect" resultType="java.util.HashMap">
+	  	Select TP.ProjectID AS CODE, TPT.Name AS NAME From 
+		XBOLTADM.TB_PROJECT TP
+		Left outer Join XBOLTADM.TB_PROJECT_TXT TPT ON TP.ProjectID = TPT.ProjectID And TPT.LanguageID = #{languageID} 
+		Where Deactivated != 1
+		<choose>
+			<when test="templProjectID != null and templProjectID != '' and 'PG'.equals(projectType)">
+				AND TP.RefPGID = #{templProjectID} 
+				AND TP.ProjectType = 'PJT'
+			</when>
+			<when test="templProjectID != null and templProjectID != '' and 'PJT'.equals(projectType)">
+				AND TP.ProjectID = #{templProjectID}				
+			</when>
+			<when test="templProjectID == null  and 'PG'.equals(projectType)">
+				AND TP.ProjectType = #{projectType}				
+			</when>		
+		  	<otherwise>
+				AND TP.ProjectType = 'PJT'
+			</otherwise>
+		</choose>
+	  	<if test="isDoc == null or isDoc == ''">
+			AND TP.Status = 'OPN'
+		</if>
+	  	<if test="authorID != null and authorID != ''">
+			AND TP.AuthorID = #{authorID}
+		</if>
+		Order By Name
+	  </select>
+	  
+	  <select id="getArcCode_commonSelect" resultType="java.util.HashMap">
+	  	Select TA.ArcCode As CODE, TD.Name AS NAME 
+		From XBOLTADM.TB_ARC TA
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TA.ArcCode = TD.TypeCode And TD.Category = 'AR' And TD.LanguageID = #{languageID} 
+		Where  Type='G'
+	  </select>
+	  
+	   <select id="getDictionary_commonSelect" resultType="java.util.HashMap">
+	   	Select TypeCode As CODE, NAME
+	   	<if test="radioID != null and radioID != ''">
+	   	, #{radioID} AS ID
+	   	</if>
+		From XBOLTADM.TB_Dictionary		
+		Where Category = #{category} And LanguageID = #{languageID}
+		<if test="editable != null and editable != ''">
+			And Editable = #{editable}
+		</if>
+		<if test="selectedCode != null and selectedCode != ''">
+			And TypeCode IN (${selectedCode})
+		</if>
+		order by SortNum, Name
+	  </select>
+	  
+	  <select id="getDictionaryOrdStnm_commonSelect" resultType="java.util.HashMap">
+	   	Select TypeCode As CODE, NAME
+		From XBOLTADM.TB_Dictionary		
+		Where Category = #{category} And LanguageID = #{languageID} AND Editable = '1'
+		<if test="selectedCode != null and selectedCode != ''">
+			And TypeCode IN (${selectedCode})
+		</if>
+		order by SortNum
+	  </select>
+	  
+	  <select id="getPjtMbrRl_commonSelect" resultType="java.util.HashMap">
+	    Select 
+			TPMR.ProjectID AS CODE,
+			TPT.Name AS NAME
+		From XBOLTADM.TB_PJT_MEMBER_REL TPMR
+		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT ON TPT.ProjectID = TPMR.ProjectID And TPT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_PROJECT TP ON TP.ProjectID = TPMR.ProjectID 
+		Where TPMR.MemberID = #{userID}
+		And TP.ProjectType = 'PJT' And TP.Status = 'OPN'
+		<choose>
+			<when test="templProjectID != null and templProjectID != '' and 'PG'.equals(projectType)">
+				AND TP.RefPGID = #{templProjectID} 
+				AND TP.ProjectType = 'PJT'
+			</when>
+			<when test="templProjectID != null and templProjectID != '' and 'PJT'.equals(projectType)">
+				AND TP.ProjectID = #{templProjectID}				
+			</when>		
+		</choose>
+		Order by NAME
+	  </select>
+	  <!-- getParentProject -->
+	  <select id="getPjtParentIDCSR_commonSelect" resultType="java.util.HashMap" >
+	  	SELECT Distinct TP.RefPjtID As CODE
+		      ,TPT.Name As NAME
+		FROM XBOLTADM.TB_PROJECT TP
+		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT on TP.RefPjtID = TPT.ProjectID AND TPT.LanguageID = #{languageID}
+		WHERE Deactivated != 1
+		AND TP.ProjectType = 'PJT'
+		AND TP.Status != 'CLS'
+	  </select>
+	  
+	  <!-- getItemClassFromPJP_TASK_TP -->
+	  <select id="getItemClassTaskTP_commonSelect" resultType="java.util.HashMap" >
+	 	Select Distinct ItemClassCode AS CODE, 
+				TD.Name AS NAME 
+	    From XBOLTADM.TB_PJT_TASK_TP PTT
+	    Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = PTT.ItemClassCode And TD.LanguageID = #{languageID}  
+	    WHERE PTT.ProjectID = #{parentID} 
+	  </select>
+	  
+	  <!--해당프로젝트 하위 변경오더리스트 -->
+	  <select id="getCsrOrder_commonSelect" resultType="java.util.HashMap" >
+	    SELECT TP.ProjectID As CODE
+      		 ,TPT.Name As NAME
+  		FROM XBOLTADM.TB_PROJECT TP
+  		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT
+				on TP.ProjectID = TPT.ProjectID AND TPT.LanguageID = #{languageID}
+  		WHERE RTRIM(TP.ProjectType) = 'CSR'
+  		    AND Deactivated != 1   	
+		  	<if test="parentID != null and parentID != ''">
+				AND TP.RefPjtID = #{parentID}
+			</if>  	
+		  	<if test="projectID != null and projectID != ''">
+				AND TP.ProjectId = #{projectID}
+			</if>  	
+	  </select>
+	  
+	   <!--Change Set 을 생성식킨 조직 리스트  -->
+	  <select id="getCsrTeam_commonSelect" resultType="java.util.HashMap" >
+	  	SELECT 
+	  		Distinct CNGS.AuthorTeamID As CODE, T1.Name AS NAME
+		FROM XBOLTADM.TB_CHANGE_SET CNGS
+		  Left Outer Join XBOLTADM.TB_TEAM_TXT T1 On CNGS.AuthorTeamID = T1.TeamID  AND T1.LanguageID = #{languageID}
+		  Left Outer Join XBOLTADM.TB_PROJECT CSR On CNGS.ProjectID = CSR.ProjectID   
+		 Where CSR.RefPjtID = #{parentID}
+	  </select>
+	  
+	  <select id="getCurTask_commonSelect" resultType="java.util.HashMap" >
+	   Select
+	   		Distinct TCS.CurTask AS CODE, TD.Name AS NAME , TD.SortNum
+	   From XBOLTADM.TB_CHANGE_SET TCS
+	   Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TCS.CurTask And TD.LanguageID = #{languageID} And TD.Category = 'TSKTP'
+	   Order by TD.SortNum
+	  </select>
+	  
+	  <select id="getAllFltp_commonSelect" resultType="java.util.HashMap">
+		Select Distinct FltpCode As CODE, TD.Name AS NAME From XBOLTADM.TB_FLTP_ALLOC TFA
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TFA.FltpCode And TD.LanguageID = #{languageID}  
+		<where>
+		  	<if test="itemTypeCode != null and itemTypeCode != ''">
+				ItemClassCode IN(Select ItemClassCode From XBOLTADM.TB_ITEM_CLASS Where ItemTypeCode = #{itemTypeCode})
+			</if>  	
+		  	<if test="isPublic != null and !isPublic.equalsIgnoreCase('N')">
+				AND TFA.FltpCode IN (Select FltpCode From XBOLTADM.TB_FLTP Where IsPublic = 1)	
+			</if>  	
+		</where>
+		Order By FltpCode
+	</select>
+	
+	 <select id="getTaskTypeCode_commonSelect" resultType="java.util.HashMap">
+		Select Distinct TSK.TaskTypeCode AS CODE,
+			TD.Name AS NAME 
+		From XBOLTADM.TB_TASK TSK
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TSK.TaskTypeCode And TD.LanguageID = #{languageID}  		
+	 	<where>
+	 		<if test="userID != null and userID != ''">
+				TSK.Actor = #{userID}
+			</if>
+	 	</where>
+	</select>
+	
+	<select id="getPjtTaskTypeCode_commonSelect" resultType="java.util.HashMap">
+		Select Distinct TPTT.TaskTypeCode AS CODE,
+			TD.Name AS NAME, TPTT.SortNum
+		From XBOLTADM.TB_PJT_TASK_TP TPTT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TPTT.TaskTypeCode And TD.LanguageID = #{languageID}  
+		Where TPTT.ProjectID = #{projectID}
+		Order By TPTT.SortNum
+	</select>
+	
+	<select id="getClassCodeFromFltpAlloc_commonSelect" resultType="java.util.HashMap">
+		Select Distinct TFA.ItemClassCode AS CODE,
+			TD.Name AS NAME
+		From XBOLTADM.TB_FLTP_ALLOC TFA
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TFA.ItemClassCode And TD.LanguageID = #{languageID}  
+		Left Outer Join XBOLTADM.TB_ITEM_CLASS TIC ON TIC.ItemClassCode = TFA.ItemClassCode 
+		Where TIC.ItemTypeCode = #{itemTypeCode}
+	</select>
+	
+	<select id="getTskActor_commonSelect" resultType="java.util.HashMap">
+		Select Distinct TSK.Actor AS CODE, 
+			TM.Name AS NAME
+		From XBOLTADM.TB_TASK TSK
+		Left Outer Join XBOLTADM.TB_CHANGE_SET TCS ON TCS.ChangeSetID = TSK.ChangeSetID
+		Left Outer Join XBOLTADM.TB_ITEM TI ON TI.ItemID = TSK.ItemID	
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TSK.Actor
+		Where TSK.Category = 'P'
+		And TCS.AuthorID =  #{userID}
+		And TCS.Status = 'MOD'
+ 		<if test="itemTypeCode != null and itemTypeCode != ''">
+			AND TI.ItemTypeCode = #{itemTypeCode}
+		</if>
+		Order by TM.Name
+	</select>
+	
+	<select id="getAttrTypeLov_commonSelect" resultType="java.util.HashMap">
+		SELECT
+			LovCode AS CODE , Value AS NAME 
+		FROM XBOLTADM.TB_ATTR_TYPE_LOV
+		WHERE AttrTypeCode = #{attrTypeCode}	
+		AND LanguageID = #{languageID}
+		Order by SortNo
+	</select>
+	
+	<select id="getItemTypeForFltp_commonSelect" resultType="java.util.HashMap">
+		SELECT Distinct TIC.ItemTypeCode As CODE, TD.Name As NAME
+		FROM XBOLTADM.TB_ITEM_CLASS TIC
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TIC.ItemTypeCode And TD.LanguageID =  #{languageID}
+		Where ItemClassCode In (select distinct ItemClassCode From XBOLTADM.TB_FLTP_ALLOC)	
+	</select>
+	
+	<select id="getItemClassCode_commonSelect" resultType="java.util.HashMap">
+		Select TIC.ItemClassCode AS CODE,TD.Name NAME
+		From XBOLTADM.TB_ITEM_CLASS TIC
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TIC.ItemClassCode And TD.LanguageID = #{languageID}
+		Where TIC.ChangeMgt = 1
+ 		<if test="itemTypeCodeList != null and itemTypeCodeList != ''">
+			AND TIC.ItemTypeCode IN (${itemTypeCodeList})
+		</if>
+		
+	</select>
+		
+	<select id="getCNType_commonSelect" resultType="java.util.HashMap">
+		Select TIT.ItemTypeCode As CODE, TD.Name AS NAME 
+		From XBOLTADM.TB_ITEM_TYPE TIT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TIT.ItemTypeCode And TD.LanguageID = #{languageID}
+		Where TIT.Category = 'CN'
+		 And (TIT.FromItemTypeCode = #{itemTypeCode} OR TIT.ToItemTypeCode = #{itemTypeCode})
+		 Order By TIT.ItemTypeCode
+	</select>
+	
+	<select id="getAttrType_commonSelect" resultType="java.util.HashMap">
+		Select Distinct TATA.AttrTypeCode AS CODE, TD.Name AS NAME
+		From XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TATA.AttrTypeCode And TD.LanguageID = #{languageID}
+		Where TATA.ItemTypeCode = #{itemTypeCode}
+	</select>
+	<select id="getNameFromDic" resultType="String">
+		Select Name From XBOLTADM.TB_DICTIONARY 
+		Where LanguageID =  #{languageID}  
+		And TypeCode = #{typeCode}
+		<if test="category != null and category != ''">
+		And Category = #{category}
+		</if>			
+	</select>
+	
+	<select id="getRefPgID_commonSelect" resultType="java.util.HashMap">
+		Select Distinct RefPGID As CODE, TPT.Name As NAME
+	    From XBOLTADM.TB_PROJECT TP
+	  	Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT ON TPT.ProjectID = TP.RefPGID  And TPT.LanguageID = #{languageID} 
+		Where TP.RefPGID is not null
+	</select>
+	
+	<select id="getBoardMgtParentID_commonSelect" resultType="java.util.HashMap" >
+		Select TBM.BoardMgtID As CODE,  
+			TD.Name AS NAME
+		From XBOLTADM.TB_BOARD_MGT TBM
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TBM.BoardMgtID And TD.LanguageID = #{languageID}
+		Where ISNULL(TBM.ParentID,'') = '0'
+		And TBM.BoardMgtID != #{boardMgtID}
+	</select>
+	
+	<select id="getProjectByType_commonSelect" resultType="java.util.HashMap">
+		Select TP.ProjectID As CODE,
+		  PTXT.Name As NAME
+		From XBOLTADM.TB_PROJECT TP
+		Left Outer Join XBOLTADM.TB_PROJECT_TXT PTXT ON PTXT.ProjectID = TP.ProjectID And PTXT.LanguageID = #{languageID} 
+		<where>
+	 		<if test="RefPGID != null and RefPGID != ''">
+				TP.RefPGID = #{RefPGID}
+			</if>
+	 		<if test="ProjectType != null and ProjectType != ''">
+				AND TP.ProjectType  = #{ProjectType}
+			</if>
+		</where>
+		Order By Name
+	</select>
+	
+	<select id="getSrArea1_commonSelect" resultType="java.util.HashMap">
+	 	SELECT distinct SRArea1ITM.ItemID AS CODE
+		  ,SRArea1ATR.PlainText AS NAME	
+		  ,ITM.Identifier	
+		FROM XBOLTADM.TB_ITEM_ATTR SRType
+		INNER JOIN XBOLTADM.TB_ITEM_ATTR SRArea1ITM
+		ON SRType.ItemID = SRArea1ITM.ItemID 
+		AND SRArea1ITM.LovCode = 'LV38001' 
+		INNER JOIN XBOLTADM.TB_ITEM_ATTR SRArea1ATR 
+		ON SRArea1ITM.ItemID = SRArea1ATR.ItemID
+		AND SRArea1ATR.AttrTypeCode  = 'AT00001'
+		AND SRArea1ATR.LanguageID = #{languageID} 
+		INNER JOIN XBOLTADM.TB_ITEM ITM
+		ON SRArea1ATR.ItemID = ITM.ItemID
+	 		<if test="receiptTeam != null and receiptTeam != ''">
+				INNER JOIN XBOLTAPP.ESM_SR_MST  TSM
+		 		ON TSM.SRArea1 = SRType.ItemID
+		 		AND TSM.ReceiptTeamID = #{receiptTeam} 
+			</if>	
+		Where SRType.AttrTypeCode = 'AT00036'  
+		And SRType.PlainText = #{srType} 
+		<if test="itemTypeCode != null and itemTypeCode != ''">
+		And SRType.ItemTypeCode = #{itemTypeCode}
+		</if>
+		Order by NAME
+	
+	</select>
+	
+	<select id="getSrArea2_commonSelect" resultType="java.util.HashMap">
+	 	SELECT distinct SRArea1ITM.itemID
+		  ,SRArea1ATR.PlainText
+		  ,ISNULL(SRArea2ITM.ItemID,'')  AS CODE	
+		  ,ISNULL(SRArea2ATR.PlainText, '') AS NAME
+		  ,ITM2.Identifier	
+		FROM XBOLTADM.TB_ITEM_ATTR SRType WITH(NOLOCK), 
+		   XBOLTADM.TB_ITEM_ATTR SRArea1ATR WITH(NOLOCK),   XBOLTADM.TB_ITEM ITM2,
+		   XBOLTADM.TB_ITEM_ATTR SRArea1ITM WITH(NOLOCK)	
+		   Inner Join XBOLTADM.TB_ITEM ITM WITH(NOLOCK) ON ITM.FromItemID = SRArea1ITM.ItemID And ITM.CategoryCode = 'ST1' And ITM.Deleted != 1
+		   Inner Join  XBOLTADM.TB_ITEM_ATTR SRArea2ITM WITH(NOLOCK) ON SRArea2ITM.ItemID = ITM.ToItemID  
+		   Inner Join  XBOLTADM.TB_ITEM_ATTR SRArea2ATR WITH(NOLOCK) ON SRArea2ATR.ItemID = SRArea2ITM.ItemID  
+		   AND SRArea2ATR.AttrTypeCode = 'AT00001' and SRArea2ATR.LanguageID = #{languageID}     
+		   Inner Join XBOLTADM.TB_ITEM_ATTR SRArea2T WITH(NOLOCK) ON SRArea2T.ItemID = SRArea2ATR.ItemID  
+		   AND SRArea2T.AttrTypeCode = 'AT00036' 
+		   <if test="srType != null and srType != ''">
+		   and (SRArea2T.PlainText = #{srType} or SRArea2T.PlainText = 'CMM')
+		   </if>
+		   	<if test="'myRole'.equals(srMode) and (userID != null and userID != '')">
+				INNER JOIN XBOLTADM.TB_MY_ITEM TIM WITH(NOLOCK) 
+				ON TIM.ItemID = SRArea2ITM.ItemID
+				AND AssignmentType = 'SRROLETP' 
+				AND Assigned = 1
+				AND TIM.MemberID = #{userID}
+			</if>
+		Where SRType.AttrTypeCode = 'AT00036'  And SRType.PlainText is not null
+		    AND SRType.ItemID = SRArea1ITM.ItemID  
+		    AND SRArea1ITM.LovCode = 'LV38001' 
+		    And SRArea1ATR.AttrTypeCode  = 'AT00001'
+		    And SRArea1ITM.ItemID = SRArea1ATR.ItemID and  SRArea1ATR.LanguageID = #{languageID}  
+		    And SRArea2ATR.ItemID = ITM2.ItemID
+		    And ITM2.Deleted != 1
+		    <if test="itemTypeCode != null and itemTypeCode != ''">
+		    	And SRType.ItemTypeCode = #{itemTypeCode}
+		    </if>
+		    <if test="parentID != null and parentID != ''">
+				AND ITM.FromItemID = #{parentID} 
+			</if>
+	 		<if test="sysCode != null and sysCode != ''">
+				AND ITM.ToItemID = #{srArea2}
+			</if>
+			<if test="customerNo != null and customerNo != ''">
+				And ITM.ClientID = #{customerNo}
+			</if>
+			Order by NAME
+
+	</select>
+	
+	<select id="getSrCategory_commonSelect" resultType="java.util.HashMap">
+		Select 
+			   TSC.SRCatID AS CODE, TD.Name AS NAME 
+		From XBOLTAPP.ESM_SR_CAT TSC
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode  = TSC.SRCatID And TD.Category = 'SRCAT' And TD.LanguageID = #{languageID}
+		Where TSC.SRType = #{srType}
+		<if test="level != null and level != ''">
+			AND TSC.Level = #{level}
+		</if>
+ 		<if test="parentID != null and parentID != ''">
+			AND TSC.ParentID = #{parentID} 
+		</if>
+	</select>
+	
+	<select id="getSRCatParentID_commonSelect" resultType="java.util.HashMap" >
+		Select TBM.SRCatID As CODE,  
+			TD.Name AS NAME
+		From XBOLTAPP.ESM_SR_CAT TBM
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TBM.SRCatID And TD.LanguageID = #{languageID}
+		Where ISNULL(TBM.ParentID,'') = '0'
+		And TBM.SRCatID != #{srCatID}
+	</select>
+	<select id="getReqTeamID_commonSelect" resultType="java.util.HashMap">
+		SELECT 
+			Distinct SRMST.RequestTeamID AS CODE
+			, TMT.Name AS NAME
+		FROM 
+			XBOLTAPP.ESM_SR_MST  SRMST, XBOLTADM.TB_TEAM TM 
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT on TM.TeamID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+			Where TM.TeamID = SRMST.RegTeamID
+			<if test="parentIDs != null and parentIDs != ''">
+				And TM.ParentID IN (${parentIDs})
+			</if>
+		ORDER BY NAME			
+	</select>
+	<select id="getReqCompanyList_commonSelect" resultType="java.util.HashMap">
+		SELECT 
+			Distinct SRMST.CompanyID AS CODE, TMT.Name AS NAME
+		FROM 
+			XBOLTAPP.ESM_SR_MST  SRMST
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT
+		       on SRMST.CompanyID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+		ORDER BY NAME			
+	</select>
+	<select id="getSRReceiptTeamID_commonSelect" resultType="java.util.HashMap">
+		SELECT 
+			Distinct 
+			SRMST.ReceiptTeamID AS CODE
+			, TMT.Name AS NAME
+		FROM 
+			XBOLTAPP.ESM_SR_MST  SRMST
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT
+		       on SRMST.ReceiptTeamID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+		Where ISNULL(SRMST.ReceiptTeamID,'') != '' 
+		ORDER BY NAME			
+	</select>
+	<select id="getCRReceiptTeamID_commonSelect" resultType="java.util.HashMap">
+		SELECT 
+			Distinct 
+			CRMST.ReceiptTeamID AS CODE
+			, TMT.Name AS NAME
+		FROM 
+			XBOLTADM.TB_CR_MST  CRMST
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT
+		       on CRMST.ReceiptTeamID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+		Where ISNULL(CRMST.ReceiptTeamID,'') != ''
+		ORDER BY NAME			
+	</select>
+	
+	<select id="getOLMRoleType_commonSelect" resultType="java.util.HashMap">
+		Select TORT.RoleTypeCode As CODE, TD.Name As NAME 
+		From XBOLTADM.TB_OLM_ROLE_TYPE TORT 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TORT.RoleTypeCode 
+			And TD.LanguageID = #{languageID}  And TD.Category = #{assignmentType}
+		<where>		
+	 		<if test="srType != null and srType != ''">
+				TORT.ProcessType = #{srType}
+			</if>
+	 		<if test="assignmentType != null and assignmentType != ''">
+				AND TORT.AssignmentType = #{assignmentType}
+			</if>
+		</where>
+		order by TD.SortNum, TD.TypeCode
+	</select>
+	
+	<select id="getOLMRoleCat_commonSelect" resultType="java.util.HashMap">
+		Select DISTINCT
+			TORT.AssignmentType As CODE,
+			TD.Name As NAME,
+			TD.Description
+		From XBOLTADM.TB_OLM_ROLE_TYPE TORT 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TORT.AssignmentType 
+			And TD.LanguageID = #{languageID}  And TD.Category = #{Category}
+		<where>		
+	 		<if test="ActorType != null and ActorType != ''">
+				TORT.ActorType = #{ActorType}
+			</if>
+		</where>
+	</select>
+	
+	<select id="getTeam_commonSelect" resultType="java.util.HashMap">
+		Select TT.TeamID AS CODE, TXT.Name + '(' + ISNULL(TT.TeamCode,'N/A') + ')' AS NAME
+		From XBOLTADM.TB_TEAM TT
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TXT ON TXT.TeamID = TT.TeamID And TXT.LanguageID = #{languageID}
+		 Where TT.TeamType =  #{teamType}
+	 		<if test="parentID != null and parentID != ''">
+				AND TT.ParentID = #{parentID}
+			</if>
+	 		<if test="companyID != null and companyID != ''">
+				AND TT.CompanyID = #{companyID}
+			</if>
+			<if test="notCompanyIDs != null and notCompanyIDs != ''">
+				AND TT.CompanyID NOT IN (${notCompanyIDs})
+			</if>
+			<if test="customerNo != null and customerNo != ''">
+				And TT.CompanyID IN (select TeamID from XBOLTAPP.CRM_CUST_MST Where CustomerNo = #{customerNo})			
+			</if>
+			<if test="getRefTeamCode != null and getRefTeamCode != ''">
+				And TT.RefTeamCode = (select RefTeamCode From XBOLTADM.TB_TEAM WHERE TeamID IN (select TeamID from XBOLTAPP.CRM_CUST_MST Where CustomerNo = #{getRefTeamCode}))		
+			</if>
+			<if test='!"Y".equals(showDeleted)'>
+				AND TT.Deleted = 0
+			</if>
+		Order by NAME
+	</select>
+	
+	
+	<select id="getAssignment_commonSelect" resultType="java.util.HashMap">
+		Select 	distinct TORT.AssignmentType AS CODE,	TD.Name AS NAME 
+		From XBOLTADM.TB_OLM_ROLE_TYPE TORT
+		Left Outer Join XBOLTADM.TB_DICTIONARY  TD ON TD.TypeCode = TORT.AssignmentType And TD.LanguageID = #{languageID}  And TD.Category = 'ROLECAT'
+		<where> 1=1 
+			<if test="actorType != null and actorType != ''">
+			AND	TORT.ActorType = #{actorType}
+			</if>
+			<if test="assignmentType != null and assignmentType != ''">
+			AND	TORT.AssignmentType = #{assignmentType}
+			</if>
+		</where>
+	</select>
+	
+	<select id="getMenuURLFromWF_commonSelect" resultType="java.util.HashMap">
+		Select
+			TW.WFID AS CODE,
+			ISNULL(TD.Name, '') AS NAME,
+			TM.URL,
+			TD.Description,
+			TW.ServiceCode
+		From XBOLTADM.TB_WF TW 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TW.WFID And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_MENU TM ON TM.MenuID = TW.MenuID
+		Where TW.Category = 'CSR' And TW.Deactivated = 0
+ 		<if test="wfID != null and wfID != ''">
+			AND TW.WFID = #{wfID}
+		</if>
+	</select>
+	
+	<select id="getMenuURLFromWF2_commonSelect" resultType="java.util.HashMap">
+		Select
+			TW.WFID + '(SPLIT)' + ISNULL(AgreementYN,'N') + '(SPLIT)' + ISNULL(TD.Description,'') + '(SPLIT)' + ISNULL(CAST(TW.MandatoryGRID AS nvarchar),'NULL') + '(SPLIT)' + TW.WFURL AS CODE,
+			ISNULL(TD.Name, TW.WFID) AS NAME,
+			TW.WFURL,
+			TD.Description,
+			TW.ServiceCode
+		From XBOLTADM.TB_WF TW 
+		Left Outer Join XBOLTADM.TB_WF_ALLOCATION TWA ON TWA.WFID = TW.WFID 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TW.WFID And TD.LanguageID = #{languageID}
+		Where TWA.DocCategoryCode = #{wfDocType} And TW.Deactivated = 0
+ 		<if test="wfID != null and wfID != ''">
+			AND TW.WFID = #{wfID}
+		</if>
+ 		<if test="docSubClass != null and docSubClass != ''">
+			AND TWA.DocSubClass = #{docSubClass}
+		</if>
+		ORDER BY TW.WFID
+	</select>
+	
+	
+	<select id="getBoardMgtCategory_commonSelect" resultType="java.util.HashMap">
+		Select TBMC.CategoryCode AS CODE, TD.Name AS NAME , TBMC.SortNum
+		From XBOLTADM.TB_BOARD_MGT_CAT TBMC
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TBMC.CategoryCode And TD.Category = 'BRDCAT' And TD.LanguageID = #{languageID}
+		Where TBMC.BoardMgtID = #{BoardMgtID}	order by SortNum,  Name
+	</select>
+	
+	<select id="selectPjtRelTeam_commonSelect" resultType="java.util.HashMap">
+ 		SELECT Distinct
+	      	T2.TeamID As CODE
+	      	, T3.Name As NAME
+		  FROM XBOLTADM.TB_PJT_MEMBER_REL T1
+		  Left outer join XBOLTADM.TB_MEMBER T2 on T1.MemberID = T2.MemberID
+		  Left outer join XBOLTADM.TB_TEAM_TXT T3 on T2.TeamID = T3.TeamID AND T3.LanguageID  = #{languageID}
+		  where T1.ProjectID = #{projectID}
+ 	</select>
+ 	
+ 	<select id="getLoginIDFromMember" resultType="java.util.HashMap">
+		SELECT LoginId, EmployeeNum
+		FROM XBOLTADM.TB_MEMBER
+		WHERE Active = 1
+	 		<if test="employeeNum != null and employeeNum != ''">
+				AND EmployeeNum = #{employeeNum}
+			</if>
+	 		<if test="loginID != null and loginID != ''">
+				AND LoginId = #{loginID}
+			</if>
+			<if test="email != null and email != ''">
+				AND Email = #{email}
+			</if>
+	</select>
+	
+	<select id="getLanguageID" resultType="String">
+		Select LanguageID  
+		From XBOLTADM.TB_LANGUAGE
+		Where ExtCode = #{extCode}
+	</select>
+	
+	<select id="getLanguageExtCode" resultType="String">
+		Select ExtCode  
+		From XBOLTADM.TB_LANGUAGE
+		Where LanguageID = #{languageID}
+	</select>
+	
+	<select id="getProcSummL1ID_commonSelect" resultType="java.util.HashMap">
+	Select distinct L1ID AS CODE, L1ID + ' ' + ISNULL(TIA.PlainText, ZPS.L1ID) AS NAME  
+		From XBOLTADM.ZMD_PROC_SUM ZPS
+		 Inner Join XBOLTADM.TB_ITEM L1ITM on L1ITM.Identifier = ZPS.L1ID
+		 Inner Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID  = L1ITM.ItemID And TIA.LanguageID = #{languageID} And TIA.AttrTypeCode = 'AT00001' AND TIA.ClassCode = 'CL01001'
+		Where ZPS.L1ID IS NOT NULL  Order by Code	
+	</select>
+	
+	<select id="getAprvGroupList_commonSelect" resultType="java.util.HashMap">
+		SELECT TM.MemberID AS CODE,
+		       TM.Name + '(' + ISNULL(TM.NameEN,'') + '/' + TMXT.Name + ')' AS NAME
+		  FROM XBOLTADM.TB_MEMBER_GR TGR
+		       Left Outer JOIN XBOLTADM.TB_MEMBER TM ON TGR.MemberID = TM.MemberID
+			   Left Outer JOIN XBOLTADM.TB_TEAM_TXT TMXT ON TMXT.TeamID = TM.TeamID And TMXT.LanguageID = #{languageID}
+		WHERE 1=1 
+		    <if test="GRID != null and GRID != ''">
+			    AND TGR.GroupID = #{GRID} 		 
+		    </if>
+			<if test="state != null and state != ''">
+				AND TM.State = #{state}
+			</if>
+			<if test="userID != null and userID != ''">
+				AND TGR.MemberID != #{userID}
+			</if>
+	
+	</select>
+	
+	<select id="getSubLovList_commonSelect" resultType="java.util.HashMap">
+		 SELECT LovCode AS CODE, 
+		 		AttrTypeCode,
+		 		LanguageID,
+		 		Value AS NAME  
+          FROM XBOLTADM.TB_ATTR_TYPE_LOV 
+         Where RefLovCode = #{lovCode} and LanguageID = #{languageID}
+         <if test="lovListFilter != null and lovListFilter != ''">
+			AND LovCode IN (${lovListFilter})
+			</if>
+         ORDER BY SortNo
+	</select>
+	
+	<select id="getAttrTypeCodeLov_commonSelect" resultType="java.util.HashMap">
+		Select TAT.AttrTypeCode AS CODE, TD.Name AS NAME 
+		From XBOLTADM.TB_ATTR_TYPE TAT 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TAT.AttrTypeCode And TD.LanguageID = #{languageID} And TD.Category = 'AT'
+		Where TAT.DataType = 'LOV'
+		And TAT.AttrTypeCode NOT IN (#{attrTypeCode})
+	</select>
+	
+	<select id="getMenuCatList_commonSelect" resultType="java.util.HashMap">
+		Select Distinct MenuCat AS CODE, MenuCat AS NAME
+		From XBOLTADM.TB_MENU 
+		Where ISNULL(MenuCat, '') != ''
+	</select>
+	
+	<!-- 언어에 따른 법인(회사) 조회 -->
+	<select id="getUserGroupList_commonSelect" resultType="java.util.HashMap">
+		SELECT 
+			RTRIM(MemberID) AS CODE
+			, Name AS NAME 
+		FROM 
+			XBOLTADM.TB_MEMBER
+		WHERE UserType = 2 and Active = #{active}	
+	</select>
+	
+	<select id="getLanguageInfo" resultType="java.util.HashMap">
+		SELECT 
+			ISNULL(FontFamily, 'Malgun Gothic') FontFamily 
+			,ISNULL(FontSize,14) AS FontSize
+		    ,ISNULL(FontStyle,'1') AS FontStyle
+			,ISNULL(FontColor,'#000000') AS FontColor
+		FROM XBOLTADM.TB_Language
+		Where LanguageID = #{languageID}		
+	</select>
+	
+	<select id="getInstanceFltp_commonSelect" resultType="java.util.HashMap">
+		Select TIF.DocFltpCode AS CODE, TD.Name AS NAME
+		From XBOLTAPP.PIM_ITEM_FLTP TIF
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TIF.DocFltpCode And TD.Category = 'FLTP' And TD.LanguageID = #{languageID}
+		Where TIF.LinkType = '01'
+		And TIF.ItemID = #{itemID}
+	</select>
+	
+	<select id="getElementClassCode_commonSelect" resultType="java.util.HashMap">
+		Select Distinct TI.ClassCode AS CODE, TD.Name AS NAME, ISNULL(TIT.Icon, 'img_job.png') ICON
+		From XBOLTADM.TB_ELEMENT TE
+		Left Outer Join XBOLTADM.TB_ITEM TI ON TI.ItemID = TE.ObjectID 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TI.ClassCode And TD.Category = 'CLS' ANd TD.LanguageID = 1042
+		Left Outer JOIN XBOLTADM.TB_ITEM_TYPE TIT ON TI.ItemTypeCode = TIT.ItemTypeCode
+		Where TE.ClassCode IS Not Null
+		AND TE.CategoryCode IN ('OJ','MOJ')
+		And TE.ModelID = #{modelID}		
+		Order By TI.ClassCode ASC
+	</select>
+	
+	<select id="getGroupElementCode_commonSelect" resultType="java.util.HashMap">
+		Select TE.ElementID AS CODE
+				, TIA.PlainText AS NAME
+				, ISNULL(TIT.Icon, 'img_job.png') ICON
+				, TI.ItemID
+		From XBOLTADM.TB_ELEMENT TE
+		Left Outer Join XBOLTADM.TB_Item TI ON TI.ItemID = TE.ObjectID 
+		Left Outer Join XBOLTADM.TB_Item_Attr TIA ON TIA.ItemID = TE.ObjectID And TIA.AttrTypeCode  = 'AT00001' And TIA.LanguageID = #{languageID}
+		Left Outer JOIN XBOLTADM.TB_ITEM_TYPE TIT ON TI.ItemTypeCode = TIT.ItemTypeCode
+		Where TE.ModelID = #{modelID}
+		And TI.ClassCode = #{classCode}
+		And TE.ElementID IN (Select DisTinct Parent From XBOLTADM.TB_ELEMENT Where ModelId = #{modelID} And Parent != ${modelID}+1)
+		Order By TIA.PlainText ASC
+	</select>
+	
+	<select id="getGroupElementClassCode_commonSelect" resultType="java.util.HashMap">
+		Select Distinct TI.ClassCode AS CODE, TD.Name AS NAME
+		From XBOLTADM.TB_ELEMENT TE
+		Left Outer Join XBOLTADM.TB_ITEM TI ON TI.ItemID = TE.ObjectID 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TI.ClassCode And TD.Category = 'CLS' ANd TD.LanguageID = #{languageID}
+		Where TE.ClassCode IS Not Null
+		AND TE.CategoryCode IN ('OJ','MOJ')
+		And TE.ModelID = #{modelID}
+		And TE.ElementID IN (Select DisTinct Parent From XBOLTADM.TB_ELEMENT Where ModelId = #{modelID} And Parent != ${modelID}+1 and CategoryCode IN ('OJ','MOJ') )
+		Order By TD.Name ASC
+	</select>
+	
+	<select id="getSendEmailList" resultType="java.util.HashMap">
+		SELECT *
+		  FROM XBOLTADM.TB_EMAIL_MGT
+		 WHERE SendFlag = 'N'
+	</select>	
+	
+	
+	<insert id="insertBatchMailData" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_EMAIL_MGT (
+			  FormData
+			, ReceiverList
+			, MailFormType
+			, LanguageID
+			, MailSubject
+			, Creator
+			, CreateTime
+			, SendFlag
+			) VALUES (
+				#{formData}
+				, #{receiverList}
+				, #{mailFormType}
+				, #{languageID}
+				, #{subject}
+				, #{creator}
+				, getDate()
+				, 'N'
+			)
+	</insert>
+	
+	<!-- 국가 조회 -->
+	<select id="getCountry_commonSelect" resultType="java.util.HashMap">
+		SELECT 
+			RTRIM(CountryID) AS CODE
+			, Name AS NAME 
+		FROM 
+			XBOLTADM.TB_COUNTRY
+	</select>
+			
+	<!-- Customer 조회 -->
+	<select id="getCustMst_commonSelect" resultType="java.util.HashMap">
+		 SELECT 
+			RTRIM(CustomerNo) AS CODE
+			, TTX.Name AS NAME 
+		FROM 
+			XBOLTAPP.CRM_CUST_MST TCM
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TTX ON TTX.TeamID = TCM.TeamID AND TTX.LanguageID = #{sessionCurrLangType}
+		WHERE 
+			TCM.CustLvl=#{custLvl}
+	</select>	
+	
+	<!-- Batch List 조회 -->
+	<select id="getBatchList" resultType="java.util.HashMap">	
+		SELECT URL
+		  FROM XBOLTADM.TB_MENU
+		  where MenuCat = 'BAT' AND Deactivated = 0
+	</select>	
+	
+	<select id="getSRTypeCode_commonSelect" resultType="java.util.HashMap">
+		Select TS.SRTypeCode As CODE,  TS.SRTypeCode As NAME
+		From XBOLTAPP.ESM_SR_TYPE TS
+	</select>
+	 
+ 	<select id="getNameFromSRTypeCode_commonSelect" resultType="java.util.HashMap">
+		SELECT TS.SRTypeCode As CODE, TD.Name As NAME
+		FROM XBOLTAPP.ESM_SR_TYPE TS
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD
+		ON TS.SRTypeCode = TD.TypeCode
+		AND TD.Category = 'SRTP'
+		AND TD.LanguageID= #{languageID}
+	</select>
+	 
+	 
+	<select id="wfList_commonSelect" resultType="java.util.HashMap">
+		Select TWA.WFID AS CODE, 
+			ISNULL(Name,'') AS NAME,
+			#{radioID} AS ID
+		From XBOLTADM.TB_WF_ALLOCATION TWA
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TWA.DocSubClass And TD.LanguageID = #{languageID} And TD.Category = 'CLS'
+		Where TWA.DocCategoryCode = #{docCode}
+		<if test="docSubClass != null and docSubClass != ''">
+	 	  And TWA.DocSubClass = #{docSubClass}
+	    </if>
+		Order By TypeCode 
+	</select>	
+	 
+	<select id="getFltpCode_commonSelect" resultType="java.util.HashMap">
+		SELECT TFA.FltpCode AS CODE, TD.Name AS NAME
+		FROM XBOLTADM.TB_FLTP_ALLOC TFA
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD
+		ON TFA.FltpCode = TD.TypeCode AND TD.LanguageID = #{languageID}  
+		WHERE TFA.ItemClassCode = #{itemClassCode}
+	</select> 
+	
+	<select id="getMenuCat_commonSelect" resultType="java.util.HashMap">
+		Select Distinct RTRIM(TM.MenuCat) AS CODE, TD.Name AS NAME
+		From XBOLTADM.TB_MENU TM
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TM.MenuCat = TD.TypeCode AND TD.LanguageID = #{languageID}
+		WHERE TD.Category = 'MENUCAT'
+	</select>
+	
+	<select id="getDictionaryDescription" resultType="String">
+		Select Description 
+		From XBOLTADM.TB_Dictionary
+		Where TypeCode = #{typeCode}
+		And LanguageID = #{languageID}
+		And Category = #{category}
+	</select>
+	
+	 <select id="getItemTypeCodeFromCXN_commonSelect" resultType="java.util.HashMap">
+	 	With ItemTypeTable ( ItemTypeCode ) 
+		AS (
+			Select FromItemTypeCode AS ItemTypeCode 
+			From XBOLTADM.TB_ITEM_TYPE 
+			Where ToItemTypeCode = #{itemTypeCode}
+			And ISNULL(Deactivated, 0) != 1 AND Category = 'CN'
+			<if test="cxnTypeCodes != null and cxnTypeCodes != ''">
+				And ItemTypeCode IN (${cxnTypeCodes})
+			</if>
+			
+			Union All
+			
+			Select ToItemTypeCode AS ItemTypeCode 
+			From XBOLTADM.TB_ITEM_TYPE 
+			Where FromItemTypeCode = #{itemTypeCode} 
+			And ISNULL(Deactivated, 0) != 1 AND Category = 'CN'
+			<if test="cxnTypeCodes != null and cxnTypeCodes != ''">
+				And ItemTypeCode IN (${cxnTypeCodes})
+			</if>
+		)
+		Select Distinct T1.ItemTypeCode AS CODE, T2.Name As NAME From ItemTypeTable T1
+		Left Outer Join XBOLTADM.TB_DICTIONARY T2 ON T2.TypeCode = T1.ItemTypeCode And T2.LanguageID = #{languageID}
+		Inner Join XBOLTADM.TB_Item_Type TIT ON TIT.ItemTypeCode = T1.ItemTypeCode And ISNULL(TIT.Deactivated, 0) != 1
+  		
+	 </select>
+	 
+	 <!-- 언어에 따른 Label  조회   -->
+	<select id="CSRSTS_commonSelect" resultType="java.util.HashMap">
+		SELECT TypeCode AS CODE, ISNULL(Name, '') AS NAME
+		FROM XBOLTADM.TB_DICTIONARY
+		where 
+			LanguageID = #{sessionCurrLangType} 
+			<choose>
+				<when test="Category != null and Category != ''">
+					AND Category= #{Category}
+				</when>
+				<otherwise>
+					AND Category= 'LN'
+				</otherwise>
+			</choose>
+			<if test="TypeCode != null and TypeCode != ''">
+				AND TypeCode= #{TypeCode}
+			</if>		
+			<if test="notTypeCode != null and notTypeCode != ''">
+				AND TypeCode NOT IN (${notTypeCode})
+			</if>				
+			<if test="typeCodeList != null and typeCodeList != ''">
+				AND TypeCode IN (${typeCodeList})
+			</if>		
+	</select>	
+	
+	<select id="getProcessList_commonSelect" resultType="java.util.HashMap">
+		SELECT distinct TIA.ItemID AS CODE, TIA2.PlainText AS NAME, ITM.Identifier	
+		FROM XBOLTADM.TB_ITEM_ATTR TIA
+			Left Outer JOIN XBOLTADM.TB_ITEM_ATTR TIA2 ON TIA.ItemID = TIA2.ItemID AND TIA2.AttrTypeCode  = 'AT00001'AND TIA2.LanguageID = #{languageID}
+			Left Outer JOIN XBOLTADM.TB_ITEM ITM ON TIA.ItemID = ITM.ItemID 
+		Where TIA.AttrTypeCode = 'AT00036'  
+		And TIA.PlainText = #{procType}
+		And ITM.ClassCode = 'CL01009'
+		Order by NAME
+	</select>
+	
+	<select id="getItemCntByClass" resultType="java.util.HashMap">
+		SELECT
+			TI.ClassCode,
+			count(TI.ItemID) AS Cnt,
+			TD1.Name AS ClassName,
+			TD2.Name AS ItemTypeName,
+			ISNULL(TIT.ICON,'blank.gif') AS ICON,
+			TA.ArcCode,
+			TA.Style AS ArcStyle,
+			TA.Icon AS ArcIcon,
+			TM.URL,
+			TM.VarFilter AS MenuVar,
+			TA.VarFilter AS ArcVar,
+			ISNULL(TIT.DefColor,'') AS DefColor
+		FROM XBOLTADM.TB_ITEM TI
+		Left Outer Join XBOLTADM.TB_ITEM ST ON TI.ItemID = ST.ToItemID And ST.CategoryCode='ST1'
+		Left Outer Join XBOLTADM.TB_ITEM_TYPE TIT ON TIT.ItemTypeCode = TI.ItemTypeCode
+		Left Outer Join XBOLTADM.TB_ARC TA ON TA.ArcCode = TIT.DefArc
+		Left Outer Join XBOLTADM.TB_MENU TM ON TA.MenuID = TM.MenuID
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD1 ON TD1.TypeCode = TI.ClassCode And TD1.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = TIT.ItemTypeCode And TD2.LanguageID = #{languageID}
+		Where TI.CategoryCode='OJ' AND TI.Deleted != 1 And ST.ToItemID is not null
+		Group By TI.ClassCode, TD1.Name, TD2.Name, TIT.ICON, TA.ArcCode, TA.Style, TA.Icon, TM.URL, TM.VarFilter, TA.VarFilter, TIT.DefColor
+		Order By TI.ClassCode
+	</select>
+	
+	<select id="getCSVersion_commonSelect" resultType="java.util.HashMap">
+		Select ChangeSetID AS CODE, ISNULL(Version,' - ') + '(Updated on '+ ISNULL(CONVERT(char(10),ISNULL(CompletionDT,CreationTime), 120),'')+')' AS NAME 
+		From XBOLTADM.TB_CHANGE_SET
+		Where ItemID = #{s_itemID} 
+		Order By ChangeSetID Desc
+	</select>
+	
+	<select id="getItemNameListByHier_commonSelect" resultType="java.util.HashMap">
+		Select
+			TIA.ItemID AS CODE,
+			PlainText AS NAME 
+		From XBOLTADM.TB_ITEM_ATTR TIA, XBOLTADM.TB_ITEM TI
+		Where TIA.ItemID = TI.ItemID
+				And AttrTypeCode = 'AT00001' And LanguageID = #{languageID}
+				And TIA.ItemID in (
+					Select
+					<if test="level == 1">L1ItemID</if>
+					<if test="level == 2">L2ItemID</if>
+					<if test="level == 3">L3ItemID</if>
+					<if test="classCodeList != null and classCodeList != ''">ItemID</if>
+					From XBOLTADM.TW_ITEM_HIER
+					Where ItemTypeCode = #{itemTypeCode}
+					<if test="L1ItemID != null and L1ItemID != ''">And L1ItemID = #{L1ItemID}</if>
+					<if test="L2ItemID != null and L2ItemID != ''">And L2ItemID = #{L2ItemID}</if>
+					<if test="L3ItemID != null and L3ItemID != ''">And L3ItemID = #{L3ItemID}</if>
+					<if test="itemID != null and itemID != ''">And ItemID = #{itemID}</if>
+					<if test="classCodeList != null and classCodeList != ''">And ItemClassCode in (${classCodeList})</if>			
+				)
+				And TI.Deleted != 1
+				<if test="dimValueID != null and dimValueID != ''">	
+					AND TI.ItemID In (Select ItemID from XBOLTADM.TB_ITEM_DIM Where DimTypeID = #{dimTypeID} AND  DimValueID = #{dimValueID} )
+				</if>	
+		Order By Name	
+	</select>
+	
+	<select id="getChildItemNameList_commonSelect" resultType="java.util.HashMap">
+		Select
+			TIA.ItemID AS CODE,
+			PlainText AS NAME 
+		From XBOLTADM.TB_ITEM_ATTR TIA, XBOLTADM.TB_ITEM TI
+		Where TIA.ItemID = TI.ItemID
+		And AttrTypeCode = 'AT00001' And LanguageID = #{languageID}
+		And TIA.ItemID in (
+			Select ToItemID
+			From XBOLTADM.TB_ITEM
+			Where FromItemID = 	 #{itemID}
+				AND CategoryCode = 'ST1'
+				AND Deleted != 1			
+		)
+		And TI.Deleted != 1
+		<if test="classCodeList != null and classCodeList != ''">And TI.ClassCode in (${classCodeList})</if>		
+		<if test="dimValueID != null and dimValueID != ''">	
+			AND TI.ItemID In (Select ItemID from XBOLTADM.TB_ITEM_DIM Where DimTypeID = #{dimTypeID} AND  DimValueID = #{dimValueID} )
+		</if>	
+		Order By Name			
+	</select>	
+	
+		<select id="getParams" resultType="java.util.HashMap">
+		Select * From XBOLTADM.fn_GetParams(#{sessionUserId})
+	</select>
+	
+	<select id="getParentItemNameList_commonSelect" resultType="java.util.HashMap">
+		Select 
+			TIA.ItemID AS CODE,
+			PlainText AS NAME 
+		From XBOLTADM.TB_ITEM ST1, XBOLTADM.TB_ITEM TI, XBOLTADM.TB_ITEM_ATTR TIA
+		Where 
+		TIA.ItemID = TI.ItemID
+		And ST1.FromItemID = (
+			Select FromItemID
+			From XBOLTADM.TB_ITEM
+			Where ToItemID = #{itemID}
+			AND CategoryCode = 'ST1'
+			AND Deleted != 1
+		)
+		And AttrTypeCode = 'AT00001' And LanguageID = #{languageID}
+		AND TI.ItemID = ST1.ToItemID
+		AND ST1.CategoryCode = 'ST1'
+		AND ST1.Deleted != 1
+		AND TI.Deleted != 1
+		Order By TI.Identifier	
+	</select>
+	
+	<select id="timeZone_commonSelect" resultType="java.util.HashMap">
+		SELECT TimeZoneCode AS CODE, TimeZoneNM NAME
+		FROM XBOLTADM.TB_TIME_ZONE
+	</select>
+</mapper>

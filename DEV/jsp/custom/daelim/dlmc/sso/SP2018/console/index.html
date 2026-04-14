@@ -1,0 +1,43 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<style type="text/css">
+			body {
+			    margin:10;
+			    padding:10;
+			}
+		</style> 
+		<title>::: RathonSSO Java Configuration-Login :::</title>
+	</head>
+	<body class="yui-skin-sam">
+	   <div id="container">
+	       <table>
+	           <tr>
+	               <td>id</td>
+	               <td><input type="text" id="uid" value="ssoadmin" /></td>
+	           </tr>
+	           <tr>
+                   <td>password</td>
+                   <td><input type="password" id="pwd" value="123"/></td>
+               </tr>
+               <tr>
+                   <td colspan="2"><input type="button" value="login" onclick="login()"/></td>
+               </tr>
+	       </table>
+	   </div> 
+	   
+	   <script type="text/javascript">
+	    function login() {
+	    	var uid = document.getElementById("uid");
+	    	var pwd = document.getElementById("pwd");
+	    	
+	    	if ('ssoadmin' == uid.value && '123' == pwd.value) {
+	    		document.location.href = 'console.html';
+	    	} else {
+	    		alert('사용자 아이디 또는 비밀번호가 맞지 않습니다.');
+	    	}
+	    }
+	   </script>
+	</body>
+</html>

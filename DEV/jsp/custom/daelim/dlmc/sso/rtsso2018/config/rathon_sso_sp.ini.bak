@@ -1,0 +1,177 @@
+############################################################# 
+#
+# Service Provider Configurations
+#
+#############################################################
+
+## IdP 도메인정보
+## http:// 또는 https:// 시작해야 하며 DOMAIN과 CONTEXT 정보까지 설정한다
+## ex) http://your-idp-domain:port/contextname
+##개발/테스트서버
+##Dev
+IDPM_DOMAIN_CONTEXT=https://172.21.21.42/
+##Test
+##IDPM_DOMAIN_CONTEXT=https://sso.daelimcloudtest.com/IDP
+##운영서버
+##IDPM_DOMAIN_CONTEXT=https://sso.daelimcloud.com/IDP
+
+## IdP 장애 시 false로 설정하면 protection page에서 idp로 인증 요청을 하지 않고
+## SP 인증을 요청하게 하는 설정
+## true로 설정 시 IdP에 인증을 요청 한다.
+## 기본값 : true
+SPM_USE_IDP_AUTHENTICATION=true
+
+## SP Login Page
+## 미설정 시 IdP의 통합 로그인 page를 사용하게 된다.
+## 업무시스템 로그인 page를 사용하기 위해서는 /SP/test_login.jsp를 참고한다.
+## http:// 또는 https://로 시작 하지 않으면 컨텍스트 이하 path부터 설정한다 (반드시 /로 시작)
+##개발/테스트
+##DEV
+##SPO_LOGIN_PAGE_URI=https://gw.daelimclouddev.com/WebSite/Login.aspx
+##TEST
+##SPO_LOGIN_PAGE_URI=https://gw.daelimcloudtest.com/WebSite/Login.aspx
+##운영
+##SPO_LOGIN_PAGE_URI=https://gw.daelimcloud.com/WebSite/Login.aspx
+
+## 로그인 후 처음 접근하는 주소
+## 설정하지 않으면 사용자가 최초 요청한 주소로 이동
+SPO_LOGIN_AFTER_PAGE=
+
+
+SPM_ERROR_URI=/SP/SP2018/error.jsp
+
+## 현업 session 생성 -  interface type
+## 반드시 com.rathontech.sso.sp.session.custom.CustomSessionCreator 을 구현한다.
+SPO_CUSTOM_SESSION_CREATOR=com.rathontech2018.sso.sp.session.custom.CustomSessionCreationTester
+
+## 현업 session 생성 - redirection type
+## SPO_CUSTOM_SESSION_CREATOR를 설정 하여 사용하는것을 권장 하며
+## 본 프로퍼티는 protection page가 get 방식만을 지원한다.
+## http:// 또는 https://로 시작 하지 않으면 컨텍스트 이하 path부터 설정한다 (반드시 /로 시작)
+#SPO_CUSTOM_SESSION_REDIRECTOR=/SP2018/session/RedirectCustomSessionCreationTester.jsp
+
+## 대상 시스템 character set을 설정 한다.
+## 미설정 시 UTF-8로 기본 설정 된다.
+SPO_CHARACTER_ENCODING=UTF-8
+
+#################################################################################################
+# 이후 항목은 설정 하지 마시오!!
+
+## 인증서 설정
+#SPN_CERT_PATH=/WEB-INF/rtsso2018/cert/dsasso.cer
+#SPN_CERT_PATH=/WEB-INF/rtsso2018/cert/dsasso.cer
+#SPN_CERT_PATH=/WEB-INF/rtsso2018/cert/dsatensso.cer
+
+
+
+## SP SAML Response URL
+## IDP로 부터 SAML Response(Assertion)을 받아 처리하는 URL
+## 컨텍스트 이하 path로 설정한다 (반드시 /로 시작)
+SPM_SAML_RES_URI=/dispatch2018/sso
+
+
+
+## SP Logout Request URL
+## SSO Logout URL -> filter 방식에서만 사용
+## IDP에게 soap으로 LogoutRequest를 전달하여 현재 로그인 되어있는 SP를 모두 로그아웃 시키거나,
+## 다른 SP가 로그아웃 되었을때, IDP로 부터 soap request를 받는다.
+## 컨텍스트 이하 path로 설정한다 (반드시 /로 시작)
+SPM_LOGOUT_REQ_URI=
+
+## SP Logout Response URL
+## IDP로 부터 LogoutResponse 또는 Request를 받아 로그아웃 처리 한다.
+## 컨텍스트 이하 path로 설정한다 (반드시 /로 시작)
+#SPM_LOGOUT_RES_URI=/dispatch2018/slo
+SPM_LOGOUT_RES_URI=/SP2018/logout.jsp
+
+
+## IDP SAML Request URL
+## 로그인시 SAML Reqeust(AuthnRequest)를 보내는 IDP의 URL
+## 컨텍스트 이하 path로 설정한다 (반드시 /로 시작)
+IDPM_SAML_REQ_URI=/dispatch
+
+## IDP Login Request URL
+## 로그인시 Login Reqeust를 보내는 IDP의 URL
+## 컨텍스트 이하 path로 설정한다 (반드시 /로 시작)
+IDPM_LOGIN_REQ_URI=/dispatch/login
+
+## IDP Logout Request URL
+## 로그아웃시 Logout Reqeust를 보내는 IDP의 URL
+## 컨텍스트 이하 path로 설정한다 (반드시 /로 시작)
+IDPM_LOGOUT_REQ_URI=/dispatch/logout
+
+## 위는 servlet 으로 호출할때 사용하고 
+## 이 부분은 jsp 로 호출 할경우 사용한다.
+## IDP 의 url 이며, IDP 에서는 SOAP 으로 로그아웃 시킨다.
+## IDPM_DOMAIN_CONTEXT + IDPO_LOGOUT_REQ_URI 으로 sendRedirect 한다.
+IDPO_LOGOUT_REQ_URI=/logout.jsp
+
+
+## 이중화 IdP IP정보
+## IdP 가 이중화 되어 SP에서 IdP domain으로 server to server 통신이 어려울 경우 설정
+## domain이 아닌 IdP의 이중화된 ip를 모두 설정한다.(2개 이상 설정되어야 한다)
+## HttpIDPLoadBalancer class, LOGOUT soap 프로세스에서 사용된다.
+## ','를 이용하여 정보를 입력 한다.
+## http:// 또는 https:// 시작해야 하며 IP와 CONTEXT 정보까지 설정한다
+## ex) http://your-idp-domain:port/contextname1,http://your-idp-domain:port/contextname2
+#IDPO_LOADBALANCE_IP_CONTEXT=http://172.20.101.120:9006/IDP
+IDPO_LOADBALANCE_IP_CONTEXT=http://10.30.89.1:8080/IDP
+
+## idp loadbalancer 확인 시간
+## 단위 초, 1초보다 작으면 1초로 설정된다.
+## 단 SPO_IDP_LOADBALANCE_IP_CONTEXT가 설정 되어있을경우 만 확인을 한다
+## 기본값 1초
+IDPO_LOADBALANCE_TIME=10
+
+## idp loadbalancer response check time
+## 단위 : 초, 1초보다 작으면 실행하지 않는다
+## 기본값 0초
+IDPO_LOADBALANCE_RESPONSE_TIME=
+
+## 단위 : 분
+## sp의 session time 보다 15분정도 적게 세팅한다
+IDPM_SESSION_PERSISTENCE_TIME=1
+
+## IDP session 유지 방법
+## THREAD / REDIRECT 중 선택
+## 기본값 : REDIRECT
+IDPM_SESSION_PERSISTENCE_METHOD=THREAD
+
+## IDP session 유지 target url
+## 
+IDPM_SESSION_PERSISTENCE_URI=/session/check_session.jsp
+
+## idp session cookie name --> 11.04.07 아직 소스에는 반영 안됨
+## 2011.10.06 반영함 PKH
+## SPO_LOGOUT_METHOD 설정이 SOAP 또는 SOAP:L4 일경우 적용된다.
+## 기본값 : JSESSIONID
+IDPO_SESSION_COOKIE_NM=JSESSIONID
+
+## SSO 인증 방식, SESSION / COOKIE
+## 기본값 : SESSION
+SPO_SSO_AUTHENTICATION_METHOD=SESSION
+
+## logout 방식, REDIRECT / SOAP / SOAP:L4
+## SOAP, SOAP:L4 일경우 SPO_SSO_AUTHENTICATION_METHOD이 'SESSION'이어야 하고
+## REDIRECT, SOAP 일경우 IDPM_LOGOUT_REQ_URI 설정 값이 적용되고
+## SOAP:L4 일경우 IDPO_LOADBALANCE_IP_CONTEXT 설정 값이 적용된다. 그러므로  SOAP:L4 일경우 반드시 설정 되어야 한다.
+## ** SOAP 방식일 경우 반드시 sp와 idp 인증 모드는 SESSION이 되어야 한다.(server to server 통신이기 때문에 브라우져 쿠키가 삭제안됨)
+## 기본값 : REDIRECT
+SPO_LOGOUT_METHOD=SOAP
+
+##rathon Seessionn key 값을 설정한다
+SPO_SESSIONKEY_PREFIX=RathonSSO_
+
+## ajax 사용여부, true / false
+## 기본값 : false
+SPO_USE_OF_AJAX=true
+
+## ajax 요청 식별 방법, parameter / header
+## ajax 모듈을 이용하여 request를 할때 파라메터를 이요할것인지 header를 이용할것인지 결정
+## 기본값 : header
+SPO_AJAX_REQ_METHOD=header
+SPO_AJAX_REQ_NAME=x-requested-with
+SPO_AJAX_REQ_VALUE=XMLHttpRequest
+
+## 사용자가 proxy server를 통하여 service provider로 접근할 때 사용
+SPN_CLIENT_IP_HEADER=X-Forwarded-For

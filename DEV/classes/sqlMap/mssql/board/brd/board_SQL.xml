@@ -1,0 +1,435 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="board_SQL">
+
+	<select id="boardMgtList" resultType="java.util.HashMap">
+		<![CDATA[
+			SELECT  			/*board_SQL.boardMgtList*/
+				brd.BoardMgtID
+				,ISNULL(dc.Name, brd.BoardMgtID) BoardMgtName
+				,brd.BoardTypeCD
+				,TM.URL
+			FROM XBOLTADM.TB_BOARD_MGT brd
+				INNER JOIN XBOLTADM.TB_DICTIONARY dc ON brd.BoardMgtID = dc.TypeCode AND dc.LanguageID = #{sessionCurrLangType} And dc.Category = 'BRDNM'
+				INNER JOIN XBOLTADM.TB_BOARD_MGT_ALLOC tmpl ON brd.BoardMgtID=tmpl.BoardMgtID AND tmpl.TemplCode=#{sessionTemplCode} 
+				Left Outer Join XBOLTADM.TB_MENU TM ON TM.MenuID = brd.BoardTypeCD
+			WHERE ISNULL(brd.Deactivated,'0') != '1'
+			ORDER BY tmpl.SortNum
+			]]>
+	</select>
+	
+	<select id="boardGrpList" resultType="java.util.HashMap">
+		<![CDATA[
+			SELECT  		
+				brd.BoardMgtID As BoardGrpID
+				,ISNULL(dc.Name, brd.BoardMgtID) BoardGrpName
+				,brd.BoardTypeCD
+			FROM XBOLTADM.TB_BOARD_MGT brd
+				INNER JOIN XBOLTADM.TB_DICTIONARY dc ON brd.BoardMgtID = dc.TypeCode AND dc.LanguageID = #{sessionCurrLangType} And dc.Category = 'BRDNM'
+				INNER JOIN XBOLTADM.TB_BOARD_MGT_ALLOC tmpl ON brd.BoardMgtID=tmpl.BoardMgtID AND tmpl.TemplCode=#{sessionTemplCode} 
+			WHERE ISNULL(brd.Deactivated,'0') != '1'
+			ORDER BY tmpl.SortNum
+			]]>
+	</select>
+	
+	<select id="boardMgtListNew" resultType="java.util.HashMap">
+		<![CDATA[
+			Select TBM.BoardMgtID
+				,ISNULL(TD.Name, TBM.BoardMgtID) BoardMgtName
+				,TBM.BoardTypeCD
+				,TM.URL
+				,TBM.ParentID
+				,(Select Count(*) from XBOLTADM.TB_BOARD_MGT Where ParentID = TBMA.BoardMgtID) As ParentIDCnt
+			From XBOLTADM.TB_BOARD_MGT TBM 
+			INNER JOIN XBOLTADM.TB_DICTIONARY TD ON TBM.BoardMgtID = TD.TypeCode AND TD.LanguageID = #{languageID} And TD.Category = 'BRDNM' 
+			Left Outer Join XBOLTADM.TB_MENU TM ON TM.MenuID = TBM.BoardTypeCD
+			INNER JOIN XBOLTADM.TB_BOARD_MGT_ALLOC TBMA ON TBMA.TemplCode=#{sessionTemplCode} 
+			Where TBM.ParentID  = TBMA.BoardMgtID   
+			And ISNULL(TBM.Deactivated,'0') != '1'
+			ORDER BY TBMA.SortNum
+			]]>
+	</select>
+	
+	<select id="boardMgtSRtypeAllocList" resultType="java.util.HashMap">
+		SELECT  		
+			brd.BoardMgtID
+			,ISNULL(dc.Name, brd.BoardMgtID) BoardMgtName
+			,brd.BoardTypeCD
+			,TM.URL
+		FROM XBOLTADM.TB_BOARD_MGT brd
+			INNER JOIN XBOLTADM.TB_DICTIONARY dc ON brd.BoardMgtID = dc.TypeCode AND dc.LanguageID = #{sessionCurrLangType} And dc.Category = 'BRDNM'
+			INNER JOIN XBOLTAPP.ESM_SR_TYPE EST ON brd.BoardMgtID = EST.BoardMgtID AND EST.SRTypeCode = #{srTypeCode}
+			Left Outer Join XBOLTADM.TB_MENU TM ON TM.MenuID = brd.BoardTypeCD
+		WHERE ISNULL(brd.Deactivated,'0') != '1'
+		ORDER BY brd.BoardMgtID
+	</select>
+	
+	<select id="boardTotalCnt" resultType="String">
+		<![CDATA[
+		SELECT Count(*) totalCnt FROM XBOLTADM.TB_BOARD	
+		]]>
+		<where>		
+			<if test="BoardMgtID != null and BoardMgtID != ''">
+				BoardMgtID = #{BoardMgtID}
+			</if>
+			<if test="projectID != null and projectID != ''">
+				AND (ProjectID = #{projectID} or ProjectID = 0)
+			</if>
+			<choose>
+				<when test="viewType != null and viewType.equals('pop')">
+					AND BoardMgtID = '1' AND CONVERT(VARCHAR, RegDT, 112) BETWEEN CONVERT(VARCHAR,DATEADD(DD,-7,GETDATE()),112) AND CONVERT(VARCHAR,GETDATE(),112)
+					AND ClosingDT IS NOT NULL
+				</when>
+				<when test="viewType != null and viewType.equals('home')">
+					AND CONVERT(VARCHAR, RegDT, 112) BETWEEN CONVERT(VARCHAR,DATEADD(DD,-180,GETDATE()),112) AND CONVERT(VARCHAR,GETDATE(),112)
+				</when>
+			</choose>
+			
+		</where>
+	</select>
+	
+	<select id="boardList_gridList" resultType="java.util.HashMap">
+		<![CDATA[
+		SELECT TOP 1000 RNUM
+				, BoardMgtID
+	            , ReplyLev
+				, brd.BoardID
+				, Subject AS Subject
+				, WriteUserNM
+				, RegDT
+				, RegDT2
+				, ModDT
+				, ModDT2
+				, ReadCNT
+				, IsNew
+				, ProjectID
+				, ProjectName
+				, Notice
+				, ClosingDT
+				, ActiveNotice
+		FROM (
+			SELECT  			/*board_SQL.boardGridList*/
+				Row_Number()OVER(ORDER BY CASE WHEN DATEDIFF(day,getDate(),ClosingDT) >= 0 THEN 1 Else 0 End ASC, ISNULL(brd.Notice,0) ASC, brd.ModDT ASC) as RNUM
+				, brd.BoardMgtID
+	            , ReplyLev
+				, brd.BoardID
+				, Case When ClosingDT Is Not Null And DATEDIFF(day,getDate(),ClosingDT) >= 0 then  '<strong><font color=red>[Notice]</font> '+Subject + '</strong>'  else Subject end AS Subject
+				, CONVERT(VARCHAR, brd.ModDT, 20) AS ModDT
+				, ISNULL(mbr.Name,'') + Case When ISNULL(mbr.NameEN,'') != '' Then '(' + ISNULL(mbr.NameEN,'') + ')' Else '' End AS WriteUserNM
+				, CONVERT(VARCHAR, brd.RegDT, 120) AS RegDT
+				, ISNULL(CONVERT(char(10),brd.ModDT, 120),'') AS ModDT2
+				, ISNULL(CONVERT(char(10),brd.RegDT, 21),'') AS RegDT2
+				, ISNULL(brd.ReadCNT, '0') AS ReadCNT
+				, CASE WHEN DATEDIFF(day, brd.RegDT, getDate()) > 7 THEN 'blank.png' ELSE 'icon_new.png' END AS IsNew
+				, CASE WHEN DATEDIFF(day, brd.RegDT, getDate()) > 7 THEN '0' ELSE '1' END AS chkNew				
+				, CASE WHEN ISNULL(AttchCnt, 0) > 0 THEN 'Y' ELSE 'N' END IsAttFile
+				, tpt.Name As ProjectName
+				, ISNULL(Notice,0) AS Notice
+				, brd.ProjectID
+				, CONVERT(VARCHAR, brd.ClosingDT, 120) AS ClosingDT
+				, CASE WHEN  DATEDIFF(day,getDate(),ClosingDT) >= 0 THEN 1 Else 0 End  As ActiveNotice	
+			]]> 	
+			FROM XBOLTADM.TB_BOARD brd
+				LEFT OUTER JOIN XBOLTADM.TB_MEMBER mbr ON brd.RegUserID=mbr.MemberID
+				LEFT OUTER JOIN ( SELECT BoardID, COUNT(*) AS AttchCnt
+					FROM XBOLTADM.TB_BOARD_ATTCH 
+					GROUP BY BoardID
+				) att ON brd.BoardID = att.BoardID 
+				LEFT OUTER JOIN XBOLTADM.TB_PROJECT_TXT tpt ON tpt.ProjectID = brd.ProjectID And tpt.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_BOARD_MGT TBM ON TBM.BoardMgtID = brd.BoardMgtID
+			<where>
+				<if test="boardGrpID != null and boardGrpID != ''">
+					TBM.ParentID = #{boardGrpID}
+				</if>
+				<if test="BoardMgtID != null and BoardMgtID != ''">
+					AND brd.BoardMgtID = #{BoardMgtID}
+				</if>
+				<if test="scStartDt != null and scStartDt != '' and scEndDt != null and scEndDt != ''">
+					AND CONVERT(VARCHAR, brd.ModDT, 112) BETWEEN #{scStartDt} AND #{scEndDt}
+				</if>
+				<if test="searchValue != null and searchValue != ''">
+					<choose>
+						<when test="searchKey.equals('Name')">
+							AND brd.Subject like N'%'+#{searchValue}+'%'
+						</when>
+						<when test="searchKey.equals('Info')">
+							AND brd.Content like N'%'+#{searchValue}+'%'
+						</when>
+					</choose>
+				</if>
+				<choose>
+					<when test="'PG'.equals(projectType) and !'(0)'.equals(projectID) and projectID != null and projectID != ''">
+						AND (brd.ProjectID in (Select ProjectID From XBOLTADM.TB_PROJECT where RefPGID = #{projectID} ) or brd.ProjectID = 0 )
+					</when>
+					
+					<when test="'PJT'.equals(projectType) and !'(0)'.equals(projectID) and projectID != null and projectID != ''">
+						AND (brd.ProjectID = #{projectID} or brd.ProjectID = 0)
+					</when>
+				</choose>
+				
+				<if test="projectIDs != null and projectIDs != ''">
+					AND brd.ProjectID IN (${projectIDs})
+				</if>
+				
+				<if test="replyLev != null and replyLev != ''">
+					AND brd.replyLev = #{replyLev}
+				</if>
+				<if test="category != null and category != ''">
+					AND brd.Category = #{category}
+				</if>
+			</where>
+			
+		<![CDATA[
+		) brd
+		
+			]]>
+		<where>
+			<if test="pageNo != null and pageNo != ''">
+				brd.RNUM BETWEEN ((#{pageNo}-1)*#{LIST_PAGE_SCALE}  + 1) AND (#{pageNo}*#{LIST_PAGE_SCALE}) 
+			</if>
+		</where>
+			ORDER BY brd.RNUM DESC 
+	</select>
+
+	<update id="boardUpdateReadCnt" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_BOARD SET
+			ReadCNT = ISNULL(ReadCNT,0) + 1
+		WHERE BoardID = #{BoardID}
+	</update>
+
+	<select id="boardDetail" resultType="java.util.HashMap">
+		SELECT
+			<if test="viewType != null and viewType.equals('pop')">
+				TOP(1)
+			</if>
+			  brd.BoardMgtID
+			, brd.BoardID
+			, brd.Subject
+			, brd.Content
+			, brd.ReplyLev
+			, ISNULL(brd.ReadCNT, '0') AS ReadCNT
+			, ISNULL(mbr.Name,'') + Case When ISNULL(mbr.NameEN,'') != '' Then '(' + ISNULL(mbr.NameEN,'') + ')' Else '' End AS WriteUserNM
+			, CONVERT(VARCHAR, brd.RegDT, 120) AS RegDT
+			, brd.RegUserID
+			, CONVERT(VARCHAR, brd.ModDT, 120) AS ModDT
+			, brd.ModUserID
+			, brd.ProjectID
+			, tpt.Name As ProjectName
+			, brd.Category
+			, BRDCAT.Name As CategoryNM 
+			, CONVERT(char(10), brd.ClosingDT, 120) AS ClosingDT
+			, (CASE BS.SCORE WHEN 1 THEN 'Y' ELSE 'N' END) AS LikeInfo
+		FROM XBOLTADM.TB_BOARD brd
+			LEFT OUTER JOIN XBOLTADM.TB_PROJECT_TXT tpt ON tpt.ProjectID = brd.ProjectID And tpt.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_MEMBER mbr ON brd.RegUserID=mbr.MemberID
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY BRDCAT ON BRDCAT.TypeCode = brd.Category And BRDCAT.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_BOARD_SCORE BS ON BS.BoardID = brd.BoardID AND BS.BoardMgtID = brd.BoardMgtID AND BS.RegUserID = #{sessionUserId}
+		<where>
+			<if test="BoardID != null and BoardID != ''">
+				brd.BoardID = #{BoardID}
+			</if>			
+			<if test="viewType != null and viewType.equals('pop')">
+				<if test="templPjtID != null and templPjtID != ''">
+					AND brd.ProjectID = #{templPjtID}
+				</if>
+				AND brd.BoardMgtID = '1' AND CONVERT(VARCHAR, brd.RegDT, 112) BETWEEN CONVERT(VARCHAR,DATEADD(DD,-180,GETDATE()),112) AND CONVERT(VARCHAR,GETDATE(),112)
+				AND brd.ClosingDT IS NOT NULL
+				ORDER BY brd.ClosingDT DESC, brd.RegDT DESC
+				
+			</if>
+		</where>
+	</select>
+
+	
+	<select id="boardNextVal" resultType="String">
+		SELECT
+			ISNULL(MAX(BoardID)+1,'1') as BoardID
+		FROM
+			XBOLTADM.TB_BOARD
+	</select>
+
+	<insert id="boardInsert" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_BOARD
+			(
+			  BoardMgtID
+			, BoardID
+			, Subject
+			, Content
+			, ReplyLev
+			, ReadCNT
+			, RegDT
+			, RegUserID
+			, ModDT
+			, ModUserID
+			, ProjectID
+			, ItemID
+			, Category
+			<if test="closingDT != null and closingDT != '' and noticeYN.equalsIgnoreCase('Y')">
+			,ClosingDT
+			</if>	
+
+			) VALUES (
+			  	  #{BoardMgtID}
+				, #{BoardID}
+				, #{Subject}
+				, #{Content}
+				, 0
+				, '0'
+				, getDate()
+				, #{sessionUserId}
+				, getDate()
+				, #{sessionUserId}
+				, #{projectID}
+				, #{itemID}
+				, #{category}
+				<if test="closingDT != null and closingDT != '' and noticeYN.equalsIgnoreCase('Y')">
+				,#{closingDT}
+				</if>
+			)
+	</insert>
+
+	<update id="boardUpdate" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_BOARD SET
+			  Subject = #{Subject}
+			, Content = #{Content}
+			, ModDT = getDate()
+			, ModUserID = #{sessionUserId}
+			, ProjectID = #{projectID}
+			, Category = #{category}
+			<if test="closingDT != null and closingDT != '' and noticeYN.equalsIgnoreCase('Y')">
+			, ClosingDT = #{closingDT}
+			</if>
+			<if test="closingDT == '' or closingDT == null or noticeYN.equalsIgnoreCase('N')">
+			, ClosingDT = null
+			</if>
+		WHERE BoardID = #{BoardID}
+	</update>
+
+	<delete id="boardDelete" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_BOARD WHERE BoardID = #{BoardID}
+	</delete>
+	
+	<select id="getBoardID" resultType="java.util.HashMap">
+		SELECT BoardID
+		FROM XBOLTADM.TB_BOARD
+		WHERE
+			ItemID = #{ItemID}
+			<if test="ChangeSetID != '' and ChangeSetID != null">
+			AND ChangeSetID = #{ChangeSetID}
+			</if>
+			<if test="SRID != '' and SRID != null">
+			AND SRID = #{SRID}
+			</if>
+	</select>
+	
+	<select id="getTemplName" resultType="String">
+		Select TD.Name from XBOLTADM.TB_TEMPL TT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On Tt.TemplCode = TD.TypeCode And TD.LanguageID = #{languageID}
+		Where TT.TemplCode = #{sessionTemplCode}
+	</select>
+	
+	<select id="getTemplProjectID" resultType="String">
+		Select ProjectID 
+		  from XBOLTADM.TB_TEMPL 
+		 Where TemplCode = #{sessionTemplCode}
+	</select>
+	
+	<select id="getBoardMgtName" resultType="String">
+		Select TD.Name AS boardMgtName from XBOLTADM.TB_BOARD_MGT TBM
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TBM.BoardMgtID And TD.LanguageID = #{languageID} And Category = 'BRDNM'
+		Where TBM.BoardMgtID = #{BoardMgtID}
+	</select>
+	
+	<select  id="getBoardParentID" resultType="String" >
+		SELECT ParentID FRom XBOLTADM.TB_BOARD_MGT Where BoardMgtID = #{boardMgtID}
+	</select>
+	
+	<select id="getFirstBoardMgtID" resultType="String" >
+		Select Top 1 BoardMgtID From XBOLTADM.TB_BOARD_MGT Where ParentID = #{parentID}
+	</select>
+	
+	<select id="getBoardCategoryYN" resultType="String" >
+		Select CategoryYN From XBOLTADM.TB_BOARD_MGT Where boardMgtID=#{BoardMgtID}
+	</select>
+	
+	<select id="getBoardReplyOption" resultType="String" >
+		Select ReplyOption From XBOLTADM.TB_BOARD_MGT Where boardMgtID=#{BoardMgtID}
+	</select>
+	
+	<select id="getBoardLikeYN" resultType="String" >
+		Select LikeYN 
+		  From XBOLTADM.TB_BOARD_MGT 
+		 Where boardMgtID=#{BoardMgtID}
+	</select>
+
+	<insert id="boardLikeInsert" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_BOARD_SCORE
+			(
+			  BoardMgtID
+			, BoardID
+			, Score
+			, RegUserID
+			, RegDT
+
+			) VALUES (
+			  	  #{BoardMgtID}
+				, #{BoardID}
+				, 1
+				, #{sessionUserId}	
+			    , getDate()
+			)
+	</insert>
+	
+	<delete id="boardLikeDelete" parameterType="java.util.HashMap">
+		DELETE 
+		  FROM XBOLTADM.TB_BOARD_SCORE
+		 WHERE BoardMgtID = #{BoardMgtID} 
+		   AND BoardID = #{BoardID} 
+		   <if test="!'delete'.equals(mode)">
+		   AND RegUserID = #{sessionUserId}		
+		   </if>		
+	</delete>
+	
+	<select id="getBoardLikeCNT" resultType="String" >
+		SELECT count(*) AS LikeCNT
+		 FROM XBOLTADM.TB_BOARD_SCORE 
+		WHERE BoardMgtID = #{BoardMgtID}
+		  AND BoardID = #{BoardID}
+	</select>
+	
+	<select id="getBoardPostEmailYN" resultType="String" >
+		SELECT ISNULL(PostEmailYN,'N') AS PostEmailYN
+		 FROM XBOLTADM.TB_BOARD_MGT 
+		WHERE BoardMgtID = #{BoardMgtID}
+	</select>
+	
+	<select id="getBoardMgtInfo" resultType="java.util.HashMap" >
+		SELECT ISNULL(TBM.MgtOnlyYN,'N') AS MgtOnlyYN, ISNULL(TBM.MgtGRID,0) AS MgtGRID, TBM.MgtUserID, ISNULL(TBM.PostEmailYN,'N') AS PostEmailYN
+				, TBM.LikeYN , TD.Name AS boardMgtName , CategoryYN , ISNULL(ReplyOption, '0') AS ReplyOption, TM.Url, TBM.BlockOption, TBM.VarFilter
+		 FROM XBOLTADM.TB_BOARD_MGT TBM
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TBM.BoardMgtID And TD.LanguageID = #{languageID} And Category = 'BRDNM'
+		 Left Outer Join XBOLTADM.TB_MENU TM ON TM.MenuID = TBM.BoardTypeCD
+		WHERE TBM.BoardMgtID = #{BoardMgtID}
+
+		
+	</select>
+	
+	<select id="getBoardMgtCatCNT" resultType="String" >
+		SELECT COUNT(*)
+		 FROM XBOLTADM.TB_BOARD_MGT_CAT
+		WHERE BoardMgtID = #{BoardMgtID}
+	</select>
+	
+		
+	<select id="getBoardLimitChkCNT" resultType="String">
+		SELECT COUNT(*) cnt
+		FROM XBOLTADM.TB_BOARD
+		WHERE RegUserID = #{regUserID}
+		AND BoardMgtID = #{boardMgtID}
+		AND RegDT BETWEEN #{scStartDt} AND #{scEndDt}
+	</select>
+	
+</mapper>

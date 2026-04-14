@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="daelim_SQL">
+	<select id="zDLM_callCenter_dashboard" resultType="java.util.HashMap">
+		<![CDATA[
+				Select 
+					ISNULL(Sum(case callresult when 11 then 1 else 0 end), 0) as response,
+					ISNULL(Sum(case callresult when 13 then 1 else 0 end), 0) as giveup,
+					ISNULL(Avg(case  callresult when 11 then SangdamSec end), 0) as avgcalltime,
+					ISNULL(Avg(case callresult when 11 then CustWaitSec end), 0) as avgstanbytime,
+					ISNULL((Select count(*) From POLARIS.dbo.CALLBACK where regdate = #{yyyyMMdd} and callret in ('00','02','03','05')), 0) as callback
+				From POLARIS.dbo.CDR_${yyyyMM}
+				Where sdate = #{yyyyMMdd} and linetype = '01' AND CallID <> '' /*and grpName = '상담그룹'*/
+		]]>		
+	</select>
+	
+	<select id="zDLM_callCenter_myDashboard" resultType="java.util.HashMap">
+		Select
+			ISNULL(Sum(case callresult when 11 then 1 when 21 then 1 else 0 end),0) as totalresponsecnt,
+			CONVERT(time(0), DATEADD(SECOND, ISNULL(Sum(case callresult when 11 then SangdamSec when 21 then SangdamSec else 0 end),0), 0)) as mysumcalltime,
+			CONVERT(time(0), DATEADD(SECOND, ISNULL(Avg(case callresult when 11 then SangdamSec when 21 then SangdamSec end),0), 0))　as myavgcalltime
+		From POLARIS.dbo.CDR_${yyyyMM}
+		Where linetype='01' and callid!=''  and slinum = #{telNum} and sdate = #{yyyyMMdd}
+	</select>
+	
+	<select id="getCallCenter_List" resultType="java.util.HashMap">
+		SELECT 
+		    CallBackKey, RegDate, RegTime, RegWeek, TelNum, CustInfo, AgentID, 
+		    CallDate, CallTime, CallRet, Memo, ReqGrp, VoiceMsg, AgentName, 
+		    CID, ServiceID, Del_YN, VoiceFile, VoiceSec, S_Sec, E_Sec
+		FROM POLARIS.dbo.CALLBACK 
+		WHERE CallRet IN ('00','02','03','04','05')
+		  AND AgentID = #{AgentID} 
+		;
+	</select>
+	
+	<!-- 통화성공후 콜백 대상 CTI TBL update -->
+	<update id="updateCtiCallback_User" parameterType="map">
+		UPDATE POLARIS.dbo.CALLBACK
+		SET AgentID = #{NewAgentID},  
+		 	AgentName = #{NewAgentName},
+		    CallDate = CONVERT(VARCHAR(8), GETDATE(), 112),
+		 	CallTime = FORMAT(GETDATE(), 'HHmmss'),
+		 	CallRet ='01'
+		WHERE CallBackKey = #{CallBackKey};  
+	</update>
+	
+	<!-- 콜백 대상 담당자 변경 CTI TBL update -->
+	<update id="updateCtiCallback_AgentID" parameterType="map">
+		UPDATE POLARIS.dbo.CALLBACK
+		SET AgentID = #{NewAgentID},  
+		 	AgentName = #{NewAgentName}   
+		WHERE CallBackKey = #{CallBackKey};  
+	</update>
+	
+	<!-- 20250424 CTI 콜이력 가져오기 시작 -->
+	<select id="zDLM_CTI_CDR_LIST" resultType="java.util.HashMap">
+	<![CDATA[
+			SELECT
+				CallID,
+				LineType,
+				SliNum,
+				GrpName,
+				AgtID,
+				AgtName,
+				TrkNum,
+				SDate,
+				STime,
+				SWeek,
+				SangdamSec,
+				CustWaitSec,
+				TotalUseSec,
+				IO,
+				CallResult,
+				GrpType,
+				SMDR,
+				TelNum,
+				DNIS,
+				TransferNum,
+				AgtCnt,
+				TransferCnt,
+				ConferenceCnt,
+				Reserved_1,
+				Reserved_2,
+				Reserved_3,
+				Reserved_4,
+				Reserved_5
+			  FROM POLARIS.dbo.CDR_${yyyyMM}
+			 WHERE 1 = 1
+			   AND LineType = '01'
+			   --AND IO = 'I'
+			   AND CallResult <> '0'
+			   AND SDate = #{yyyyMMdd}
+			   AND CallID <> ''
+	]]>
+	</select>
+	<!-- 20250424 CTI 콜이력 가져오기 끝 -->
+	
+</mapper>

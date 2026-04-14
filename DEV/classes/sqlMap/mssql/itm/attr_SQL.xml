@@ -1,0 +1,833 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	Item 관련 관련	-->
+<mapper namespace="attr_SQL">
+	
+	<select id="selectAttrLovCode" resultType="String">
+		SELECT 
+			Distinct LovCode
+		FROM
+			XBOLTADM.TB_ATTR_TYPE_LOV
+		WHERE
+			AttrTypeCode = #{AttrTypeCode}
+			AND LanguageID = #{languageID}	
+			AND LovCode = #{PlainText}
+	</select>
+	
+	<select id="selectAttrLovCode2" resultType="String">
+		SELECT 
+			Distinct LovCode
+		FROM
+			XBOLTADM.TB_ATTR_TYPE_LOV
+		<where>
+			<if test="AttrTypeCode != null and AttrTypeCode != ''">
+				AttrTypeCode = #{AttrTypeCode}
+			</if>
+			<if test="languageID != null and languageID != ''">
+				AND LanguageID = #{languageID}	
+			</if>
+			<if test="PlainText != null and PlainText != ''">
+				AND LovCode = #{PlainText}
+			</if>
+			<if test="Value != null and Value != ''">
+				AND Value = #{Value}
+			</if>
+		</where>
+	</select>
+	
+	<select id="attrNameEqualCount" resultType="String">
+		SELECT 
+			Count(ItemID) as Count 
+		FROM 
+			XBOLTADM.TB_ITEM_ATTR
+		WHERE 
+			PlainText = #{PlainText}
+			AND LanguageID = #{languageID} 
+			AND AttrTypeCode = #{AttrTypeCode}
+			<if test="ItemID != null and ItemID != ''">
+			AND ItemID != #{ItemID}
+			</if>
+			
+	</select>
+	
+	<select id="identifierEqualCount" resultType="String">
+		SELECT 
+			Count(ItemID) as Count 
+		FROM
+			XBOLTADM.TB_ITEM
+		WHERE
+			ItemID != #{ItemID}
+  			AND Identifier = #{Identifier}
+  			AND ItemTypeCode = (SELECT ItemTypeCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{ItemID})
+  			<if test="itemActive != null and itemActive != ''">
+  				AND Deleted != 1
+  			</if>
+	</select>
+
+	<!-- 동일 ID 중복 시 중복된 Item의 "항목계층명/경로/명칭" 가져오기 -->
+	<select id="getEqualIdentifierInfo" resultType="String">
+		SELECT 
+			Top 1
+			TD.Name+XBOLTADM.fn_GetMyAbsPathForList(#{ItemID},#{languageID})+'/'+TIA.PlainText
+		FROM
+			XBOLTADM.TB_ITEM TI
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD
+				on TI.ClassCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+				on TI.ItemID = TIA.ItemID
+				AND TIA.AttrTypeCode = 'AT00001'
+				AND TIA.LanguageID = #{languageID}
+		WHERE		
+			TI.ItemID != #{ItemID}
+  			AND TI.Identifier = #{Identifier}
+	</select>
+	
+	<select id="getRefAttrTypeCode" resultType="String">
+		Select AttrTypeCode From XBOLTADM.TB_ATTR_TYPE Where SubAttrTypeCode = #{attrTypeCode}
+	</select>
+	
+	
+	<select id="getItemAttr" resultType="java.util.HashMap">
+		SELECT 	distinct TATA.SortNum
+				,TATA.AttrTypeCode AS AttrTypeCode
+				, ISNULL(TD.Name, '') AS Name
+				, CASE TAT.DataType
+					WHEN 'LOV' THEN 
+						 Case ISNULL(TATL.Value,'') When '' Then ISNULL(TATL2.Value, '')  Else   TATL.Value  END
+					WHEN 'MLOV' THEN ''
+					WHEN 'Text' THEN Case TAT.IsComLang When '1' Then ISNULL(TIADEF.PlainText,'')  Else ISNULL(TIA.PlainText,'') END 
+					ELSE ISNULL(TIADEF.PlainText, '') 
+				  END PlainText
+				, CASE TAT.DataType 
+					WHEN 'MLOV' Then ''
+					ELSE ISNULL(TIADEF.LovCode, '') END  AS LovCode
+				, ISNULL(TATL.AttrTypeCode, '') AS BaseLovCode
+				, TAT.DataType
+				, TAT.IsComLang
+				, TAT.HTML
+				, ISNULL(TATA.Mandatory, '') AS Mandatory
+				, ISNULL(TAT.Editable, '') AS Editable
+				, TATA.Link
+				, TM.URL
+				, ISNULL(TATA.AreaHeight, '20') AS AreaHeight
+				, TAT.Editable as editYN
+				, TATA.RowNum 
+				, TATA.ColumnNum 
+				, TAT.SubAttrTypeCode
+				, TATA.VarFilter AS VarFilter
+				, TATA.DefValue
+				, TAT.Style
+			FROM 
+				XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TATA.AttrTypeCode = TIA.AttrTypeCode AND TIA.ItemID = #{s_itemID} 
+				AND TIA.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIADEF ON TATA.AttrTypeCode = TIADEF.AttrTypeCode AND TIADEF.ItemID = #{s_itemID} 
+				AND TIADEF.LanguageID = #{defaultLang}
+				
+				Left Outer Join XBOLTADM.TB_DICTIONARY TD on TATA.AttrTypeCode = TD.TypeCode 
+				<choose>
+					<when test="loginLangType != null and loginLangType != ''">
+						AND TD.LanguageID = #{loginLangType}
+					</when>
+					<otherwise>
+						AND TD.LanguageID = #{languageID}
+					</otherwise>
+				</choose>
+				Left Outer join	XBOLTADM.TB_ATTR_TYPE_LOV TATL on TIADEF.AttrTypeCode  = TATL.AttrTypeCode AND TIADEF.LovCode = TATL.LovCode AND TATL.LanguageID = #{languageID}
+				Left Outer join XBOLTADM.TB_ATTR_TYPE_LOV TATL2 on TIADEF.AttrTypeCode = TATL2.AttrTypeCode AND TIADEF.LovCode = TATL2.LovCode AND TATL2.LanguageID = #{defaultLang}
+				Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT on TATA.AttrTypeCode = TAT.AttrTypeCode 
+				Left Outer Join XBOLTADM.TB_MENU TM ON TATA.Link = TM.MenuID					
+			WHERE
+				<choose>
+					<when test="classCode != null and classCode != ''">
+						TATA.ItemClassCode = #{classCode}
+					</when>
+					<otherwise>
+						TATA.ItemClassCode = (SELECT ClassCode From XBOLTADM.TB_ITEM WHERE ItemID = #{s_itemID})
+					</otherwise>
+				</choose>
+				<if test='showInvisible != "Y"'>
+				AND TATA.Invisible = 0
+				</if>
+				<if test="AttrTypeCode != null and AttrTypeCode != ''">
+				AND TAT.AttrTypeCode = #{AttrTypeCode}
+				</if>
+				<if test="AttrTypeCodes != null and AttrTypeCodes !=''">
+				AND TAT.AttrTypeCode IN(${AttrTypeCodes})
+				</if>
+				<if test='"1".equals(IsComLang)'>
+				AND ( TAT.IsComLang = 1	AND TAT.DataType != 'LOV'	)
+				</if>
+				<if test="Editable != null and Editable != ''">
+				AND TAT.Editable = #{Editable}
+				</if>
+			ORDER BY
+				TATA.SortNum ASC				
+	</select>
+	
+	<select id="getItemAttrV4" resultType="java.util.HashMap">
+		SELECT 	distinct TATA.SortNum
+				,TATA.AttrTypeCode AS AttrTypeCode
+				, ISNULL(TD.Name, '') AS Name
+				, CASE TAT.DataType
+					WHEN 'LOV' THEN 
+						 Case ISNULL(TATL.Value,'') When '' Then ISNULL(TATL2.Value, '')  Else   TATL.Value  END
+					WHEN 'MLOV' THEN Case ISNULL(TATL.Value,'') When '' Then ISNULL(TATL2.Value, '')  Else   TATL.Value  END
+					WHEN 'Text' THEN Case TAT.IsComLang When '1' Then ISNULL(TIADEF.PlainText,'')  Else ISNULL(TIA.PlainText,'') END 
+					ELSE ISNULL(TIADEF.PlainText, '') 
+				  END PlainText
+				, CASE TAT.DataType 
+					WHEN 'MLOV' Then ''
+					ELSE ISNULL(TIADEF.LovCode, '') END  AS LovCode
+				, ISNULL(TATL.AttrTypeCode, '') AS BaseLovCode
+				, TAT.DataType
+				, TAT.IsComLang
+				, TAT.HTML
+				, ISNULL(TATA.Mandatory, '') AS Mandatory
+				, ISNULL(TAT.Editable, '') AS Editable
+				, TATA.Link
+				, TM.URL
+				, ISNULL(TATA.AreaHeight, '20') AS AreaHeight
+				, TAT.Editable as editYN
+				, TATA.RowNum 
+				, TATA.ColumnNum 
+				, TAT.SubAttrTypeCode
+				, TATA.VarFilter AS VarFilter
+				, TATA.DefValue
+				, TAT.Style
+			FROM 
+				XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TATA.AttrTypeCode = TIA.AttrTypeCode AND TIA.ItemID = #{s_itemID} 
+				AND TIA.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIADEF ON TATA.AttrTypeCode = TIADEF.AttrTypeCode AND TIADEF.ItemID = #{s_itemID} 
+				AND TIADEF.LanguageID = #{defaultLang}
+				
+				Left Outer Join XBOLTADM.TB_DICTIONARY TD on TATA.AttrTypeCode = TD.TypeCode 
+				<choose>
+					<when test="loginLangType != null and loginLangType != ''">
+						AND TD.LanguageID = #{loginLangType}
+					</when>
+					<otherwise>
+						AND TD.LanguageID = #{languageID}
+					</otherwise>
+				</choose>
+				Left Outer join	XBOLTADM.TB_ATTR_TYPE_LOV TATL on TIADEF.AttrTypeCode  = TATL.AttrTypeCode AND TIADEF.LovCode = TATL.LovCode AND TATL.LanguageID = #{languageID}
+				Left Outer join XBOLTADM.TB_ATTR_TYPE_LOV TATL2 on TIADEF.AttrTypeCode = TATL2.AttrTypeCode AND TIADEF.LovCode = TATL2.LovCode AND TATL2.LanguageID = #{defaultLang}
+				Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT on TATA.AttrTypeCode = TAT.AttrTypeCode 
+				Left Outer Join XBOLTADM.TB_MENU TM ON TATA.Link = TM.MenuID					
+			WHERE
+				<choose>
+					<when test="classCode != null and classCode != ''">
+						TATA.ItemClassCode = #{classCode}
+					</when>
+					<otherwise>
+						TATA.ItemClassCode = (SELECT ClassCode From XBOLTADM.TB_ITEM WHERE ItemID = #{s_itemID})
+					</otherwise>
+				</choose>
+				<if test='showInvisible != "Y"'>
+				AND TATA.Invisible = 0
+				</if>
+				<if test="AttrTypeCode != null and AttrTypeCode != ''">
+				AND TAT.AttrTypeCode = #{AttrTypeCode}
+				</if>
+				<if test="AttrTypeCodes != null and AttrTypeCodes !=''">
+				AND TAT.AttrTypeCode IN(${AttrTypeCodes})
+				</if>
+				<if test='"1".equals(IsComLang)'>
+				AND ( TAT.IsComLang = 1	AND TAT.DataType != 'LOV'	)
+				</if>
+				<if test="Editable != null and Editable != ''">
+				AND TAT.Editable = #{Editable}
+				</if>
+			ORDER BY
+				TATA.SortNum ASC				
+	</select>
+	
+
+	<select id="getItemAttrMain" resultType="java.util.HashMap">
+		SELECT * FROM (
+			SELECT 
+				TATA.SortNum
+				,TATA.AttrTypeCode AS AttrTypeCode
+				, ISNULL(TD.Name, '') AS Name
+				, CASE TAT.DataType 
+					WHEN 'LOV' Then
+						Case ISNULL(TATL.Value,'') When '' Then ISNULL(TATLDEF.Value, '')  Else  TATL.Value  END					
+					WHEN 'MLOV' THEN ''
+					WHEN 'Text' THEN ISNULL(TIA.PlainText, '') 
+					ELSE ISNULL(TIADEF.PlainText, '') 
+				  END PlainText
+				, CASE TAT.DataType 
+					WHEN 'MLOV' Then ''
+					ELSE ISNULL(TIALOV.LovCode, '') END  AS LovCode
+				, ISNULL(TATL.AttrTypeCode, '') AS BaseLovCode
+				, TAT.DataType
+				, TAT.Domain
+				, TAT.IsComLang
+				, TAT.HTML
+				, ISNULL(TATA.Mandatory, '') AS Mandatory
+				, ISNULL(TAT.Editable, '') AS Editable
+				, TATA.Link
+				, TM.URL
+				, ISNULL(TATA.AreaHeight, '20') AS AreaHeight
+				, TAT.Editable as editYN
+				, TATA.RowNum 
+				, TATA.ColumnNum 
+				, TAT.SubAttrTypeCode
+				, TATA.VarFilter AS VarFilter
+				
+				<!-- 두번째 컬럼 -->				
+				, TATA2.AttrTypeCode AS AttrTypeCode2 
+				, ISNULL(TD2.Name, '') AS Name2
+			  	, CASE TAT2.DataType 
+			  	     WHEN 'LOV' THEN
+			  	     	Case ISNULL(TATL2.Value,'') When '' Then ISNULL(TATLDEF2.Value, '')  Else  TATL2.Value  END	
+			  	     WHEN 'MLOV' THEN '' 
+			  	     WHEN 'Text' THEN ISNULL(TIA2.PlainText, '') 
+			  	     ELSE ISNULL(TIADEF2.PlainText, '')  END PlainText2	  	 
+			   	, CASE TAT2.DataType WHEN 'MLOV' Then '' ELSE ISNULL(TIALOV2.LovCode, '') END AS LovCode2
+			   	, ISNULL(TATL2.AttrTypeCode, '') AS BaseLovCode2 
+			   	, TAT2.DataType AS DataType2
+			   	, TAT2.Domain AS Domain2
+			   	, TAT2.IsComLang AS IsComLang2 
+			   	, TAT2.HTML AS HTML2 
+			   	, ISNULL(TATA2.Mandatory, '') AS Mandatory2 , ISNULL(TAT2.Editable, '') AS Editable2 
+			   	, TATA2.Link AS Link2 
+			   	, TM2.URL AS URL2 
+			   	, ISNULL(TATA2.AreaHeight, '20') AS AreaHeight2 
+			   	, TAT2.Editable as editYN2
+			   	, TATA2.RowNum AS RowNum2
+			   	, TATA2.ColumnNum AS ColumnNum2
+			   	, TAT2.SubAttrTypeCode AS SubAttrTypeCode2
+			   	, TATA2.VarFilter AS VarFilter2
+			FROM 
+				XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TATA.AttrTypeCode = TIA.AttrTypeCode AND TIA.ItemID = #{s_itemID} 
+				AND TIA.LanguageID = #{languageID}			
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIADEF ON TATA.AttrTypeCode = TIADEF.AttrTypeCode AND TIADEF.ItemID = #{s_itemID} 
+				AND TIADEF.LanguageID = #{defaultLang}		
+				Left Outer Join XBOLTADM.TB_DICTIONARY TD on TATA.AttrTypeCode = TD.TypeCode 
+				<choose>
+					<when test="loginLangType != null and loginLangType != ''">
+						AND TD.LanguageID = #{loginLangType}
+					</when>
+					<otherwise>
+						AND TD.LanguageID = #{languageID}
+					</otherwise>
+				</choose>
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIALOV ON TIALOV.AttrTypeCode = TATA.AttrTypeCode AND TIALOV.ItemID = #{s_itemID} 
+				AND TIALOV.LanguageID = #{defaultLang}					
+				Left Outer join	XBOLTADM.TB_ATTR_TYPE_LOV TATL ON TATL.AttrTypeCode  = TIALOV.AttrTypeCode AND TIALOV.LovCode = TATL.LovCode AND TATL.LanguageID = #{languageID}
+				Left Outer join XBOLTADM.TB_ATTR_TYPE_LOV TATLDEF on TIADEF.AttrTypeCode = TATLDEF.AttrTypeCode AND TIADEF.LovCode = TATLDEF.LovCode AND TATLDEF.LanguageID = #{defaultLang}
+				Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT on TATA.AttrTypeCode = TAT.AttrTypeCode 
+				Left Outer Join XBOLTADM.TB_MENU TM ON TATA.Link = TM.MenuID	
+				
+				<!-- 두번째 컬럼 -->	
+				Left Outer Join XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA2 ON TATA2.ItemClassCode = TATA.ItemClassCode And TATA2.RowNum = TATA.RowNum And TATA2.ColumnNum = 2  
+				<if test='showInvisible != "Y"'>
+				And TATA2.Invisible = 0 
+				</if>
+			    Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 ON TATA2.AttrTypeCode = TIA2.AttrTypeCode AND TIA2.ItemID = #{s_itemID} 
+			    AND TIA2.LanguageID = #{languageID}		
+			    Left Outer Join XBOLTADM.TB_ITEM_ATTR TIADEF2 ON TATA2.AttrTypeCode = TIADEF2.AttrTypeCode AND TIADEF2.ItemID = #{s_itemID} 
+				AND TIADEF2.LanguageID = #{defaultLang}				
+			    Left Outer Join XBOLTADM.TB_DICTIONARY TD2 on TATA2.AttrTypeCode = TD2.TypeCode 
+			    <choose>
+					<when test="loginLangType != null and loginLangType != ''">
+						AND TD2.LanguageID = #{loginLangType}
+					</when>
+					<otherwise>
+						AND TD2.LanguageID = #{languageID}
+					</otherwise>
+				</choose>
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIALOV2 ON TIALOV2.AttrTypeCode = TATA2.AttrTypeCode AND TIALOV2.ItemID = #{s_itemID}
+				AND TIALOV2.LanguageID = #{defaultLang}							
+			    Left Outer join XBOLTADM.TB_ATTR_TYPE_LOV TATL2 on TATA2.AttrTypeCode = TATL2.AttrTypeCode AND TIALOV2.LovCode = TATL2.LovCode AND TATL2.LanguageID = #{languageID}
+			    Left Outer join XBOLTADM.TB_ATTR_TYPE_LOV TATLDEF2 on TIADEF2.AttrTypeCode = TATLDEF2.AttrTypeCode AND TIADEF2.LovCode = TATLDEF2.LovCode AND TATLDEF2.LanguageID = #{defaultLang}
+			    Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT2 on TATA2.AttrTypeCode = TAT2.AttrTypeCode 
+			    Left Outer Join XBOLTADM.TB_MENU TM2 ON TATA2.Link = TM2.MenuID 			
+			WHERE
+				TATA.ItemClassCode = (SELECT ClassCode From XBOLTADM.TB_ITEM WHERE ItemID = #{s_itemID})
+				<if test='showInvisible != "Y"'>
+					AND TATA.Invisible = 0 
+				</if>
+				AND ISNULL(TATA.ColumnNum,'') != 2
+				<if test="AttrTypeCode != null and AttrTypeCode != ''">
+				AND TAT.AttrTypeCode = #{AttrTypeCode}
+				</if>
+				<if test="AttrTypeCodes != null and AttrTypeCodes !=''">
+				AND TAT.AttrTypeCode IN(${AttrTypeCodes})
+				</if>
+				<if test='"1".equals(IsComLang)'>
+				AND TAT.IsComLang = 1 AND TAT.DataType != 'LOV'
+				</if>
+				<if test="AttrTypeCode != null and AttrTypeCode != ''">
+				AND TAT.Editable = #{Editable}
+				</if>	
+				<if test="Mandatory != null and Mandatory != ''">
+				AND TATA.Mandatory = #{Mandatory}
+				</if>	
+		) T
+		GROUP BY T.SortNum, T.Name, T.AttrTypeCode, T.PlainText, T.BaseLovCode, T.DataType, T.Domain, T.IsComLang ,T.HTML, T.Mandatory, T.Editable, T.LovCode
+				, T.Link, T.URL, T.AreaHeight, T.editYN, T.RowNum, T.ColumnNum, T.SubAttrTypeCode, T.VarFilter
+				, T.Name2, T.AttrTypeCode2, T.PlainText2, T.BaseLovCode2, T.DataType2, T.Domain2, T.IsComLang2 ,T.HTML2, T.Mandatory2, T.Editable2, T.LovCode2
+				, T.Link2, T.URL2, T.AreaHeight2, T.editYN2, T.RowNum2, T.ColumnNum2, T.SubAttrTypeCode2, T.VarFilter2
+	
+	</select>
+	
+	<select id="getAttrTypeAllocList" resultType="java.util.HashMap">
+		Select 	
+			TATA.SortNum
+			,TATA.AttrTypeCode AS AttrTypeCode
+			, ISNULL(TD.Name, '') AS Name
+			, TAT.DataType
+			, TAT.Domain
+			, TAT.IsComLang
+			, TAT.HTML
+			, ISNULL(TATA.Mandatory, '') AS Mandatory
+			, ISNULL(TAT.Editable, '') AS Editable
+			, TATA.Link
+			, TM.URL
+			, ISNULL(TATA.AreaHeight, '20') AS AreaHeight
+			, TAT.Editable as editYN
+			, TATA.RowNum 
+			, TATA.ColumnNum 
+			, TAT.SubAttrTypeCode
+		
+					
+			, TATA2.AttrTypeCode AS AttrTypeCode2 
+			, ISNULL(TD2.Name, '') AS Name2  	 
+			, TAT2.DataType AS DataType2
+			, TAT2.Domain AS Domain2
+			, TAT2.IsComLang AS IsComLang2 
+			, TAT2.HTML AS HTML2 
+			, ISNULL(TATA2.Mandatory, '') AS Mandatory2 , ISNULL(TAT2.Editable, '') AS Editable2 
+			, TATA2.Link AS Link2 
+			, TM2.URL AS URL2 
+			, ISNULL(TATA2.AreaHeight, '20') AS AreaHeight2 
+			, TAT2.Editable as editYN2
+			, TATA2.RowNum AS RowNum2
+			, TATA2.ColumnNum AS ColumnNum2
+			, TAT2.SubAttrTypeCode AS SubAttrTypeCode2
+		From XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA
+		Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT ON TAT.AttrTypeCode = TATA.AttrTypeCode 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD on TATA.AttrTypeCode = TD.TypeCode 
+		<choose>
+			<when test="loginLangType != null and loginLangType != ''">AND TD.LanguageID = #{loginLangType}</when>
+			<otherwise>	AND TD.LanguageID = #{languageID}</otherwise>
+		</choose>
+		Left Outer Join XBOLTADM.TB_MENU TM ON TATA.Link = TM.MenuID	
+		
+		Left Outer Join XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA2 ON TATA2.ItemClassCode = TATA.ItemClassCode And TATA2.RowNum = TATA.RowNum And TATA2.ColumnNum = 2 And TATA2.Invisible = 0 
+		Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT2 on TATA2.AttrTypeCode = TAT2.AttrTypeCode
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 on TATA2.AttrTypeCode = TD2.TypeCode 
+		<choose>
+			<when test="loginLangType != null and loginLangType != ''">AND TD2.LanguageID = #{loginLangType}</when>
+			<otherwise>	AND TD2.LanguageID = #{languageID}</otherwise>
+		</choose>
+		Left Outer Join XBOLTADM.TB_MENU TM2 ON TATA2.Link = TM2.MenuID
+		Where TATA.ItemClassCode = #{classCode}
+		AND ISNULL(TATA.ColumnNum,'') != 2
+		AND TATA.Invisible = 0 
+		Order By TATA.SortNum 
+	</select>
+
+	<select id="getConItemDetailInfo" resultType="java.util.HashMap">
+		SELECT 
+			DISTINCT
+			ISNULL(TATA.AttrTypeCode, '') AS AttrTypeCode
+			, ISNULL(TD.Name, '') AS Name
+			, ISNULL(TIA.PlainText, '') AS PlainText
+			, ISNULL(TIA.LovCode, '') AS LovCode
+			, '' AS BaseLovCode
+			, TAT.DataType
+		FROM 
+			XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA 
+				on TATA.AttrTypeCode = TIA.AttrTypeCode
+				AND TIA.ItemID in (
+				SELECT 
+					ItemID 
+				FROM 
+					XBOLTADM.TB_ITEM
+				WHERE	
+			 		ToItemID = #{parentID} AND FromItemID =  #{s_itemID}
+			 		or FromItemID = #{parentID} AND ToItemID =  #{s_itemID}
+			) AND TIA.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD
+				on TATA.AttrTypeCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+			Left Outer Join 
+					XBOLTADM.TB_ATTR_TYPE TAT
+					on TATA.AttrTypeCode = TAT.AttrTypeCode 	
+		WHERE
+			TATA.AttrTypeCode in (	
+				SELECT 
+					AttrTypeCode 
+				FROM 
+					XBOLTADM.TB_ATTR_TYPE_ALLOCATION 
+				WHERE 
+					ItemClassCode = (
+						SELECT 
+							ClassCode 
+						From 
+							XBOLTADM.TB_ITEM 
+						WHERE 
+							ToItemID = #{parentID} AND FromItemID =  #{s_itemID}
+			 				or FromItemID = #{parentID} AND ToItemID =  #{s_itemID}
+						)
+			)
+	</select>
+	
+	<select id="getAttrAllocList" resultType="java.util.HashMap">
+		SELECT 
+				TATA.AttrTypeCode AS AttrTypeCode
+				, ISNULL(TD.Name, '') AS Name
+				, TAT.DataType
+				, TAT.IsComLang
+				, TAT.HTML
+			FROM 
+				XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA				
+				Left Outer Join XBOLTADM.TB_DICTIONARY TD on TATA.AttrTypeCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT on TATA.AttrTypeCode = TAT.AttrTypeCode 					
+			<where> 1=1
+				<if test="ItemClassCode != null and ItemClassCode != ''">
+				AND TATA.ItemClassCode = #{ItemClassCode}
+				</if>			
+				<if test="AttrTypeCodes != null and AttrTypeCodes != ''">
+				AND TAT.AttrTypeCode IN (${AttrTypeCodes})
+				</if>			
+			</where>
+			ORDER BY
+				TATA.SortNum ASC				
+ 	</select>
+ 	
+ 	<select id="getCrossAttrCodes" resultType="java.util.HashMap">
+ 		SELECT * FROM
+			(SELECT 
+      			COUNT([AttrTypeCode]) As CNT
+      			,AttrTypeCode
+  			FROM XBOLTADM.TB_ATTR_TYPE_ALLOCATION
+ 		 	where ItemClassCode IN (${ItemClassCodes})
+  			GROUP BY AttrTypeCode) A
+		WHERE A.CNT = #{ClassNum}
+ 	</select>
+ 	
+ 	<select id="getMLovList" resultType="java.util.HashMap">
+		Select TIA.ItemID, TATL.Value, TATL.LovCode
+		From XBOLTADM.TB_ITEM_ATTR TIA
+		Left Outer Join XBOLTADM.TB_ATTR_TYPE_LOV TATL ON TATL.AttrTypeCode = TIA.AttrTypeCode
+		 And TATL.LovCode = TIA.LovCode And TATL.LanguageID = #{languageID}
+		Where TIA.ItemID = #{itemID}
+		And TIA.AttrTypeCode = #{attrTypeCode}
+		And TIA.LanguageID = #{defaultLang}
+	</select>
+	
+	<select id="getAttrRevMLovList" resultType="java.util.HashMap">
+		Select TIA.ItemID, TATL.Value, TATL.LovCode
+		From XBOLTADM.TB_ITEM_ATTR_REV TIA
+		Left Outer Join XBOLTADM.TB_ATTR_TYPE_LOV TATL ON TATL.AttrTypeCode = TIA.AttrTypeCode
+		 And TATL.LovCode = TIA.LovCode And TATL.LanguageID = #{languageID}
+		Where TIA.ItemID = #{itemID}
+		And TIA.AttrTypeCode = #{attrTypeCode}
+		And TIA.LanguageID = #{languageID}
+		And TIA.ChangeSetID = #{changeSetID}
+	</select>
+	
+	<select id="getMLovListWidthItemAttr" resultType="java.util.HashMap">
+		SELECT
+			TATL.LovCode AS CODE,
+			TATL.Value AS NAME, 
+			TATL.LovCode AS value,
+			TATL.Value AS content, 
+			TATL.AttrTypeCode,
+			TATL.LanguageID, 
+			Cast(TATL.Score AS Int) As Score,
+			TIA.LovCode AS LovCode
+		FROM XBOLTADM.TB_ATTR_TYPE_LOV TATL
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.AttrTypeCode = TATL.AttrTypeCode And TIA.ItemID = #{itemID} And TIA.LanguageID = #{defaultLang} And TIA.LovCode = TATL.LovCode
+		WHERE TATL.AttrTypeCode = #{attrTypeCode}		
+			AND TATL.LanguageID = #{languageID}
+	</select>
+	
+	<select id="getItemSysName" resultType="String"> 
+	 	SELECT 
+	 		PlainText 
+	 	FROM 
+	 		XBOLTADM.TB_ITEM_ATTR 
+	 	WHERE 
+	 		AttrTypeCode = 'AT00014' AND ItemID = #{itemID} And LanguageID = #{languageID} 
+	</select>
+	
+	<select id="getRefLovCode" resultType="String">
+		Select Top 1 LovCode From XBOLTADM.TB_ITEM_ATTR
+		 Where ItemID = #{itemID} And LanguageID = #{languageID} 
+		 AND AttrTypeCode IN(
+						Select AttrTypeCode From XBOLTADM.TB_ATTR_TYPE
+						Where SubAttrTypeCode = #{AttrTypeCode}
+						)
+	</select>
+	
+	<update id="setOccInfo" parameterType="java.util.HashMap">
+		UPDATE 
+			XBOLTADM.TB_ITEM_ATTR
+		SET
+			PlainText = #{PlainText},
+			LastUpdated = GetDate()
+		WHERE
+			ItemID = #{ItemID}  
+			and LanguageID = #{LanguageID}
+			and AttrTypeCode = #{AttrTypeCode}
+	</update>
+	
+	<delete id="delItemAttr" parameterType="java.util.HashMap">
+		DELETE
+			XBOLTADM.TB_ITEM_ATTR
+		WHERE
+			ItemID = #{ItemID} 
+			AND AttrTypeCode = #{AttrTypeCode}			
+			<if test="languageID != null and languageID != ''">
+			AND LanguageID = #{languageID}
+			</if>
+	</delete>
+	
+	
+	<select id="selectAttrLovOption" resultType="java.util.HashMap">
+		SELECT
+			LovCode AS CODE,
+			Value AS NAME, 
+			AttrTypeCode,
+			LanguageID, 
+			Cast(Score AS Int) As Score
+		FROM
+			XBOLTADM.TB_ATTR_TYPE_LOV
+		WHERE
+			AttrTypeCode = #{s_itemID}		
+			AND LanguageID = #{languageID}
+			<if test="refLovCode  != null and refLovCode != ''">
+			AND RefLovCode = #{refLovCode}
+			</if>
+			<if test="lovListFilter != null and lovListFilter != ''">
+			AND LovCode IN (${lovListFilter})
+			</if>
+		ORDER BY SortNo
+	</select>
+	
+	
+	<select id="getItemNameInfo" resultType="java.util.HashMap">
+		SELECT
+			ISNULL(TIA.PlainText,'Untitled') AS PlainText
+			, TI.Identifier
+			, TIC.Icon	
+			, TI.ItemID AS id
+		FROM
+			XBOLTADM.TB_ITEM TI
+			INNER Join XBOLTADM.TB_ITEM_CLASS TIC ON TIC.ItemClassCode = TI.ClassCode
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+		WHERE TI.ItemID = #{s_itemID}
+		
+	</select>
+	
+	 <select id="getItemAttrText" resultType="java.util.HashMap">
+ 	SELECT     
+ 		IA.PlainText,  IA.AttrTypeCode
+	FROM       
+		XBOLTADM.TB_ITEM_ATTR IA WITH (NOLOCK)
+	WHERE
+	     IA.ItemID = #{ItemID}  
+	     AND LanguageID = #{languageID}
+		<if test="attrTypeCode  != null and attrTypeCode != ''">
+	     AND AttrTypeCode = #{attrTypeCode}
+		</if>
+ 	</select>
+	
+	<select id="getItemAttrType" resultType="java.util.HashMap">
+ 	SELECT 
+ 		TAT.AttrTypeCode, TD.Name as DataType
+	FROM 
+		XBOLTADM.TB_ATTR_TYPE TAT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD on TAT.AttrTypeCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+	WHERE  
+		TD.Category = 'AT'
+    </select>
+ 
+
+	<select id="getItemAttrMax" resultType="String">
+		SELECT
+			ISNULL(MAX(ItemAttrID)+1, 0) as ItemAttrID
+		FROM
+			XBOLTADM.TB_ITEM_ATTR
+		
+	</select>
+
+	<select id="getItemAttrMaxID" resultType="java.util.HashMap">
+		SELECT
+			ISNULL(MAX(ItemAttrID)+1, 1) as ItemAttrID
+		FROM
+			XBOLTADM.TB_ITEM_ATTR
+		
+	</select>	
+	
+	<select id="getDataType" resultType="String">
+		SELECT
+			DataType
+		FROM
+			XBOLTADM.TB_ATTR_TYPE
+		WHERE
+	        AttrTypeCode = #{AttrTypeCode}  
+		
+	</select>
+ 	
+ 	
+ 	<select id="getItemAttrID" resultType="java.util.HashMap">
+		SELECT
+			ISNULL(MAX(ItemID), 0) as ItemID
+		FROM
+			XBOLTADM.TB_ITEM_ATTR
+		WHERE
+			ItemID = #{ItemID} 
+			AND AttrTypeCode = #{AttrTypeCode} 
+			AND LanguageID = #{languageID}
+			<if test="LovCode != null and LovCode != '' ">
+				And LovCode = #{LovCode}
+			</if>
+	</select>
+	
+	<select id="getItemAttrIsComLang" resultType="String">
+		SELECT RTRIM(ISNULL(IsComLang, '')) AS IsComLang
+  		FROM XBOLTADM.TB_ATTR_TYPE
+  		WHERE AttrTypeCode = #{AttrTypeCode}
+	</select>
+	
+	<select id="getAttrTypeCode" resultType="String">
+		Select AttrTypeCode From XBOLTADM.TB_ATTR_TYPE_LOV Where LovCode = #{lovCode} And LanguageID = #{languageID}
+	</select>
+	
+	<select id="getItemAttributesInfo" resultType="java.util.HashMap">
+		SELECT 
+				TATA.AttrTypeCode AS AttrTypeCode
+				, ISNULL(TD.Name, '') AS Name
+				, CASE TAT.IsComLang 
+					WHEN '1' THEN (CASE TAT.DataType WHEN 'LOV' THEN ISNULL(TATL.Value, '') 
+					ELSE  ISNULL(TIA.PlainText, '') END )
+					ELSE (CASE TAT.DataType WHEN 'LOV' THEN ISNULL(TATL.Value, '') 
+							WHEN 'MLOV' THEN ISNULL(TATL.Value, '') 
+							ELSE (CASE  WHEN TAT.DataType != 'Text' THEN ISNULL(TIA.PlainText, '') ELSE ISNULL(TIA.PlainText, '') END) END )
+					END PlainText
+					
+				, CASE TAT.IsComLang 
+					WHEN '1' THEN (CASE TAT.DataType WHEN 'LOV' THEN ISNULL(TATL.Value, '') 
+					ELSE  ISNULL(TIA2.PlainText, '') END )
+					ELSE (CASE TAT.DataType WHEN 'LOV' THEN ISNULL(TATL.Value, '') 
+							WHEN 'MLOV' THEN ISNULL(TATL.Value, '') 
+							ELSE (CASE  WHEN TAT.DataType != 'Text' THEN ISNULL(TIA2.PlainText, '') ELSE ISNULL(TIA2.PlainText, '') END) END )
+					END PlainText2
+					
+				, ISNULL(TIA.LovCode, '') AS LovCode
+				, ISNULL(TATL.AttrTypeCode, '') AS BaseLovCode
+				, TAT.DataType
+				, TAT.IsComLang
+				, TAT.HTML
+				, ISNULL(TATA.AreaHeight, '20') AS AreaHeight
+				, ISNULL(ISNULL(TIA.ItemID, ''),#{ItemID}) AS ItemID
+				, TM.URL
+				, TATA.invisible
+				, TATA.ColumnNum
+				, TATA.RowNum
+			FROM 
+				XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TATA.AttrTypeCode = TIA.AttrTypeCode AND TIA.ItemID = #{ItemID} AND TIA.LanguageID = #{sessionCurrLangType}
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 ON TATA.AttrTypeCode = TIA2.AttrTypeCode AND TIA2.ItemID = #{ItemID} AND TIA2.LanguageID = #{selectLanguageID}
+				Left Outer Join XBOLTADM.TB_DICTIONARY TD on TATA.AttrTypeCode = TD.TypeCode AND TD.LanguageID = #{sessionCurrLangType}
+				Left Outer join	XBOLTADM.TB_ATTR_TYPE_LOV TATL	on TATA.AttrTypeCode  = TATL.AttrTypeCode AND TIA.LovCode = TATL.LovCode AND TATL.LanguageID = #{sessionCurrLangType}
+				Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT on TATA.AttrTypeCode = TAT.AttrTypeCode
+				Left Outer Join XBOLTADM.TB_MENU TM ON TATA.Link = TM.MenuID 	
+				Left Outer Join XBOLTADM.Tb_ITEM TI ON TI.ItemID = #{ItemID} 
+				INNER JOIN (
+			        SELECT 'ATG00000' AS LovCode
+			        UNION
+			        SELECT SUBTIA.LovCode
+			        FROM XBOLTADM.TB_ITEM_ATTR SUBTIA 
+			         Left Outer Join XBOLTADM.TB_ATTR_TYPE SUBTAT ON SUBTAT.AttrTypeCode = SUBTIA.AttrTypeCode 
+			        WHERE SUBTIA.ItemID = #{ItemID} AND SUBTAT.Domain = 'ATG'
+			    ) GRCODES ON TATA.AttrTypeGRCode = GRCODES.LovCode	
+			WHERE
+				TATA.ItemClassCode = TI.ClassCode 
+				<if test='showInvisible != "Y"'>
+					AND TATA.Invisible = 0
+				</if>
+			    <if test='!"".equals(atgGRCodeList) and atgGRCodeList != null'>
+			    	And TATA.AttrTypeGRCode IN(${atgGRCodeList})
+			    </if>
+			    <if test='!"".equals(atgGRCode) and atgGRCode != null'>
+			    	And TATA.AttrTypeGRCode = #{atgGRCode}
+			    </if>
+			ORDER BY
+				TATA.SortNum ASC
+	</select>
+		
+	<select id="getAttrName" resultType="java.util.HashMap" >
+		Select
+		 TAT.AttrTypeCode
+		, ISNULL(TD.Name,'') AS AttrTypeName
+		, TAT.DataType
+		, TAT.HTML
+		From XBOLTADM.TB_ATTR_TYPE TAT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TAT.AttrTypeCode And TD.LanguageID = #{languageID} And TD.Category = 'AT'
+		Where TAT.AttrTypeCode IN (${attrTypeCodes})
+		<if test='"Y".equals(orderByYN)'>
+			Order By Case When TAT.AttrTypeCode = #{attrTypeCode_1} Then 1
+			  When TAT.AttrTypeCode = #{attrTypeCode_2} then 2
+			  When TAT.AttrTypeCode = #{attrTypeCode_3} then 3
+			  When TAT.AttrTypeCode = #{attrTypeCode_4} then 4 End
+		</if>
+	</select>
+	
+	<update id="recoverItemAttr" parameterType="java.util.HashMap">
+		 UPDATE XBOLTADM.TB_ITEM_ATTR
+		   SET  PlainText = CASE WHEN TIAR.PlainText IS NULL THEN '' ELSE TIAR.PlainText END
+			  , LovCode = CASE WHEN TIAR.LovCode IS NULL THEN '' ELSE TIAR.LovCode END
+		   FROM XBOLTADM.TB_ITEM_ATTR TIA
+		        LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR_REV TIAR ON TIA.ItemID = TIAR.ItemID  
+		                        AND TIA.AttrTypeCode = TIAR.AttrTypeCode 
+		                        AND TIA.LanguageID = TIAR.LanguageID
+		                        AND TIAR.ChangeSetID = (Select ReleaseNo FROM XBOLTADM.TB_ITEM WHERE ItemID = #{itemID} ) 
+	      WHERE TIA.ItemID = #{itemID}
+     </update>
+
+   <delete id="deleteItemAttrRevCSID" parameterType="java.util.HashMap">   
+  	 DELETE FROM XBOLTADM.TB_ITEM_ATTR_REV WHERE ItemID = #{s_itemID} AND ChangeSetID = #{changeSetID}
+   </delete>
+   
+   <delete id="delItemAttrRevDataByCSID" parameterType="java.util.HashMap">   
+  	 DELETE FROM XBOLTADM.TB_ITEM_ATTR_REV WHERE ChangeSetID = #{changeSetID}
+   </delete>
+   
+   <update id="updateEspItemObjectInfo" parameterType="java.util.HashMap">
+		UPDATE 
+			XBOLTAPP.ESM_ACTIVITY_ATTR_TYPE
+		SET
+			LastUpdated = getDate()
+			<if test="SortNum != null and !SortNum.equals('')">,SortNum = #{SortNum}</if> 
+			<if test="Mandatory != null and !Mandatory.equals('')">,Mandatory = #{Mandatory}</if> 
+			<choose>
+       	 		<when test="Link != null and !Link.equals('')">
+            		,Link = #{Link}
+        		</when>
+        		<when test="Link.equals(' ')">
+            		,Link = NULL
+        		</when>
+    		</choose>
+			<if test="Invisible != null and !Invisible.equals('')">,Invisible = #{Invisible}</if> 
+			<if test="VarFilter != null and !VarFilter.equals('')">,VarFilter = #{VarFilter}</if> 
+			<if test="RowNum != null and !RowNum.equals('')">,RowNum = #{RowNum}</if> 
+			<if test="ColumnNum != null and !ColumnNum.equals('')">,ColumnNum = #{ColumnNum}</if> 
+			<if test="AreaHeight != null and !AreaHeight.equals('')">,AreaHeight = #{AreaHeight}</if> 
+			<if test="Editable != null and !Editable.equals('')">,Editable = #{Editable}</if>
+			<if test="DefaultValue != null and !DefaultValue.equals('')">,DefaultValue = #{DefaultValue}</if>
+		WHERE
+			SpeCode = #{SpeCode} and AttrTypeCode = #{AttrTypeCode}
+	</update>
+   
+</mapper>

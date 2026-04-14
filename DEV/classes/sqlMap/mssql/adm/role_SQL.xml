@@ -1,0 +1,1446 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="role_SQL"> 	
+	
+	<select id="getAssignedRoleList_gridList" resultType="java.util.HashMap">
+		Select 
+			Top 500 Row_Number()OVER(ORDER BY TMI.AssignmentType, TMI.RoleType, TMI.OrderNum, TMI.AssignedDate DESC) as RNUM,
+			TMI.Seq, 
+			TMI.MemberID, 
+		    Case when ISNULL(TM.NameEN,'') != '' Then ISNULL(TM.Name,'')+'('+ISNULL(TM.NameEN,'')+')' ELSE ISNULL(TM.Name,'') End AS Name,
+			TMI.ItemID, 
+			TMI.RoleType,
+			TD.Name As RoleTypeTxt,
+			TM.TeamID,
+			Assigned, 
+			CASE Assigned  WHEN '1' THEN 'Y' Else 'N' END AS Assignment , 			
+			ISNULL(CONVERT(char(10),TMI.AssignedDate, 111),'') as AssignedDate,
+			ISNULL(XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{languageID}), '') + '/' + TTT.Name AS Path,
+			TTT.Name AS TeamNM,
+			XBOLTADM.fn_GetMyAbsPath(TMI.ItemID , CONVERT(INT, #{languageID})) AS itemPath,
+			TMI.AssignmentType,
+			TD2.Name As AssignmentTypeName,
+			TMI.OrderNum,
+			<if test='photoUrlPath != null and photoUrlPath != ""'>
+				Case When ISNULL(TM.Photo,'blank_photo.png') = 'blank_photo.png' Then #{blankPhotoUrlPath}
+				Else #{photoUrlPath} + ISNULL(TM.Photo,'blank_photo.png') END AS Photo,
+			</if>
+			TMI.AccessRight,
+			CASE TMI.AccessRight  WHEN 'R' THEN 'Referred' Else 'Manage' END AS AccessRightName,
+			TMI.Memo	
+		From XBOLTADM.TB_MY_ITEM TMI
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TMI.MemberID
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TTT On TM.TeamID = TTT.TeamID  AND TTT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TMI.RoleType And TD.Category = TMI.AssignmentType And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = TMI.AssignmentType And TD2.Category = 'ROLECAT' And TD2.LanguageID = #{languageID}
+		<where>
+			<if test='isAll != null and isAll !="Y" and itemID != null and itemID != ""'>
+				And TMI.ItemID = #{itemID} 
+			</if>
+			<if test='roleType != null and roleType != ""'>
+				And TMI.RoleType = #{roleType} 
+			</if>
+			<if test="assigned != null and assigned != '' " >
+				And TMI.Assigned = #{assigned}
+			</if>
+			<if test="assignmentType != null and assignmentType != ''">
+				AND TMI.AssignmentType = #{assignmentType}
+			</if>
+			<if test="memberId != null and memberId != ''">
+				AND TM.MemberID = #{memberId}
+			</if>
+		</where>	 	
+		Order By TMI.AssignmentType, TMI.RoleType, TMI.OrderNum, TMI.AssignedDate DESC
+	</select>
+	<select id="getMyAssignedRoleList_gridList" resultType="java.util.HashMap">
+		Select 
+			<choose>
+				<when test="projectID != null and projectID != ''">
+					Top 500 Row_Number()OVER(ORDER BY pjtTmManager DESC, Name) as RNUM,
+				</when>
+				<otherwise>
+					Top 500 Row_Number()OVER(ORDER BY AssignmentType, RoleType, OrderNum, AssignedDate DESC ) as RNUM,
+				</otherwise>
+			</choose>
+			* From (
+			Select
+				TMI.Seq, 
+				TMI.MemberID, 
+				TM.Name + ISNULL('('+TM.NameEN+')','')  As Name, 
+				TMI.ItemID, 
+				TMI.RoleType,
+				CLSTD.Name AS className,
+				TD.Name As RoleTypeTxt,
+				TM.TeamID,
+				TMI.Assigned, 
+				CASE TMI.Assigned  WHEN '1' THEN 'Y' Else 'N' END AS Assignment , 			
+				ISNULL(CONVERT(char(10),TMI.AssignedDate, 111),'') as AssignedDate,
+				XBOLTADM.fn_GetMyAbsPathForList(TMI.ItemID , CONVERT(INT, #{languageID}))+'/'+TIA.PlainText AS itemPath,
+				TMI.AssignmentType,
+				TD2.Name As AssignmentTypeName,
+				TMI.OrderNum,
+				TMI.AccessRight,
+				CASE TMI.AccessRight  WHEN 'R' THEN 'Referred' Else 'Manage' END AS AccessRightName,
+				TM.EmployeeNum,			
+				TIA.PlainText As ItemName,
+				ISNULL(TMI.Memo, '') As Memo,
+				ISNULL(TMI.Position, TM.Position) As Position,
+				CONVERT(char(10),TM.JoinDate, 23) As joinDate,
+				CASE WHEN TT.ManagerID = TMI.MemberID THEN 'Y' ELSE 'N' END As IsManager,
+				CASE WHEN TPTR.ManagerID = TMI.MemberID THEN 'Y' ELSE 'N' END  As pjtTmManager
+			From XBOLTADM.TB_MY_ITEM TMI
+			Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TMI.MemberID
+			Left Outer Join XBOLTADM.TB_TEAM TT ON TM.TeamID = TT.TeamID
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT On TM.TeamID = TTT.TeamID  AND TTT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TMI.RoleType And TD.Category = TMI.AssignmentType And TD.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = TMI.AssignmentType And TD2.Category = 'ROLECAT' And TD2.LanguageID = #{languageID}
+			Inner Join XBOLTADM.TB_ITEM TI ON TI.ItemID = TMI.ItemID
+			Inner Join XBOLTADM.TB_DICTIONARY CLSTD ON CLSTD.TypeCode = TI.ClassCode AND CLSTD.LanguageID = #{languageID}
+			Inner JOIN XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TI.ItemID AND TIA.LanguageID = #{languageID} AND TIA.AttrTypeCode = 'AT00001'
+			Left Outer Join XBOLTADM.TB_PJT_TEAM_REL TPTR ON TMI.MbrTeamID = TPTR.TeamID
+			where TMI.AssignmentType != 'SUBSCR'
+			<if test="memberId != null and memberId != ''">
+				AND TM.MemberID = #{memberId}
+			</if>
+			<if test="teamID != null and teamID != ''">
+				AND TM.TeamID = #{teamID}
+			</if>
+			<if test="assignmentType != null and assignmentType != ''">
+				AND TMI.AssignmentType = #{assignmentType}
+			</if>
+			<if test="assigned != null and assigned != ''">
+				AND TMI.Assigned = #{assigned}
+			</if>
+			<if test="projectID != null and projectID != ''">
+				AND TMI.ProjectID = #{projectID}
+				AND TPTR.ProjectID = #{projectID}
+			</if>
+		) T
+			<choose>
+				<when test="projectID != null and projectID != ''">
+					Order By pjtTmManager desc, Name
+				</when>
+				<otherwise>
+					Order By AssignmentType, RoleType, OrderNum, AssignedDate DESC
+				</otherwise>
+			</choose>
+	</select>
+	
+	<update id="updateRoleAssignment" parameterType="java.util.HashMap">		
+		Update XBOLTADM.TB_MY_ITEM Set 
+			<if test="assignmentType != null and assignmentType != ''">
+				AssignmentType = #{assignmentType},
+			</if>
+			<if test="roleType != null and roleType != ''">
+				RoleType = #{roleType},
+			</if>
+			<if test="assigned != null and assigned != ''">
+				Assigned = #{assigned},
+			</if>
+			<if test="orderNum != null and orderNum != ''">
+				OrderNum = #{orderNum},
+			</if>
+			<if test="accessRight != null and accessRight != ''">
+				AccessRight = #{accessRight},
+			</if>
+			<if test="itemID != null and itemID != ''">
+				ItemID = #{itemID},
+			</if>
+			<if test="memo != null">
+				Memo = #{memo},
+			</if>
+			<if test="memberID != null and memberID != ''">
+				MemberID = #{memberID},
+			</if>
+			<if test="clientID != null and clientID != ''">
+				ClientID = #{clientID},
+			</if>
+		LastUpdated = GETDATE() 
+		Where Seq = #{seq} 
+	</update>
+			
+ 	<delete id="deleteRoleAssignment" parameterType="java.util.HashMap">
+	  	Delete FROM XBOLTADM.TB_MY_ITEM
+		<where>
+			<if test="seq != null and seq != '' " >
+				Seq = #{seq} 
+			</if>
+			<if test="memberID != null and memberID != ''">
+				MemberID = #{memberID} 
+			</if>
+			<if test="itemID != null and itemID != ''">
+				AND ItemID = #{itemID}
+			</if>
+			<if test="assignmentType != null and assignmentType != ''">
+				AND AssignmentType = #{assignmentType}
+			</if>
+			<if test="roleType != null and roleType != ''">
+				AND RoleType = #{roleType}
+			</if>
+			<if test="orderNum != null and orderNum != ''">
+				AND OrderNum = #{orderNum}
+			</if>
+			<if test="clientID != null and clientID != ''">
+				AND ClientID = #{clientID}
+			</if>
+		</where>	 
+	</delete>
+		
+	<insert id="insertRoleAssignment" parameterType="java.util.HashMap">		
+		Insert Into XBOLTADM.TB_MY_ITEM
+		(ProjectID,MemberID, ItemID, MbrTeamID, AssignmentType, RoleType, Memo, OrderNum, Assigned, AccessRight, Creator, AssignedDate, LastUpdated
+			<if test="clientID != null and clientID != ''">,ClientID</if>
+		)
+		Values(#{projectID},#{memberID},#{itemID},#{mbrTeamID},#{assignmentType},#{roleType},#{memo}, #{orderNum},#{assigned},#{accessRight},#{creator},GETDATE(),GETDATE()
+			<if test="clientID != null and clientID != ''">,#{clientID}</if>
+		)
+	</insert>
+	
+	<select id="getTeamRoleIDList" resultType="java.util.HashMap">
+		Select TeamID, TeamRoleID From XBOLTADM.TB_TEAM_ROLE
+		Where TeamID = #{teamID}
+		And ItemID = #{itemID}
+		And TeamRoleType = #{teamRoleType}
+	</select>
+		
+	<select id="getItemTeamRoleList_gridList" resultType="java.util.HashMap">
+		Select
+			Row_Number()OVER(ORDER BY TD.SortNum,  XBOLTADM.fn_GetMyAbsPathForOrg(TMT.TeamID , #{languageID}), TMT.Name ASC ) AS RNUM
+			, 0 AS CHK 	
+			, TeamRoleID
+			, ISNULL(TT.TeamCode,'') AS TeamCode
+			, ISNULL(TMT.Name,'') AS TeamNM
+			, XBOLTADM.fn_GetMyAbsPathForOrg(TMT.TeamID , #{languageID}) AS TeamPath
+			, ISNULL(TD.Name,'') AS TeamRoleNM
+			, ISNULL(CONVERT(char(10),TTR.AssignedDate, 111),'') AS AssignedDate
+			, ISNULL(CONVERT(char(10),TTR.LastUpdated, 111),'') AS LastUpdated
+			, ISNULL(TTR.RoleManagerID,TT.RoleManagerID) As RoleManagerID
+			, ISNULL(TM.NAME,ISNULL(TM1.Name,'N/A'))
+				+ Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')'
+				  	   When ISNULL(TM1.NameEN,'') != '' Then '(' + ISNULL(TM1.NameEN,'') + ')'
+				  	   Else '' End As RoleManagerNM
+			, TTR.ItemID	
+			, TTR.TeamRoletype
+			, TD.SortNum
+			, TTR.TeamID
+			, TT.ManagerID AS TeamManagerID
+			, TT.RoleManagerID AS curRoleManagerID
+			, TT.RoleManagerID AS rctMemberID
+			, ISNULL(TM.NAME,ISNULL(TM1.Name,'N/A')) As rctMemberNM
+			, TTR.RoleDescription
+			, ISNULL(TMRSTS.Name,'') AS TMRStatusNM 
+			, ISNULL(TTR.Assigned,'') AS Assigned
+		From XBOLTADM.TB_TEAM_ROLE TTR
+		Left Outer Join XBOLTADM.TB_TEAM TT ON TT.TeamID = TTR.TeamID
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TMT.TeamID = TTR.TeamID And TMT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TTR.TeamRoleType And TD.Category = 'TEAMROLETP' And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TTR.RoleManagerID 
+		Left Outer Join XBOLTADM.TB_MEMBER TM1 ON TM1.MemberID = TT.RoleManagerID 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TMRSTS On TMRSTS.TypeCode = TTR.Assigned And TMRSTS.Category = 'TMRSTS' And TMRSTS.LanguageID = #{languageID}
+		Where TTR.ItemID = #{itemID}
+		<if test='isAll != null and isAll !="Y" and itemID != null and itemID != ""'>
+			And ItemID = #{itemID} 
+		</if>
+		<if test="assigned != null and assigned != '' " >
+			And Assigned = #{assigned}
+		</if>		
+		<if test="roleType != null and roleType != ''">
+			And TeamRoleType = #{roleType}
+		</if>
+		<if test="roleTypes != null and roleTypes != ''">
+			And TeamRoleType in (${roleTypes})
+		</if>
+		<if test="assignmentType != null and assignmentType != ''">
+			AND AssignmentType = #{assignmentType}
+		</if>	
+		 <if test='!"Y".equals(showRemoved)'>
+			And TTR.Assigned != 0 And TTR.Assigned > 0			
+			<if test="asgnOption != null and asgnOption != '' " >
+				And TTR.Assigned IN (${asgnOption})
+			</if>
+		</if>
+		<if test="companyID != null and companyID != ''">
+			AND TT.CompanyID = #{companyID}
+		</if>
+			
+		ORDER BY SortNum, TeamPath, TeamNM ASC
+	</select>
+	
+	<insert id="insertTeamRole" parameterType="java.util.HashMap">	
+		Insert Into XBOLTADM.TB_TEAM_ROLE 
+			(
+			 TeamID
+			 <if test="teamCode != null and teamCode != ''"> ,TeamCode</if>
+			 <if test="changeSetID != null and changeSetID != ''"> ,ChangeSetID</if>
+			, ItemID, TeamRoleCat
+			, TeamRoleType, Assigned, AssignedDate
+			, Creator, LastUpdated
+			
+			)
+		Values( 
+			 #{teamID}
+			 <if test="teamCode != null and teamCode != ''"> ,#{teamCode}</if>
+			 <if test="changeSetID != null and changeSetID != ''"> ,#{changeSetID}</if>
+			, #{itemID}, #{teamRoleCat}
+			, #{teamRoleType}, #{assigned}
+			, GETDATE()
+			, #{creator}, GETDATE() )
+			
+	</insert>
+	
+	<update id="updateTeamRole" parameterType="java.util.HashMap">	
+		Update XBOLTADM.TB_TEAM_ROLE Set 
+			LastUpdated = GETDATE()
+			<if test="teamRoleType != null and teamRoleType != ''"> ,TeamRoleType = #{teamRoleType} </if>
+			<if test="roleManagerID != null and roleManagerID != ''"> ,RoleManagerID = #{roleManagerID} </if>
+			<if test="assigned != null and assigned != ''"> ,Assigned = #{assigned} </if>
+			<if test="roleDescription != null and roleDescription != ''"> ,RoleDescription = #{roleDescription} </if>
+			<if test="changeSetID != null and changeSetID != ''"> ,ChangeSetID = #{changeSetID} </if>
+		Where 1=1
+		<if test="teamRoleID != null and teamRoleID != ''">
+		 And TeamRoleID = #{teamRoleID}
+		 </if>
+		<if test="itemID != null and itemID != ''">
+		 And ItemID = #{itemID}
+		 </if>
+		<if test="changeSetID != null and changeSetID != ''">
+		 And ChangeSetID = #{changeSetID}
+		 </if>
+		<if test="assgnVal != null and assgnVal != ''">
+		 And Assigned = #{assgnVal}
+		 </if>
+		 <if test="teamRoleIDs != null and teamRoleIDs != ''">
+		 And TeamRoleID IN(${teamRoleIDs})
+		 </if>
+	</update>
+	
+	<delete id="deleteTeamRole" parameterType="java.util.HashMap">	
+		Delete From XBOLTADM.TB_TEAM_ROLE 
+			Where 1=1
+			<if test="teamRoleIDs != null and teamRoleIDs != ''">
+			AND TeamRoleID IN(${teamRoleIDs})
+			</if>
+			<if test="changeSetID != null and changeSetID != ''">
+		 	And ChangeSetID = #{changeSetID}
+		 	</if>
+		 	<if test="assgnVal != null and assgnVal != ''">
+			And Assigned = #{assgnVal}
+			</if>
+	</delete>
+	
+	<select id="getTeamRoleItemList_gridList" resultType="java.util.HashMap" >
+		Select Top 1000
+			 Row_Number() OVER(ORDER BY  TI.ItemTypeCode ASC, TI.Identifier ASC, TIA.PlainText ASC ) AS RNUM
+			, 0 AS CHK 
+			, ISNULL(TIT.Icon, 'img_job.png') ItemTypeImg
+			, TI.Identifier  
+			, ISNULL(TIA.PlainText,'') As ItemNM
+			, TDC.Name AS ClassName
+			, TI.ClassCode
+			, TI.ItemTypeCode
+			, ISNULL(PJTXT.Name,'') AS PjtName
+			, ISNULL(XBOLTADM.fn_GetMyAbsPathForList( TI.ItemID, #{languageID}),'') AS Path
+			, Convert(nvarchar(20),TI.LastUpdated, 111) AS LastUpdated
+			, ISNULL(TDS.Name,'') AS StatusNM
+			, TI.Status
+			, TI.ItemID
+			, TI.Blocked
+			, ISNULL(TD.Name,'') AS TeamRoleNM
+			, TTR.TeamRoleType
+			, TTR.RoleManagerID
+			, ISNULL(TM.Name, ISNULL(TM1.Name,'N/A')) + Case When ISNULL(TM.NameEN, ISNULL(TM1.NameEN,'')) != '' Then '(' + ISNULL(TM.NameEN,ISNULL(TM1.NameEN,'')) + ')' Else '' End As RoleManagerNM
+			, TTR.TeamRoleID
+		From XBOLTADM.TB_TEAM_ROLE TTR	
+		Left Outer Join XBOLTADM.TB_ITEM TI ON TI.ItemID = TTR.ItemID
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDC ON TDC.TypeCode = TI.ClassCode And TDC.LanguageID = #{languageID} 
+		LEFT OUTER JOIN XBOLTADM.TB_PROJECT CSR ON CSR.ProjectID = TI.ProjectID
+		LEFT OUTER JOIN XBOLTADM.TB_PROJECT_TXT PJTXT ON PJTXT.ProjectID = CSR.RefPjtID	 and PJTXT.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TTR.RoleManagerID = TM.MemberID
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_CLASS TCLS ON TCLS.ItemClassCode = TI.ClassCode
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TDS ON TI.Status = TDS.TypeCode AND TDS.Category = 'ITMSTS' AND TDS.LanguageID = #{languageID}
+    	LEFT OUTER JOIN XBOLTADM.TB_ITEM_TYPE TIT ON TI.ItemTypeCode = TIT.ItemTypeCode
+    	LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TTR.TeamRoleType And TD.Category = 'TEAMROLETP' And TD.LanguageID = #{languageID}
+    	LEFT OUTER JOIN XBOLTADM.TB_TEAM TT ON TT.TeamID = TTR.TeamID
+    	LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM1 ON TM1.MemberID = TT.RoleManagerID    	
+		Where TI.Deleted != 1 AND TI.CategoryCode = 'OJ' And TTR.TeamID = #{teamID}
+		
+		<if test="roleManagerID != null and roleManagerID != ''">
+			And TTR.RoleManagerID = #{roleManagerID} 
+		</if>	
+		<if test="teamRoleType != null and teamRoleType != ''">
+			And TTR.TeamRoleType = #{teamRoleType}
+		</if>	
+		<if test="itemTypeCode != null and itemTypeCode != ''">
+			And TI.ItemTypeCode = #{itemTypeCode}
+		</if>
+		<if test="classCode != null and classCode != ''">
+			And TI.ClassCode = #{classCode}
+		</if>
+		<if test="status != null and status != ''">
+			And TI.Status = #{status}
+		</if>
+		<if test="searchValue != null and searchValue != ''">
+			<choose>
+				<when test="searchKey.equals('Name')">
+					AND TIA.PlainText like N'%'+#{searchValue}+'%'
+				</when>
+				<when test="searchKey.equals('ID')">
+					AND TI.Identifier Like N'%'+#{searchValue}+'%'	
+				</when>
+			</choose>
+		</if>
+		
+		Order By ItemTypeCode, Identifier , ItemNM
+		
+	</select>
+	
+	<select id="getTeamRoleItemMappingList_gridList" resultType="java.util.HashMap" >
+		Select
+			Row_Number()OVER(ORDER BY TTR.TeamRoleID ASC ) AS RNUM
+			, TTR.TeamRoleID
+			, ISNULL(TT.TeamCode,'') AS TeamCode
+			, ISNULL(TMT.Name,'') AS TeamNM
+			, XBOLTADM.fn_GetMyAbsPathForOrg(TTR.TeamID , #{languageID}) AS TeamPath
+			, ISNULL(TD.Name,'') AS TeamRoleNM
+			, TI.Identifier AS ID
+			, TIA.PlainText AS ItemName
+			, TDC.Name AS ClassName
+			, ISNULL(CONVERT(char(10),TTR.LastUpdated, 111),'') AS LastUpdated
+			, Case When TTR.Assigned = '1' Then 'Active' 
+			   When TTR.Assigned = '0' Then 'Removed' End AS StatusNM
+			, TTR.RoleDescription
+			, TTR.RoleManagerID
+			, ISNULL(TM.Name,'N/A')As RoleManagerNM
+			, TTR.TeamRoleType
+		From XBOLTADM.TB_TEAM_ROLE TTR
+		Left Outer Join XBOLTADM.TB_TEAM TT ON TT.TeamID = TTR.TeamID
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TMT.TeamID = TTR.TeamID And TMT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TMPT ON TMPT.TeamID = TT.ParentID And TMPT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TTR.TeamRoleType And TD.Category = 'TEAMROLETP' And TD.LanguageID =#{languageID}
+		Left OUter Join XBOLTADM.TB_ITEM TI ON TI.ItemID = TTR.ItemID 
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TTR.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDC ON TDC.TypeCode = TI.ClassCode And TDC.Category = 'CLS' And TDC.LanguageID = #{languageID}	
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TTR.RoleManagerID 
+		Where 1=1	
+		<if test="companyID != null and companyID != '' " >
+			And TT.CompanyID = #{companyID}
+		</if>
+		<if test="teamID != null and teamID != '' " >
+			And TTR.TeamID = #{teamID}
+		</if>
+		<if test="assigned != null and assigned != '' " >
+			And TTR.Assigned = #{assigned}
+		</if>
+		<if test="teamRoleType != null and teamRoleType != '' " >
+			And TTR.TeamRoleType = #{teamRoleType}
+		</if>
+		<if test="teamRoleID != null and teamRoleID != '' " >
+			And TTR.TeamRoleID = #{teamRoleID}
+		</if>
+	</select>
+	
+	<select id="getMyItemCnt" resultType="String" >
+		Select Count(*) From XBOLTADM.TB_MY_ITEM 
+		Where ItemID = #{itemID}
+		And MemberID = #{memberID}
+		And AssignMentType = #{assignmentType}
+		And RoleType = #{roleType}
+	</select>
+	
+	
+	<select id="getItemCxnRoleManagerList" resultType="java.util.HashMap" >
+		SELECT TT.RoleManagerID
+				, TM1.Name As RoleManagerNM
+				, TT.RoleManagerID AS curRoleManagerID
+				, ISNULL(TMT.Name,'') AS TeamNM
+				, TM1.Name As rctMemberNM
+				, TT.RoleManagerID AS rctMemberID
+		  FROM XBOLTADM.TB_ITEM TI
+		Left Outer Join XBOLTADM.TB_ITEM TIC ON TI.ItemID = TIC.ToItemID AND TIC.CategoryCode = 'CN'
+				Left Outer Join XBOLTADM.TB_TEAM_ROLE TTR ON TTR.ItemID = TIC.FromItemID
+				Left Outer Join XBOLTADM.TB_TEAM TT ON TTR.TeamID = TT.TeamID
+				Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TMT.TeamID = TTR.TeamID And TMT.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_MEMBER TM1 ON TM1.MemberID = TT.RoleManagerID
+		 WHERE TI.ItemID = #{s_itemID}
+		   AND TIC.ClassCode = #{cxnCode}
+		   AND TTR.TeamRoleID IS NOT NULL
+	</select>
+	
+	<select id="getSubItemTeamRoleList_gridList" resultType="java.util.HashMap">
+		select 
+				Row_Number()OVER(ORDER BY TD.SortNum,  XBOLTADM.fn_GetMyAbsPathForOrg(TMT.TeamID , #{languageID}), TMT.Name ASC ) AS RNUM
+				, 0 AS CHK 	
+				, TeamRoleID
+				, ISNULL(TT.TeamCode,'') AS TeamCode
+				, ISNULL(TMT.Name,'') AS TeamNM
+				, XBOLTADM.fn_GetMyAbsPathForOrg(TMT.TeamID , #{languageID}) AS TeamPath
+				, ISNULL(TD.Name,'') AS TeamRoleNM
+				, ISNULL(CONVERT(char(10),TTR.AssignedDate, 111),'') AS AssignedDate
+				, ISNULL(TTR.RoleManagerID,TT.RoleManagerID) As RoleManagerID
+				, ISNULL(TM.NAME,ISNULL(TM1.Name,'N/A')) As RoleManagerNM
+				, TTR.ItemID	
+				, TTR.TeamRoletype
+				, TD.SortNum
+				, TTR.TeamID
+				, TT.ManagerID AS TeamManagerID
+				, TT.RoleManagerID AS curRoleManagerID
+				, ISNULL(TM.NAME,ISNULL(TM1.Name,'N/A')) As rctMemberNM
+				, TT.RoleManagerID AS rctMemberID
+		FROM XBOLTADM.TB_ITEM A INNER JOIN XBOLTADM.TB_ITEM B ON A.ItemID = B.ToItemID AND B.CategoryCode = 'ST1' AND B.Deleted != 1
+			INNER JOIN  XBOLTADM.TB_TEAM_ROLE TTR ON TTR.ItemID = A.ItemID
+			
+			Left Outer Join XBOLTADM.TB_TEAM TT ON TT.TeamID = TTR.TeamID
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TMT.TeamID = TTR.TeamID And TMT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TTR.TeamRoleType And TD.Category = 'TEAMROLETP' And TD.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TTR.RoleManagerID 
+			Left Outer Join XBOLTADM.TB_MEMBER TM1 ON TM1.MemberID = TT.RoleManagerID 
+		where B.FromItemID = #{s_itemID}
+		</select>
+		
+		<select id="getSubItemTeamRoleTreeGList" resultType="java.util.HashMap">
+			Select 
+				Distinct T.ItemID
+				,Row_Number()OVER(ORDER BY T.PRE_TREE_ID <if test="elmClassList != null and elmClassList != ''" >,T.SortNum</if> ,T.Identifier ASC )  AS TREE_ID
+				,T.PRE_TREE_ID, T.TREE_NM , T.Identifier, T.TeamIDList <if test="elmClassList != null and elmClassList != ''" >,T.SortNum</if>
+				From (
+					Select TI.ItemID , null AS PRE_TREE_ID , TI.Identifier 
+						<choose>
+							<when test="accMode!= null and accMode!= '' and accMode.equals('OPS')">
+								, ISNULL(TIAR.PlainText,TIA.PlainText) AS TREE_NM
+							</when>
+							<otherwise>
+								, ISNULL(TIA.PlainText,'') AS TREE_NM
+							</otherwise>
+						</choose>
+						, '' AS TeamIDList
+						<if test="elmClassList != null and elmClassList != ''" >
+					   	, 0 AS SortNum				
+					   </if>
+				    From XBOLTADM.TB_ITEM TI 
+					<choose>
+						<when test="accMode!= null and accMode!= '' and accMode.equals('OPS')">
+						Left outer join XBOLTADM.TV_ITEM_ATTR_REL TIAR on TI.ItemID = TIAR.ItemID AND TIAR.AttrTypeCode = 'AT00001'  AND TIAR.LanguageID = #{languageID}
+						Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA On TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+						</when>
+						<otherwise>
+						Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA On TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+						</otherwise>
+					</choose>
+					Where TI.ItemID = #{s_itemID} 
+						
+					Union All
+						
+					Select Distinct TI.ItemID 						
+						, 1 AS PRE_TREE_ID
+						, TI.Identifier
+						<choose>
+							<when test="accMode!= null and accMode!= '' and accMode.equals('OPS')">
+								, ISNULL(TIAR.PlainText,TIA.PlainText) AS TREE_NM
+							</when>
+							<otherwise>
+								, ISNULL(TIA.PlainText,'') AS TREE_NM
+							</otherwise>
+						</choose>
+						, STUFF((SELECT '/' +  CAST(TeamID AS varchar)
+			                FROM XBOLTADM.TB_TEAM_ROLE A
+			               WHERE A.ItemID = TTR.ItemID 
+			                 FOR XML PATH('')
+				   ), 1, 1, '') AS TeamIDList	
+				   <if test="elmClassList != null and elmClassList != ''" >
+				   	, TE.SortNum AS SortNum				
+				   </if>
+					From XBOLTADM.TB_ITEM TI
+					Left Outer Join XBOLTADM.TB_TEAM_ROLE TTR ON TTR.ItemID = TI.ItemID
+					<choose>
+						<when test="accMode!= null and accMode!= '' and accMode.equals('OPS')">
+						Left outer join XBOLTADM.TV_ITEM_ATTR_REL TIAR on TI.ItemID = TIAR.ItemID AND TIAR.AttrTypeCode = 'AT00001'  AND TIAR.LanguageID = #{languageID}
+						Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA On TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+						</when>
+						<otherwise>
+						Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA On TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+						</otherwise>
+					</choose>
+					<if test="elmClassList != null and elmClassList != ''" >
+					Inner Join XBOLTADM.TB_ELEMENT TE ON TE.ModelID IN (Select Top 1 ModelID From XBOLTADM.TB_Model Where ItemID = #{s_itemID} And MTCategory = 'BAS') 
+											And TE.ClassCode IN (${elmClassList})  
+											And TE.Link = TTR.ItemID
+					</if>
+					<choose>
+						<when test="elmClassList != null and elmClassList != ''">							
+						</when>
+						<otherwise>
+							Where TI.ItemID IN (select ToItemID From XBOLTADM.TB_ITEM Where FromItemID = #{s_itemID} And CategoryCode = 'ST1' And Deleted != 1)
+							<if test="accMode!= null and accMode!= '' and accMode.equals('OPS')">AND TI.Status NOT IN ('NEW1','NEW2')</if> 
+						</otherwise>
+					</choose>
+			)T
+		</select>
+		
+		<select id="getTeamRoleTeamNameList" resultType="java.util.HashMap">
+			Select 
+				Distinct TTR.TeamID, TMT.Name As TeamNM, 'DESC'+ Cast(TTR.TeamID AS varchar) AS RoleDesc
+			From XBOLTADM.TB_TEAM_ROLE TTR			
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TMT.TeamID = TTR.TeamID And TMT.LanguageID = #{languageID}
+			Where
+			<choose>
+				<when test="asgnOption != null and asgnOption != '' " >
+				 	TTR.Assigned IN (${asgnOption})
+				</when>
+				<otherwise>
+					TTR.Assigned IN (1,2)
+				</otherwise>
+			</choose>
+			<choose>
+				<when test="elmClassList != null and elmClassList != ''">
+					AND TTR.ItemID IN (
+									Select Link 
+								 	From XBOLTADM.TB_ELEMENT TE 
+								    Where TE.ModelID IN (Select Top 1 ModelID From XBOLTADM.TB_Model Where ItemID = #{s_itemID} And MTCategory = 'BAS')
+								 	And TE.ClassCode IN (${elmClassList}) 
+								  )
+				</when>
+				<otherwise>
+					AND TTR.ItemID IN (select ToItemID From XBOLTADM.TB_ITEM Where FromItemID = #{s_itemID} And CategoryCode = 'ST1' And Deleted != 1)
+				</otherwise>
+			</choose>	
+			Order By TMT.Name 
+		</select>
+		
+		<select id="getTeamRoleName" resultType="String">
+			Select T.TeamRoleTypeNm AS TeamRoleTypeNm From (
+				Select 
+					Distinct TeamID,
+					STUFF((SELECT '/' + TD.Name
+								FROM XBOLTADM.TB_TEAM_ROLE A
+								Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = A.TeamRoleType And TD.Category = 'TEAMROLETP' And TD.LanguageID = #{languageID}
+							   WHERE A.ItemID = TTR.ItemID And A.TeamID = TTR.TeamID
+							   <choose>
+									<when test="asgnOption != null and asgnOption != '' " >
+										AND A.Assigned IN (${asgnOption})
+									</when>
+									<otherwise>
+										AND A.Assigned IN (1,2)
+									</otherwise>
+								</choose>
+								 FOR XML PATH('')
+					   ), 1, 1, '') AS TeamRoleTypeNm	
+				From XBOLTADM.TB_TEAM_ROLE TTR
+				Where TTR.ItemID = #{itemID} And TTR.TeamID = #{teamID}
+				<choose>
+					<when test="asgnOption != null and asgnOption != '' " >
+						AND TTR.Assigned IN (${asgnOption})
+					</when>
+					<otherwise>
+						AND TTR.Assigned IN (1,2)
+					</otherwise>
+				</choose>
+			) T
+		</select>
+		
+		<select id="getTeamRoleDesc" resultType="String">
+			Select T.RoleDescription AS RoleDescription From (
+				Select 
+					Distinct TeamID,
+					STUFF((SELECT '/' + RoleDescription
+								FROM XBOLTADM.TB_TEAM_ROLE A								
+							   WHERE A.ItemID = TTR.ItemID And A.TeamID = TTR.TeamID
+								 FOR XML PATH('')
+					   ), 1, 1, '') AS RoleDescription	
+				From XBOLTADM.TB_TEAM_ROLE TTR
+				Where TTR.ItemID = #{itemID} And TTR.TeamID = #{teamID}
+			) T		
+		</select>
+		
+		<select id="getTeamRoleNameList" resultType="java.util.HashMap">
+			 Select 
+			 	Distinct TTR.TeamID, 
+				STUFF((SELECT '/' + TD.Name
+						                FROM XBOLTADM.TB_TEAM_ROLE A
+										Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = A.TeamRoleType And TD.Category = 'TEAMROLETP' And TD.LanguageID = #{languageID}
+						               WHERE A.ItemID = TTR.ItemID And A.TeamID = TTR.TeamID
+						                 FOR XML PATH('')
+							   ), 1, 1, '') AS TeamRoleTypeNm,
+			 	STUFF((SELECT '/' + roleDescription
+						                FROM XBOLTADM.TB_TEAM_ROLE A
+						               WHERE A.ItemID = TTR.ItemID And A.TeamID = TTR.TeamID
+						                 FOR XML PATH('')
+							   ), 1, 1, '') AS RoleDescription
+			From XBOLTADM.TB_TEAM_ROLE TTR
+			Where TTR.ItemID = #{itemID}
+			And TTR.TeamID = #{teamID}
+			Group By TTR.TeamID, TTR.ItemID, TTR.roleDescription
+		</select>
+	
+	<select id="getTeamListTeamRole" resultType="java.util.HashMap">
+		Select * From (
+			Select 
+				Distinct 'P'+CAST(TTR.TeamID AS varchar) AS id
+				, TEAM.TeamCode +' '+ TMT.Name AS value
+				, XBOLTADM.fn_GetMyAbsPathForOrg(TTR.TeamID , #{languageID}) AS Path
+				, TEAM.TeamCode
+				, TTR.TeamID
+			From XBOLTADM.TB_TEAM_ROLE TTR
+			INNER JOIN XBOLTADM.TB_TEAM TEAM ON TTR.TeamID = TEAM.TeamID 
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TMT.TeamID = TTR.TeamID And TMT.LanguageID = #{languageID}
+			Where 1=1		
+			<if test="companyID != null and companyID != '' " >
+				And TEAM.CompanyID = #{companyID}
+			</if>
+			<if test="teamID != null and teamID != '' " >
+				And TTR.TeamID = #{teamID}
+			</if>
+			<if test="assigned != null and assigned != '' " >
+				And TTR.Assigned = #{assigned}
+			</if>
+			<if test="teamRoleType != null and teamRoleType != '' " >
+				And TTR.TeamRoleType = #{teamRoleType}
+			</if>
+		) T
+		Order By T.Path 
+	</select>
+	
+	<select id="getTeamRoleItemMappingReportList" resultType="java.util.HashMap" >
+		Select
+			Row_Number()OVER(ORDER BY TI.Identifier, TTR.TeamRoleID ASC ) AS RNUM
+			, TTR.TeamRoleID AS id
+			, 'P'+CAST(TTR.TeamID AS varchar) AS parent
+			, TTR.TeamID AS TeamID
+			, ISNULL(TT.TeamCode,'') AS TeamCode
+			, ISNULL(TMT.Name,'') AS TeamName 
+			, XBOLTADM.fn_GetMyAbsPathForOrg(TTR.TeamID , #{languageID}) AS TeamPath 
+			, ISNULL(TD.Name,'') AS TeamRoleNM
+			, TI.Identifier AS Identifier
+			, TI.Identifier + ' ' + TIA.PlainText AS value
+			, TDC.Name AS ClassName
+			, ISNULL(CONVERT(char(10),TTR.LastUpdated, 111),'') AS LastUpdated
+			, Case When TTR.Assigned = '1' Then 'Active' 
+			   When TTR.Assigned = '0' Then 'Removed' End AS StatusNM
+			, TTR.RoleDescription
+			, TTR.RoleManagerID
+			, ISNULL(TM.Name,'N/A')As RoleManagerNM
+			, TTR.TeamRoleType
+			, TDI.Name AS ItemStatusNM
+			, TTR.ItemID
+			, TMCP.Name As CompanyNM
+			, ISNULL(XBOLTADM.fn_GetMyAbsPathForList( TI.ItemID, #{languageID}),'') AS Path
+		From XBOLTADM.TB_TEAM_ROLE TTR
+		Left Outer Join XBOLTADM.TB_TEAM TT ON TT.TeamID = TTR.TeamID
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TMT.TeamID = TTR.TeamID And TMT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TMPT ON TMPT.TeamID = TT.ParentID And TMPT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TTR.TeamRoleType And TD.Category = 'TEAMROLETP' And TD.LanguageID =#{languageID}
+		Left OUter Join XBOLTADM.TB_ITEM TI ON TI.ItemID = TTR.ItemID 
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TTR.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDC ON TDC.TypeCode = TI.ClassCode And TDC.Category = 'CLS' And TDC.LanguageID = #{languageID}	
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TTR.RoleManagerID 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDI ON TDI.TypeCode = TI.Status And TDI.Category = 'ITMSTS' And TDI.LanguageID = #{languageID}	
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TMCP ON TMCP.TeamID = TT.CompanyID And TMCP.LanguageID = #{languageID}
+		Where 1=1	
+		<if test="teamID != null and teamID != '' " >
+			And TTR.TeamID = #{teamID}
+		</if>
+		<if test="companyID != null and companyID != '' " >
+			And TT.CompanyID = #{companyID}
+		</if>
+		<if test="assigned != null and assigned != '' " >
+			And TTR.Assigned = #{assigned}
+		</if>
+		<if test="teamRoleType != null and teamRoleType != '' " >
+			And TTR.TeamRoleType = #{teamRoleType}
+		</if>
+		
+	</select>
+	
+	<select id="getRoleNameList" resultType="java.util.HashMap" >
+		Select Distinct TI.FromItemID AS RoleItemID 
+			, TIA.PlainText AS RoleItemNM
+		From XBOLTADM.TB_Item TI
+		Left Outer Join XBOLTADM.TB_Item_Attr TIA ON TIA.ItemID = TI.FromItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+		Where TI.CategoryCode = 'CN' And TI.ItemTypeCode = 'CN00201' And TI.Deleted != 1 
+		<choose>
+			<when test="elmClassList != null and elmClassList != ''">
+				And TI.ToItemID IN (
+								Select Link 
+							 	From XBOLTADM.TB_ELEMENT TE 
+							    Where TE.ModelID IN (Select Top 1 ModelID From XBOLTADM.TB_Model Where ItemID = #{s_itemID} And MTCategory = 'BAS')
+							 	And TE.ClassCode IN (${elmClassList}) 
+							  )
+			</when>
+			<when test="classCode != null and classCode != ''">
+				And TI.ToItemID IN  (
+					select T1.ToItemID
+					From XBOLTADM.TB_ITEM T1, XBOLTADM.TB_ITEM T2
+					Where T1.FromItemID = #{s_itemID} And T1.CategoryCode = 'ST1' And T1.Deleted != 1
+					And T1.ToItemID = T2.ItemID And T2.ClassCode = #{classCode}
+				)
+			</when>
+			<otherwise>
+				And TI.ToItemID IN  (select ToItemID From XBOLTADM.TB_ITEM Where FromItemID = #{s_itemID} And CategoryCode = 'ST1' And Deleted != 1)
+			</otherwise>
+		</choose>	
+		Order By TIA.PlainText
+	</select>
+	
+	<select id="getSubItemRoleList" resultType="java.util.HashMap" >
+		Select 
+			Distinct T.ItemID
+			,Row_Number()OVER(ORDER BY T.PRE_TREE_ID <if test="elmClassList != null and elmClassList != ''" >, T.SortNum</if>	, T.Identifier ASC )  AS TREE_ID
+			,T.ClassCode
+			,T.PRE_TREE_ID, T.TREE_NM , T.Identifier, T.RoleItemIDList, T.RoleCxnClass, T.CxnItemIDList<if test="attrTypeCode != null and attrTypeCode != ''" >, T.plainTextList</if>
+		From (
+				Select TI.ItemID, TI.ClassCode , null AS PRE_TREE_ID , TI.Identifier , ISNULL(TIA.PlainText,'') AS TREE_NM 
+				, '' AS RoleItemIDList, '' AS RoleCxnClass, '' AS CxnItemIDList<if test="attrTypeCode != null and attrTypeCode != ''" >, '' AS plainTextList</if>
+				<if test="elmClassList != null and elmClassList != ''" >
+				, 0 AS SortNum
+				</if>	
+				From XBOLTADM.TB_ITEM TI 
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA On TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+				Where TI.ItemID = #{s_itemID}
+								
+				Union All
+								
+				Select TI.ItemID,TI.ClassCode, 1 AS PRE_TREE_ID
+				, TI.Identifier, ISNULL(TIA.PlainText,'') AS TREE_NM				
+				, STUFF((SELECT '/' +  CAST(A.FromItemID AS varchar)
+					FROM XBOLTADM.TB_Item A
+					WHERE A.ToItemID = TI.ItemID And A.CategoryCode = 'CN' And A.ItemTypeCode = 'CN00201' And A.Deleted != 1
+						FOR XML PATH('')
+					), 1, 1, '') AS RoleItemIDList	
+				, STUFF((SELECT '#' + B.Name
+						FROM XBOLTADM.TB_Item A
+						Left Outer Join XBOLTADM.TB_Dictionary B ON B.TypeCode = A.ClassCode And B.LanguageID = #{languageID} And B.Category = 'CLS'						
+						WHERE A.ToItemID = TI.ItemID And A.CategoryCode = 'CN' And A.ItemTypeCode = 'CN00201' And A.Deleted != 1
+							FOR XML PATH('')
+						), 1, 1, '') AS RoleCxnClass
+				, STUFF((SELECT '/' +  CAST(A.ItemID AS varchar)
+					FROM XBOLTADM.TB_Item A
+					WHERE A.ToItemID = TI.ItemID And A.CategoryCode = 'CN' And A.ItemTypeCode = 'CN00201' And A.Deleted != 1
+						FOR XML PATH('')
+					), 1, 1, '') AS CxnItemIDList
+				<if test="attrTypeCode != null and attrTypeCode != ''" >
+				, STUFF((SELECT '/' +  ISNULL(CAST(TATL.Value AS varchar), '')
+					FROM XBOLTADM.TB_Item A
+					Left Outer Join XBOLTADM.TB_ITEM_ATTR B ON A.ItemID = B.ItemID And B.AttrTypeCode = #{attrTypeCode} And B.LanguageID = #{languageID}
+					Left Outer join	XBOLTADM.TB_ATTR_TYPE_LOV TATL on B.AttrTypeCode  = TATL.AttrTypeCode AND B.LovCode = TATL.LovCode AND TATL.LanguageID = #{languageID}
+					WHERE A.ToItemID = TI.ItemID And A.CategoryCode = 'CN' And A.ItemTypeCode = 'CN00201' And A.Deleted != 1
+						FOR XML PATH('')
+					), 1, 1, '') AS plainTextList
+				</if>
+				<if test="elmClassList != null and elmClassList != ''" >
+				, TE.SortNum As SortNum
+				</if>	
+				From XBOLTADM.TB_Item TI
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA On TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+				<if test="elmClassList != null and elmClassList != ''" >
+				Inner Join XBOLTADM.TB_ELEMENT TE ON TE.ModelID IN (Select Top 1 ModelID From XBOLTADM.TB_Model Where ItemID = #{s_itemID} And MTCategory = 'BAS') 
+										And TE.ClassCode IN (${elmClassList})  
+										And TE.Link = TI.ItemID
+				</if>
+				
+				Where TI.ItemID IN (select ToItemID From XBOLTADM.TB_ITEM Where FromItemID = #{s_itemID} And CategoryCode = 'ST1' And Deleted != 1)
+				<choose>
+					<when test="elmClassList != null and elmClassList != ''">
+					</when>
+					<otherwise>
+						And TI.ItemID IN (select ToItemID From XBOLTADM.TB_ITEM Where FromItemID = #{s_itemID} And CategoryCode = 'ST1' And Deleted != 1)
+					</otherwise>
+				</choose>	
+		)T
+	</select>
+	
+	<select id="getTeamRoleAssigned" resultType="java.util.HashMap" >
+		Select Top 1 Assigned, TeamRoleID
+		From XBOLTADM.TB_TEAM_ROLE 
+		Where ItemID = #{itemID}
+		And TeamID = #{teamID}
+		And TeamRoleType = #{teamRoleType}
+		And TeamRoleCat = #{teamRoleCat}
+		Order By AssignedDate Desc
+	</select>
+	
+	<select id="getTeamTaskInfo" resultType="java.util.HashMap" >
+		Select
+			TPTR.PjtTeamID
+			, TTT.Name AS teamName
+			, CONVERT(char(10),TPTR.LastUpdated, 111) As LastUpdated
+			, TPTR.Memo
+			, TPTR.ProjectID
+			, STUFF((
+				Select ', ' + convert(nvarchar, TIA.PlainText)
+				From XBOLTADM.TB_MY_ITEM MY
+				Left outer join XBOLTADM.TB_ITEM_ATTR TIA on MY.ItemID = TIA.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+				Where TPTR.TeamID = MY.MbrTeamID And AssignmentType = #{assignmentType} And MY.ProjectID = #{projectID}
+				group by TIA.PlainText
+				FOR XML PATH('')
+			), 1, 2, '') AS itemNames
+			, TPTR.ManagerID
+		From XBOLTADM.TB_PJT_TEAM_REL TPTR
+		Left outer join XBOLTADM.TB_TEAM_TXT TTT on TPTR.TeamID = TTT.TeamID And TTT.LanguageID = #{languageID}
+		Where TPTR.TeamID = #{teamID}
+		And TPTR.ProjectID = #{projectID}
+	</select>
+	
+	<select id="getPjtSubTeamList" resultType="java.util.HashMap" >
+		Select * From XBOLTADM.fn_GetPjtSubTeamList(#{teamID},  #{projectID})
+	</select>
+	
+	<select id="tmMbrTaskList" resultType="java.util.HashMap" >
+		Select
+			TMI.MbrTeamID
+			, TTT.TeamCode
+			, TTT.Name As TeamName
+			, [XBOLTADM].[fn_GetMyAbsPathForPjtOrg](TMI.MbrTeamID, TMI.ProjectID, #{languageID}) As TeamPath
+			, TM.EmployeeNum
+			, TM.Name As userName
+			, TM.Position
+			, CONVERT(char(10),TM.JoinDate, 111) As joinDate
+			, TIA.PlainText As itemName
+			, TMI.Memo
+			, TMI.Seq As id
+		From XBOLTADM.TB_MY_ITEM TMI
+		Left outer join XBOLTADM.TB_TEAM_TXT TTT on TMI.MbrTeamID = TTT.TeamID And TTT.LanguageID = #{languageID}
+		Left outer join XBOLTADM.TB_MEMBER TM on TMI.MemberID = TM.MemberID
+		Left outer join XBOLTADM.TB_ITEM_ATTR TIA on TMI.ItemID = TIA.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+		Where TMI.ProjectID =  #{projectID}
+		And TMI.AssignmentType = #{assignmentType}
+		And TMI.MbrTeamID in (Select TeamID From XBOLTADM.fn_GetPjtSubTeamList(#{teamID},  #{projectID}))
+		Order By TTT.TeamCode, TM.EmployeeNum
+	</select>
+	
+	<select id="getTeamJobLog" resultType="java.util.HashMap" >
+		Select Row_Number()OVER(ORDER BY Seq) As RNUM, * From XBOLTADM.TB_TEAM_JOB_LOG Where PjtTeamID = #{pjtTeamID}
+	</select>
+	
+	<insert id="insertTeamJobLog" parameterType="java.util.HashMap">		
+		Insert Into XBOLTADM.TB_TEAM_JOB_LOG
+		(PjtTeamID, Activity, Before, After, Type, RelTeamID, RelTeamNM, Reason, CreationTime, Creator, lastupdated, lastUser)
+		Values(#{pjtTeamID},#{activity},#{before},#{after},#{type},#{relTeamID},#{relTeamNM},#{reason}, GETDATE(), #{userID}, GETDATE(), #{userID})
+	</insert>
+	
+	<update id="updateTeamJobLog" parameterType="java.util.HashMap">		
+		Update XBOLTADM.TB_TEAM_JOB_LOG
+		Set Type = #{type}
+		, CreationTime = GETDATE()
+		, Creator = #{userID}
+		, lastupdated = GETDATE()
+		, lastUser = #{userID}
+		<if test="activity != null">, Activity = #{activity}</if>
+		<if test="before != null">, Before = #{before}</if>
+		<if test="after != null">, After =#{after}</if>
+		<if test="relTeamID != null">, RelTeamID = #{relTeamID}</if>
+		<if test="relTeamNM != null">, RelTeamNM = #{relTeamNM}</if>
+		<if test="reason != null">, Reason = #{reason}</if>
+		where Seq = #{seq}
+	</update>
+	
+	<delete id="deleteTeamJobLog" parameterType="java.util.HashMap">
+	  	Delete XBOLTADM.TB_TEAM_JOB_LOG Where SEQ = #{seq}
+	</delete>
+	
+	<select id="getMyItemMemberInfo" resultType="java.util.HashMap" >
+		Select Top 1 TMI.MemberID AS MemberID
+		, ISNULL(TM.Name,'') + '(' + ISNULL(TMT.Name,'') + ')' AS MemberName
+		, ISNULL(TMT.Name,'') AS TeamName
+		From XBOLTADM.TB_MY_ITEM TMI
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TMI.MemberID 
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TMT.TeamID = TM.TeamID And TMT.LanguageID = #{languageID}
+		Where TMI.AssignmentType = #{assignmentType}
+		And TMI.RoleType = #{roleType}
+		And TMI.OrderNum = #{orderNum}
+		ANd TMI.ItemID = #{itemID}
+	</select>
+	
+	<select id="getMyItemSeq" resultType="String" >
+		Select Seq From XBOLTADM.TB_MY_ITEM 
+		Where ItemID = #{itemID}
+		And AssignMentType = #{assignmentType}
+		And RoleType = #{roleType}
+		<if test="memberID != null and memberID != '' " >
+			And MemberID = #{memberID}
+		</if>
+		<if test="orderNum != null and orderNum != '' " >
+			And OrderNum = #{orderNum}
+		</if>
+	</select>
+	
+	<select id="getOlmRoleMbrList_gridList" resultType="java.util.HashMap">
+		WITH ItemMaster(MyItemID)
+		 AS
+		 (
+			SELECT ToItemID AS MyItemID
+			FROM XBOLTADM.TB_ITEM ITM
+			WHERE ITM.FromItemID =  #{itemID}					
+				AND ITM.CategoryCode = 'ST1'
+				AND ITM.Deleted != '1'						
+				AND (Select Deleted From XBOLTADM.TB_ITEM Where ItemID = ITM.ToItemID ) != '1'
+			UNION ALL
+			SELECT ITM_L.ToItemID AS MyItemID			
+			FROM XBOLTADM.TB_ITEM ITM_L, ItemMaster LCTE, XBOLTADM.TB_ITEM ITM
+			WHERE ITM_L.Deleted != '1'			
+				AND ITM_L.CategoryCode = 'ST1'		
+				AND ITM_L.FromItemID = LCTE.MyItemID						
+				AND ITM.ItemID = ITM_L.ToItemID	
+		 )
+		, ItemStructure(MyItemID)
+		 AS
+		 (
+		 	SELECT  ItemID AS MyItemID
+	    	FROM XBOLTADM.TB_ITEM
+	    	WHERE ItemID =  #{itemID}		    	
+	    	UNION ALL		    	
+			SELECT MyItemID  
+			FROM ItemMaster		
+		 )
+		Select 
+			Top 500 Row_Number()OVER(ORDER BY TMI.AssignmentType, TMI.RoleType, TMI.OrderNum, TMI.AssignedDate DESC) as RNUM,
+			TMI.Seq, 
+			TMI.MemberID, 
+		    Case when ISNULL(TM.NameEN,'') != '' Then ISNULL(TM.Name,'')+'('+ISNULL(TM.NameEN,'')+')' ELSE ISNULL(TM.Name,'') End AS Name,
+			TMI.ItemID, 
+			TMI.RoleType,
+			TD.Name ProcessType,
+			TM.TeamID,
+			Assigned, 
+			CASE Assigned  WHEN '1' THEN 'Y' Else 'N' END AS Assignment , 			
+			ISNULL(CONVERT(char(10),TMI.AssignedDate, 111),'') as AssignedDate,
+			ISNULL(XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{languageID}), '') + '/' + TTT.Name AS Path,
+			XBOLTADM.fn_GetMyAbsPathForList(TMI.ItemID,#{languageID}) AS ProcessPath,
+			ITM.Identifier ProcessCode,
+			ATR.PlainText ProcessNM,
+			TMI.AssignmentType,
+			TD2.Name As AssignmentTypeName,
+			TD3.Name AS ClassName,
+			TMI.OrderNum,
+			<if test='photoUrlPath != null and photoUrlPath != ""'>
+				Case When ISNULL(TM.Photo,'blank_photo.png') = 'blank_photo.png' Then #{blankPhotoUrlPath}
+				Else #{photoUrlPath} + ISNULL(TM.Photo,'blank_photo.png') END AS Photo,
+			</if>
+			TMI.AccessRight,
+			CASE TMI.AccessRight  WHEN 'R' THEN 'Referred' Else 'Manage' END AS AccessRightName,
+			TMI.Memo
+		From 
+		ItemStructure ITM_STR
+		Inner Join XBOLTADM.TB_MY_ITEM TMI ON TMI.ItemID = ITM_STR.MyItemID
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TM.MemberID = TMI.MemberID
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TTT On TM.TeamID = TTT.TeamID  AND TTT.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR ON TMI.ItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001' AND ATR.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_OLM_ROLE_TYPE ORT ON TMI.RoleType = ORT.RoleTypeCode and TMI.AssignmentType = ORT.AssignmentType
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON ORT.RoleTypeCode = TD.TYPECODE AND ORT.AssignmentType = TD.Category AND TD.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = TMI.AssignmentType And TD2.Category = 'ROLECAT' And TD2.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM ITM ON ITM.ItemID = TMI.itemID
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD3 ON ITM.ClassCode = TD3.TypeCode and TD3.LanguageID = #{languageID}
+		<where>
+			<if test='roleType != null and roleType != ""'>
+				And TMI.RoleType = #{roleType} 
+			</if>
+			<if test="assigned != null and assigned != '' " >
+				And TMI.Assigned = #{assigned}
+			</if>
+			<if test="assignmentType != null and assignmentType != ''">
+				AND TMI.AssignmentType = #{assignmentType}
+			</if>
+			<if test="memberId != null and memberId != ''">
+				AND TM.MemberID = #{memberId}
+			</if>
+		</where>	 	
+		Order By TMI.AssignmentType, TMI.RoleType, TMI.OrderNum, TMI.AssignedDate DESC
+	</select>
+	
+	<select id="getEspRoleMbrList_gridList" resultType="java.util.HashMap">
+		WITH ItemMaster(MyItemID)
+		AS
+		(
+		    SELECT ToItemID AS MyItemID
+		    FROM XBOLTADM.TB_ITEM ITM
+		    WHERE ITM.FromItemID =  #{itemID}                    
+		        AND ITM.CategoryCode = 'ST1'
+		        AND ITM.Deleted != '1'                        
+		        AND (Select Deleted From XBOLTADM.TB_ITEM Where ItemID = ITM.ToItemID ) != '1'
+		    UNION ALL
+		    SELECT ITM_L.ToItemID AS MyItemID            
+		    FROM XBOLTADM.TB_ITEM ITM_L, ItemMaster LCTE, XBOLTADM.TB_ITEM ITM
+		    WHERE ITM_L.Deleted != '1'            
+		        AND ITM_L.CategoryCode = 'ST1'        
+		        AND ITM_L.FromItemID = LCTE.MyItemID                        
+		        AND ITM.ItemID = ITM_L.ToItemID    
+		)
+		, ItemStructure(MyItemID)
+		AS
+		(
+		    SELECT  ItemID AS MyItemID
+		   FROM XBOLTADM.TB_ITEM
+		   WHERE ItemID =  #{itemID}                
+		   UNION ALL                
+		   SELECT MyItemID  
+		   FROM ItemMaster        
+		)
+		Select TMI.AssignmentType,
+		       CASE WHEN TTT2.Name IS NOT NULL THEN TTT2.Name ELSE TTT1.Name END AS CompanyName,
+		       TMI.Seq, 
+		       ITM.AuthorID,
+		       TMI.MemberID AS TMI_MemberID, 
+		       Case when ISNULL(TM.NameEN,'') != '' Then ISNULL(TM.Name,'')+'('+ISNULL(TM.NameEN,'')+')' ELSE ISNULL(TM.Name,'') End AS Name,
+		       TMI.ItemID, 
+		       TMI.RoleType,
+		       TD.Name ProcessType,
+		       TM.TeamID,
+		       TMI.Assigned, 
+		       CASE TMI.Assigned  WHEN '1' THEN 'Y' Else 'N' END AS Assignment ,             
+		       ISNULL(CONVERT(char(10),TMI.AssignedDate, 111),'') as AssignedDate,
+		       TMI.AssignedDate TMI_AssignedDate,
+		       TTT.Name TTT_name, <!--함수용-->
+		       ITM.Identifier PartCode,
+		       ATR.PlainText PartName,
+		       TMI.OrderNum,
+		       <if test='photoUrlPath != null and photoUrlPath != ""'>
+				Case When ISNULL(TM.Photo,'blank_photo.png') = 'blank_photo.png' Then #{blankPhotoUrlPath}
+				Else #{photoUrlPath} + ISNULL(TM.Photo,'blank_photo.png') END AS Photo,
+				</if>
+		       TMI.AccessRight,
+		       TMI.Memo,
+		       ITM.ProjectID,
+		       TM1.MemberID AS TM1_MemberID,
+		       TM1.LoginID,
+		       TIC.Level
+		INTO #temp_result
+		From XBOLTADM.TB_ITEM ITM  
+		INNER JOiN XBOLTADM.TB_MY_ITEM TMI ON ITM.ItemID = TMI.itemID
+		INNER JOIN ItemStructure ITM_STR ON TMI.ItemID = ITM_STR.MyItemID
+		LEFT OUTER HASH JOIN XBOLTADM.TB_MEMBER TM ON TM.MemberID = TMI.MemberID AND TM.Active = '1'
+		LEFT OUTER HASH JOIN XBOLTADM.TB_TEAM_TXT TTT On TM.TeamID = TTT.TeamID  AND TTT.LanguageID = #{languageID}
+		LEFT OUTER HASH JOIN XBOLTADM.TB_ITEM_ATTR ATR ON TMI.ItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001' AND ATR.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_OLM_ROLE_TYPE ORT ON TMI.RoleType = ORT.RoleTypeCode and TMI.AssignmentType = ORT.AssignmentType
+		LEFT OUTER HASH JOIN XBOLTADM.TB_DICTIONARY TD ON ORT.RoleTypeCode = TD.TYPECODE AND ORT.AssignmentType = TD.Category AND TD.LanguageID = #{languageID}
+		LEFT OUTER HASH JOIN XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = TMI.AssignmentType And TD2.Category = 'ROLECAT' And TD2.LanguageID = #{languageID}
+		LEFT OUTER HASH JOIN XBOLTADM.TB_TEAM_TXT TTT1 on ITM.CompanyID =TTT1.TeamID and TTT1.LanguageID = #{languageID}
+		LEFT OUTER HASH JOIN XBOLTADM.TB_TEAM TT2 on TMI.ClientID = TT2.ClientID and TT2.TeamType = 2
+		LEFT OUTER HASH JOIN XBOLTADM.TB_TEAM_TXT TTT2 on TT2.TeamID = TTT2.TeamID and TTT2.LanguageID = #{languageID}
+		LEFT OUTER HASH JOIN XBOLTADM.TB_MEMBER TM1 on ITM.AuthorID =TM1.MemberID AND TM1.Active = '1'
+		LEFT OUTER HASH JOIN XBOLTADM.TB_ITEM_CLASS TIC on ITM.ClassCode = TIC.ItemClassCode
+		<where>
+			<if test='roleType != null and roleType != ""'>
+				And TMI.RoleType = #{roleType} 
+			</if>
+			<if test="memberId != null and memberId != ''">
+				AND TM.MemberID = #{memberId}
+			</if>
+			<if test="clientID != null and clientID != ''">
+				AND ITM.ClientID = #{clientID}
+			</if>
+			<if test="MemberName != null and MemberName != ''">
+				AND TM.Name like '%'+#{MemberName}+'%'
+			</if>
+			<if test="assigned != null and assigned != '' " >
+				And TMI.Assigned = #{assigned}
+			</if>
+			<if test="assignmentType != null and assignmentType != '' " >
+				And TMI.AssignmentType = #{assignmentType}
+			</if>
+		</where>
+		 
+		SELECT DISTINCT ItemID, Level
+		INTO #join_fn_temp
+		FROM #temp_result
+		 
+		SELECT ItemID, Level, XBOLTADM.fn_GetParentItemID(ItemID,Level-1) fn_val
+		INTO #join_fn_val_temp
+		FROM #join_fn_temp
+		 
+		SELECT DISTINCT teamID
+		INTO #path_fn_temp
+		FROM #temp_result
+		 
+		SELECT teamID, XBOLTADM.fn_GetMyAbsPathForOrg(TeamID , #{languageID}) fn_val
+		INTO #path_fn_val_temp
+		FROM #path_fn_temp
+		 
+		Select Row_Number()OVER(ORDER BY a.AssignmentType, a.RoleType, a.OrderNum, a.TMI_AssignedDate DESC) as RNUM,
+		       a.CompanyName,
+		       a.Seq, 
+		       a.AuthorID,
+		       a.TMI_MemberID AS MemberID, 
+		       a.Name,
+		       a.ItemID, 
+		       a.RoleType,
+		       a.ProcessType,
+		       a.TeamID,
+		       a.Assigned, 
+		       a.Assignment ,             
+		       a.AssignedDate,
+		       ISNULL(c.fn_val, '') + '/' + a.TTT_name AS Path,
+		       a.PartCode,
+		       a.PartName,
+		       a.OrderNum,
+		      <if test='photoUrlPath != null and photoUrlPath != ""'>
+		       a.Photo,
+		       </if>
+		       a.AccessRight,
+		       a.Memo,
+		       a.ProjectID,
+		       a.TM1_MemberID AS MemberID,
+		       a.LoginID,
+		       PITM.ItemID AS ServiceItemID ,
+		       PITM.Identifier ServiceCode,
+		       ATR1.PlainText AS ServiceName,
+		       TTT2.Name AS TeamName
+		From #temp_result a
+		LEFT OUTER JOIN #join_fn_val_temp b
+		ON a.ItemID = b.ItemID
+		AND a.Level = b.Level
+		LEFT OUTER JOIN #path_fn_val_temp c
+		ON a.TeamID = c.TeamID
+		LEFT OUTER HASH JOIN XBOLTADM.TB_Item PITM on PITM.itemid = b.fn_val
+		LEFT OUTER HASH JOIN XBOLTADM.TB_ITEM_ATTR ATR1 ON PITM.ItemID = ATR1.ItemID AND ATR1.AttrTypeCode = 'AT00001' AND ATR1.LanguageID = #{languageID}
+		LEFT OUTER HASH JOIN XBOLTADM.TB_TEAM_TXT TTT2 on a.TeamID = TTT2.TeamID and TTT2.LanguageID = #{languageID}
+		<if test="srArea2 != null and srArea2 != '' " >
+			WHERE a.ItemID = #{srArea2}
+		</if>
+		Order By a.AssignmentType, a.RoleType, a.OrderNum, a.TMI_AssignedDate DESC, a.TMI_MemberID
+		 
+		DROP TABLE #temp_result
+		DROP TABLE #join_fn_temp
+		DROP TABLE #join_fn_val_temp
+		DROP TABLE #path_fn_val_temp
+		DROP TABLE #path_fn_temp
+	</select>
+	
+			
+<select id="getSubItemRoleList_gridList" resultType="java.util.HashMap">
+
+		WITH TeamRoleData AS (
+		    SELECT
+		        ROW_NUMBER() OVER (
+		            ORDER BY
+		                CASE TTR.TeamRoleType
+		                    WHEN 'R' THEN 1 WHEN 'A' THEN 2 WHEN 'S' THEN 3 WHEN 'I' THEN 4 WHEN 'C' THEN 5
+		                    ELSE 6
+		                END,
+		                TD.SortNum,
+		                XBOLTADM.fn_GetMyAbsPathForOrg(TMT.TeamID , #{languageID}),
+		                TMT.Name
+		        ) AS RNUM,
+		        0 AS CHK,
+		        TTR.TeamRoleID,
+		        ISNULL(TT.TeamCode,'') AS TeamCode,
+		        ISNULL(TMT.Name,'') AS TeamNM,
+		        XBOLTADM.fn_GetMyAbsPathForOrg(TMT.TeamID , #{languageID}) AS TeamPath,
+		        ISNULL(TD.Name,'') AS TeamRoleNM,
+		        ISNULL(CONVERT(char(10), TTR.AssignedDate, 111), '') AS AssignedDate,
+		        ISNULL(CONVERT(char(10), TTR.LastUpdated, 111), '')  AS LastUpdated,
+		        ISNULL(TTR.RoleManagerID, TT.RoleManagerID) AS RoleManagerID,
+		        ISNULL(TM.Name, ISNULL(TM1.Name,'N/A'))
+		          + CASE
+		              WHEN ISNULL(TM.NameEN,'')  != '' THEN '(' + ISNULL(TM.NameEN,'')  + ')'
+		              WHEN ISNULL(TM1.NameEN,'') != '' THEN '(' + ISNULL(TM1.NameEN,'') + ')'
+		              ELSE ''
+		            END AS RoleManagerNM,
+		        TTR.ItemID,
+		        TTR.TeamRoleType,
+		        TD.SortNum AS SortNum,
+		        TTR.TeamID,
+		        TT.ManagerID AS TeamManagerID,
+		        TT.RoleManagerID AS curRoleManagerID,
+		        TT.RoleManagerID AS rctMemberID,
+		        ISNULL(TM.Name, ISNULL(TM1.Name,'N/A')) AS rctMemberNM,
+		        TTR.RoleDescription,
+		        ISNULL(TMRSTS.Name,'') AS TMRStatusNM,
+		        ISNULL(TTR.Assigned,'') AS Assigned,
+		
+		   
+		        CASE TTR.TeamRoleType
+		            WHEN 'R' THEN 1 WHEN 'A' THEN 2 WHEN 'S' THEN 3 WHEN 'I' THEN 4 WHEN 'C' THEN 5
+		            ELSE 6
+		        END AS RolePriority
+		    FROM XBOLTADM.TB_TEAM_ROLE TTR
+		    LEFT JOIN XBOLTADM.TB_TEAM TT ON TT.TeamID = TTR.TeamID
+		    LEFT JOIN XBOLTADM.TB_TEAM_TXT TMT ON TMT.TeamID = TTR.TeamID AND TMT.LanguageID = #{languageID}
+		    LEFT JOIN XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TTR.TeamRoleType AND TD.Category = 'TEAMROLETP' AND TD.LanguageID = #{languageID}
+		    LEFT JOIN XBOLTADM.TB_MEMBER TM  ON TM.MemberID  = TTR.RoleManagerID
+		    LEFT JOIN XBOLTADM.TB_MEMBER TM1 ON TM1.MemberID = TT.RoleManagerID
+		    LEFT JOIN XBOLTADM.TB_DICTIONARY TMRSTS ON TMRSTS.TypeCode = TTR.Assigned AND TMRSTS.Category = 'TMRSTS' AND TMRSTS.LanguageID = #{languageID}
+		    WHERE
+		        TTR.ItemID IN (
+		            SELECT CAST(#{itemID} AS bigint)
+		            UNION ALL
+		            SELECT ToItemID
+		            FROM XBOLTADM.TB_ITEM WITH (NOLOCK)
+		            WHERE FromItemID = #{itemID}
+		              AND CategoryCode = 'ST1'
+		        )
+		        AND (
+	              RTRIM(TMT.Name) LIKE N'%팀'
+	              OR RTRIM(TMT.Name) LIKE N'%부'
+	              OR RTRIM(TMT.Name) LIKE N'%팀(%'
+	              OR RTRIM(TMT.Name) LIKE N'%부(%'
+	          )
+	          And TT.Deleted != 1
+		      <if test="companyID != null and companyID != ''">
+		          AND TT.CompanyID = #{companyID}
+		      </if>
+		      <if test="roleType != null and roleType != ''">
+		          AND TTR.TeamRoleType = #{roleType}
+		      </if>
+		      <if test="roleTypes != null and roleTypes != ''">
+		          AND TTR.TeamRoleType IN (${roleTypes})
+		      </if>
+		      <if test="assignmentType != null and assignmentType != ''">
+		          AND TTR.AssignmentType = #{assignmentType}
+		      </if>
+		      <if test='!"Y".equals(showRemoved)'>
+		          AND TTR.Assigned != 0 AND TTR.Assigned > 0
+		          <if test="asgnOption != null and asgnOption != ''">
+		              AND TTR.Assigned IN (${asgnOption})
+		          </if>
+		      </if>
+		),
+		Ranked AS (
+		    SELECT TeamRoleData.*,
+		           DENSE_RANK() OVER (
+		               PARTITION BY TeamRoleData.TeamCode
+		               ORDER BY TeamRoleData.RolePriority
+		           ) AS rk_in_team
+		    FROM TeamRoleData
+		),
+		Result AS (
+		    SELECT *,
+		           ROW_NUMBER() OVER (
+		               PARTITION BY TeamCode, RolePriority
+		               ORDER BY SortNum, TeamPath, TeamNM
+		           ) AS rn_dedup
+		    FROM Ranked
+		    WHERE rk_in_team = 1
+		)
+		SELECT
+		    RNUM, CHK, TeamRoleID, TeamCode, TeamNM, TeamPath, TeamRoleNM,
+		    AssignedDate, LastUpdated, RoleManagerID, RoleManagerNM,
+		    ItemID, TeamRoleType, SortNum, TeamID,
+		    TeamManagerID, curRoleManagerID, rctMemberID, rctMemberNM,
+		    RoleDescription, TMRStatusNM, Assigned
+		FROM Result
+		WHERE rn_dedup = 1      
+		ORDER BY
+		    RNUM,
+		    TeamCode,
+		    RolePriority,          
+		    SortNum,
+		    TeamPath,
+		    TeamNM ASC
+
+		</select>
+		
+		<select id="insertRoleCopyUser" resultType="String" statementType="CALLABLE">
+			{CALL XBOLTADM.INSERT_ROLE_COPY_USER ( #{roleType}, #{memberID}, #{mbrTeamID}, #{itemID}, #{assignmentType}, #{searchUserID}, #{creator}) }
+	</select>
+	
+	<select id="getNewSubItemTeamRoleTreeList" resultType="java.util.HashMap">
+		Select 
+			Distinct T.ItemID
+			,Row_Number()OVER(ORDER BY T.PRE_TREE_ID <if test="elmClassList != null and elmClassList != ''" >,T.SortNum</if> ,T.Identifier ASC )  AS TREE_ID
+			,T.PRE_TREE_ID, T.TREE_NM , T.Identifier <if test="elmClassList != null and elmClassList != ''" >,T.SortNum</if>
+			From (
+				Select TI.ItemID , null AS PRE_TREE_ID , TI.Identifier 
+					<choose>
+						<when test="accMode!= null and accMode!= '' and accMode.equals('OPS')">
+							, ISNULL(TIAR.PlainText,TIA.PlainText) AS TREE_NM
+						</when>
+						<otherwise>
+							, ISNULL(TIA.PlainText,'') AS TREE_NM
+						</otherwise>
+					</choose>
+					<if test="elmClassList != null and elmClassList != ''" >
+				   	, 0 AS SortNum				
+				   </if>
+			    From XBOLTADM.TB_ITEM TI 
+				<choose>
+					<when test="accMode!= null and accMode!= '' and accMode.equals('OPS')">
+					Left outer join XBOLTADM.TV_ITEM_ATTR_REL TIAR on TI.ItemID = TIAR.ItemID AND TIAR.AttrTypeCode = 'AT00001'  AND TIAR.LanguageID = #{languageID}
+					Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA On TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+					</when>
+					<otherwise>
+					Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA On TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+					</otherwise>
+				</choose>
+				Where TI.ItemID = #{s_itemID} 
+					
+				Union All
+					
+				Select Distinct TI.ItemID 						
+					, 1 AS PRE_TREE_ID
+					, TI.Identifier
+					<choose>
+						<when test="accMode!= null and accMode!= '' and accMode.equals('OPS')">
+							, ISNULL(TIAR.PlainText,TIA.PlainText) AS TREE_NM
+						</when>
+						<otherwise>
+							, ISNULL(TIA.PlainText,'') AS TREE_NM
+						</otherwise>
+					</choose>
+			   <if test="elmClassList != null and elmClassList != ''" >
+			   	, TE.SortNum AS SortNum				
+			   </if>
+				From XBOLTADM.TB_ITEM TI
+				Left Outer Join XBOLTADM.TB_TEAM_ROLE TTR ON TTR.ItemID = TI.ItemID
+				<choose>
+					<when test="accMode!= null and accMode!= '' and accMode.equals('OPS')">
+					Left outer join XBOLTADM.TV_ITEM_ATTR_REL TIAR on TI.ItemID = TIAR.ItemID AND TIAR.AttrTypeCode = 'AT00001'  AND TIAR.LanguageID = #{languageID}
+					Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA On TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+					</when>
+					<otherwise>
+					Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA On TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+					</otherwise>
+				</choose>
+				<if test="elmClassList != null and elmClassList != ''" >
+				Inner Join XBOLTADM.TB_ELEMENT TE ON TE.ModelID IN (Select Top 1 ModelID From XBOLTADM.TB_Model Where ItemID = #{s_itemID} And MTCategory = 'BAS') 
+										And TE.ClassCode IN (${elmClassList})  
+										And TE.Link = TTR.ItemID
+				</if>
+				<choose>
+					<when test="elmClassList != null and elmClassList != ''">							
+					</when>
+					<otherwise>
+						Where TI.ItemID IN (select ToItemID From XBOLTADM.TB_ITEM Where FromItemID = #{s_itemID} And CategoryCode = 'ST1' And Deleted != 1)
+						<if test="accMode!= null and accMode!= '' and accMode.equals('OPS')">AND TI.Status NOT IN ('NEW1','NEW2')</if> 
+					</otherwise>
+				</choose>
+		)T
+	</select>
+	
+	<select id="getSubItemTeamRoleInfoList" resultType="java.util.HashMap">
+		Select
+			TI.ItemID
+			, TTR.TeamID
+			,STRING_AGG(CAST(TD.Name AS VARCHAR(MAX)), ' / ') AS TeamRoleTypeNm
+    		,STRING_AGG(CAST(TTR.RoleDescription AS VARCHAR(MAX)), ' / ') AS RoleDescription
+		From XBOLTADM.TB_ITEM TI
+		Left Outer Join XBOLTADM.TB_TEAM_ROLE TTR ON TTR.ItemID = TI.ItemID
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TTR.TeamRoleType And TD.Category = 'TEAMROLETP' And TD.LanguageID = #{languageID}
+		<if test="elmClassList != null and elmClassList != ''" >
+			Inner Join XBOLTADM.TB_ELEMENT TE ON TE.ModelID IN (Select Top 1 ModelID From XBOLTADM.TB_Model Where ItemID = #{s_itemID} And MTCategory = 'BAS') 
+				And TE.ClassCode IN (${elmClassList})  
+				And TE.Link = TTR.ItemID
+		</if>
+		<where>
+			<choose>
+				<when test="elmClassList != null and elmClassList != ''">							
+				</when>
+				<otherwise>
+					 AND TI.ItemID IN (select ToItemID From XBOLTADM.TB_ITEM Where FromItemID = #{s_itemID} And CategoryCode = 'ST1' And Deleted != 1)
+					<if test="accMode!= null and accMode!= '' and accMode.equals('OPS')">AND TI.Status NOT IN ('NEW1','NEW2')</if> 
+				</otherwise>
+			</choose>
+			<choose>
+				<when test="asgnOption != null and asgnOption != '' " >
+					AND TTR.Assigned IN (${asgnOption})
+				</when>
+				<otherwise>
+					AND TTR.Assigned IN (1,2)
+				</otherwise>
+			</choose>
+		</where>
+		GROUP BY TI.ItemID, TTR.TeamID
+	</select>
+	
+</mapper>

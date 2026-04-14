@@ -1,0 +1,103 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="log_SQL">
+
+
+    <insert id="insertOlmApiLog" parameterType="java.util.HashMap">
+
+        INSERT INTO XBOLTADM.TB_OLM_API_LOG
+        (
+        <!-- API REQUEST LOG -->
+        LogID
+        ,ResponseStatus
+        ,ResponseCode
+        ,ResponseMsg
+        ,OrgIdentifier
+
+        ,Identifier
+
+        ,Version
+
+        ,Dimension
+
+		,Lvl1
+        ,Lvl2
+        ,Lvl3
+        ,Lvl4
+
+        ,Etc
+		,UserID
+        ,OperationType
+        ,Direction
+        ,Contents
+        ,CreationTime
+
+
+        ) VALUES (
+        #{logId}
+
+        ,#{status}
+        ,#{code}
+        ,#{msg}
+        ,#{docNo}
+
+        ,#{identifier}
+
+
+        ,#{version}
+
+        ,#{siteName}
+
+        ,#{lvl1}
+        ,#{lvl2}
+        ,#{lvl3}
+        ,#{lvl4}
+
+
+		,#{etc}
+		,#{userId}
+        ,#{opTyp}
+        ,#{direction}
+        ,#{contents}
+        ,Getdate()
+        )
+
+    </insert>
+
+    <insert id="insertOlmApiDimLog" parameterType="java.util.HashMap">
+        INSERT INTO XBOLTADM.TB_OLM_API_LOG_DIM
+        ( SourceDimID
+        , SourceDimName
+        , LogID
+        , CreationTime)
+        VALUES ( #{sourceDimID}
+               , #{sourceDimName}
+               , #{logId}
+               , Getdate())
+
+    </insert>
+
+    <insert id="insertOlmApiFileLog" parameterType="java.util.HashMap">
+        INSERT INTO XBOLTADM.TB_OLM_API_LOG_FILE
+        ( SourceFilePath
+        , SourceSndFileName
+        , SourceOrgFileName
+        , LogID
+        , CreationTime)
+        VALUES ( #{sourceFilePath}
+               , #{sourceSndFileName}
+               , #{sourceOrgFileName}
+               , #{logId}
+               , Getdate())
+
+    </insert>
+
+    <select id="getOlmApiLogMaxID" resultType="String">
+        SELECT ISNULL(MAX(LogID) + 1, 1) as logId
+        FROM XBOLTADM.TB_OLM_API_LOG
+    </select>
+
+
+</mapper>

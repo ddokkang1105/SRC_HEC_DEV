@@ -1,0 +1,2920 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="report_SQL">	
+	<!-- ================================================================ -->
+	 <select id="getItemStrList_gridList" resultType="java.util.HashMap">
+	
+	 	WITH ItemMaster(MyPath, MyItemID)
+			 AS
+			 (
+				SELECT 
+					CONVERT(NVARCHAR(MAX), XBOLTADM.fn_GetMyAbsPathForList(FromItemID, #{languageID}) + '/' + CONVERT(NVARCHAR(MAX), ATR.PlainText)) AS MyPath /*arg0 : 언어*/
+					, ToItemID AS MyItemID
+				FROM 
+						XBOLTADM.TB_ITEM ITM, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE 
+						ITM.FromItemID =  #{s_itemID}					/*arg 0: 선택한 Item*/
+						AND ITM.CategoryCode = 'ST1'
+						AND ITM.Deleted != '1'
+						AND ATR.AttrTypeCode = 'AT00001'
+						AND ATR.LanguageID = #{languageID}
+						AND ATR.ItemID = ITM.FromItemID
+			
+					<if test="delItemsYN == null or delItemsYN == ''">
+						 AND (Select Deleted From XBOLTADM.TB_ITEM Where ItemID = ITM.ToItemID ) != '1'
+					</if>
+				
+				UNION ALL
+
+				SELECT 
+					CONVERT(NVARCHAR(MAX), MyPath + '/' + CONVERT(NVARCHAR(MAX), ATR.PlainText)) AS MyPath
+					, ITM_L.ToItemID AS MyItemID				
+				FROM 
+					XBOLTADM.TB_ITEM ITM_L, XBOLTADM.TB_ITEM_ATTR ATR, ItemMaster LCTE, XBOLTADM.TB_ITEM ITM
+				WHERE
+					ITM_L.Deleted != '1'			
+					AND ITM_L.CategoryCode = 'ST1'										
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID = #{languageID}
+					
+					AND ITM_L.FromItemID = LCTE.MyItemID						
+					AND ITM.ItemID = ITM_L.ToItemID	
+					AND ATR.ItemID = ITM_L.FromItemID	
+			 )
+				, ItemStructure(MyPath, MyItemID)
+			 AS
+			 (
+			 	SELECT 
+		    		CONVERT(NVARCHAR(MAX), XBOLTADM.fn_GetMyAbsPathForList(ItemID, #{languageID})) AS MyPath, ItemID AS MyItemID
+		    	FROM 
+		     		XBOLTADM.TB_ITEM
+		    	WHERE ItemID =  #{s_itemID}	
+		    	
+		    	UNION ALL
+		    	
+				SELECT 
+					MyPath, MyItemID  
+				FROM 
+					ItemMaster	
+			 )
+			 
+			 SELECT Distinct Row_Number()OVER(ORDER BY ITM.Identifier ) as RNUM
+				, ITM_STR.MyPath AS MyPath
+				, ITM_STR.MyItemID AS MyItemID
+				, ITM.Identifier As Identifier
+				, ATR.PlainText AS MyItemName
+				, ATR2.PlainText AS SelectLanguageMyItemName
+				, ITM.Level AS MyLevel
+				, ITM.ClassCode AS MyClassCode
+				, DIC.Name AS MyClassName
+				, ATR_DESC.PlainText AS MyItemDesc
+				, TM.Name As LastUser
+      			, Convert(nvarchar(20),ITM.LastUpdated, 111) AS LastUpdated
+      			, CONVERT(NVARCHAR(MAX), XBOLTADM.fn_GetMyIdentifierPath(ITM.ItemID))+'/'+ITM.Identifier AS  ItemIDPath 
+			 FROM 
+				ItemStructure ITM_STR
+				
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM ITM ON ITM.CategoryCode = 'OJ'	AND ITM.ItemID = ITM_STR.MyItemID
+				
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM FITM ON FITM.ItemID = (Select FromItemID From XBOLTADM.TB_ITEm Where ToItemID = ITM_STR.MyItemID And CategoryCode = 'ST1')
+				
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR ON ATR.AttrTypeCode = 'AT00001'	AND ATR.LanguageID = #{languageID}
+				AND ATR.ItemID = ITM.ItemID
+				
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR2	ON ATR2.AttrTypeCode = 'AT00001'AND ATR2.LanguageID = #{selectLanguageID} AND ATR2.ItemID = ITM.ItemID
+				
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR_DESC	ON ATR_DESC.AttrTypeCode = 'AT00003' AND ATR_DESC.LanguageID = #{languageID}
+				AND ATR_DESC.ItemID = ITM.ItemID
+				
+				LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY DIC	ON DIC.LanguageID = #{languageID}	AND DIC.TypeCode = ITM.ClassCode
+				
+				Left outer join XBOLTADM.TB_MEMBER TM on ITM.LastUser = TM.MemberID
+		
+				<if test='multiple == "Y"'>
+				INNER Join XBOLTADM.TB_MODEL TMDL ON TMDL.ItemID = ITM_STR.MyItemID And TMDL.MTCategory = 'BAS'
+				</if>
+				Left outer join XBOLTADM.TB_ITEM_CLASS TIC on ITM.ClassCode = TIC.ItemClassCode
+				WHERE
+					1 = 1
+				
+					<if test="ClassCode != null and ClassCode != ''">
+						AND ITM.ClassCode =#{ClassCode}
+					</if>
+					<if test="modelItemClass != null and modelItemClass != ''">
+						 <![CDATA[ 
+						AND ITM.ClassCode <= #{modelItemClass}
+						 ]]>
+					</if>
+					<if test="outPutItems != null and outPutItems != ''">
+						AND ITM.ItemID IN (${outPutItems})
+					</if>
+					<if test="maxLevel != null and maxLevel != ''">
+						 <![CDATA[ AND TIC.Level <= #{maxLevel} ]]>
+					</if>
+			
+			ORDER BY ItemIDPath, Identifier
+		
+	</select>
+	 <select id="itemAttrHeaderByHierarchStr_gridList" resultType="java.util.HashMap">
+		SELECT Row_Number()OVER(ORDER BY A.GSortNum) as RNUM 
+			, 0 CHK
+			, A.AttrType, A.AttrName
+			, A.GSortNum
+		FROM (
+			SELECT
+				Distinct TATA.AttrTypeCode AS AttrType, DIC.Name as AttrName, TATA.GSortNum		
+			FROM 
+				XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA			
+				LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY DIC ON DIC.LanguageID = #{languageID} AND DIC.Category = 'AT' AND DIC.TypeCode = TATA.AttrTypeCode					
+				<if test='"Y".equalsIgnoreCase(itemMstListWLang)'>				
+				 LEFT OUTER JOIN XBOLTADM.TB_ATTR_TYPE TAT ON TAT.AttrTypeCode = TATA.AttrTypeCode 		
+				</if>
+			<where> 
+				<choose>
+					<when test="itemTypeCode != null and itemTypeCode != ''">
+						 TATA.ItemTypeCode = #{itemTypeCode}
+					</when>
+					<otherwise>
+						AND TATA.ItemTypeCode IN (Select ItemTypeCode From XBOLTADM.TB_ITEM ITM where ItemID = #{s_itemID} )
+					</otherwise>
+				</choose>
+				<choose>
+					<when test="Mandatory != null and Mandatory != ''">
+						 AND ISNULL(TATA.Mandatory, '') = 1	
+					</when>
+					<otherwise>			
+						And TATA.AttrTypeCode not in	
+						(SELECT Distinct AttrTypeCode
+						FROM XBOLTADM.TB_ATTR_TYPE_ALLOCATION
+						<where>	1=1
+							<choose>
+								<when test="itemTypeCode != null and itemTypeCode != ''">
+									AND ItemTypeCode = #{itemTypeCode}
+								</when>
+								<otherwise>		
+									AND ItemTypeCode = (Select ItemTypeCode From XBOLTADM.TB_ITEM ITM where ItemID = #{s_itemID})
+								</otherwise>
+							</choose>
+							AND Mandatory = 1)
+						</where>		
+					</otherwise>
+				</choose>
+				<if test='"Y".equalsIgnoreCase(itemMstListWLang)'>And TAT.DataType = 'Text' And TAT.IsComLang != 1</if>
+			</where>
+		) A	ORDER BY A.GSortNum		
+	</select>
+	 <select id="itemAttrHeaderByHierarchStr" resultType="java.util.HashMap">
+		<![CDATA[
+		SELECT 
+			ATR_TYP.AttrTypeCode AS AttrType, DIC.Name as AttrName, COUNT(*) AS CNT
+			
+		FROM 
+			XBOLTADM.TB_ATTR_TYPE_ALLOCATION ATR_TYP			
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY DIC
+			ON DIC.LanguageID = #{languageID}
+			AND DIC.Category = 'AT'
+			AND DIC.TypeCode = ATR_TYP.AttrTypeCode		
+		
+		]]>
+		<where>
+			<if test="ClassCode != null and ClassCode != ''">
+				ATR_TYP.ItemClassCode = #{ClassCode}
+			</if>
+		</where>		
+		<![CDATA[
+		GROUP BY 
+			ATR_TYP.AttrTypeCode, DIC.Name
+			
+		ORDER BY
+			CNT DESC		
+		]]>
+	</select>
+	<select id="itemAttrByHierarchStr" resultType="java.util.HashMap">
+		<![CDATA[
+			 WITH ItemMaster(MyParentID, MyItemID)
+			 AS
+			 (
+				SELECT 
+					FromItemID AS MyParentID, ToItemID AS MyItemID
+				FROM 
+						XBOLTADM.TB_ITEM ITM
+				WHERE 
+						ITM.FromItemID = #{s_itemID}				/*arg 0: 선택한 Item*/
+						AND ITM.CategoryCode = 'ST1'
+						AND ITM.ClassCode = 'NL00000'
+						AND ITM.Deleted != '1'
+						
+				UNION ALL
+
+				SELECT 
+					ITM_L.FromItemID AS MyParentID
+					, ITM_L.ToItemID AS MyItemID				
+				FROM 
+					XBOLTADM.TB_ITEM ITM_L, ItemMaster LCTE, XBOLTADM.TB_ITEM ITM
+				WHERE
+					ITM_L.Deleted != '1'
+					AND ITM_L.CategoryCode = 'ST1'							
+					AND ITM_L.ClassCode = 'NL00000'					
+					AND ITM_L.FromItemID = LCTE.MyItemID						
+					AND ITM.ItemID = ITM_L.ToItemID	
+			 )
+				, ItemStructure(MyPath, MyItemID)
+			 AS
+			 (
+				SELECT MyParentID, MyItemID  FROM ItemMaster				
+				UNION ALL				
+				SELECT IM.MyItemID AS MyParentID, OCC.ObjectID AS MyItemID
+				FROM
+					ItemMaster IM, XBOLTADM.TB_MODEL MDL					
+					LEFT OUTER JOIN XBOLTADM.TB_ITEM_OCC OCC
+					ON OCC.CategoryCode = 'OJ' 
+					AND MDL.ModelID = OCC.ModelID
+					
+				WHERE
+					IM.MyItemID = MDL.ItemID
+					AND MDL.ModelTypeCode = 'MT001'			/*arg3:	Model Type (ex> Process Flow Chart)*/
+					AND MDL.MTCategory IN ('BAS')			/*arg4:   Model Categrory (ex> Base, To-be etc.)*/
+			 )
+			 
+			 SELECT 
+				ITM_STR.MyPath AS MyParentID
+				, ITM_STR.MyItemID AS MyItemID
+				, ITM.Identifier As Identifier
+				, ATR_VAL.AttrTypeCode AS AttrType
+				, ATR_VAL.PlainText AS AttrValue				
+			 FROM 
+				ItemStructure ITM_STR
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM ITM
+				ON ITM.CategoryCode = 'OJ'
+				AND ITM.ItemID = ITM_STR.MyItemID				
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR
+				ON ATR.AttrTypeCode = 'AT00001'						
+				AND ATR.LanguageID = #{languageID}
+				AND ATR.ItemID = ITM_STR.MyItemID
+				INNER JOIN XBOLTADM.TB_ITEM_ATTR ATR_VAL
+				ON ATR_VAL.LanguageID = #{languageID}
+				AND ATR_VAL.ItemID = ATR.ItemID
+			]]>
+				<if test="AttrTypeCode.size >0 ">
+				AND ATR_VAL.AttrTypeCode IN
+					<foreach collection="AttrTypeCode" item="atCode" index="index" open="(" separator="," close=")">
+						{#atCode}
+					</foreach>
+				</if>
+				<where>
+					<if test="MyItemID != null and MyItemID != ''">
+						MyItemID = #{MyItemID}
+					</if>
+				</where>
+		<![CDATA[
+			 ORDER BY 
+				Identifier		
+		]]>
+	</select>	
+	
+	<select id="getItemAttr" resultType="java.util.HashMap">
+		SELECT 
+			TIA.ItemID
+      		, TIA.AttrTypeCode AS AttrType
+      		, TIA.PlainText AS AttrValue		
+      		, TIA.LovCode
+			, TATL.Value AS LovValue
+      		, TIA.ClassCode
+      		, TAT.HTML
+  		FROM XBOLTADM.TB_ITEM_ATTR TIA
+		left outer join XBOLTADM.TB_ATTR_TYPE_LOV TATL on TIA.LovCode = TATL.LovCode and TATL.LanguageID = #{languageID}
+		left outer join XBOLTADM.TB_ATTR_TYPE TAT on TIA.AttrTypeCode = TAT.AttrTypeCode
+		WHERE ItemID = #{itemID}
+		AND TIA.LanguageID = #{languageID}
+	</select>	
+	
+	<select id="getIsComLang" resultType="java.util.HashMap">
+		SELECT IsComLang, DataType 
+		FROM XBOLTADM.TB_ATTR_TYPE 
+		WHERE AttrTypeCode = #{AttrTypeCode}
+	</select>
+	
+	<select id="getAttrLovValue" resultType="String">
+		SELECT distinct T1.Value As LovValue
+      	FROM XBOLTADM.TB_ATTR_TYPE_LOV T1
+  		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR T2
+  		on T2.ItemID = #{ItemID} and  T1.AttrTypeCode = T2.AttrTypeCode AND T1.LanguageID = #{LanguageID}
+  		WHERE T1.AttrTypeCode = #{AttrTypeCode} 
+  		AND T1.LanguageID = #{LanguageID}
+  		AND T1.LovCode = T2.LovCode
+	</select>
+	
+	<select id="getAttrValue" resultType="String">
+		SELECT PlainText
+		FROM XBOLTADM.TB_ITEM_ATTR
+		WHERE 
+		ItemID= #{ItemID}
+		AND AttrTypeCode = #{AttrTypeCode}
+		AND LanguageID = #{LanguageID}
+		
+	</select>
+	
+	<!-- ================================================================ -->
+
+
+	<!-- ================================================================ -->
+	<select id="processTotalCnt" resultType="String">
+		SELECT Count(*) totalCnt 
+		FROM XBOLTADM.TB_ITEM ITM, XBOLTADM.TB_ITEM_ATTR ATR
+		WHERE ITM.FromItemID = #{s_itemID}	
+			AND ITM.CategoryCode = 'ST1'
+			/*AND ITM.ClassCode = 'NL00000'*/
+			AND ITM.Deleted != '1'
+			AND ATR.AttrTypeCode = 'AT00001'
+			AND ATR.LanguageID = #{languageID}
+			AND ATR.ItemID = ITM.FromItemID
+	</select>
+	<!-- Process Definition -->
+	 <select id="processList" resultType="java.util.HashMap">
+		<![CDATA[
+			 WITH ItemMaster(MyPath, MyItemID)
+			 AS
+			 (
+				SELECT 
+					CONVERT(NVARCHAR(MAX), XBOLTADM.fn_GetMyPath(FromItemID, #{languageID}, 'NM', 1) + '\' + CONVERT(NVARCHAR(MAX), ATR.PlainText)) AS MyPath /*arg0 : 언어*/
+					, ToItemID AS MyItemID
+				FROM 
+						XBOLTADM.TB_ITEM ITM, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE 
+						ITM.FromItemID = #{s_itemID}						/*arg 0: 선택한 Item*/
+						AND ITM.CategoryCode = 'ST1'
+						AND ITM.Deleted != '1'
+						AND ATR.AttrTypeCode = 'AT00001'
+						AND ATR.LanguageID = #{languageID}
+						AND ATR.ItemID = ITM.FromItemID
+						
+				UNION ALL
+				SELECT 
+					CONVERT(NVARCHAR(MAX), MyPath + '\' + CONVERT(NVARCHAR(MAX), ATR.PlainText)) AS MyPath
+					, ITM_L.ToItemID AS MyItemID				
+				FROM 
+					XBOLTADM.TB_ITEM ITM_L, XBOLTADM.TB_ITEM_ATTR ATR, ItemMaster LCTE, XBOLTADM.TB_ITEM ITM
+				WHERE
+					ITM_L.Deleted != '1'			
+					AND ITM_L.CategoryCode = 'ST1'							
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID = #{languageID}
+					
+					AND ITM_L.FromItemID = LCTE.MyItemID						
+					AND ITM.ItemID = ITM_L.ToItemID	
+					AND ATR.ItemID = ITM_L.FromItemID	
+			 )
+			 
+			 SELECT 
+				ITM_STR.MyPath AS MyPath
+				, ITM_STR.MyItemID AS MyItemID
+				, ATR.PlainText AS MyItemName
+				, ITM.Level AS MyLevel
+				, ITM.ClassCode AS MyClassCode
+				, DIC.Name AS MyClassName
+				, ATR_DESC.PlainText AS MyItemDesc
+				, ITM.OwnerTeamID AS OwnerTeamID
+				, TM_TXT.Name AS OwnerTeamNM
+				, CONVERT(VARCHAR, ITM.CreationTime,111) AS CreateDT
+				, ITM.AuthorID AS AuthorID
+				, MBR_AT.Name AS AuthorNM
+				, CONVERT(VARCHAR, ITM.LastUpdated,111) AS LastUpdateDT
+				, ITM.LastUser AS LastUser
+				, MBR_LU.Name AS LastUserNM	
+			 FROM 
+				ItemMaster ITM_STR, XBOLTADM.TB_ITEM ITM				
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR
+					ON ATR.AttrTypeCode = 'AT00001'						
+					AND ATR.LanguageID = #{languageID}
+					AND ATR.ItemID = ITM.ItemID				
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR_DESC
+					ON ATR_DESC.AttrTypeCode = 'AT00003'				
+					AND ATR_DESC.LanguageID = #{languageID}
+					AND ATR_DESC.ItemID = ITM.ItemID				
+				LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY DIC
+					ON DIC.LanguageID = #{languageID}
+					AND DIC.Category = 'CLS'
+					AND DIC.TypeCode = ITM.ClassCode
+				LEFT OUTER JOIN XBOLTADM.TB_TEAM TM
+					ON TM.TeamID = ITM.OwnerTeamID
+				LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TM_TXT
+					ON TM_TXT.TeamID = TM.TeamID
+					AND TM_TXT.LanguageID = #{languageID}
+				LEFT OUTER JOIN XBOLTADM.TB_MEMBER MBR_LU
+					ON MBR_LU.MemberID = ITM.LastUser
+				LEFT OUTER JOIN XBOLTADM.TB_MEMBER MBR_AT
+					ON MBR_AT.MemberID = ITM.AuthorID	
+			WHERE
+				ITM.CategoryCode = 'OJ'
+				AND ITM.ClassCode = 'CL01005'			/*프로세스만 조회  :: AND ITM.ClassCode = 'CL01004'*/									
+				AND ITM.ItemID = ITM_STR.MyItemID	
+				
+			ORDER BY 
+				MyPath + '\' + ATR.PlainText			 	
+			]]>
+	</select>	
+	 <select id="processList_back" resultType="java.util.HashMap">
+		<![CDATA[
+			 WITH ItemMaster(MyPath, MyItemID) /* processList */
+			 AS
+			 (
+				SELECT 
+					CONVERT(NVARCHAR(MAX), XBOLTADM.fn_GetMyPath(FromItemID, #{languageID}, 'NM', 1) + '\' + CONVERT(NVARCHAR(MAX), ATR.PlainText)) AS MyPath /*arg0 : 언어*/
+					, ToItemID AS MyItemID
+				FROM XBOLTADM.TB_ITEM ITM, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE  1=1
+						]]>
+						<choose>
+							<when test="schType != null and schType != ''">
+								AND ITM.ToItemID = #{s_itemID}						/*arg 0: 선택한 Item*/
+							</when>
+							<otherwise>
+								AND ITM.FromItemID = #{s_itemID}						/*arg 0: 선택한 Item*/
+							</otherwise>
+						</choose>
+						<![CDATA[
+						AND ITM.CategoryCode = 'ST1'
+						AND ITM.ClassCode = 'NL00000'
+						AND ITM.Deleted != '1'
+						AND ATR.AttrTypeCode = 'AT00001'
+						AND ATR.LanguageID = #{languageID}
+						AND ATR.ItemID = ITM.FromItemID						
+				UNION ALL
+				SELECT 
+					CONVERT(NVARCHAR(MAX), MyPath + '\' + CONVERT(NVARCHAR(MAX), ATR.PlainText)) AS MyPath
+					, ITM_L.ToItemID AS MyItemID				
+				FROM 
+					XBOLTADM.TB_ITEM ITM_L, XBOLTADM.TB_ITEM_ATTR ATR, ItemMaster LCTE, XBOLTADM.TB_ITEM ITM
+				WHERE
+					ITM_L.Deleted != '1'			
+					AND ITM_L.CategoryCode = 'ST1'							
+					AND ITM_L.ClassCode = 'NL00000'							
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID = #{languageID}
+					AND ITM.ItemID = ITM_L.ToItemID	
+					AND ATR.ItemID = ITM_L.FromItemID	
+			 )
+			 
+			 SELECT 
+				ITM_STR.MyPath AS MyPath
+				, ITM_STR.MyItemID AS MyItemID
+				, ATR.PlainText AS MyItemName
+				, ITM.Level AS MyLevel
+				, ITM.ClassCode AS MyClassCode
+				, DIC.Name AS MyClassName
+				, ATR_DESC.PlainText AS MyItemDesc
+				, ITM.OwnerTeamID AS OwnerTeamID
+				, TM_TXT.Name AS OwnerTeamNM
+				, CONVERT(VARCHAR, ITM.CreationTime,111) AS CreateDT
+				, ITM.AuthorID AS AuthorID
+				, MBR_AT.Name AS AuthorNM
+				, CONVERT(VARCHAR, ITM.LastUpdated,111) AS LastUpdateDT
+				, ITM.LastUser AS LastUser
+				, MBR_LU.Name AS LastUserNM				
+			 FROM 
+				ItemMaster ITM_STR, XBOLTADM.TB_ITEM ITM				
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR
+				ON ATR.AttrTypeCode = 'AT00001'						
+				AND ATR.LanguageID = #{languageID}
+				AND ATR.ItemID = ITM.ItemID				
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR_DESC
+				ON ATR_DESC.AttrTypeCode = 'AT00003'				
+				AND ATR_DESC.LanguageID = #{languageID}
+				AND ATR_DESC.ItemID = ITM.ItemID				
+				LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY DIC
+				ON DIC.LanguageID = #{languageID}
+				AND DIC.Category = 'CL'
+				AND DIC.TypeCode = ITM.ClassCode
+				LEFT OUTER JOIN XBOLTADM.TB_TEAM TM
+				ON TM.TeamID = ITM.OwnerTeamID
+				LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TM_TXT
+				ON TM_TXT.TeamID = TM.TeamID
+				AND TM_TXT.LanguageID = #{languageID}
+				LEFT OUTER JOIN XBOLTADM.TB_MEMBER MBR_LU
+				ON MBR_LU.MemberID = ITM.LastUser
+				LEFT OUTER JOIN XBOLTADM.TB_MEMBER MBR_AT
+				ON MBR_AT.MemberID = ITM.AuthorID			
+			WHERE
+				ITM.CategoryCode = 'OJ'
+				AND ITM.ItemTypeCode IN (Select ObjTypeCode FROM XBOLTADM.TB_ARC_FILTER_DIM where ArcCode = #{ArcCode})		/*arg 2: 출력할 Architecture Code*/	
+				AND ITM.ClassCode = 'CL01004'						/*프로세스만 조회*/									
+				AND ITM.ItemID = ITM_STR.MyItemID					
+			ORDER BY 
+				MyPath + '\' + ATR.PlainText			 	
+			]]>
+	</select>	
+
+	<select id="itemPrcAttrHeaderByProcess" resultType="java.util.HashMap">
+	<![CDATA[
+		SELECT  /* itemAttrHeaderByProcess */
+			ATR_TYP.ItemClassCode AS ClassCode, ATR_TYP.AttrTypeCode AS AttrType, DIC.Name as AttrName, ISNULL(ATR_TYP.SortNum,99) AS SortNum
+			
+		FROM 
+			XBOLTADM.TB_ATTR_TYPE_ALLOCATION ATR_TYP			
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY DIC
+				ON DIC.LanguageID = #{languageID}
+				AND DIC.Category = 'AT'
+				AND DIC.TypeCode = ATR_TYP.AttrTypeCode		
+		WHERE 1=1 
+			AND ATR_TYP.ItemClassCode = 'CL01004'		/*프로세스만*/			
+		ORDER BY
+			ClassCode, SortNUM	
+	]]>
+	</select>
+	
+	<select id="itemActAttrHeaderByProcess" resultType="java.util.HashMap">
+	<![CDATA[
+		SELECT  /* itemAttrHeaderByProcess */
+			ATR_TYP.ItemClassCode AS ClassCode, ATR_TYP.AttrTypeCode AS AttrType, DIC.Name as AttrName, ISNULL(ATR_TYP.SortNum,99) AS SortNum
+			
+		FROM 
+			XBOLTADM.TB_ATTR_TYPE_ALLOCATION ATR_TYP			
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY DIC
+			ON DIC.LanguageID = #{languageID}
+			AND DIC.Category = 'AT'
+			AND DIC.TypeCode = ATR_TYP.AttrTypeCode		
+		WHERE 1=1 
+			AND ATR_TYP.ItemClassCode = 'CL01005'			/*액티비티만*/			
+		ORDER BY
+			ClassCode, SortNUM	
+	]]>
+	</select>
+		
+	<select id="itemAttrByProcess" resultType="java.util.HashMap">
+	<![CDATA[ 
+			 WITH ItemMaster(MyParentID, MyItemID)   /* itemAttrByProcess */
+			 AS
+			 (
+				SELECT FromItemID AS MyParentID, ToItemID AS MyItemID
+				FROM 
+						XBOLTADM.TB_ITEM ITM
+				WHERE 
+						ITM.FromItemID = #{s_itemID}					/*arg 0: 선택한 Item*/
+						AND ITM.CategoryCode = 'ST1'
+						AND ITM.Deleted != '1'						
+				UNION ALL
+				SELECT 
+					ITM_L.FromItemID AS MyParentID
+					, ITM_L.ToItemID AS MyItemID				
+				FROM 
+					XBOLTADM.TB_ITEM ITM_L, ItemMaster LCTE, XBOLTADM.TB_ITEM ITM
+				WHERE
+					ITM_L.Deleted != '1'			
+					AND ITM_L.CategoryCode = 'ST1'							
+					
+					AND ITM_L.FromItemID = LCTE.MyItemID						
+					AND ITM.ItemID = ITM_L.ToItemID	
+			 )
+				, ItemStructure(MyPath, MyItemID)
+			 AS
+			 (
+				SELECT 	MyParentID, MyItemID  FROM ItemMaster				
+				UNION ALL				
+				SELECT 
+					IM.MyItemID AS MyParentID, OCC.ObjectID AS MyItemID
+				FROM
+					ItemMaster IM, XBOLTADM.TB_MODEL MDL
+					
+					LEFT OUTER JOIN XBOLTADM.TB_ITEM_OCC OCC
+					ON OCC.CategoryCode = 'OJ' 
+					AND MDL.ModelID = OCC.ModelID
+					
+				WHERE
+					IM.MyItemID = MDL.ItemID
+					AND MDL.ModelTypeCode = 'MT001'			/*arg3:	Model Type (ex> Process Flow Chart)*/
+					AND MDL.MTCategory IN ('BAS')			/*arg4:   Model Categrory (ex> Base, To-be etc.)*/
+			 )
+			 
+			 SELECT 
+				ITM_STR.MyPath AS MyParentID
+				, ITM_STR.MyItemID AS MyItemID
+				, ITM.ClassCode AS ClassCode
+				, ATR_TYP.AttrTypeCode AS AttrType
+				, ATR_VAL.PlainText AS AttrValue
+				, ATR_TYP.SortNum AS SortNum
+				, 'N' AS IsCheck				
+			 FROM 
+				ItemStructure ITM_STR, XBOLTADM.TB_ITEM ITM
+				
+				INNER JOIN XBOLTADM.TB_ATTR_TYPE_ALLOCATION ATR_TYP
+				ON ATR_TYP.ItemClassCode = ITM.ClassCode
+
+				INNER JOIN XBOLTADM.TB_ITEM_ATTR ATR_VAL
+				ON ATR_VAL.LanguageID = #{languageID}
+				AND ATR_VAL.ItemID = ITM.ItemID
+				AND ATR_VAL.AttrTypeCode = ATR_TYP.AttrTypeCode
+			
+			 WHERE
+				ITM.CategoryCode = 'OJ'
+				AND ITM.ItemID = ITM_STR.MyItemID
+				AND ITM.ClassCode IN ('CL01004', 'CL01005')					/*프로세스와 모델 조회*/
+					
+			 ORDER BY 
+				ITM_STR.MyPath, ITM_STR.MyItemID, ITM.ClassCode, ATR_TYP.SortNum	
+	]]>
+	</select>
+
+	<select id="activityListByProcess" resultType="java.util.HashMap">
+	<![CDATA[
+			 WITH ItemMaster(MyPath, MyItemID)    /* activityListByProcess */
+			 AS
+			 (
+				SELECT 
+					CONVERT(NVARCHAR(MAX), XBOLTADM.fn_GetMyPath(FromItemID, #{languageID}, 'NM', 1) + '\' + CONVERT(NVARCHAR(MAX), ATR.PlainText)) AS MyPath /*arg0 : 언어*/
+					, ToItemID AS MyItemID
+				FROM 
+						XBOLTADM.TB_ITEM ITM, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE 
+						ITM.FromItemID = #{s_itemID}					/*arg 0: 선택한 Item*/
+						AND ITM.CategoryCode = 'ST1'
+					/*	AND ITM.ClassCode = 'NL00000'	*/
+						AND ITM.Deleted != '1'
+						AND ATR.AttrTypeCode = 'AT00001'
+						AND ATR.LanguageID = #{languageID}
+						AND ATR.ItemID = ITM.FromItemID
+						
+				UNION ALL
+				SELECT 
+					CONVERT(NVARCHAR(MAX), MyPath + '\' + CONVERT(NVARCHAR(MAX), ATR.PlainText)) AS MyPath
+					, ITM_L.ToItemID AS MyItemID				
+				FROM 
+					XBOLTADM.TB_ITEM ITM_L, XBOLTADM.TB_ITEM_ATTR ATR, ItemMaster LCTE, XBOLTADM.TB_ITEM ITM
+				WHERE
+					ITM_L.Deleted != '1'			
+					AND ITM_L.CategoryCode = 'ST1'							
+				/*	AND ITM_L.ClassCode = 'NL00000'	*/							
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID = #{languageID}
+					AND ITM_L.FromItemID = LCTE.MyItemID						
+					AND ITM.ItemID = ITM_L.ToItemID	
+					AND ATR.ItemID = ITM_L.FromItemID	
+			 )
+			 , ItemStructure(MyPath, MyItemID)
+			 AS
+			 (
+				SELECT MyPath, MyItemID FROM ItemMaster				
+				UNION ALL				
+				SELECT CONVERT(NVARCHAR(MAX), MyPath + '\' + CONVERT(NVARCHAR(MAX), ATR.PlainText)) AS MyPath, OCC.ObjectID AS MyItemID
+				FROM ItemMaster IM, XBOLTADM.TB_MODEL MDL
+					
+					LEFT OUTER JOIN XBOLTADM.TB_ITEM_OCC OCC
+						ON OCC.CategoryCode = 'OJ' 
+						AND MDL.ModelID = OCC.ModelID
+					
+					, XBOLTADM.TB_ITEM_ATTR ATR					
+				WHERE
+					IM.MyItemID = MDL.ItemID
+					AND MDL.ModelTypeCode = 'MT001'			/*arg3:	Model Type (ex> Process Flow Chart)*/
+					AND MDL.MTCategory IN ('BAS')			/*arg4:   Model Categrory (ex> Base, To-be etc.)*/					
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID = #{languageID}
+					AND ATR.ItemID = IM.MyItemID
+			 )
+			 SELECT 
+				ITM_STR.MyPath AS MyPath
+				, ITM_STR.MyItemID AS MyItemID
+				, ATR.PlainText AS MyItemName
+				, ITM.Level AS MyLevel
+				, ITM.ClassCode AS MyClassCode
+				, DIC.Name AS MyClassName
+				, ATR_DESC.PlainText AS MyItemDesc
+				, ITM.OwnerTeamID AS OwnerTeamID
+				, TM_TXT.Name AS OwnerTeamNM
+				, CONVERT(VARCHAR, ITM.CreationTime,111) AS CreateDT
+				, ITM.AuthorID AS AuthorID
+				, MBR_AT.Name AS AuthorNM
+				, CONVERT(VARCHAR, ITM.LastUpdated,111) AS LastUpdateDT
+				, ITM.LastUser AS LastUser
+				, MBR_LU.Name AS LastUserNM				
+			 FROM 
+				ItemStructure ITM_STR, XBOLTADM.TB_ITEM ITM				
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR
+					ON ATR.AttrTypeCode = 'AT00001'						
+					AND ATR.LanguageID = #{languageID}
+					AND ATR.ItemID = ITM.ItemID				
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR_DESC
+					ON ATR_DESC.AttrTypeCode = 'AT00003'				
+					AND ATR_DESC.LanguageID = #{languageID}
+					AND ATR_DESC.ItemID = ITM.ItemID				
+				LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY DIC
+					ON DIC.LanguageID = #{languageID}
+					AND DIC.Category = 'CLS'
+					AND DIC.TypeCode = ITM.ClassCode
+				LEFT OUTER JOIN XBOLTADM.TB_TEAM TM
+					ON TM.TeamID = ITM.OwnerTeamID
+				LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TM_TXT
+					ON TM_TXT.TeamID = TM.TeamID
+					AND TM_TXT.LanguageID = #{languageID}
+				LEFT OUTER JOIN XBOLTADM.TB_MEMBER MBR_LU
+					ON MBR_LU.MemberID = ITM.LastUser
+				LEFT OUTER JOIN XBOLTADM.TB_MEMBER MBR_AT
+				ON MBR_AT.MemberID = ITM.AuthorID			
+			WHERE
+				ITM.CategoryCode = 'OJ'
+				AND ITM.ClassCode = 'CL01006'						/*액티비티만 조회	*/								
+				AND ITM.ItemID = ITM_STR.MyItemID					
+			ORDER BY 
+				MyPath + '\' + ATR.PlainText	
+	]]>
+	</select>
+	<select id="tipListByProcess" resultType="java.util.HashMap">
+	<![CDATA[
+			 WITH ItemMaster(MyPath, MyItemID)    /* tipListByProcess */
+			 AS
+			 (
+				SELECT 
+					CONVERT(NVARCHAR(MAX), XBOLTADM.fn_GetMyPath(FromItemID, #{languageID}, 'NM', 1) + '\' + CONVERT(NVARCHAR(MAX), ATR.PlainText)) AS MyPath /*arg0 : 언어*/
+					, ToItemID AS MyItemID
+				FROM 
+						XBOLTADM.TB_ITEM ITM, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE 
+						ITM.FromItemID = #{s_itemID}					/*arg 0: 선택한 Item*/
+						AND ITM.CategoryCode = 'ST1'
+						AND ITM.ClassCode = 'NL00000'
+						AND ITM.Deleted != '1'
+						AND ATR.AttrTypeCode = 'AT00001'
+						AND ATR.LanguageID = #{languageID}
+						AND ATR.ItemID = ITM.FromItemID
+						
+				UNION ALL
+				SELECT 
+					CONVERT(NVARCHAR(MAX), MyPath + '\' + CONVERT(NVARCHAR(MAX), ATR.PlainText)) AS MyPath
+					, ITM_L.ToItemID AS MyItemID				
+				FROM 
+					XBOLTADM.TB_ITEM ITM_L, XBOLTADM.TB_ITEM_ATTR ATR, ItemMaster LCTE, XBOLTADM.TB_ITEM ITM
+				WHERE
+					ITM_L.Deleted != '1'			
+					AND ITM_L.CategoryCode = 'ST1'							
+					AND ITM_L.ClassCode = 'NL00000'							
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID = #{languageID}
+					AND ITM_L.FromItemID = LCTE.MyItemID						
+					AND ITM.ItemID = ITM_L.ToItemID	
+					AND ATR.ItemID = ITM_L.FromItemID	
+			 )
+			 , ItemStructure(MyPath, MyItemID)
+			 AS
+			 (
+				SELECT MyPath, MyItemID FROM ItemMaster				
+				UNION ALL				
+				SELECT CONVERT(NVARCHAR(MAX), MyPath + '\' + CONVERT(NVARCHAR(MAX), ATR.PlainText)) AS MyPath, OCC.ObjectID AS MyItemID
+				FROM ItemMaster IM, XBOLTADM.TB_MODEL MDL
+					
+					LEFT OUTER JOIN XBOLTADM.TB_ITEM_OCC OCC
+						ON OCC.CategoryCode = 'OJ' 
+						AND MDL.ModelID = OCC.ModelID
+					
+					, XBOLTADM.TB_ITEM_ATTR ATR					
+				WHERE
+					IM.MyItemID = MDL.ItemID
+					AND MDL.ModelTypeCode = 'MT001'			/*arg3:	Model Type (ex> Process Flow Chart)*/
+					AND MDL.MTCategory IN ('BAS')			/*arg4:   Model Categrory (ex> Base, To-be etc.)*/					
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID = #{languageID}
+					AND ATR.ItemID = IM.MyItemID
+			 )
+			 SELECT 
+				ITM_STR.MyItemID AS MyItemID
+				, PRT.Subject, PRT.Content, convert(char(10), PRT.CreationTime, 126) AS Date
+			 FROM 
+				ItemStructure ITM_STR, XBOLTADM.TB_ITEM ITM				
+				INNER JOIN XBOLTADM.TB_ADD_PRACTICE PRT
+					ON PRT.ItemID = ITM.ItemID AND Category ='T'			
+			WHERE
+				ITM.CategoryCode = 'OJ'
+				AND ITM.ItemTypeCode IN (Select ObjTypeCode FROM XBOLTADM.TB_ARC_FILTER_DIM where ArcCode = #{ArcCode})		/*arg 2: 출력할 Architecture Code*/	
+				AND ITM.ClassCode = 'CL01004'						/*프로세스만 조회*/									
+				AND ITM.ItemID = ITM_STR.MyItemID					
+			ORDER BY 
+				MyItemID, PRT.CreationTime DESC	
+	]]>
+	</select>
+	
+	<select id="getUserInfo" resultType="java.util.HashMap">
+		SELECT
+			CompanyID, TeamID
+		FROM
+			XBOLTADM.TB_MEMBER
+		WHERE
+			MemberID = #{userId}
+	</select>
+	
+	<select id="getCountWithItemId" resultType="String">
+		SELECT Count(*) totalCnt 
+		FROM
+			XBOLTADM.TB_ITEM
+		WHERE
+			ItemID = #{ItemID}
+	</select>
+	
+	<select id="getCountWithIdentifier" resultType="String">
+		SELECT Count(*) totalCnt 
+		FROM
+			XBOLTADM.TB_ITEM
+		WHERE Deleted != '1' and Identifier = #{Identifier}
+		<if test="ClassCode != null and ClassCode != ''">
+			AND ClassCode = #{ClassCode}
+		</if>
+		<if test="ItemTypeCode != null and ItemTypeCode != ''">
+			AND ItemTypeCode = #{ItemTypeCode}
+		</if>
+		<if test="s_itemID != null and s_itemID != ''">
+			AND ItemTypeCode = (SELECT ItemTypeCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{s_itemID})
+		</if>
+	</select>
+	
+	<select id="isExistItemAttr" resultType="String">
+		SELECT Count(*) totalCnt 
+		FROM
+			XBOLTADM.TB_ITEM_ATTR
+		WHERE
+			ItemID = #{ItemID}
+			AND AttrTypeCode = #{AttrTypeCode}
+			AND LanguageID = #{LanguageID}
+	</select>
+	
+	<select id="getItemIdWithIdentifier" resultType="String">
+		SELECT Top 1 ItemID
+		FROM 
+			XBOLTADM.TB_ITEM
+		WHERE 1=1
+			<if test="Identifier != null and Identifier != ''">
+				And Identifier = #{Identifier}
+			</if>
+			<if test="ClassCode != null and ClassCode != ''">
+				AND ClassCode = #{ClassCode}
+			</if>
+			<if test="ItemTypeCode != null and ItemTypeCode != ''">
+				AND ItemTypeCode = #{ItemTypeCode}
+			</if>
+			<if test="s_itemID != null and s_itemID != ''">
+				AND ItemTypeCode = (SELECT ItemTypeCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{s_itemID})
+			</if>
+  			And Deleted != '1'
+	</select>
+	
+	<select id="getItemIdWithIdentifierList" resultType="java.util.HashMap">
+		SELECT ItemID
+		FROM 
+			XBOLTADM.TB_ITEM
+		WHERE
+			Identifier = #{Identifier}
+			<if test="ClassCode != null and ClassCode != ''">
+				AND ClassCode = #{ClassCode}
+			</if>
+  			And Deleted != '1'
+	</select>
+
+	
+	<!-- ================================================================ -->
+	
+	<select id="itemDimValue_gridList" resultType="java.util.HashMap">		
+			SELECT
+			Row_Number()OVER(ORDER BY  TDV.DimValueID ASC) as RNUM 
+			, 0 CHK
+			, TIA.PlainText As DimTypeName
+			, TDV.DimValueID AS DimValueID
+			, TDVT.Name As DimValueName
+		FROM 
+			XBOLTADM.TB_DIM_VALUE TDV
+			Left Outer Join XBOLTADM.TB_DIM_VALUE_TXT TDVT
+				on TDV.DimTypeID = TDVT.DimTypeID
+				AND TDV.DimValueID = TDVT.DimValueID
+				AND TDVT.LanguageID = #{LanguageID}
+			
+			Left Outer Join XBOLTADM.TB_ITEM_DIM TID
+				on TDV.DimTypeID = TID.DimTypeID
+				AND TDV.DimValueID = TID.DimValueID	
+			
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+				on TID.ItemID = TIA.ItemID 
+				AND TIA.AttrTypeCode = 'AT00001'
+				AND TIA.LanguageID = #{LanguageID}
+							
+		WHERE 
+			TDV.DimTypeID = #{s_itemID}
+			AND TDV.Deleted != 1
+			<if test="ID.size > 0">
+				AND TDV.DimValueID IN 
+				<foreach collection="ID" item="item" index="index" open="(" separator="," close=")">
+					{#item}
+				</foreach>
+			</if>
+		Group By
+			TIA.PlainText
+			 , TDV.DimValueID 
+			 , TDVT.Name
+			 , TDV.ParentID	
+			 , TDV.Deleted				
+	</select>
+	
+	<select id="getDimInfoWithItemTypeCode" resultType="java.util.HashMap">
+		SELECT 
+      		Distinct TID.DimTypeID
+      		, TID.DimValueID
+      		, TDVT.Name + '(' + TID.DimValueID + ')' As DimValueName
+  		FROM XBOLTADM.TB_ITEM_DIM TID
+			Left Outer Join XBOLTADM.TB_DIM_VALUE_TXT TDVT
+			on TID.DimTypeID = TDVT.DimTypeID
+			AND TID.DimValueID = TDVT.DimValueID
+			AND TDVT.LanguageID = #{sessionCurrLangType}
+  		WHERE TID.ItemTypeCode = #{ItemTypeCode}
+  			AND TID.DimTypeID =  #{DimTypeID}
+  		ORDER BY TID.DimValueID
+	</select>
+	
+	<select id="itemDimValueProcessInfo_gridList" resultType="java.util.HashMap">
+		<![CDATA[
+			SELECT 
+			Row_Number()OVER(ORDER BY TI.Identifier ASC, TI.ClassCode ASC, TID.DimValueID ASC) as RNUM 
+			,TI.ItemID AS CodeID
+			, TID.DimValueID
+			, TI.Identifier
+			, TIA.PlainText as ItemName
+			, CONVERT(NVARCHAR(MAX), XBOLTADM.fn_GetMyAbsPathForList(TI.ItemID, #{sessionCurrLangType})) As Path
+			, TD.Name as ClassName
+			, TI.ItemTypeCode
+			, Convert(nvarchar(20),TI.LastUpdated, 111) AS LastUpdated
+			, TI.Version
+			, TIFA2.PlainText as ProcessInfo
+		FROM
+			XBOLTADM.TB_ITEM TI
+			Left Outer Join	XBOLTADM.TB_ITEM_DIM TID on TI.ItemID = TID.ItemID AND TID.DimTypeID = #{s_itemID}
+			Left outer join XBOLTADM.TB_DICTIONARY TD on TI.ClassCode = TD.TypeCode AND TD.LanguageID = #{sessionCurrLangType}
+			Left outer join XBOLTADM.TB_ITEM_ATTR TIA on TI.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{sessionCurrLangType}
+			Left outer join XBOLTADM.TB_ITEM_ATTR TIFA2 on TI.ItemID = TIFA2.ItemID AND TIFA2.AttrTypeCode = 'AT00003' AND TIFA2.LanguageID =  #{sessionCurrLangType}
+		WHERE TI.ItemID in (
+			Select Distinct TI.ItemID
+			From XBOLTADM.TB_ITEM TI
+			WHERE 
+				TI.ItemID in (
+					SELECT 
+						TID.ItemID 
+					FROM 
+						XBOLTADM.TB_DIM_VALUE TDV
+						Left Outer Join	XBOLTADM.TB_ITEM_DIM TID
+						on TDV.DimValueID = TID.DimValueID
+						AND TDV.DimTypeID = TID.DimTypeID
+					WHERE 
+						TDV.DimValueID IN (
+						   SELECT x.value('.', 'nvarchar(100)')
+						   FROM (
+						       SELECT CAST(
+						           '<v>' + REPLACE(#{ID}, ',', '</v><v>') + '</v>' AS XML
+						       )
+						   ) t(data)
+						   CROSS APPLY data.nodes('/v') n(x)
+						)
+						AND TDV.DimTypeID = #{s_itemID}
+						AND TDV.Deleted != 1
+				)
+		 )
+		 AND TI.ItemTypeCode = #{itemTypeCode}
+		 order by
+			TI.Identifier ASC, TI.ClassCode ASC, TID.DimValueID ASC
+		]]>
+	</select>
+	
+	<!-- ================================================================ -->
+	<select id="getItemInfo" resultType="java.util.HashMap">
+		SELECT TI.ItemID
+			, TIA1.PlainText AS ItemName
+			, CASE WHEN TI.CategoryCode = 'REF' THEN ISNULL(XBOLTADM.fn_GetMyAbsPathForList( TIA2.ItemID , #{languageID} ),'')+'/'+ TIA2.PlainText 
+  				WHEN TI.CategoryCode IN('MCN', 'CN', 'CN1') THEN ISNULL(TIAF.PlainText,'') + ' --> ' + ISNULL(TIAT.PlainText,'')
+ 				ELSE ISNULL(XBOLTADM.fn_GetMyAbsPathForList( #{s_itemID} ,#{languageID} ),'') END AS Path 
+			, TD.Name as ClassName
+			, TDI.Name as ItemTypeName			
+			, TT.Name as TeamName
+			, TOT.Name as OwnerTeamName
+			, TOT.Name as CurOwnerTeamName
+			, ISNULL(TM.Name,'') + Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')' Else '' End AS Name
+			, CONVERT(VARCHAR, TI.CreationTime, 111) AS CreateDT
+			, Convert(nvarchar(20),TI.LastUpdated, 111) AS LastUpdated
+			, TCS.Version
+			, TI.Identifier
+			, TI.AuthorID AS AuthorID
+			, TI.LockOwner AS LockOwner
+			, TI.OwnerTeamID
+			, TIA3.PlainText AS Description
+			, TI.ClassCode AS ClassCode
+			, ISNULL(TI.Level,0) AS Level
+			, Case When TI.Deleted = 1 Then TD2.Name + '(Deleted)' Else TD2.Name END As StatusName
+			, ISNULL(TIT.Icon, 'img_job.png') ItemTypeImg
+			, (Select FromItemID From XBOLTADM.TB_ITEM WITH (NOLOCK) WHERE ToItemID = #{s_itemID} And CategoryCode = 'ST1') AS FromItemID
+			, TPT.Name AS ProjectName
+			, TPT2.Name As RefPjtName	
+			, TI.ProjectID AS ProjectID	
+			, TI.CurChangeSet
+			, TI.ReleaseNo
+			, TI.Status	
+			, TI.Deleted	
+			, TI.Blocked
+			, ISNULL(TITF.Icon, 'img_job.png') FromItemTypeImg
+			, ISNULL(TITT.Icon, 'img_job.png') ToItemTypeImg
+			, LTRIM(RTRIM(TI.CategoryCode)) AS CategoryCode 
+			, ISNULL(TIAF.PlainText,'') AS FromItemName
+			, ISNULL(TIAT.PlainText,'') AS ToItemName
+			, TCL.CheckOutOption
+			, ISNULL(TCS.CheckInOption, TCL.CheckInOption) AS CheckInOption
+			, TCS.Reason
+			, TCS.Description AS ChangeSetDec
+			, ISNULL(CONVERT(char(10), TCS.CompletionDT, 111),'-') as CompletionDT	
+			, TCL.SubscrOption
+			, TCL.ChangeMgt
+			, ISNULL(TM.Name,'') + Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')' Else '' END AS AuthorName
+			, TI.ItemTypeCode
+			, TCS.WFInstanceID
+			, Convert(nvarchar(20),ISNULL(TCS.ValidFrom,TI.LastUpdated), 111) AS ValidFrom
+			, TD2.Name AS ItemStatusText
+			, TI.FromItemID AS CxnFromItemID
+			, TI.ToItemID AS CxnToItemID
+			, TM2.Name As LastUserName
+			, TI.Creator AS itemCreator
+			, TM3.Name As itemCreatorNM
+			, TOT2.Name AS itemCreatorTeamNM
+			, ISNULL(TCL.Icon, 'img_job.png') ItemClassImg
+			, XBOLTADM.fn_GetTeamRoleTeamNMList(TI.ItemID, #{languageID}, '', '') AS TeamRoleTeamNMList
+			, ISNULL(TCL.VarFilter,'') AS ClassVarFilter
+			, FROMITM.Identifier AS FromItemCode
+			, TOITM.Identifier AS ToItemCode
+			, TCL.FileOption
+			, TCS.Status as CSStatus
+			, TWF.Status as WFStatus
+		FROM
+			XBOLTADM.TB_ITEM TI WITH (NOLOCK)
+			Left outer join XBOLTADM.TB_DICTIONARY TD WITH (NOLOCK) on TI.ClassCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_TEAM_TXT TT WITH (NOLOCK) on TI.CompanyID = TT.TeamID AND TT.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_TEAM_TXT TOT WITH (NOLOCK) on TI.OwnerTeamID = TOT.TeamID AND TOT.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_MEMBER TM WITH (NOLOCK) on TI.AuthorID = TM.MemberID
+			<choose>
+				<when test='attrRevYN == "Y"'>					
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR_REV TIA1 WITH (NOLOCK) on  TI.ItemID = TIA1.ItemID AND TIA1.AttrTypeCode = 'AT00001' AND TIA1.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR_REV TIA2 WITH (NOLOCK) on  TI.RefItemID = TIA2.ItemID AND TIA2.AttrTypeCode = 'AT00001' AND TIA2.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR_REV TIA3 WITH (NOLOCK) on  TI.ItemID = TIA3.ItemID AND TIA3.AttrTypeCode = 'AT00003' AND TIA3.LanguageID = #{languageID}
+				</when>
+				<otherwise>
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA1 WITH (NOLOCK) on  TI.ItemID = TIA1.ItemID AND TIA1.AttrTypeCode = 'AT00001' AND TIA1.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 WITH (NOLOCK) on  TI.RefItemID = TIA2.ItemID AND TIA2.AttrTypeCode = 'AT00001' AND TIA2.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA3 WITH (NOLOCK) on  TI.ItemID = TIA3.ItemID AND TIA3.AttrTypeCode = 'AT00003' AND TIA3.LanguageID = #{languageID}
+				</otherwise>
+			</choose>
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD2 WITH (NOLOCK) on  TI.Status = TD2.TypeCode AND TD2.Category = 'ITMSTS' AND TD2.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_TYPE TIT WITH (NOLOCK) ON TI.ItemTypeCode = TIT.ItemTypeCode
+			Left Outer join XBOLTADM.TB_PROJECT TP WITH (NOLOCK) ON TP.ProjectID = TI.ProjectID 
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT WITH (NOLOCK) On TPT.ProjectID = TI.ProjectID  And TPT.LanguageID = #{languageID} 
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT2 WITH (NOLOCK) On TPT2.ProjectID = TP.RefPjtID  And TPT2.LanguageID = #{languageID} 
+			Left Outer Join XBOLTADM.TB_ITEM FROMITM WITH (NOLOCK) ON FROMITM.ItemID = TI.FromItemID
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIAF WITH (NOLOCK) ON TIAF.ItemID = FROMITM.ItemID And TIAF.AttrTypeCode = 'AT00001' And TIAF.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM TOITM WITH (NOLOCK) ON TOITM.ItemID = TI.ToItemID
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIAT WITH (NOLOCK) ON TIAT.ItemID  = TOITM.ItemID And TIAT.AttrTypeCode = 'AT00001' And TIAT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_TYPE TITF WITH (NOLOCK) ON TITF.ItemTypeCode IN(Select ItemTypeCode From XBOLTADM.TB_ITEM WITH (NOLOCK) Where ItemID = TI.FromItemID)
+			Left Outer Join XBOLTADM.TB_ITEM_TYPE TITT WITH (NOLOCK) ON TITT.ItemTypeCode IN(Select ItemTypeCode From XBOLTADM.TB_ITEM WITH (NOLOCK) Where ItemID = TI.ToItemID)
+			Left Outer Join XBOLTADM.TB_ITEM_CLASS TCL WITH (NOLOCK) ON TCL.ItemClassCode = TI.ClassCode
+			<choose>
+				<when test='attrRevYN == "Y"'>
+				Left Outer join XBOLTADM.TB_CHANGE_SET TCS WITH (NOLOCK) ON TCS.ChangeSetID = TI.ReleaseNo
+				</when>
+				<otherwise>
+				Left Outer join XBOLTADM.TB_CHANGE_SET TCS WITH (NOLOCK) ON TCS.ChangeSetID = TI.CurChangeSet
+				</otherwise>
+			</choose> 
+			Left outer join XBOLTADM.TB_WF_INST TWF WITH (NOLOCK) ON TWF.WFInstanceID = TCS.WFInstanceID
+			Left outer join XBOLTADM.TB_DICTIONARY TDI WITH (NOLOCK) on TI.ItemTypeCode = TDI.TypeCode AND TDI.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_MEMBER TM2 WITH (NOLOCK) on TI.LastUser = TM2.MemberID
+			Left outer join XBOLTADM.TB_MEMBER TM3 WITH (NOLOCK) on TI.Creator = TM3.MemberID
+			Left outer join XBOLTADM.TB_TEAM_TXT TOT2 WITH (NOLOCK) on TM3.TeamID = TOT2.TeamID AND TOT2.LanguageID = #{languageID}
+		WHERE TI.ItemID = #{s_itemID}
+	</select>
+	
+	<select id="itemFileInfo" resultType="java.util.HashMap">
+		SELECT 
+			Row_Number()OVER(ORDER BY TIF.CreationTime) AS RNUM 
+			, TIF.ItemID, TIF.Seq, TIF.FileName
+			, 'C:/Tomcat 7.0/webapps/ROOT/doc/item/'+TIF.FileName AS fullFileName
+			, ISNULL(TIT.DMS, '') +'/'+ TIF.FileRealName AS DMSFullName
+			, TIF.FileRealName, Convert(varchar,ISNULL(TIF.LinkType, 0))  LinkType
+			, CONVERT(VARCHAR, TIF.CreationTime, 111) AS  RegDate
+			, TM.Name As RegMemberName
+		FROM 
+			XBOLTADM.TB_FILE TIF
+			Left outer join XBOLTADM.TB_ITEM TI on TIF.DocumentID = TI.ItemID AND TIF.DocCategory = 'ITM'
+			Left Outer Join XBOLTADM.TB_ITEM_TYPE TIT on TI.ItemTypeCode = TIT.ItemTypeCode
+			Left outer join XBOLTADM.TB_MEMBER TM on TIF.RegMemberID = TM.MemberID
+		WHERE TIF.ItemID = #{s_itemID}
+	</select>
+	
+	<select id="getChangeSetInfo" resultType="java.util.HashMap">
+		SELECT Row_Number()OVER(ORDER BY CreationTime DESC) as RNUM 
+	    	,Description
+	      	, CONVERT(VARCHAR, CreationTime, 111) AS  RegDate
+	      	,AuthorName
+	  	FROM XBOLTADM.TB_CHANGE_SET
+	  	WHERE ItemID = #{s_itemID}
+	  	ORDER BY CreationTime DESC
+	</select>
+	
+	<select id="itemStDetailInfo" resultType="java.util.HashMap">
+		SELECT TI.ItemID
+			, TI.Identifier
+			, TIA1.PlainText AS ItemName
+			, ISNULL(XBOLTADM.fn_GetMyAbsPathForList( TI.ItemID , #{languageID} ),'') AS Path 
+			, TIA3.PlainText AS Description
+			, ISNULL(TIT.Icon, 'img_job.png') AS ItemTypeImg
+		FROM
+			XBOLTADM.TB_ITEM TI
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA1 on  TI.ItemID = TIA1.ItemID AND TIA1.AttrTypeCode = 'AT00001' AND TIA1.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA3 on  TI.ItemID = TIA3.ItemID AND TIA3.AttrTypeCode = 'AT00003' AND TIA3.LanguageID = #{languageID}
+			Left Outer JOIN XBOLTADM.TB_ITEM_TYPE TIT ON TI.ItemTypeCode = TIT.ItemTypeCode 
+		<where>				
+			<choose>
+			 	<when test="itemIDs != null and itemIDs != ''">
+			 		 TI.ItemID In(${itemIDs})
+			 	</when>
+			 	<otherwise>
+			 		 TI.ItemID = #{s_itemID}
+			 	</otherwise>
+			 </choose>	
+		</where>
+	</select>
+	
+	<select id="itemAttributesInfo" resultType="java.util.HashMap">
+		SELECT 
+				TATA.AttrTypeCode AS AttrTypeCode
+				, ISNULL(TD.Name, '') AS Name
+				, CASE TAT.DataType
+					WHEN 'LOV' THEN TATL.Value
+					ELSE ISNULL(TIA.PlainText, '') 
+				  END PlainText
+				, ISNULL(TIA.LovCode, '') AS LovCode
+				, ISNULL(TATL.AttrTypeCode, '') AS BaseLovCode
+				, TAT.DataType
+				, TAT.IsComLang
+				, TAT.HTML
+			FROM 
+				XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA
+				Left Outer Join 
+					XBOLTADM.TB_ITEM_ATTR TIA
+					ON TATA.AttrTypeCode = TIA.AttrTypeCode
+					AND TIA.ItemID = #{s_itemID}
+					AND TIA.LanguageID = #{languageID}
+				Left Outer Join 
+					XBOLTADM.TB_DICTIONARY TD
+					on TATA.AttrTypeCode = TD.TypeCode 
+					AND TD.LanguageID = #{languageID}
+				Left Outer join	XBOLTADM.TB_ATTR_TYPE_LOV  TATL
+					on TATA.AttrTypeCode  = TATL.AttrTypeCode
+					AND TIA.LovCode = TATL.LovCode
+					AND TATL.LanguageID = #{languageID}
+				Left Outer Join 
+					XBOLTADM.TB_ATTR_TYPE TAT
+					on TATA.AttrTypeCode = TAT.AttrTypeCode 					
+			WHERE
+				TATA.ItemClassCode = (SELECT ClassCode From XBOLTADM.TB_ITEM WHERE ItemID = #{s_itemID})
+			ORDER BY
+				TATA.SortNum ASC
+	</select>
+	
+	<select id="getAttrDicName" resultType="java.util.HashMap">
+		SELECT DIC.TypeCode
+      		, DIC.Name
+  		FROM XBOLTADM.TB_DICTIONARY DIC,
+  			 XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA
+  		WHERE 
+  			DIC.TypeCode = TATA.AttrTypeCode 
+  			and TATA.ItemClassCode = (SELECT ClassCode From XBOLTADM.TB_ITEM WHERE ItemID = #{s_itemID})
+  			and DIC.Category = 'AT'
+  			and DIC.LanguageID = #{languageID}
+	</select>
+	
+	<select id="itemAttrInfoForProgram" resultType="java.util.HashMap">
+		SELECT DIstinct
+				TIA.AttrTypeCode AS AttrTypeCode
+				, ISNULL(TD.Name, '') AS Name
+				, ISNULL(TIA.PlainText, '') AS PlainText
+				, ISNULL(TATV.Value, '') AS Value		
+			FROM 
+				XBOLTADM.TB_ITEM_ATTR TIA
+				Left Outer Join 
+					XBOLTADM.TB_DICTIONARY TD
+					on TIA.AttrTypeCode = TD.TypeCode 
+					AND TD.LanguageID = #{languageID}
+				Left Outer join	(
+					SELECT DIstinct AttrTypeCode, Value
+					FROM XBOLTADM.TB_ATTR_TYPE_LOV 
+					WHERE LanguageID = #{languageID}
+					) TATL
+					on TIA.AttrTypeCode  = TATL.AttrTypeCode
+				Left Outer join	(
+					SELECT DIstinct LovCode, Value
+					FROM XBOLTADM.TB_ATTR_TYPE_LOV 
+					WHERE LanguageID = #{languageID}
+					) TATV
+					on TIA.LovCode  = TATV.LovCode AND TIA.AttrTypeCode  = TATL.AttrTypeCode					
+			WHERE
+				1=1
+				AND TIA.ItemID = #{s_itemID}
+	</select>
+	
+	<select id="getAttrDicNameForProgram" resultType="java.util.HashMap">
+		SELECT DIC.TypeCode
+      		, DIC.Name
+  		FROM XBOLTADM.TB_DICTIONARY DIC
+  		WHERE 
+  			DIC.Category = 'AT'
+  			AND DIC.LanguageID = #{languageID}
+  			AND DIC.TypeCode BETWEEN #{FromTypeCode} AND #{ToTypeCode}
+  			ORDER BY DIC.TypeCode
+	</select>
+	
+	<select id="getCNClassCode" resultType="String">
+		SELECT ItemClassCode
+      	FROM XBOLTADM.TB_ITEM_CLASS
+  		WHERE ItemTypeCode = #{ItemTypeCode}
+	</select>
+	
+	<select id="getItemClassCode" resultType="String">
+		SELECT ClassCode
+      	FROM XBOLTADM.TB_ITEM WITH (NOLOCK)
+  		WHERE ItemID = #{s_itemID}
+	</select>
+	
+	<select id="getItemClassLevel" resultType="String">
+		SELECT Level
+      	FROM XBOLTADM.TB_ITEM_CLASS
+  		WHERE ItemClassCode = (SELECT ClassCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{s_itemID})
+	</select>
+	
+	<select id="getModelIdAndSize" resultType="java.util.HashMap">
+		SELECT 
+			TOP 1 ModelID
+      		, ItemID
+      		, Width
+      		, Height
+      		, ModelTypeCode
+      		, ChangeSetID
+      	FROM XBOLTADM.TB_MODEL
+ 		WHERE ItemID = #{s_itemID}
+		<if test="MTCategory != null and MTCategory != ''">
+			AND MTCategory = #{MTCategory}
+		</if>
+		<if test="ModelTypeCode != null and ModelTypeCode != ''">
+			AND ModelTypeCode = #{ModelTypeCode}
+		</if>
+	</select>
+	
+	<select id="getActivityAttrName" resultType="java.util.HashMap">
+		SELECT T1.AttrTypeCode
+      			, T2.Name 
+  		FROM XBOLTADM.TB_ATTR_TYPE_ALLOCATION T1,
+  			 XBOLTADM.TB_DICTIONARY T2
+  		where T1.ItemClassCode = 'CL01006'
+  		and T1.AttrTypeCode = T2.TypeCode 
+  		and T2.LanguageID = #{sessionCurrLangType}
+	</select>
+	
+	<select id="getChildItems" resultType="java.util.HashMap">
+  		SELECT
+  			TI.ItemID
+      		, TI.Identifier
+      		, TI.CategoryCode
+      		, TI.ItemTypeCode
+      		, TI.ClassCode
+      		, TI.FromItemID
+      		, TIT.ItemID AS ToItemID
+	 	FROM XBOLTADM.TB_ITEM TI
+   		Inner JOIN XBOLTADM.TB_ITEM TIT ON TIT.ItemID = TI.ToItemID
+		<where> 1=1		
+			<if test="CURRENT_ITEM != null and CURRENT_ITEM != ''">
+				And TI.FromItemID IN (${CURRENT_ITEM})
+			</if>		
+			<if test="CURRENT_ToItemID != null and CURRENT_ITEM != ''">
+				AND TI.ToItemID IN (${CURRENT_ToItemID})
+			</if>
+			<if test="CategoryCode != null and CategoryCode != ''">
+				AND TI.CategoryCode = #{CategoryCode}
+			</if>		
+			<if test="CategoryCodes != null and CateogoryCodes != ''">
+				AND TI.CategoryCode IN(${CategoryCodes})
+			</if>
+			<if test="itemTypeCode != null and itemTypeCode != ''">
+				AND TI.ItemTypeCode = #{itemTypeCode}
+			</if>
+  		</where>
+  		AND TIT.ItemID != '0'
+	</select>
+	
+	<select id="getChildItemsForWord" resultType="java.util.HashMap">
+		SELECT T1.ItemID
+      		, T1.Identifier
+      		, T1.CategoryCode
+      		, T1.ItemTypeCode
+      		, T1.ClassCode
+      		, T1.FromItemID
+      		, T1.ToItemID
+      		, T2.PlainText As toItemName
+      		, T3.ClassCode As toItemClassCode
+      		, TD2.Name As toItemClassName
+      		, T3.Identifier As toItemIdentifier
+      		, T4.Name As toItemAuthorName
+      		, T5.PlainText As fromItemName
+      		, T6.Identifier As fromItemIdentifier
+      		, T6.ClassCode As fromItemClassCode
+      		, T7.PlainText AS toItemDescription
+      		, T8.PlainText AS fromItemDescription
+      		, T11.PlainText AS fromItemOprlRule
+      		, TD.Name AS fromItemClassName
+      		, T9.Name AS fromItemAuthorName
+      		, T10.Name As fromItemTeamName 
+      		, T12.Name As toItemTeamName 
+      		, CONVERT(VARCHAR, T6.CreationTime, 111) AS fromItemCreateDT
+			, CONVERT(nvarchar(20),T6.LastUpdated, 111) AS fromItemLastUpdated
+			, CONVERT(nvarchar(20),T3.LastUpdated, 111) AS toItemLastUpdated
+			, ISNULL(XBOLTADM.fn_GetMyAbsPathForList( T6.ItemID , #{languageID} ),'') AS fromItemPath
+			, ISNULL(XBOLTADM.fn_GetMyAbsPathForList( T3.ItemID , #{languageID} ),'') AS toItemPath
+			, T13.Name As toItemCompanyName
+			, TIA.PlainText AS ItemName
+			, TD3.Name AS ItemClassName
+			, TM.Name AS ItemAuthorName
+			, TMT.Name As ItemTeamName
+			, ISNULL(XBOLTADM.fn_GetMyAbsPathForList( T1.ItemID , 1042 ),'') AS ItemPath
+			, TMTC.Name As ItemCompanyName
+			, CONVERT(nvarchar(20),T1.LastUpdated, 111) AS ItemLastUpdated
+  		FROM XBOLTADM.TB_ITEM T1
+  		Left Outer Join XBOLTADM.TB_ITEM_ATTR T2 ON T2.ItemID = T1.ToItemID AND T2.AttrTypeCode = 'AT00001' AND T2.LanguageID = #{languageID}
+  		Left Outer Join XBOLTADM.TB_ITEM_ATTR T5 ON T5.ItemID = T1.FromItemID AND T5.AttrTypeCode = 'AT00001' AND T5.LanguageID = #{languageID}
+  		Left Outer Join XBOLTADM.TB_ITEM T3 ON T3.ItemID = T1.ToItemID
+  		Left Outer Join XBOLTADM.TB_ITEM T6 ON T6.ItemID = T1.fromItemID
+  		Left outer join XBOLTADM.TB_MEMBER T4 on T3.AuthorID = T4.MemberID
+  		Left outer join XBOLTADM.TB_MEMBER T9 on T6.AuthorID = T9.MemberID
+  		Left outer join XBOLTADM.TB_TEAM_TXT T10 on T6.OwnerTeamID = T10.TeamID AND T10.LanguageID = #{languageID}
+  		Left outer join XBOLTADM.TB_TEAM_TXT T12 on T3.OwnerTeamID = T12.TeamID AND T12.LanguageID = #{languageID}
+  		Left Outer Join XBOLTADM.TB_ITEM_ATTR T7 ON T7.ItemID = T1.ToItemID AND T7.AttrTypeCode = 'AT00003' AND T7.LanguageID = #{languageID}
+  		Left Outer Join XBOLTADM.TB_ITEM_ATTR T8 ON T8.ItemID = T1.FromItemID AND T8.AttrTypeCode = 'AT00003' AND T8.LanguageID = #{languageID}
+  		Left Outer Join XBOLTADM.TB_ITEM_ATTR T11 ON T11.ItemID = T1.FromItemID AND T11.AttrTypeCode = 'AT00008' AND T11.LanguageID = #{languageID}
+  		Left outer join XBOLTADM.TB_DICTIONARY TD on T6.ClassCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+  		Left outer join XBOLTADM.TB_DICTIONARY TD2 on T3.ClassCode = TD2.TypeCode AND TD2.LanguageID = #{languageID}
+  		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT T13 ON T13.LanguageID = #{languageID} AND T3.CompanyID = T13.TeamID
+  		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = T1.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID} 
+ 		Left outer join XBOLTADM.TB_TEAM_TXT TMT on T1.OwnerTeamID = TMT.TeamID AND TMT.LanguageID = #{languageID} 
+ 		Left outer join XBOLTADM.TB_MEMBER TM on T1.AuthorID = TM.MemberID 
+ 		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TMTC ON TMTC.LanguageID = #{languageID} AND T1.CompanyID = TMTC.TeamID 
+ 		Left outer join XBOLTADM.TB_DICTIONARY TD3 on T1.ClassCode = TD3.TypeCode AND TD3.LanguageID = #{languageID} 
+  		<where> T1.Deleted != 1
+  			<if test="itemID != null and itemID != ''">
+				AND T1.ItemID IN (${itemID})
+			</if>	
+			<if test="CURRENT_ITEM != null and CURRENT_ITEM != ''">
+				AND T1.FromItemID IN (${CURRENT_ITEM})
+			</if>		
+			<if test="CURRENT_ToItemID != null and CURRENT_ToItemID != ''">
+				AND T1.ToItemID IN (${CURRENT_ToItemID})
+			</if>
+			<if test="CategoryCode != null and CategoryCode != ''">
+				AND T1.CategoryCode = #{CategoryCode}
+			</if>		
+			<if test="CategoryCodes != null and CateogryCodes !=''">
+				AND T1.CategoryCode IN(${CategoryCodes})
+			</if>
+			<if test="toItemClassCode != null and toItemClassCode != ''">
+				AND T3.ClassCode = #{toItemClassCode}
+			</if>		
+			<if test="itemTypeCode != null and itemTypeCode != ''">
+				AND T1.ItemTypeCode = #{itemTypeCode}
+			</if>	
+			<if test='delItemsYN != null and delItemsYN != "" and "N".equalsIgnoreCase(delItemsYN)'>
+				AND T1.Deleted != '1'
+			</if>
+			<if test="outPutItems != null and outPutItems !=''">
+				And T1.ToItemId IN(${outPutItems})
+			</if>	
+			<if test="itemClassCodes != null and itemClassCodes !=''">
+				And T3.ClassCode IN(${itemClassCodes})
+			</if>			
+  		</where>
+  		ORDER BY T3.Identifier
+	</select>
+	
+	<select id="getElementOfModel" resultType="java.util.HashMap">
+		SELECT TE.ModelID
+      		, TE.ElementID
+      		, TE.ObjectID
+      		, TIA.PlainText
+      		, TE.SymTypeCode
+      		, TE.FromID
+      		, TE.ToID
+      		, TE.SortNum
+      		, XBOLTADM.fn_GetPrePostFromElement(#{ModelID}, TE.ObjectID) AS  LinkType
+  		FROM XBOLTADM.TB_ELEMENT TE
+  		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA on TE.ObjectID = TIA.ItemID and TIA.LanguageID = #{languageID} and TIA.AttrTypeCode = 'AT00001'
+  		<if test="itemCategory != null and itemCategory != ''">
+			Left Outer Join XBOLTADM.TB_ITEM	 TI on TE.ObjectID = TI.ItemID
+		</if>
+  		<where>				
+			<choose>
+			 	<when test="ModelID != null and ModelID != ''">
+			 		TE.ModelID = #{ModelID}
+			 	</when>
+			 	<otherwise>
+			 		TE.ModelID = 1
+			 	</otherwise>
+			 </choose>			
+			<if test="SymTypeCode != null and SymTypeCode != ''">
+				AND TE.SymTypeCode = #{SymTypeCode}
+			</if>	
+			<if test="SymTypeCodes != null and SymTypeCodes != ''">
+				AND TE.SymTypeCode in (${SymTypeCodes})
+			</if>
+			<if test="FromID != null and FromID != ''">
+				AND TE.FromID = #{FromID}
+			</if>	
+			<if test="ToID != null and ToID != ''">
+				AND TE.ToID = #{ToID}
+			</if>	
+			<if test="categoryCode != null and categoryCode != ''">
+				AND TE.CategoryCode = #{categoryCode}
+			</if>	
+			<if test="itemCategory != null and itemCategory != ''">
+				AND TI.CategoryCode = #{itemCategory}
+			</if>
+  		</where>
+  		<choose>
+			 	<when test="orderBySeq != null and orderBySeq != ''">
+			 		order by SortNum*1
+			 	</when>
+			 	<otherwise>
+  					order by PositionX, PositionY
+			 	</otherwise>
+			 </choose>
+	</select>
+	
+	<select id="getObjListOfModel" resultType="java.util.HashMap">
+		SELECT distinct TE.ObjectID
+			, TE.ModelID
+      		, TIA.PlainText
+      		, TE.SymTypeCode
+      		, TE.FromID
+      		, TE.ToID
+      		, TE.SortNum
+      		, XBOLTADM.fn_GetPrePostFromElement(#{ModelID}, TE.ObjectID) AS  LinkType
+      		, TE.SortNum*1
+      		, TSA.MdlIF
+      		<if test="itemCategory != null and itemCategory != ''">
+      		, TI.Identifier
+      		</if>
+  		FROM XBOLTADM.TB_ELEMENT TE
+  		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA on TE.ObjectID = TIA.ItemID and TIA.LanguageID = #{languageID} and TIA.AttrTypeCode = 'AT00001'
+  		Left Outer Join XBOLTADM.TB_SYMTYPE_ALLOCATION TSA on TE.SymTypeCode = TSA.SymTypeCode 
+  		<if test="itemCategory != null and itemCategory != ''">
+			Left Outer Join XBOLTADM.TB_ITEM	 TI on TE.ObjectID = TI.ItemID
+		</if>
+  		Where TSA.ModelTypeCode = (Select ModelTypeCode From XBOLTADM.TB_MODEL Where ModelID = #{ModelID})
+			<choose>
+			 	<when test="ModelID != null and ModelID != ''">
+			 		AND TE.ModelID = #{ModelID}
+			 	</when>
+			 	<otherwise>
+			 		AND TE.ModelID = 1
+			 	</otherwise>
+			 </choose>			
+			<if test="SymTypeCode != null and SymTypeCode != ''">
+				AND TE.SymTypeCode = #{SymTypeCode}
+			</if>	
+			<if test="SymTypeCodes != null and SymTypeCodes != ''">
+				AND TE.SymTypeCode in (${SymTypeCodes})
+			</if>
+			<if test="FromID != null and FromID != ''">
+				AND TE.FromID = #{FromID}
+			</if>	
+			<if test="ToID != null and ToID != ''">
+				AND TE.ToID = #{ToID}
+			</if>	
+			<if test="categoryCode != null and categoryCode != ''">
+				AND TE.CategoryCode = #{categoryCode}
+			</if>	
+			<if test="itemCategory != null and itemCategory != ''">
+				AND TI.CategoryCode = #{itemCategory}
+			</if>
+			<if test='"Y".equals(mdlIF)'>
+	  			AND TSA.MdlIF = 'Y' 
+	  		</if>
+			order by TE.SortNum*1 <if test="itemCategory != null and itemCategory != ''">,TI.Identifier</if>
+	</select>
+	
+	<delete id="delAllChildItems">
+		DELETE FROM XBOLTADM.TB_ITEM_ATTR WHERE ItemID  = #{ItemID}
+		DELETE FROM XBOLTADM.TB_ITEM_ATTR_TRAN WHERE ItemID  = #{ItemID}
+		DELETE FROM XBOLTADM.TB_ITEM_ATTR_REV WHERE ItemID  = #{ItemID}
+		DELETE FROM XBOLTADM.TB_FILE WHERE DocumentID  = #{ItemID} AND DocCategory = 'ITM'
+		DELETE FROM XBOLTADM.TB_ELEMENT WHERE ObjectID = #{ItemID}
+		DELETE FROM XBOLTADM.TB_TASK WHERE ItemID = #{ItemID}
+		DELETE FROM XBOLTADM.TB_CHANGE_SET WHERE ItemID = #{ItemID}
+		DELETE FROM XBOLTADM.TB_MY_ITEM WHERE ItemID = #{ItemID}	
+		DELETE FROM XBOLTADM.TB_ITEM_DIM WHERE ItemID = #{ItemID}
+		DELETE FROM XBOLTADM.TB_MODEL_TXT  WHERE ModelID  IN (Select ModelID from XBOLTADM.TB_MODEL Where ItemID = #{ItemID} )
+		DELETE FROM XBOLTADM.TB_ELEMENT  WHERE ModelID  IN (Select ModelID from XBOLTADM.TB_MODEL Where ItemID = #{ItemID} )
+		DELETE FROM XBOLTADM.TB_MODEL WHERE ItemID = #{ItemID}
+		DELETE FROM XBOLTADM.TB_REVISION WHERE DocumentID = #{ItemID} AND DocCategory = 'ITM'
+		DELETE FROM XBOLTADM.TB_TEAM_ROLE WHERE ItemID = #{ItemID}
+		
+		DELETE FROM XBOLTADM.TB_ITEM WHERE ItemID = #{ItemID}
+	</delete>
+	
+	<select  id="getDefaultFont" resultType="String">
+		SELECT FontFamily AS DefFont
+  		FROM XBOLTADM.TB_LANGUAGE
+  		WHERE LanguageID = #{languageID}
+	</select>
+	
+	<select  id="getModelWithItemId" resultType="java.util.HashMap">
+		SELECT ModelID
+  		FROM XBOLTADM.TB_MODEL
+  		WHERE ItemID = #{ItemID}
+	</select>
+	
+	<delete id="delElementAndModelTxt">
+		DELETE FROM XBOLTADM.TB_ELEMENT WHERE ModelID = #{ModelID}
+		DELETE FROM XBOLTADM.TB_MODEL_TXT WHERE ModelID = #{ModelID}
+		DELETE FROM XBOLTADM.TB_MODEL WHERE ModelID = #{ModelID}
+	</delete>
+	
+	<select  id="getRptAllocatedClass" resultType="java.util.HashMap">
+		SELECT ClassCode
+  		FROM XBOLTADM.TB_REPORT_ALLOCATION
+  		WHERE ReportCode = #{reportCode}
+	</select>
+	
+	<select  id="getReportName" resultType="String">
+		SELECT
+			TD.Name 	
+		FROM XBOLTADM.TB_REPORT AS TR
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD ON TR.ReportCode = TD.TypeCode AND LanguageID = #{languageID}
+		WHERE TR.ReportCode = #{reportCode}
+	</select>
+	
+	<select  id="getE2EMElementList" resultType="java.util.HashMap">
+		SELECT ModelID
+      		, ElementID
+      		, ObjectID As MyItemID
+      		, SymTypeCode
+      		, PositionX
+      		, PositionY
+     	FROM XBOLTADM.TB_ELEMENT
+  		<where>
+			<if test="ModelID != null and ModelID != ''">
+				ModelID = #{ModelID}
+			</if>	
+			<choose>
+				<when test="SymTypeCode != null and SymTypeCode != ''">
+					AND SymTypeCode = #{SymTypeCode}
+				</when>
+				<otherwise>
+					AND CategoryCode = 'OJ'
+				</otherwise>
+			</choose>
+			<if test="Parent != null and Parent != ''">
+				AND Parent = #{Parent}
+			</if>	
+  		</where>
+  		ORDER BY PositionY, PositionX
+	</select>
+	
+	
+	<select id="exportSubItemList" parameterType="java.util.HashMap" resultType="java.util.HashMap" >
+	
+		SELECT  ITM.ItemID AS MyItemID
+			, ITM.Identifier AS Identifier
+			, ITM.ClassCode AS MyClassCode
+			, DIC.Name AS MyClassName
+			, ISNULL(T1.PlainText, '') AS L1Name  
+			, ISNULL(T2.PlainText, '')  AS L2Name  
+			, ISNULL(T3.PlainText, '') AS L3Name   
+			, ISNULL(T4.PlainText, '') AS L4Name  
+			, ISNULL(TN.PlainText, '') AS MyItemName
+			, TM.Name As LastUser
+			, Convert(nvarchar(20),ITM.LastUpdated, 111) AS LastUpdated
+			<foreach collection="attrList" item="item" open="" close="" separator="">
+				,CASE ISNULL(${item.TableName}.LovCode, '') WHEN '' 
+				THEN ISNULL(${item.TableName}.PlainText, '') 
+				ELSE ${item.TableName}2.Value END AS ${item.AttrNum}
+			</foreach>
+			
+		  FROM  XBOLTADM.TW_PROCESS PW
+		  Inner Join  XBOLTADM.TB_ITEM ITM ON PW.ItemID = ITM.ItemID AND ITM.Deleted != 1
+		  LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY DIC ON DIC.LanguageID = #{languageID} AND DIC.TypeCode = ITM.ClassCode
+		  Left Outer Join XBOLTADM.TB_ITEM_ATTR AS T1
+		  	ON PW.L1ItemID = T1.ItemID AND T1.AttrTypeCode = 'AT00001'  and T1.LanguageID = #{languageID}
+		  Left Outer Join XBOLTADM.TB_ITEM_ATTR AS T2
+		    ON PW.L2ItemID = T2.ItemID AND T2.AttrTypeCode = 'AT00001'  and T2.LanguageID = #{languageID}
+		  Left Outer Join XBOLTADM.TB_ITEM_ATTR AS T3
+		    ON PW.L3ItemID = T3.ItemID AND T3.AttrTypeCode = 'AT00001'  and T3.LanguageID = #{languageID}
+		  Left Outer Join XBOLTADM.TB_ITEM_ATTR AS T4
+		    ON PW.L4ItemID = T4.ItemID AND T4.AttrTypeCode = 'AT00001'  and T4.LanguageID = #{languageID}
+		  Left Outer Join XBOLTADM.TB_ITEM_ATTR AS TN
+		    ON ITM.ItemID = TN.ItemID AND TN.AttrTypeCode = 'AT00001'  and TN.LanguageID = #{languageID}
+		  Left Outer Join XBOLTADM.TB_ITEM_ATTR AS TS1
+		    ON ITM.ItemID = TS1.ItemID AND TS1.AttrTypeCode = 'AT00003'  and TS1.LanguageID = #{languageID}    
+		  Left Outer Join XBOLTADM.TW_PROCESS AS MyPW ON MyPW.ItemID = #{s_itemID}	
+		  Left Outer Join XBOLTADM.TB_ITEM_CLASS ITMCLS ON MyPW.ItemClassCode = ITMCLS.ItemClassCode
+		  Left outer join XBOLTADM.TB_MEMBER TM on ITM.LastUser = TM.MemberID
+		  Left Outer Join XBOLTADM.TB_ITEM_CLASS TIC ON ITM.ClassCode = TIC.ItemClassCode		  
+		  <foreach collection="attrList" item="item2" open="" close="" separator="">
+		  	 Left Outer Join XBOLTADM.TB_ITEM_ATTR AS ${item2.TableName} 
+		  	 ON ITM.ItemID = ${item2.TableName}.ItemID 
+   				AND ${item2.TableName}.AttrTypeCode = #{item2.AttrNum} AND ${item2.TableName}.LanguageID = #{item2.LangCode} 
+   				
+   			 Left Outer Join XBOLTADM.TB_ATTR_TYPE_LOV AS ${item2.TableName}2 ON ${item2.TableName}.AttrTypeCode = ${item2.TableName}2.AttrTypeCode 
+   				AND ${item2.TableName}2.LovCode = ${item2.TableName}.LovCode AND ${item2.TableName}2.LanguageID = #{item2.LangCode}  
+		  </foreach>		 
+		 WHERE
+			(PW.${LevelName} = #{s_itemID}	 
+			OR ITM.ItemID =  #{s_itemID})			
+		    <if test="outPutItems != '' and outPutItems != null ">
+			AND ITM.ItemID IN (${outPutItems})
+			</if>								
+			<if test="maxLevel != null and maxLevel != ''">
+				 <![CDATA[ AND TIC.Level <= #{maxLevel} ]]>
+			</if>
+		ORDER BY T1.PlainText ,ITM.Identifier , T2.PlainText
+		
+	</select>
+	
+	<select  id="getAttrIsComLang" resultType="java.util.HashMap">
+		SELECT AttrTypeCode
+      		,ISNULL(IsComLang, '') As IsComLang
+  		FROM XBOLTADM.TB_ATTR_TYPE
+  		WHERE AttrTypeCode IN (${attType})
+	</select>
+	
+	<select  id="getModelInfoWithSymTypeCode" resultType="java.util.HashMap">
+		SELECT ModelID
+      			, ElementID
+      			, SymTypeCode
+      			, Parent
+      			, PositionX
+      			, PositionY
+      			, Width
+  		FROM XBOLTADM.TB_ELEMENT
+  		WHERE ModelID = #{ModelID}
+		<if test="SymTypeCode != null and SymTypeCode != ''">
+			AND SymTypeCode = #{SymTypeCode}
+		</if>
+		<if test="NotInSymTypeCode != null and NotInSymTypeCode != ''">
+			AND SymTypeCode != #{NotInSymTypeCode}
+		</if>
+	    <if test="CategoryCode != null and CategoryCode != ''">
+			AND CategoryCode IN (${CategoryCode})
+			<!-- <foreach collection="CategoryCode" item="item" index="index" separator="," open="(" close=")">
+                #{item}
+            </foreach> -->
+		</if>	
+	</select>
+	
+	<update id="updateElementInfo" parameterType="java.util.HashMap">
+		UPDATE 
+			XBOLTADM.TB_ELEMENT
+		SET	
+			Parent = #{Parent}
+			, PositionX = #{PositionX}
+			, PositionY = #{PositionY}
+			, LastUpdated = getDate()
+			, LastUser = #{LastUser}
+		WHERE
+			ModelID = #{ModelID}
+			AND ElementID = #{ElementID}
+	</update>
+	
+	<select  id="getArcFilterDimInfo" resultType="java.util.HashMap">
+		SELECT TOP 1 
+			 ArcCode
+      		, ObjTypeCode
+      		, DimTypeID
+      		, DefDimValueID
+      		, TF.SqlName as TreeSql
+  		FROM XBOLTADM.TB_ARC_FILTER_DIM  ADIM , XBOLTADM.TB_TFILTER TF 
+  		WHERE ArcCode = #{ArcCode} And TF.TfilterCode = (Select FilterType from XBOLTADM.TB_ARC where ArcCode = ADIM.ArcCode) 
+	</select>
+	
+	<select  id="getArcTreeFilterInfo" resultType="java.util.HashMap">
+		SELECT TOP 1 
+			  StrType
+             , TreeDataFiltered
+      	 	 , SqlName as TreeSql      	
+  		FROM  XBOLTADM.TB_TFILTER 
+  		WHERE TfilterCode = (Select FilterType from XBOLTADM.TB_ARC where ArcCode = #{ArcCode}) 
+	</select>
+	
+	<select  id="isExistAtDimTree" resultType="String">
+		SELECT Count(T1.NodeID) As CNT
+      	FROM XBOLTADM.TB_ITEM_DIM_TREE T1,
+  			XBOLTADM.TB_ITEM T2
+  		WHERE 
+  			T2.ToItemID = #{ItemID}
+ 	 		AND T1.NodeID = T2.ItemID
+  			AND T1.DimTypeID = #{DimTypeID}
+  			AND T1.DimValueID = #{DimValueID}
+	</select>
+	
+	<select  id="getItemTypeCodeFromItemDim" resultType="java.util.HashMap">
+		SELECT Distinct T1.ItemTypeCode AS CODE
+    		 , T2.Name AS NAME
+  		FROM XBOLTADM.TB_ITEM_DIM T1,
+  		     XBOLTADM.TB_DICTIONARY T2
+  		WHERE T1.ItemTypeCode = T2.TypeCode 
+  		AND Category = 'OJ'
+  		AND T2.LanguageID = #{sessionCurrLangType}
+	</select>
+	
+	<update id="exeConsolidation" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_ITEM SET ToItemID = #{masterItemId} WHERE ToItemID = #{targetItemId} AND CategoryCode != 'ST1'
+		
+		UPDATE XBOLTADM.TB_ITEM SET FromItemID = #{masterItemId} WHERE FromItemID = #{targetItemId} AND CategoryCode != 'ST1'
+			
+		UPDATE XBOLTADM.TB_ITEM SET FromItemID = #{masterItemId} WHERE FromItemID = #{targetItemId} AND CategoryCode = 'ST1'
+		
+		UPDATE XBOLTADM.TB_ELEMENT SET ObjectID = #{masterItemId}, Link = #{masterItemId} WHERE ObjectID = #{targetItemId}
+		
+		UPDATE XBOLTADM.TB_MODEL SET ItemID = #{masterItemId} WHERE ItemID = #{targetItemId}	
+		
+		UPDATE XBOLTADM.TB_TASK SET ItemID = #{masterItemId} WHERE ItemID = #{targetItemId}
+		UPDATE XBOLTADM.TB_CHANGE_SET SET ItemID = #{masterItemId} WHERE ItemID = #{targetItemId}
+		UPDATE XBOLTADM.TB_BOARD SET ItemID = #{masterItemId} WHERE ItemID = #{targetItemId}
+		UPDATE XBOLTADM.TB_FILE SET DocumentID = #{masterItemId} WHERE ItemID = #{targetItemId}		
+		UPDATE XBOLTAPP.ESM_SR_MST SET SRArea1 = #{masterItemId} WHERE SRArea1 = #{targetItemId}
+		UPDATE XBOLTAPP.ESM_SR_MST SET SRArea2 = #{masterItemId} WHERE SRArea2 = #{targetItemId}
+		UPDATE XBOLTADM.TB_CR_MST SET CRArea1 = #{masterItemId} WHERE CRArea1 = #{targetItemId}
+		UPDATE XBOLTADM.TB_CR_MST SET CRArea2 = #{masterItemId} WHERE CRArea2 = #{targetItemId}
+		UPDATE XBOLTADM.TB_MY_ITEM SET ItemID = #{masterItemId} WHERE ItemID = #{targetItemId}
+		
+		DELETE FROM XBOLTADM.TB_ITEM_DIM WHERE ItemID = #{targetItemId}
+		DELETE FROM XBOLTADM.TB_ITEM_ATTR WHERE ItemID = #{targetItemId}
+		DELETE FROM XBOLTADM.TB_ITEM_DIM_TREE 
+		WHERE NodeID = (SELECT ItemID FROM XBOLTADM.TB_ITEM WHERE ToItemID = #{targetItemId} and CategoryCode = 'ST1')
+		DELETE FROM XBOLTADM.TB_ITEM WHERE ToItemID = #{targetItemId} AND CategoryCode = 'ST1'
+		DELETE FROM XBOLTADM.TB_ITEM WHERE ItemID = #{targetItemId}
+		
+	</update>
+	
+	<select id="getMyIdAndNamePath" resultType="String">
+		SELECT ISNULL(
+				XBOLTADM.fn_GetMyIdAndNamePath( #{s_itemID} , #{languageID} ),'') AS Path 
+      	FROM XBOLTADM.TB_ITEM
+      	WHERE ItemID = #{s_itemID}
+	</select>
+	
+	<select id="getMyPathAndName" resultType="String">
+		SELECT CASE ISNULL(XBOLTADM.fn_GetMyAbsPathForList( #{s_itemID} , #{languageID} ),'') WHEN '/' THEN ISNULL(XBOLTADM.fn_GetMyAbsPathForList( #{s_itemID} , #{languageID} ),'')
+				ELSE ISNULL(XBOLTADM.fn_GetMyAbsPathForList( #{s_itemID} , #{languageID} ),'')  + '/' END
+				+ T1.Identifier + ' ' + T2.PlainText AS Path 
+      	FROM XBOLTADM.TB_ITEM T1
+      	Left Outer Join XBOLTADM.TB_ITEM_ATTR T2 on  T1.ItemID = T2.ItemID AND T2.AttrTypeCode = 'AT00001' AND T2.LanguageID = #{languageID}
+      	WHERE T1.ItemID = #{s_itemID}
+	</select>
+	
+	<select id="getMyIdAndName" resultType="String">
+		SELECT T1.Identifier + ' ' + T2.PlainText AS MyIdAndName 
+      	FROM XBOLTADM.TB_ITEM T1
+      	Left Outer Join XBOLTADM.TB_ITEM_ATTR T2 on  T1.ItemID = T2.ItemID AND T2.AttrTypeCode = 'AT00001' AND T2.LanguageID = #{languageID}
+      	WHERE T1.ItemID = #{s_itemID}
+	</select>
+	
+	<select id="getCategoryCode" resultType="java.util.HashMap">
+		SELECT Category, ItemTypeCode
+      	FROM XBOLTADM.TB_ITEM_TYPE
+      	WHERE ItemTypeCode = (SELECT ItemTypeCode FROM XBOLTADM.TB_ITEM_CLASS WHERE ItemClassCode = #{newClassCode})
+	</select>
+	
+	<select id="getCSRCnt" resultType="String">
+		SELECT 
+      		COUNT(ProjectID) AS CNT
+      	FROM 
+  			XBOLTADM.TB_PROJECT
+  		WHERE 
+ 			ProjectType = 'CSR'
+      		AND ProjectID = #{ProjectID}
+	 </select> 
+	 
+	 <select id="selectCNItemList" resultType="java.util.HashMap">
+		 Select
+			TI1.ItemID As ConnctionID 
+			,TI2.Identifier As FromIdentifier
+			,TI2.ItemID AS FromItemID
+			,TIA1.PlainText AS FromItemName
+			,XBOLTADM.fn_GetMyAbsPathForList(TI2.ItemID, #{languageID}) As FromItemPath
+			,TI3.Identifier As ToIdentifier
+			,TI3.ItemID AS ToItemID
+			,TIA2.PlainText AS ToItemName
+			,XBOLTADM.fn_GetMyAbsPathForList(TI3.ItemID, #{languageID}) As ToItemPath	
+			,TD.Name AS CxnName
+		From XBOLTADM.TB_ITEM TI1
+		Left Outer Join XBOLTADM.TB_ITEM TI2 ON TI2.ItemID = TI1.FromItemID 
+		Left Outer Join XBOLTADM.TB_ITEM TI3 ON TI3.ItemID = TI1.ToItemID 
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA1 ON TIA1.ItemID = TI1.FromItemID And TIA1.AttrTypeCode = 'AT00001' And TIA1.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 On TIA2.ItemID = TI1.ToItemID And TIA2.AttrTypeCode = 'AT00001' And TIA2.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TI1.ClassCode And TD.LanguageID = #{languageID} 
+		Where TI1.ItemTypeCode = #{itemTypeCode} 
+	 </select>
+	
+	<select id="getToItemList" resultType="java.util.HashMap">
+		SELECT 
+			DISTINCT
+			TI.ItemID As ItemID		
+               , ISNULL(XBOLTADM.fn_GetMyAbsPathForList( TI.ItemID ,#{languageID}),'') AS Path
+			, ISNULL(TIA.PlainText,'') as ItemName
+			, TI.Identifier	As Identifier
+			, TI.ClassCode As ClassCode
+		FROM XBOLTADM.TB_ITEM TI
+			Left outer join XBOLTADM.TB_ITEM_ATTR TIA on TI.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+		WHERE TI.Deleted != 1	
+			<choose>
+				<when test="childItems != null and childItems != ''">
+					AND TI.ItemID IN (${childItems})
+				</when>
+				<otherwise>
+					<if test="isNothingLowLank != null and isNothingLowLank.equalsIgnoreCase('Y')">
+						AND TI.ItemID IN ('')
+					</if>
+				</otherwise>
+			</choose>
+			<if test="itemClassCode != null and itemClassCode != ''">
+				AND TI.ClassCode = #{itemClassCode}
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+				<choose>
+					<when test="searchKey.equals('Name')">
+						AND TIA.PlainText like '%'+#{searchValue}+'%'
+					</when>
+					<when test="searchKey.equals('ID')">
+						AND TI.Identifier like '%'+#{searchValue}+'%'
+					</when>
+				</choose>
+			</if>
+			<if test="itemClassCode != null and itemClassCode != ''">
+				AND TI.ClassCode  = #{itemClassCode}
+			</if>
+		Order By Identifier, ClassCode
+	</select>
+	
+	<select id="getAttrDataType" resultType="String">
+		Select DataType From XBOLTADM.TB_ATTR_TYPE Where AttrTypeCode = #{attrTypeCode}
+	</select>
+		
+	<select id="getLovCount" resultType="String">
+		Select COUNT(*) As AttrCnt From  XBOLTADM.TB_ITEM_ATTR	
+		Where ItemID IN( Select ItemID From XBOLTADM.TB_ITEM Where ItemTypeCode = #{cNType} And (FromItemID = #{itemID} Or ToItemID = #{itemID}) ) 
+		And AttrTypeCode = #{attrTypeCode}  And LanguageID = #{languageID}
+		<if test="lovCode != null and lovCode != ''">
+			AND LovCode = #{lovCode}
+		</if>
+	</select>
+	
+	<select id="selectAttrLovList" resultType="java.util.HashMap">
+		Select LovCode,Value From XBOLTADM.TB_ATTR_TYPE_LOV Where AttrTypeCode = #{attrTypeCode} And LanguageID = #{languageID}
+	</select>
+	<select id="getAttrName" resultType="String">
+		Select TD.Name As AttrName
+		From XBOLTADM.TB_ATTR_TYPE TAT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TAT.AttrTypeCode And TD.LanguageID = #{languageID}
+		Where TAT.AttrTypeCode = #{attrTypeCode}
+	</select>
+	
+	<select id="getFromToItemName" resultType="java.util.HashMap">
+		Select TD1.Name As FromItemType, TD2.Name As ToItemType 
+		From XBOLTADM.TB_ITEM_TYPE TIT
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TD1 ON TIT.FromItemTypeCode = TD1.TypeCode And TD1. LanguageID  = #{languageID}
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TD2 ON TIT.ToItemTypeCode = TD2.TypeCode And TD2. LanguageID  = #{languageID}
+		 Where ItemTypeCode = #{cNType}
+	</select>
+	
+	<select id="getConnCount" resultType="String" >
+		Select Count(*) As AttrCnt From  XBOLTADM.TB_ITEM	
+		Where ItemID IN( Select ItemID From XBOLTADM.TB_ITEM Where ItemTypeCode = #{cNType} And (FromItemID = #{itemID} Or ToItemID = #{itemID}) ) 
+	</select>
+	
+	<select id="getSRAreaCount" resultType="String" >
+		Select COUNT(*) From XBOLTAPP.ESM_SR_MST 		
+		<where>
+		 <choose>
+		 	<when test="searchItem != null and searchItem.equals('srArea1')">
+		 		AND SRArea1 IN ( ${itemIDs} )
+		 	</when>
+		 	<when test="searchItem != null and searchItem.equals('srArea2')">
+		 		AND SRArea2 IN ( ${itemIDs} )
+		 	</when>
+		 </choose>
+		</where>
+	</select>
+	
+	<select id="getCRAreaCount" resultType="String" >
+		Select COUNT(*) From XBOLTAPP.ESM_SCR_MST 
+		<where>
+		 <choose>
+		 	<when test="searchItem != null and searchItem.equals('crArea1')">
+		 		AND SCRArea1 IN (${itemIDs})
+		 	</when>
+		 	<when test="searchItem != null and searchItem.equals('crArea2')">
+		 		AND SCRArea2 IN (${itemIDs})
+		 	</when>
+		 </choose>
+		</where>
+	</select>
+	
+	<select id="getMyItemCount" resultType="String" >
+		Select COUNT(*) From XBOLTADM.TB_MY_ITEM 
+		Where ItemID IN( ${itemIDs} )
+	</select>
+	
+	<select id="getSubPIItemList" resultType="java.util.HashMap" >
+		Select DisTinct OPV.SUBPIItemID, TI.Identifier AS SubPIIdentifier, TIA.PlainText AS SubPIItemName
+		 From XBOLTADM.OLM_PISUMMARY_VIEW OPV
+		 Left outer Join XBOLTADM.TB_ITEM TI ON TI.ItemID = OPV.SUBPIItemID 
+		 Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = OPV.SUBPIItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID} 
+		 Where OPV.PIItemID = #{itemID}
+	</select>
+	
+	<select id="getPIL4ItemList" resultType="java.util.HashMap" >
+		Select Distinct OPV.PRCID,  OPV.PRCITemID
+		    , ISNULL(TIA.PlainText,'') AS PRCName
+			, ISNULL(TIA2.PlainText,'') AS ToCheck 
+			, ISNULL(TIA3.PlainText,'') AS AT00003 
+		 From XBOLTADM.OLM_PISUMMARY_VIEW OPV
+		 Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = OPV.PRCITemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+		 Left outer join XBOLTADM.TB_ITEM_ATTR TIA2 On TIA2.ItemID = OPV.PRCItemID And TIA2.AttrTypeCode = 'AT00053' And TIA2.LanguageID = #{languageID}
+		 Left outer join XBOLTADM.TB_ITEM_ATTR TIA3 On TIA3.ItemID = OPV.PRCItemID And TIA3.AttrTypeCode = 'AT00003' And TIA3.LanguageID = #{languageID}
+		 Where  ISNULL(OPV.PRCITemID,'') !=''
+		 <choose>
+		 	<when test="SUBPIItemID != null and SUBPIItemID != ''">
+		 		AND OPV.SUBPIItemID = #{SUBPIItemID}
+		 	</when>
+		 	<otherwise>
+		 		AND OPV.PIITEMID = #{itemID}
+		 	</otherwise>
+		 </choose>
+	</select>
+	
+	<select id="getPIObjectList" resultType="java.util.HashMap">
+		Select DisTinct OBJItemID, 
+				OBJID, OBJClassCode, 
+				OBJCLSNM, 
+				ISNULL(OBJNM,'') AS OBJNM, 
+				ISNULL(OBJDESC,'') AS OBJDESC, 
+				ISNULL(RULECONTP,'') AS RULECONTP, 
+				ISNULL(RULESYSREQ, '') AS RULESYSREQ,
+				ISNULL(KPIFORMULA, '') AS KPIFORMULA,
+				TIA28.PlainText AS AT00028,
+				TIA09.PlainText AS AT00009
+		 From XBOLTADM.OLM_PISUMMARY_VIEW 
+		  Left outer Join XBOLTADM.TB_ITEM_ATTR TIA28 ON TIA28.ItemID = OBJItemID And TIA28.LanguageID  = #{languageID} And TIA28.AttrTypeCode = 'AT00028' 
+		 Left outer Join XBOLTADM.TB_ITEM_ATTR TIA09 ON TIA09.ItemID = OBJItemID And TIA09.LanguageID  = #{languageID} And TIA09.AttrTypeCode = 'AT00009' 
+		Where PIItemID = #{itemID}
+		And OBJClassCode = #{objClassCode}
+	</select>
+	
+	<select id="getItemChangeListRPT" resultType="java.util.HashMap">
+		Select TD.Name AS statusName, TD1.Name AS ChangeType, 
+			TPT.Name As ProcjectName, CSRT.Name As CSRName, 
+			ISNULL(TM.Name,'') + Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')' Else '' End AS AuthorName,
+			TTT.Name AS AuthorTeamName,
+			TCS.Version,
+			TCS.Description,
+			TCS.Status,
+			ISNULL(CONVERT(char(10), TCS.CreationTime, 111),'-') as StartDate,
+			ISNULL(CONVERT(char(10), TCS.ApproveDate, 111),'-') as ApproveDate,	
+			ISNULL(CONVERT(char(10), TCS.CompletionDT, 111),'-') as CompletionDT,
+			ISNULL(CONVERT(char(10), TCS.validFrom, 111),'-') AS ValidFrom
+		From XBOLTADM.TB_CHANGE_SET TCS
+		Left Outer Join XBOLTADM.TB_PROJECT CSR ON CSR.ProjectID = TCS.ProjectID 
+		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT ON TPT.ProjectID = CSR.RefPjtID And TPT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TCS.Status = TD.TypeCode AND TD.LanguageID = #{languageID} AND TD.Category = 'CNGSTS'	 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD1 ON TCS.ChangeType = TD1.TypeCode AND TD1.LanguageID = #{languageID} AND TD1.Category = 'CNGT1'
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TCS.AuthorID = TM.MemberID
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TTT ON TTT.TeamID = TCS.AuthorTeamID And TTT.LanguageID  = #{languageID}
+		Left Outer Join XBOLTADM.TB_PROJECT_TXT CSRT ON CSRT.ProjectID = CSR.ProjectID And CSRT.LanguageID = #{languageID}
+		Where
+			TCS.ItemID = #{itemId}
+			<if test="cngStatus != null and cngStatus != ''">
+			AND TCS.Status =  #{cngStatus}
+			</if>
+	</select>
+	
+	 <select id="getTranAttrList_gridList" resultType="java.util.HashMap">
+     	Select 
+     		Row_Number()OVER(ORDER BY ATRN.CategoryCode ASC ) As RNUM,
+			ATRN.CategoryCode, ATRN.ItemID, L1, ATRN.Identifier, 
+			ItemTypeCode, ItemType, 
+			Class, FieldNM, XBOLTADM.fn_GetMyAbsPathForList(ATRN.ItemID, #{sessionLanguageID}) As Path, 
+			ATRN.PlainTextDefOLD As TextDefOLD,
+			ATRN.PlainTextDef As TextDef, 
+			ATRN.TargetText, 			
+			ATRN.LastUpdated,
+			ATRN.RevisionDate,
+			ATRN.Rev_Def
+		From 
+			(SELECT ITM.ItemID
+			    ,AT.Name As FieldNM
+			    ,ITM.CategoryCode
+			    ,Substring(ITM.Identifier, 1, 1) As L1
+			    ,ITM.Identifier
+			    ,ITM.ItemTypeCode
+			    ,ITMTP.Name As ItemType
+			    ,CLS.Name As Class 
+			    ,ATR.PlainTextDefOLD
+			    ,ATR.PlainTextDef
+			    ,ATRT.PlainText As TargetText
+			    ,Rev_Def
+			    ,Rev_1033
+			    ,Rev_1046
+			    ,Rev_2052
+			    ,Rev_Def - Rev_${targetLang} As TargetLang  
+			    ,ISNULL(CONVERT(char(10),ATR.RevisionDate, 21),'') AS RevisionDate
+			    ,ISNULL(CONVERT(char(10),ATR.LastUpdated, 21),'') AS LastUpdated		  
+			  FROM XBOLTADM.TB_ITEM_ATTR_TRAN ATR
+			  Left Outer Join XBOLTADM.TB_ITEM ITM On ITM.ItemID = ATR.ItemID 
+			  Left Outer Join XBOLTADM.TB_DICTIONARY ITMTP On ITMTP.TypeCode = ITM.ItemTypeCode And ITMTP.LanguageID = #{sessionLanguageID} And ITMTP.Category = 'OJ'
+			  Left Outer Join XBOLTADM.TB_DICTIONARY CLS On CLS.TypeCode = ITM.ClassCode And CLS.LanguageID = #{sessionLanguageID}
+			  Left Outer Join XBOLTADM.TB_DICTIONARY AT On AT.TypeCode = ATR.AttrTypeCode And AT.LanguageID = #{sessionLanguageID}
+			  Left Outer Join XBOLTADM.TB_ITEM_ATTR ATRT On ATRT.ItemID = ATR.ItemID And ATRT.AttrTypeCode = ATR.AttrTypeCode And ATRT.LanguageID = #{targetLang}
+			 ) AS ATRN   
+			 Where ATRN.TargetLang > 0
+			 <if test="itemType != null and itemType != ''">
+				AND ATRN.ItemTypeCode = #{itemType}
+			 </if>
+			 <if test="category != null and category != ''">
+				AND ATRN.CategoryCode = #{category}
+			 </if>
+			 Order By ATRN.CategoryCode, ATRN.ItemType, L1, ATRN.Identifier
+     </select>
+     
+     <insert id="insertTranAttr" parameterType="java.util.HashMap">
+     	INSERT INTO XBOLTADM.TB_ITEM_ATTR_TRAN
+           (ItemID, AttrTypeCode, PlainTextDef, LastUpdated, RevisionDate)   
+   		Select ATR.ItemID, ATR.AttrTypeCode, ATR.PlainText, ATR.LastUpdated, getDate()
+		From XBOLTADM.TB_ITEM_ATTR ATR 
+    	Left outer Join XBOLTADM.TB_ATTR_TYPE ATP on ATP.AttrTypeCode = ATR.AttrTypeCode
+    	Left outer Join XBOLTADM.TB_ITEM ITM on ITM.ItemID = ATR.ItemID 
+    	Where ATP.DataType = 'Text' AND ITM.Deleted != 1 AND ATR.LanguageID = (Select LanguageID From XBOLTADM.TB_Language where IsDefault = '1')
+    	And ATR.PlainText != '' And ATR.ItemID Not In(Select ItemID from XBOLTADM.TB_ITEM_ATTR_TRAN Where AttrTypeCode = ATR.AttrTypeCode)    	
+		 <if test="itemType != null and itemType != ''">
+			AND ITM.ItemTypeCode = #{itemType}
+		 </if>
+		 <if test="category != null and category != ''">
+			AND ITM.CategoryCode = #{category}
+		 </if>
+     </insert>
+     
+     <update id="updateTranAttr" parameterType="java.util.HashMap">
+     	UPDATE XBOLTADM.TB_ITEM_ATTR_TRAN
+	   	SET 
+	   	   PlainTextDefOLD =  PlainTextDef
+	  	  ,PlainTextDef = ATR.PlainText
+	      ,Rev_Def = Rev_Def + 1    
+	      ,LastUpdated = ATR.LastUpdated
+	      ,RevisionDate = getDate()	      
+		From XBOLTADM.TB_ITEM_ATTR_TRAN ATRN, XBOLTADM.TB_ITEM_ATTR ATR
+		Left Outer Join XBOLTADM.TB_ITEM ITM On ITM.ItemID = ATR.ItemID 
+		WHERE  ATRN.ItemID = ATR.ItemID and ATRN.AttrTypeCode = ATR.AttrTypeCode
+		And ATR.LanguageID = (Select LanguageID From XBOLTADM.TB_Language where IsDefault = '1')
+		And ATRN.PlainTextDef != ATR.PlainText 
+		 <if test="itemType != null and itemType != ''">
+			AND ITM.ItemTypeCode = #{itemType}
+		 </if>
+		 <if test="category != null and category != ''">
+			AND ITM.CategoryCode = #{category}
+		 </if>		
+     </update>
+     
+     <select id="getTranAttrDataList_gridList" resultType="java.util.HashMap">
+     	Select 
+     		Row_Number()OVER(ORDER BY ITM.CategoryCode ASC ) As RNUM,
+			ATRN.ItemID,
+			ATRN.AttrTypeCode, 
+			${targetLang} As LanguageID, 
+			ITMTP.Name As ItemType,
+			CLS.Name As Class,
+			ITM.Identifier,
+			XBOLTADM.fn_GetMyAbsPathForList(ITM.ItemID, #{sessionCurrLangType}) As ItemPath , 
+			ATRN.PlainTextDefOLD As TextDefOLD, 
+			ATRN.PlainTextDef As TextDef, 
+			ATRT.PlainText As TargetText, 
+			ATRN.LastUpdated,
+			ATRN.RevisionDate,
+			ATRN.Rev_Def
+		From 
+		(SELECT ItemID
+		      ,AttrTypeCode
+		      ,PlainTextDefOLD
+		      ,PlainTextDef
+		      ,Rev_Def
+			  ,Rev_Def - Rev_${targetLang} As TargetLang
+			  ,ISNULL(CONVERT(char(10),RevisionDate, 21),'') AS RevisionDate
+			  ,ISNULL(CONVERT(char(10),LastUpdated, 21),'') AS LastUpdated		
+		  FROM XBOLTADM.TB_ITEM_ATTR_TRAN
+		 ) ATRN  
+		  Inner Join XBOLTADM.TB_ITEM ITM On ITM.ItemID = ATRN.ItemID 
+		  Left Outer Join XBOLTADM.TB_DICTIONARY ITMTP On ITMTP.TypeCode = ITM.ItemTypeCode And ITMTP.LanguageID = #{sessionCurrLangType} And ITMTP.Category = 'OJ'
+		  Left Outer Join XBOLTADM.TB_DICTIONARY CLS On CLS.TypeCode = ITM.ClassCode And CLS.LanguageID = #{sessionCurrLangType} And CLS.Category = 'CLS'
+		  Left Outer Join XBOLTADM.TB_ITEM_ATTR ATRT On ATRT.ItemID = ATRN.ItemID And ATRT.AttrTypeCode = ATRN.AttrTypeCode And ATRT.LanguageID = #{targetLang}
+		 Where ATRN.TargetLang > 0 
+		 <if test="itemType != null and itemType != ''">
+			AND ITM.ItemTypeCode = #{itemType}	
+		 </if>
+		 <if test="category != null and category != ''">
+			AND ITM.CategoryCode = #{category}	
+		 </if>
+     </select>
+     
+     <update id="updateItemAttrTran" parameterType="java.util.HashMap">
+     	Update XBOLTADM.TB_ITEM_ATTR_TRAN Set 
+     		Rev_${targetLanguage} = #{revisionNo}     		
+     		, LastUpdated = getDate()
+		Where ItemID = #{itemID} And AttrTypeCode = #{attrTypeCode}
+     </update>
+     
+     <select id="getItemAttrCnt" resultType="String">
+     	Select Count(*) AS ItemAttrCnt From XBOLTADM.TB_ITEM_ATTR 
+	 	Where ItemID = #{ItemID}
+	 	And AttrTypeCode = #{AttrTypeCode}
+	 	And LanguageID = #{languageID} 
+	 </select>
+	 
+	 <select id="getAttrHtmlType" resultType="String">
+	 	Select HTML From XBOLTADM.TB_ATTR_TYPE Where AttrTypeCode = #{AttrTypeCode}
+	 </select> 
+	 
+	 <select id="getChildItemList" resultType="java.util.HashMap">
+	 	WITH ItemMaster(MyItemID)
+		 AS
+		 (
+			SELECT ToItemID AS MyItemID
+			FROM XBOLTADM.TB_ITEM ITM
+			WHERE ITM.FromItemID =  #{itemID}				/*arg 0: 선택한 Item*/
+				AND ITM.CategoryCode = 'ST1'
+				AND ITM.Deleted != '1'						
+				AND (Select Deleted From XBOLTADM.TB_ITEM Where ItemID = ITM.ToItemID ) != '1'
+			UNION ALL
+			SELECT ITM_L.ToItemID AS MyItemID			
+			FROM XBOLTADM.TB_ITEM ITM_L, ItemMaster LCTE, XBOLTADM.TB_ITEM ITM
+			WHERE ITM_L.Deleted != '1'			
+				AND ITM_L.CategoryCode = 'ST1'		
+				AND ITM_L.FromItemID = LCTE.MyItemID						
+				AND ITM.ItemID = ITM_L.ToItemID	
+		 )
+		, ItemStructure(MyItemID)
+		 AS
+		 (
+		 	SELECT  ItemID AS MyItemID
+	    	FROM XBOLTADM.TB_ITEM
+	    	WHERE ItemID = #{itemID}		    	
+	    	UNION ALL		    	
+			SELECT MyItemID  
+			FROM ItemMaster		
+		 )
+		 SELECT Distinct Row_Number()OVER(ORDER BY ITM.Identifier ) as RNUM
+			, ITM_STR.MyItemID AS MyItemID
+			, ITM.Identifier As Identifier
+			, ITM.ClassCode AS ClassCode 
+		 FROM 
+			ItemStructure ITM_STR
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM ITM ON ITM.CategoryCode = 'OJ'	AND ITM.ItemID = ITM_STR.MyItemID	
+			WHERE 1=1 And ITM.ClassCode IN (#{classCode})
+			<if test="batchInterval != null and batchInterval != ''">
+				And ITM.LastUpdated BETWEEN GETDATE()-#{batchInterval} and GETDATE()
+			</if>
+			ORDER BY Identifier
+	 </select>
+	 
+	 <select id="getToItemCNT" resultType="String" >
+	 	Select Count(DisTinct(ToItemID)) From XBOLTADM.TB_ITEM Where FromItemId = #{itemID} And CategoryCode IN('ST1','ST2') And Deleted != 1
+	 </select>
+	 
+	 <select id="getMDLOBJCNT" resultType="String" >
+	 	SELECT COUNT(*) AS CNT 
+		FROM XBOLTADM.TB_ITEM ITM, XBOLTADM.TB_MODEL MDL, XBOLTADM.TB_ELEMENT ELE, XBOLTADM.TB_ITEM OBJ			
+		WHERE ITM.ItemID = #{itemID} 
+		AND ITM.ItemID = MDL.ItemID
+		AND MDL.ModelID = ELE.ModelID 
+		AND OBJ.ItemID = ELE.ObjectID 
+		AND OBJ.Deleted != '1'
+		AND OBJ.CategoryCode = 'OJ'
+	 </select>
+	 
+	 <select id="getElmentList" resultType="java.util.HashMap">
+	 	Select ModelID, ElementID, PositionY, ISNULL(Path,'') AS Path From XBOLTADM.TB_ELEMENT Where Parent = ModelID + 1
+	 </select>
+	 
+	 <update id="updateElementPosionY" parameterType="java.util.HashMap">
+	 	UPDATE XBOLTADM.TB_ELEMENT SET 
+	 		LastUpdated = GetDate()
+			,LastUser = #{lastUser} 
+		 	<if test="positionY != null and positionY != ''">,PositionY = FLOOR(#{positionY})</if>
+		 	<if test="path != null and path != ''">,Path = #{path}</if>			 
+		Where ModelID = #{modelID}
+		And ElementID = #{elementID}			 
+	</update>
+	
+	<delete id="deleteItemAttrIF">
+		DELETE FROM XBOLTADM.TI_ITEM_ATTR_IF 
+	</delete>
+	
+	<select id="getItemAttrError" resultType="String">
+		SELECT TOP 1 ErrorCode FROM XBOLTADM.TI_ITEM_ATTR_IF
+		WHERE ErrorCode IS NOT NULL AND Status = '03' 
+	</select>
+	
+	<insert id="insertItemAttrIF" parameterType="java.util.HashMap">
+     	INSERT INTO XBOLTADM.TI_ITEM_ATTR_IF
+        (ParentID
+        <if test="Identifier != null and Identifier != ''">
+       	,Identifier
+       	</if>
+       	,ItemClassCode
+       	<if test="AT00001 != null and AT00001 != ''">
+       	,AT00001
+       	</if>
+       	<if test="AT00000 != null and AT00000 != ''">
+       	,AT00003
+       	</if>
+       	<if test="AT00009 != null and AT00009 != ''">
+       	,AT00009
+       	</if>
+       	<if test="AT00013 != null and AT00013 != ''">
+       	,AT00013
+       	</if>
+       	<if test="AT00014 != null and AT00014 != ''">
+       	,AT00014
+       	</if>
+       	<if test="AT00015 != null and AT00015 != ''">
+       	,AT00015
+       	</if>
+       	<if test="AT00016 != null and AT00016 != ''">
+        ,AT00016
+        </if>
+        <if test="AT00024 != null and AT00024 != ''">
+        ,AT00024
+        </if>
+        <if test="AT00026 != null and AT00026 != ''">
+        ,AT00026
+        </if>
+        <if test="AT00037 != null and AT00037 != ''">
+        ,AT00037
+        </if>
+        <if test="ItemID != null and ItemID != ''">
+       	,ItemID
+       	</if>
+        ,ProjectID
+        <if test="Action != null and Action != ''">
+        ,Action
+        </if>
+        <if test="languageID != null and languageID != ''">
+        ,LanguageID
+        </if>
+        ,CreationTime)
+     VALUES(
+     	ISNULL(#{ParentID},'P')
+     	<if test="Identifier != null and Identifier != ''">
+        ,#{Identifier}
+        </if>
+        ,#{ItemClassCode}
+        <if test="AT00001 != null and AT00001 != ''">
+        	,#{AT00001}
+		</if>
+		<if test="AT00000 != null and AT00000 != ''">
+			,#{AT00000}
+		</if>
+		<if test="AT00009 != null and AT00009 != ''">
+			,#{AT00009}
+		</if>
+		<if test="AT00013 != null and AT00013 != ''">
+			,#{AT00013}
+		</if>
+		<if test="AT00014 != null and AT00014 != ''">
+			,#{AT00014}
+		</if>
+		<if test="AT00015 != null and AT00015 != ''">
+			,#{AT00015}
+		</if>
+		<if test="AT00016 != null and AT00016 != ''">
+			,#{AT00016}
+		</if>
+		<if test="AT00024 != null and AT00024 != ''">
+			,#{AT00024}
+		</if>
+		<if test="AT00026 != null and AT00026 != ''">
+			,#{AT00026}
+		</if>
+		<if test="AT00037 != null and AT00037 != ''">
+			,#{AT00037}
+		</if>
+		<if test="ItemID != null and ItemID != ''">
+       	,#{ItemID}
+       	</if>
+        ,#{ProjectID}
+        <if test="Action != null and Action != ''">
+        ,#{Action}
+        </if>
+        <if test="languageID != null and languageID != ''">
+        ,#{languageID}
+        </if>
+        ,GETDATE())    	
+		 <if test="itemType != null and itemType != ''">
+			AND ITM.ItemTypeCode = #{itemType}
+		</if>
+	 </insert>
+	
+	<select id="insertExcelIF" parameterType="java.util.HashMap" statementType="CALLABLE">
+		{ CALL #{procedureName} }
+	</select>
+	
+	<select id="getTreeRootItem" resultType="java.util.HashMap">	
+		SELECT
+			<if test="rootItemID == null or rootItemID == ''">Top 1</if>
+			<if test="rootItemID != null and rootItemID != ''">Distinct</if>C.FromItemID AS PRE_TREE_ID , C.ToItemID AS TREE_ID
+			<!-- , <![CDATA[ '<img src=/cmm/sf/images/item/img_process.png>'+ ISNULL(Obj.Identifier,'') + ' ' + ISNULL(ATR.PlainText, 'Untitled')  ]]>  AS TREE_NM  -->
+			, ISNULL(Obj.Identifier,'') + ' ' + ISNULL(ATR.PlainText, 'Untitled')  AS TREE_NM
+			, Obj.ClassCode as Level
+			, Obj.ItemID
+			, Obj.ItemTypeCode
+			,(select count(BB.ItemID) from XBOLTADM.TB_ITEM BB where C.ToItemID = BB.FromItemID and  BB.Deleted != 1) as ChildCnt
+			, 0 as TreeLevel
+			, Obj.Identifier
+		FROM XBOLTADM.TB_ITEM C Left Outer Join  XBOLTADM.TB_ITEM_ATTR ATR on C.ToItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001'
+			AND ATR.LanguageID = #{languageID}, XBOLTADM.TB_ITEM Obj
+		WHERE
+			C.ItemTypeCode = #{itemTypeCode}
+			AND C.ToItemID = Obj.ItemID
+			AND C.Deleted != '1'
+			<if test="classCode != null and classCode != ''">AND Obj.ClassCode = #{classCode}</if>
+			<if test="rootItemID != null and rootItemID != ''">And Obj.ItemID = #{rootItemID}</if>
+		Order by PRE_TREE_ID, Obj.Identifier  
+	</select>	 
+	
+	<select id="getItemTreeListByDimList" resultType="java.util.HashMap">	
+		SELECT  T.PRE_TREE_ID, T.TREE_ID, T.TREE_NM, T.Level, MAX(T.DimTypeID) AS DimTypeID, MAX(T.DimValueID) AS DimValueID, T.LanguageID
+				,(select count(BB.ItemID) from XBOLTADM.TB_ITEM BB where T.TREE_ID = BB.FromItemID and  BB.Deleted != 1) as ChildCnt
+				, #{treeLevel} as TreeLevel
+		FROM (
+				SELECT  
+					ST.FromItemID AS PRE_TREE_ID
+					, A.ItemID as TREE_ID
+					, A.Identifier + ' ' +  B.PlainText AS TREE_NM
+					, A.ClassCode as Level
+					, B.LanguageID
+					, STUFF((SELECT ',' + ITD.DimValueID FROM XBOLTADM.TB_ITEM_DIM ITD 
+									WHERE A.ItemID = ITD.ItemID 
+									<if test="dimTypeID != null and dimTypeID != ''">AND ITD.DimTypeID = #{dimTypeID}</if> 
+									group by ITD.DimValueID  order by ITD.DimValueID FOR XML PATH('')),1,1,'') AS DimValueID
+						, TID.DimTypeID 
+					
+				FROM    XBOLTADM.TB_ITEM AS A  
+						Inner Join  XBOLTADM.TB_ITEM_ATTR AS B ON A.ItemID = B.ItemID AND B.AttrTypeCode = 'AT00001' 
+						Left Outer Join XBOLTADM.TB_ITEM ST on ST.ToItemID = A.ItemID and ST.ItemTypeCode = #{itemTypeCode}
+						Left Outer Join XBOLTADM.TB_ITEM_DIM TID on A.ItemID = TID.ItemID
+						<if test="dimTypeID != null and dimTypeID != ''">AND TID.DimTypeID = #{dimTypeID}</if>
+				where  A.identifier is not null and A.deleted != 1											
+				AND LanguageID = #{languageID}
+				
+				AND ST.FromItemID IN
+				<foreach collection="FromItemIdList" item="FromItemId" index="index" separator="," open="(" close=")">
+		            #{FromItemId.ToItemID, jdbcType=BIGINT }
+		        </foreach>
+		      )T 
+		group by T.PRE_TREE_ID, T.TREE_ID, T.TREE_NM, T.Level, T.DimTypeID, T.LanguageID
+		Order by T.PRE_TREE_ID, T.TREE_NM, T.LanguageID
+	</select>
+	
+	<select id="getItemTreeListByDimFromItemId" resultType="java.util.HashMap">
+		SELECT  
+				ST.ToItemID
+		FROM    XBOLTADM.TB_ITEM AS A 
+				Inner Join  XBOLTADM.TB_ITEM_ATTR AS B ON A.ItemID = B.ItemID AND B.AttrTypeCode = 'AT00001' 
+				Left Outer Join XBOLTADM.TB_ITEM ST on ST.ToItemID = A.ItemID and ST.ItemTypeCode = 'CN00001'
+				Left Outer Join XBOLTADM.TB_ITEM_DIM TID on A.ItemID = TID.ItemID
+				<if test="dimTypeID != null and dimTypeID != ''">AND DimTypeID = #{dimTypeID}</if>
+		where  A.identifier is not null and A.deleted != 1											
+		AND LanguageID = #{languageID}		
+		AND ST.FromItemID IN
+		<foreach collection="FromItemIdList" item="FromItemId" index="index" separator="," open="(" close=")">
+            #{FromItemId.ToItemID, jdbcType=BIGINT }
+        </foreach>
+		Order by LanguageID
+	</select>
+	
+	<select id="getItemRevisionStatisticsByYearCount" resultType="java.util.HashMap">
+		SELECT	T1.Year	, T1.Identifier	, T1.CNT 
+		FROM (
+			SELECT 
+				DATEPART(YEAR, ValidFrom) AS Year
+				,Concat('Q', DATEPART(QUARTER, ValidFrom)) AS Identifier
+				,count( ItemId) AS CNT
+			FROM (SELECT Max(ValidFrom) ValidFrom, ItemID FROM XBOLTADM.TB_CHANGE_SET  
+				  Where Status = 'CLS'  
+				 	    AND (ValidFrom IS NOT NULL AND ValidFrom != '')	
+						AND ItemTypeCode IN
+						<foreach collection="itemTypeCodeList" item="itemTypeCode" index="index" separator="," open="(" close=")">
+		            		#{itemTypeCode, jdbcType=BIGINT }
+		        		</foreach>  Group By ItemID
+				 ) A	 	
+			GROUP BY  DATEPART(YEAR, A.ValidFrom) ,DATEPART(QUARTER, A.ValidFrom)
+			) T1
+		WHERE T1.Year = #{Date} 
+	</select>
+	
+	<select id="getMinYearByCHANGESET" resultType="String">
+		SELECT MIN(T1.YEAR)
+			FROM(
+
+				SELECT DATEPART(YEAR, ValidFrom) AS Year  
+				FROM 
+					XBOLTADM.TB_CHANGE_SET
+					<![CDATA[
+					where (ValidFrom <> null or ValidFrom <> '')
+					]]>
+				GROUP BY     
+					DATEPART(YEAR, ValidFrom)
+				) T1
+	</select>
+	
+	<select id="getReportList" resultType="java.util.HashMap">
+		 SELECT
+				Row_Number()OVER(ORDER BY TB.ReportCode ASC ) as RNUM
+				, TB.ReportCode
+				, TB.OutputType
+				, TB.Icon
+				, TD.Name
+				, TD.Description
+				, TB.ReportURL
+				, (SELECT [AuthorID] FROM XBOLTADM.TB_ITEM WHERE ItemID = #{s_itemID}) As AuthorID
+				, Tb.IsPublic
+				, TRA.VarFilter
+				, ISNULL(TB.MessageCode,'''''') AS MessageCode
+				, TB.ActionType
+				, TB.PWidth
+				, TB.PHeight
+				, ISNULL(TIA.PlainText,0) AS SeqLevel
+				, TB.Authority
+			FROM
+				XBOLTADM.TB_REPORT TB
+				Left Outer Join XBOLTADM.TB_DICTIONARY TD on TB.ReportCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_REPORT_ALLOCATION TRA on TB.ReportCode = TRA.ReportCode
+				Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA on TIA.ItemID = #{s_itemID} AND TIA.AttrTypeCode = 'AT00040' AND TIA.LanguageID = #{defLanguageID}
+			WHERE
+			TB.Deactivated = 0
+			AND (TB.Authority > #{AuthLev} or TB.Authority = #{AuthLev})
+			AND TRA.ClassCode = (SELECT ClassCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{s_itemID})    	
+	</select>
+	<select id="getReportListOfPjt" resultType="java.util.HashMap">
+	  	 SELECT
+				Row_Number()OVER(ORDER BY TB.ReportCode ASC ) as RNUM
+				, TB.ReportCode
+				, TB.OutputType
+				, TD.Name
+				, TD.Description
+				, TB.ReportURL
+				, Tb.IsPublic
+				, TRA.VarFilter
+			FROM
+				XBOLTADM.TB_REPORT TB
+				Left Outer Join XBOLTADM.TB_DICTIONARY TD on TB.ReportCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_REPORT_ALLOCATION TRA on TB.ReportCode = TRA.ReportCode
+			WHERE
+				TB.Deactivated = 0
+				AND (TB.Authority > #{sessionAuthLev} or TB.Authority = #{sessionAuthLev})
+				AND TRA.TemplCode = #{sessionTemplCode}	
+				<if test="projectID != null and projectID != ''">
+				AND TRA.ProjectID = #{projectID}
+				</if>	
+	</select>
+	
+	<select id="getReportNameList" resultType="java.util.HashMap" >
+		Select TR.ReportCode As ReportCode , TD.Name AS ReportName
+		From XBOLTADM.TB_REPORT TR
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TR.ReportCode And TD.Category = 'RP' And TD.LanguageID = #{sessionCurrLangType}
+		<if test="reportCode != null and reportCode != ''">
+			Where TR.ReportCode = #{reportCode}
+		</if>
+	</select>
+	
+	<select id="getElementStrInfo_gridList" resultType="java.util.HashMap">
+		WITH ItemOCC(MyItem, MyClass, MyID, LastUpdated, LastUser, LinkType, Category, SortNum)
+		AS
+		(
+		 	 SELECT    Distinct
+		 	 	   OBJ.ItemID AS MyItem, OBJ.ClassCode AS MyClass
+				   , OBJ.Identifier AS MyID, Convert(nvarchar(20),Obj.LastUpdated, 111) AS LastUpdated
+				   , Obj.AuthorID AS LastUser
+				   , XBOLTADM.fn_GetPrePostFromElement(MDL.ModelID, ELE.ObjectID) AS  LinkType
+				   , OBJ.CategoryCode as Category
+				   , ELE.SortNum as SortNum
+				 FROM 
+				   XBOLTADM.TB_ITEM ITM
+				   , XBOLTADM.TB_MODEL MDL
+				   , XBOLTADM.TB_ELEMENT ELE
+				   , XBOLTADM.TB_ITEM OBJ
+				
+				 WHERE 
+				   ITM.ItemID =  #{itemID}  
+				   AND ITM.ItemID = MDL.ItemID
+				   AND MDL.ModelID = ELE.ModelID 
+				   AND OBJ.ItemID = ELE.Link 
+				   AND OBJ.Deleted != '1'
+				   AND OBJ.CategoryCode = 'OJ'
+	   			   AND MDL.MTCategory = 'BAS'
+		),
+		ItemMASTER(MyItem, MyClass, MyID, LastUpdated, LastUser, LinkType, GUBUN, SortNum)
+		AS
+		(
+			SELECT
+				Distinct 
+				ST1.ToItemID AS MyItem, ITM.ClassCode AS MyClass
+				, ITM.Identifier AS MyID, Convert(nvarchar(20),ITM.LastUpdated, 111) AS LastUpdated
+				, ITM.AuthorID AS LastUser
+				,ItemOCC.LinkType AS LinkType
+				, CASE WHEN ST1.CategoryCode = 'ST1' THEN 'M' 
+			       WHEN ST1.CategoryCode = 'ST2' THEN 'R' 
+			  ELSE 'O' END AS GUBUN
+			  	, '' AS SortNum
+			FROM 
+				XBOLTADM.TB_ITEM ST1
+	
+				LEFT OUTER JOIN XBOLTADM.TB_ITEM ITM
+				ON ITM.CategoryCode = 'OJ'
+				AND ITM.ItemID = ST1.ToItemID
+				
+				LEFT OUTER JOIN ItemOCC 
+				ON ItemOCC.MyItem = ST1.ToItemID
+				
+			WHERE 
+				ST1.FromItemID = #{itemID} 			
+				AND ST1.CategoryCode in ('ST1' , 'ST2')
+				AND ST1.Deleted != '1'
+				
+			UNION ALL
+			
+			SELECT 
+				MyItem, MyClass, MyID, LastUpdated, LastUser
+			   ,ItemOCC.LinkType AS LinkType
+			   ,CASE WHEN Category = 'ST1' THEN 'M' 
+				  WHEN Category = 'ST2' THEN 'R' 			    
+			 ELSE 'O' END AS GUBUN 
+				, ItemOCC.SortNum
+			FROM 
+				ItemOCC
+			WHERE 
+				1 = 1
+				AND NOT EXISTS 
+				(
+					SELECT 	'Z' 
+					FROM  XBOLTADM.TB_ITEM ST1 
+					WHERE 
+						ST1.FromItemID = #{itemID} 
+						AND ST1.CategoryCode in ('ST1' , 'ST2')
+						AND ST1.Deleted != '1'
+						AND ST1.ToItemID = ItemOCC.MyItem
+				)
+		)
+		SELECT 	DISTINCT Row_Number()OVER(ORDER BY MST.SortNum, MST.MyID ) as RNUM
+			, CONVERT(NVARCHAR(MAX), XBOLTADM.fn_GetMyAbsPathForList(MST.MyItem, #{languageID}) + '/' + CONVERT(NVARCHAR(MAX), TIA.PlainText)) AS MyPath 
+			, MST.MyItem AS MyItemID
+			, MST.MyID AS Identifier
+			, TIA.PlainText AS MyItemName
+			
+			, TIO.Level AS MyLevel
+			, MST.MyClass As MyClassCode
+	
+			, TD.Name AS MyClassName
+			
+			, TSD.Name AS StatusName
+			, TM.Name AS LastUser
+	      	
+			, Convert(nvarchar(20),MST.LastUpdated, 111) AS LastUpdated
+			, MST.LinkType
+			, MST.GUBUN
+			, MST.SortNum
+		FROM 
+			ItemMASTER MST	
+			LEFT OUTER JOIN (SELECT FromItemID, ISNULL(COUNT(DISTINCT ToItemID), 0) AS SCOUNT FROM XBOLTADM.TB_ITEM WHERE Deleted != '1' AND CategoryCode IN  ('ST1', 'ST2') GROUP BY FromItemID) TIS on TIS.FromItemID = MST.MyItem
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA ON TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}	AND MST.MyItem = TIA.ItemID 		
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TD.LanguageID = #{languageID} AND MST.MyClass = TD.TypeCode
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM TIO ON MST.MyITEM = TIO.ItemID		
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TSD ON TSD.LanguageID = #{languageID} AND TIO.Status = TSD.TypeCode AND TSD.Category = 'ITMSTS'
+	
+			LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON MST.LastUser = TM.MemberID
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_CLASS TIT ON MST.MyClass = TIT.ItemClassCode
+			LEFT OUTER JOIN (SELECT DISTINCT DocumentID FROM XBOLTADM.TB_FILE Where DocCategory = 'ITM') TIFF ON TIO.ItemID = TIFF.DocumentID	
+			LEFT OUTER JOIN XBOLTADM.TB_PROJECT CSR ON CSR.ProjectID = TIO.ProjectID
+			LEFT OUTER JOIN XBOLTADM.TB_PROJECT PJT ON PJT.ProjectID = CSR.RefPjtID	
+			LEFT OUTER JOIN XBOLTADM.TB_PROJECT_TXT PJTXT ON PJTXT.ProjectID = CSR.RefPjtID	 and PJTXT.LanguageID = #{languageID}
+				
+		WHERE
+			MST.MyItem != #{itemID}
+			<if test="elmClass != null and elmClass != ''">
+			AND MST.MyClass = #{elmClass}
+			</if>
+			
+		ORDER BY MST.SortNum, MST.MyID
+	</select>	
+	
+	<select id="getLevelfromClassCode" resultType="String" >
+		SELECT LEVEL
+		FROM XBOLTADM.TB_ITEM_CLASS
+		WHERE ItemClassCode = #{classCode}
+	</select>
+	<select id="getexportMOJWLangList_gridList" resultType="java.util.HashMap" >
+		Select 
+			 T1.*
+		From (
+			SELECT 
+				Row_Number()OVER(ORDER BY ATKR.AttrTypeCode, ATKR.ClassCode ) as RNUM, ATKR.ItemID , 
+				ATKR.ItemTypeCode,
+				(select TD.Name FROM XBOLTADM.TB_DICTIONARY TD WHERE TD.LanguageID = 1042 and TD.TypeCode = ATKR.ItemTypeCode ) AS ItemTypeCodeName,
+				ATKR.ClassCode,			
+				(select TD.Name FROM XBOLTADM.TB_DICTIONARY TD WHERE TD.LanguageID = 1042 and TD.TypeCode = ATKR.ClassCode ) AS ClassCodeName,
+				ATKR.AttrTypeCode ,
+				(select TD.Name FROM XBOLTADM.TB_DICTIONARY TD WHERE TD.LanguageID = 1042 and TD.TypeCode = ATKR.AttrTypeCode ) AS AttrTypeCodeName,
+				ATKR.PlainText As KRValue, ATEN.PlainText As otherValue   , ATKR.LastUpdated
+			FROM [XBOLTADM].[TB_ITEM_ATTR] ATKR 
+			Left Outer Join  XBOLTADM.TB_ITEM_ATTR ATEN on  ATKR.ItemID = ATEN.ItemID and ATKR.AttrTypeCode=ATEN.AttrTypeCode AND ATEN.LanguageID = #{selectLanguageID}
+			where ATKR.ItemTypeCode in ( 'OJ00002', 'OJ00003','OJ00007','TXT0001')  
+			and ATKR.LanguageID = 1042 and ATKR.PlainText IS NOT Null AND ATKR.PlainText Not In ( 'ROLE' ,'Y' , 'N', 'Yes' , 'No' , 'END' , 'Or' , 'And')
+			<if test="lastUpdated != null and lastUpdated != ''">
+				<![CDATA[ AND	ATKR.LastUpdated > 	#{lastUpdated} ]]>	
+			</if>
+		) T1
+		<where>
+			<if test="pageNo != null and pageNo != ''">
+				T1.RNUM BETWEEN ((#{pageNo}-1)*#{LIST_PAGE_SCALE}  + 1) AND (#{pageNo}*#{LIST_PAGE_SCALE})
+			</if>
+		</where>
+		order by T1.ItemTypeCode, T1.ClassCode
+	</select>
+	<select id="getexportMOJWLangList_ListCount" resultType="String" >
+		SELECT COUNT(ATKR.ItemID)
+		FROM [XBOLTADM].[TB_ITEM_ATTR] ATKR 
+		Left Outer Join  XBOLTADM.TB_ITEM_ATTR ATEN on  ATKR.ItemID = ATEN.ItemID and ATKR.AttrTypeCode=ATEN.AttrTypeCode AND ATEN.LanguageID = 1033
+		where ATKR.ItemTypeCode in ( 'OJ00002', 'OJ00003','OJ00007','TXT0001')  
+		and ATKR.LanguageID = 1042 and ATKR.PlainText IS NOT Null AND ATKR.PlainText Not In ( 'ROLE' ,'Y' , 'N', 'Yes' , 'No' , 'END' , 'Or' , 'And')
+	</select>
+	
+	<select id="getHTMLPlainText" resultType="java.util.HashMap" >
+		Select 
+			TIA.Seq 
+			, TIA.ItemID
+			, TIA.LanguageID
+			, TIA.PlainText
+			, TAT.HTML 
+		From XBOLTADM.TB_ITEM_ATTR TIA
+		Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT ON TAT.AttrTypeCode = TIA.AttrTypeCode 
+		WHERE TAT.HTML = 1
+	</select>
+	
+	<select id="getInvalidXMLCharacter" resultType="java.util.HashMap" >
+		Select 
+			Seq 
+			, ItemID
+			, LanguageID
+			, PlainText
+		From XBOLTADM.TB_ITEM_ATTR
+		WHERE PlainText like '%[^\\u0009\\u000A\\u000D\\u0020-\\uD7FF\\uE000-\\uFFFD\\u10000-\\u10FFF]+%'
+	
+	</select>
+	
+	<update id="updatePlainText" parameterType="java.util.HashMap">
+	 	UPDATE XBOLTADM.TB_ITEM_ATTR SET 
+	 		PlainText = #{plainText}
+	 		,LastUpdated = GetDate()		 	
+		Where Seq = #{seq}		 
+	</update>
+	
+	<update id="updateRemoveInvalidXMLCharacter" parameterType="java.util.HashMap">
+	<![CDATA[ 	
+	 	UPDATE XBOLTADM.TB_ITEM_ATTR SET 
+	 		PlainText = XBOLTADM.RemoveASCIICharactersInRange(PlainText)
+	 		,LastUpdated = GetDate()		 	
+		Where PlainText LIKE '%[' + NCHAR(0) + NCHAR(1) + NCHAR(2) + NCHAR(3) + NCHAR(4) + NCHAR(5) + NCHAR(6) + NCHAR(7) + NCHAR(8) + NCHAR(11) + NCHAR(12) + NCHAR(14) + NCHAR(15) + NCHAR(16) + NCHAR(17) + NCHAR(18) + NCHAR(19) + NCHAR(20) + NCHAR(21) + NCHAR(22) + NCHAR(23) + NCHAR(24) + NCHAR(25) + NCHAR(26) + NCHAR(27) + NCHAR(28) + NCHAR(29) + NCHAR(30) + NCHAR(31) + NCHAR(127)+ ']%'
+		]]>		 
+	</update>
+	
+	<select id="getItemCntByLevel" resultType="String">	   
+       SELECT COUNT(ITEMID) AS CNT
+  		FROM XBOLTADM.TW_ITEM_HIER
+  		Where 1=1
+  			<if test='"L1".equalsIgnoreCase(level)'>and L1ItemID = #{itemID}</if>
+  			<if test='"L2".equalsIgnoreCase(level)'>and L2ItemID = #{itemID}</if>
+  			<if test='"L3".equalsIgnoreCase(level)'>and L3ItemID = #{itemID}</if>
+  			<if test='"L4".equalsIgnoreCase(level)'>and L4ItemID = #{itemID}</if>
+	 </select>
+	 
+	 <select id="getprocDesignStatistics" resultType="java.util.HashMap">
+   		   WITH ProcessTree(ItemID, Identifier, ItemTypeCode, ClassCode, AuthorID) AS (          
+				SELECT     
+					ItemID, Identifier, ItemTypeCode, ClassCode, AuthorID   
+				FROM XBOLTADM.TB_ITEM    
+				WHERE ItemTypeCode = 'OJ00001' 
+					AND CategoryCode = 'OJ'     
+					AND Deleted != '1'
+				<if test="rootItemID != null and rootItemID != ''">
+					AND ItemID = #{rootItemID}	
+				</if>
+				
+				UNION ALL            
+					
+				SELECT 
+					A.ItemID, A.Identifier, A.ItemTypeCode, A.ClassCode, A.AuthorID    
+					
+				FROM XBOLTADM.TB_ITEM A 
+				INNER jOIN XBOLTADM.TB_ITEM B ON B.ToItemID = A.ItemID AND B.CategoryCode = 'ST1' AND B.Deleted != '1'
+				INNER JOIN ProcessTree C ON B.FromItemID = C.itemID 
+				<if test="rootItemID.equals('')">
+					AND A.ItemTypeCode = C.ItemTypeCode AND A.ClassCode = C.ClassCode	
+				</if>				
+			)   
+			SELECT
+				distinct
+				TI.AuthorID,    TM.Name,    
+				<if test="lovQuery != null and lovQuery != ''">
+					${lovQuery}	
+				</if>
+				COUNT(TIA.LovCode) AS total    
+			FROM ProcessTree TI 
+				Left JOin XBOLTADM.TB_MEMBER TM ON TI.AuthorID = TM.MemberID    
+				Left JOin XBOLTADM.TB_ITEM_ATTR TIA ON TI.ItemID = TIA.ItemID AND TI.ItemTypeCode = TIA.ItemTypeCode 
+						AND TI.ClassCode = TIA.ClassCode AND TIA.LanguageID = #{languageID}
+				Right Join XBOLTADM.TB_ATTR_TYPE_LOV TATL ON TIA.AttrTypeCode = TATL.AttrTypeCode AND TIA.LovCode = TATL.LovCode 
+						AND TIA.LanguageID = TATL.LanguageID AND TIA.LanguageID = #{languageID}   
+			WHERE TIA.AttrTypeCode = 'AT00026'
+			GROUP BY TI.AuthorID, TM.Name     
+			
+			UNION ALL     
+			
+			SELECT
+				distinct
+				'' AS memberID,    'total' AS Name,    
+				<if test="lovQuery != null and lovQuery != ''">
+					${lovQuery}	
+				</if> 
+				COUNT(TIA.LovCode) AS total    
+			
+			FROM ProcessTree TI LEFT JOIN XBOLTADM.TB_MEMBER TM ON TI.AuthorID = TM.MemberID    
+			LEFT JOIN XBOLTADM.TB_ITEM_ATTR TIA ON TI.ItemID = TIA.ItemID AND TI.ItemTypeCode = TIA.ItemTypeCode 
+					AND TI.ClassCode = TIA.ClassCode AND TIA.LanguageID = #{languageID}     
+			RIGHT JOIN XBOLTADM.TB_ATTR_TYPE_LOV TATL ON TIA.AttrTypeCode = TATL.AttrTypeCode AND TIA.LovCode = TATL.LovCode 
+					AND TIA.LanguageID = TATL.LanguageID AND TIA.LanguageID = #{languageID}   
+			WHERE TIA.AttrTypeCode = 'AT00026'
+    </select>
+    
+    <select id="getSysProcIFList" resultType="java.util.HashMap">
+		<!-- Case 1. PRE.Class = POST.Class -->
+		Select TE.Link,
+		PREL1.Identifier AS 'PreL1ID', PRE.ItemID AS 'PreItemID', PRECLASS.Name AS 'PreClass', PRE.ClassCode, PRE.Identifier AS 'PreID', PRENAME.PlainText AS 'PreName', PRE37LOV.Value  AS 'Pre37', PRE13.PlainText  AS 'Pre13',
+		POSTL1.Identifier AS 'PostL1ID', POST.ItemID AS 'PostItemID', POSTCLASS.Name AS 'PostClass', POST.ClassCode, POST.Identifier AS 'PostID', POSTNAME.PlainText AS 'PostName', POST37LOV.Value AS 'Post37', POST13.PlainText  AS 'Post13',
+		NULL AS 'Post2L1ID', NULL AS 'Post2ItemID', NULL AS 'Post2Class', NULL AS 'Post2ID', NULL AS 'Post2Name', NULL AS 'Post237', NULL AS 'Post213',
+		NULL AS 'Pre2L1ID', NULL AS 'Pre2ItemID', NULL AS 'Pre2Class', NULL AS 'Pre2ID', NULL AS 'Pre2Name', NULL AS 'Pre237', NULL AS 'Pre213',
+		CASE When PRE37LOV.LovCode = POST37Lov.LovCode THEN 'N' ELSE 'Y' END AS 'SysType',
+		CASE When PRE13.PlainText = POST13.PlainText THEN 'N' ELSE 'Y' END AS 'System'
+		From XBOLTADM.TB_ELEMENT TE
+		Left outer join XBOLTADM.TB_ITEM TI on TE.Link = TI.ItemID
+		Left outer join XBOLTADM.TB_ITEM PRE on TI.FromItemID = PRE.ItemID And PRE.ItemTypeCode = 'OJ00001' And PRE.CategoryCode = 'OJ' And PRE.Deleted != 1
+		Left outer join XBOLTADM.TB_ITEM POST on TI.ToItemID = POST.ItemID  And POST.ItemTypeCode = 'OJ00001' And POST.CategoryCode = 'OJ' And POST.Deleted != 1
+		Left outer join XBOLTADM.TB_ITEM_ATTR PRENAME on PRE.ItemID = PRENAME.ItemID And PRENAME.AttrTypeCode = 'AT00001' And PRENAME.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR POSTNAME on POST.ItemID = POSTNAME.ItemID And POSTNAME.AttrTypeCode = 'AT00001' And POSTNAME.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR PRE37 on PRE.ItemID = PRE37.ItemID And PRE37.AttrTypeCode = 'AT00037' And PRE37.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ATTR_TYPE_LOV PRE37LOV on PRE37.LovCode = PRE37LOV.LovCode And PRE37LOV.AttrTypeCode = 'AT00037' And PRE37LOV.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR PRE13 on PRE.ItemID = PRE13.ItemID And PRE13.AttrTypeCode = 'AT00013' And PRE13.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR POST37 on POST.ItemID = POST37.ItemID And POST37.AttrTypeCode = 'AT00037' And POST37.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ATTR_TYPE_LOV POST37LOV on POST37.LovCode = POST37LOV.LovCode And POST37LOV.AttrTypeCode = 'AT00037' And POST37LOV.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR POST13 on POST.ItemID = POST13.ItemID And POST13.AttrTypeCode = 'AT00013' And POST13.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TW_PROCESS PREL1ID on PRE.ItemID = PREL1ID.ItemID
+		Left outer join XBOLTADM.TW_PROCESS POSTL1ID on POST.ItemID = POSTL1ID.ItemID
+		Left outer join XBOLTADM.TB_ITEM PREL1 on PREL1ID.L1ItemID = PREL1.ItemID
+		Left outer join XBOLTADM.TB_ITEM POSTL1 on POSTL1ID.L1ItemID = POSTL1.ItemID
+		Left outer join XBOLTADM.TB_MODEL TM on TE.ModelID = TM.ModelID
+		Left outer join XBOLTADM.TB_DICTIONARY PRECLASS on PRE.ClassCode = PRECLASS.TypeCode And PRECLASS.Category = 'CLS' And PRECLASS.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_DICTIONARY POSTCLASS on POST.ClassCode = POSTCLASS.TypeCode And POSTCLASS.Category = 'CLS' And POSTCLASS.LanguageID = #{defaultLang}
+		Where TE.CategoryCode = 'MCN' And PRE.Identifier IS NOT NULL And POST.Identifier IS NOT NULL And TM.ModelTypeCode = 'MT001' And TI.Deleted != 1
+		And PRE.ClassCode = POST.ClassCode
+		
+		UNION
+		
+		<!-- Case 2. PRE.Class != POST.Class And PRE.Class = CL01006 -->
+		Select TE.Link,
+		PREL1.Identifier AS 'PreL1ID', PRE.ItemID AS 'PreItemID', PRECLASS.Name AS 'PreClass', PRE.ClassCode, PRE.Identifier AS 'PreID', PRENAME.PlainText AS 'PreName', PRE37LOV.Value  AS 'Pre37', PRE13.PlainText  AS 'Pre13',
+		POSTL1.Identifier AS 'PostL1ID', POST.ItemID AS 'PostItemID', POSTCLASS.Name AS 'PostClass', POST.ClassCode,  POST.Identifier AS 'PostID', POSTNAME.PlainText AS 'PostName', POST37LOV.Value AS 'Post37', POST13.PlainText  AS 'Post13',
+		POST2L1.Identifier AS 'Post2L1ID', POST2.ItemID AS 'Post2ItemID', POST2CLASS.Name AS 'Post2Class', POST2.Identifier AS 'Post2ID', POST2NAME.PlainText AS 'Post2Name', POST237LOV.Value AS 'Post237', POST213.PlainText  AS 'Post213',
+		NULL AS 'Pre2L1ID', NULL AS 'Pre2ItemID', NULL AS 'Pre2Class', NULL AS 'Pre2ID', NULL AS 'Pre2Name', NULL AS 'Pre237', NULL AS 'Pre213',
+		CASE When XBOLTADM.fn_GetPrePostActivity(PRE.ItemID, POST.ItemID, 'POST') IS NULL
+			Then
+				CASE When PRE37Lov.LovCode = POST37Lov.LovCode THEN 'N' ELSE 'Y' END
+			ELSE
+				CASE When PRE37Lov.LovCode = POST237Lov.LovCode THEN 'N' ELSE 'Y' END
+		END AS 'SysType',
+		CASE When XBOLTADM.fn_GetPrePostActivity(PRE.ItemID, POST.ItemID, 'POST') IS NULL
+			Then
+				CASE When PRE13.PlainText = POST13.PlainText THEN 'N' ELSE 'Y' END
+			ELSE
+				CASE When PRE13.PlainText = POST213.PlainText THEN 'N' ELSE 'Y' END
+		END AS 'System'
+		From XBOLTADM.TB_ELEMENT TE
+		Left outer join XBOLTADM.TB_ITEM TI on TE.Link = TI.ItemID
+		Left outer join XBOLTADM.TB_ITEM PRE on TI.FromItemID = PRE.ItemID And PRE.ItemTypeCode = 'OJ00001' And PRE.CategoryCode = 'OJ' And PRE.Deleted != 1
+		Left outer join XBOLTADM.TB_ITEM POST on POST.ItemID = TI.ToItemID And POST.ItemTypeCode = 'OJ00001' And POST.CategoryCode = 'OJ' And POST.Deleted != 1
+		Left outer join XBOLTADM.TB_ITEM_ATTR PRENAME on PRE.ItemID = PRENAME.ItemID And PRENAME.AttrTypeCode = 'AT00001' And PRENAME.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR POSTNAME on POST.ItemID = POSTNAME.ItemID And POSTNAME.AttrTypeCode = 'AT00001' And POSTNAME.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR PRE37 on PRE.ItemID = PRE37.ItemID And PRE37.AttrTypeCode = 'AT00037' And PRE37.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ATTR_TYPE_LOV PRE37LOV on PRE37.LovCode = PRE37LOV.LovCode And PRE37LOV.AttrTypeCode = 'AT00037' And PRE37LOV.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR PRE13 on PRE.ItemID = PRE13.ItemID And PRE13.AttrTypeCode = 'AT00013' And PRE13.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR POST37 on POST.ItemID = POST37.ItemID And POST37.AttrTypeCode = 'AT00037' And POST37.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ATTR_TYPE_LOV POST37LOV on POST37.LovCode = POST37LOV.LovCode And POST37LOV.AttrTypeCode = 'AT00037' And POST37LOV.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR POST13 on POST.ItemID = POST13.ItemID And POST13.AttrTypeCode = 'AT00013' And POST13.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TW_PROCESS PREL1ID on PRE.ItemID = PREL1ID.ItemID
+		Left outer join XBOLTADM.TW_PROCESS POSTL1ID on POST.ItemID = POSTL1ID.ItemID
+		Left outer join XBOLTADM.TB_ITEM PREL1 on PREL1ID.L1ItemID = PREL1.ItemID
+		Left outer join XBOLTADM.TB_ITEM POSTL1 on POSTL1ID.L1ItemID = POSTL1.ItemID
+		Left outer join XBOLTADM.TB_MODEL TM on TE.ModelID = TM.ModelID
+		Left outer join XBOLTADM.TB_DICTIONARY PRECLASS on PRE.ClassCode = PRECLASS.TypeCode And PRECLASS.Category = 'CLS' And PRECLASS.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_DICTIONARY POSTCLASS on POST.ClassCode = POSTCLASS.TypeCode And POSTCLASS.Category = 'CLS' And POSTCLASS.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM POST2 on POST2.ItemID = XBOLTADM.fn_GetPrePostActivity(PRE.ItemID, POST.ItemID,'POST') And POST2.ItemTypeCode = 'OJ00001' And POST2.CategoryCode = 'OJ' And POST2.Deleted != 1
+		Left outer join XBOLTADM.TB_ITEM_ATTR POST2NAME on POST2.ItemID = POST2NAME.ItemID And POST2NAME.AttrTypeCode = 'AT00001' And POST2NAME.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR POST237 on POST2.ItemID = POST237.ItemID And POST237.AttrTypeCode = 'AT00037' And POST237.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ATTR_TYPE_LOV POST237LOV on POST237.LovCode = POST237LOV.LovCode And POST237LOV.AttrTypeCode = 'AT00037' And POST237LOV.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR POST213 on POST2.ItemID = POST213.ItemID And POST213.AttrTypeCode = 'AT00013' And POST213.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TW_PROCESS POST2L1ID on POST2.ItemID = POST2L1ID.ItemID
+		Left outer join XBOLTADM.TB_ITEM POST2L1 on POST2L1ID.L1ItemID = POST2L1.ItemID
+		Left outer join XBOLTADM.TB_DICTIONARY POST2CLASS on POST2.ClassCode = POST2CLASS.TypeCode And POST2CLASS.Category = 'CLS' And POST2CLASS.LanguageID = #{defaultLang}
+		Where TE.CategoryCode = 'MCN' And PRE.Identifier IS NOT NULL And POST.Identifier IS NOT NULL And TM.ModelTypeCode = 'MT001' And TI.Deleted != 1
+		And PRE.ClassCode != POST.ClassCode And PRE.ClassCode = 'CL01006'
+
+		UNION
+
+		<!-- Case 2. PRE.Class != POST.Class And Post.Class = CL01006 -->
+		Select TE.Link,
+		PREL1.Identifier AS 'PreL1ID', PRE.ItemID AS 'PreItemID', PRECLASS.Name AS 'PreClass', PRE.ClassCode, PRE.Identifier AS 'PreID', PRENAME.PlainText AS 'PreName', PRE37LOV.Value  AS 'Pre37', PRE13.PlainText  AS 'Pre13',
+		POSTL1.Identifier AS 'PostL1ID', POST.ItemID AS 'PostItemID', POSTCLASS.Name AS 'PostClass', POST.ClassCode,  POST.Identifier AS 'PostID', POSTNAME.PlainText AS 'PostName', POST37LOV.Value AS 'Post37', POST13.PlainText  AS 'Post13',
+		NULL AS 'Post2L1ID', NULL AS 'Post2ItemID', NULL AS 'Post2Class', NULL AS 'Post2ID', NULL AS 'Post2Name', NULL AS 'Post237', NULL AS 'Post213',
+		PRE2L1.Identifier AS 'Pre2L1ID', PRE2.ItemID AS 'Pre2ItemID', PRE2CLASS.Name AS 'Pre2Class', PRE2.Identifier AS 'Pre2ID', PRE2NAME.PlainText AS 'Pre2Name', PRE237LOV.Value AS 'Pre237', PRE213.PlainText  AS 'Pre213',
+		CASE When XBOLTADM.fn_GetPrePostActivity(POST.ItemID, PRE.ItemID, 'PRE') IS NULL
+			Then
+				CASE When PRE37Lov.LovCode = POST37Lov.LovCode THEN 'N' ELSE 'Y' END
+			ELSE
+				CASE When PRE237Lov.LovCode = POST37Lov.LovCode THEN 'N' ELSE 'Y' END
+		END AS 'SysType',
+		CASE When XBOLTADM.fn_GetPrePostActivity(POST.ItemID, PRE.ItemID, 'PRE') IS NULL
+			Then
+				CASE When PRE13.PlainText = POST13.PlainText THEN 'N' ELSE 'Y' END
+			ELSE
+				CASE When PRE213.PlainText = POST13.PlainText THEN 'N' ELSE 'Y' END
+		END AS 'System'
+		From XBOLTADM.TB_ELEMENT TE
+		Left outer join XBOLTADM.TB_ITEM TI on TE.Link = TI.ItemID
+		Left outer join XBOLTADM.TB_ITEM PRE on TI.FromItemID = PRE.ItemID And PRE.ItemTypeCode = 'OJ00001' And PRE.CategoryCode = 'OJ' And PRE.Deleted != 1
+		Left outer join XBOLTADM.TB_ITEM POST on POST.ItemID = TI.ToItemID And POST.ItemTypeCode = 'OJ00001' And POST.CategoryCode = 'OJ' And POST.Deleted != 1
+		Left outer join XBOLTADM.TB_ITEM_ATTR PRENAME on PRE.ItemID = PRENAME.ItemID And PRENAME.AttrTypeCode = 'AT00001' And PRENAME.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR POSTNAME on POST.ItemID = POSTNAME.ItemID And POSTNAME.AttrTypeCode = 'AT00001' And POSTNAME.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR PRE37 on PRE.ItemID = PRE37.ItemID And PRE37.AttrTypeCode = 'AT00037' And PRE37.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ATTR_TYPE_LOV PRE37LOV on PRE37.LovCode = PRE37LOV.LovCode And PRE37LOV.AttrTypeCode = 'AT00037' And PRE37LOV.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR PRE13 on PRE.ItemID = PRE13.ItemID And PRE13.AttrTypeCode = 'AT00013' And PRE13.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR POST37 on POST.ItemID = POST37.ItemID And POST37.AttrTypeCode = 'AT00037' And POST37.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ATTR_TYPE_LOV POST37LOV on POST37.LovCode = POST37LOV.LovCode And POST37LOV.AttrTypeCode = 'AT00037' And POST37LOV.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR POST13 on POST.ItemID = POST13.ItemID And POST13.AttrTypeCode = 'AT00013' And POST13.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TW_PROCESS PREL1ID on PRE.ItemID = PREL1ID.ItemID
+		Left outer join XBOLTADM.TW_PROCESS POSTL1ID on POST.ItemID = POSTL1ID.ItemID
+		Left outer join XBOLTADM.TB_ITEM PREL1 on PREL1ID.L1ItemID = PREL1.ItemID
+		Left outer join XBOLTADM.TB_ITEM POSTL1 on POSTL1ID.L1ItemID = POSTL1.ItemID
+		Left outer join XBOLTADM.TB_MODEL TM on TE.ModelID = TM.ModelID
+		Left outer join XBOLTADM.TB_DICTIONARY PRECLASS on PRE.ClassCode = PRECLASS.TypeCode And PRECLASS.Category = 'CLS' And PRECLASS.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_DICTIONARY POSTCLASS on POST.ClassCode = POSTCLASS.TypeCode And POSTCLASS.Category = 'CLS' And POSTCLASS.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM PRE2 on PRE2.ItemID = XBOLTADM.fn_GetPrePostActivity(POST.ItemID, PRE.ItemID,'PRE') And PRE2.ItemTypeCode = 'OJ00001' And PRE2.CategoryCode = 'OJ' And PRE2.Deleted != 1
+		Left outer join XBOLTADM.TB_ITEM_ATTR PRE2NAME on PRE2.ItemID = PRE2NAME.ItemID And PRE2NAME.AttrTypeCode = 'AT00001' And PRE2NAME.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR PRE237 on PRE2.ItemID = PRE237.ItemID And PRE237.AttrTypeCode = 'AT00037' And PRE237.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ATTR_TYPE_LOV PRE237LOV on PRE237.LovCode = PRE237LOV.LovCode And PRE237LOV.AttrTypeCode = 'AT00037' And PRE237LOV.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TB_ITEM_ATTR PRE213 on PRE2.ItemID = PRE213.ItemID And PRE213.AttrTypeCode = 'AT00013' And PRE213.LanguageID = #{defaultLang}
+		Left outer join XBOLTADM.TW_PROCESS PRE2L1ID on PRE2.ItemID = PRE2L1ID.ItemID
+		Left outer join XBOLTADM.TB_ITEM PRE2L1 on PRE2L1ID.L1ItemID = PRE2L1.ItemID
+		Left outer join XBOLTADM.TB_DICTIONARY PRE2CLASS on PRE2.ClassCode = PRE2CLASS.TypeCode And PRE2CLASS.Category = 'CLS' And PRE2CLASS.LanguageID = #{defaultLang}
+		Where TE.CategoryCode = 'MCN' And PRE.Identifier IS NOT NULL And POST.Identifier IS NOT NULL And TM.ModelTypeCode = 'MT001' And TI.Deleted != 1
+		And PRE.ClassCode != POST.ClassCode And POST.ClassCode = 'CL01006'
+		order by PREL1.Identifier, PRE.ClassCode, PRE.Identifier, POSTL1.Identifier, POST.ClassCode, POST.Identifier
+    </select>
+    
+    <select id="getVisitLogList" resultType="java.util.HashMap">
+    	SELECT 
+			TM.LoginID,
+			TVL.MemberID,
+			TVL.Time,
+			TVL.ActionType,
+			TVL.IpAddress,
+			CONVERT(VARCHAR, TVL.Time, 112)
+		FROM
+			XBOLTADM.TB_VISIT_LOG TVL
+			LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TVL.MemberID = TM.MemberID
+		<where>
+			<if test="actionType != null and actionType != ''">
+			AND TVL.ActionType = #{actionType}
+			</if>
+			<if test="scStartDt != null and scStartDt != '' and scEndDt != null and scEndDt != ''">
+			AND CONVERT(VARCHAR, TVL.Time, 112) BETWEEN #{scStartDt} AND #{scEndDt}
+			</if>
+		</where>
+    </select>
+   
+</mapper>

@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="crm_SQL">
+ <select id="custList_gridList" resultType="java.util.HashMap">
+			SELECT 
+				Row_Number()OVER(ORDER BY TCM.CustomerNo ASC ) as RNUM
+				, TD.Name As CustLvlNM
+				, TT.Name As CustomerNM
+				, CASE WHEN TCM.CustType = 'CS' THEN 'Customer' ELSE 'Partner' END AS CustTypeNM
+				, TCM.BizTypeCode
+				, TCM.BizTypeCode As BizType
+				, TCM.BizItem
+				, Convert(varchar(20), TCM.LastUpdated, 111) AS LastUpdated
+				, TM.Name AS RegUser
+				, TCM.CustomerNo
+				, TCM.CustGRNo
+				, TCM.CustLvl
+				, TCM.TeamID
+				, TCM.CustType
+			FROM XBOLTAPP.CRM_CUST_MST TCM
+			LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TT ON TT.TeamID = TCM.TeamID AND TT.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TM.MemberID = TCM.RegUserID
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TCM.CustLvl AND TD.LanguageID = #{languageID} AND TD.Category = 'CUSTTP'
+			<where>
+				<if test="custLvl != null and custLvl != ''">
+					AND TCM.CustLvl = #{custLvl}
+				</if>
+				<if test="custType != null and custType != ''">
+					AND TCM.CustType = #{custType}
+				</if>	
+				<if test="searchValue != null and searchValue != ''">
+					AND TT.Name like N'%'+#{searchValue}+'%'
+				</if>
+			</where>	
+			   Order By CustomerNM
+				
+	</select>
+	
+	<select id="getMaxCustNo" resultType="String">
+		Select ISNULL(Max(cast(CustomerNo AS int))+ 1, '0000000001') AS CustomerNo	
+		From XBOLTAPP.CRM_CUST_MST
+	</select>
+	
+	<insert id="insertCustMst" parameterType="java.util.HashMap">
+		INSERT INTO
+		XBOLTAPP.CRM_CUST_MST(
+			CustomerNo,
+			CustType,
+			CustLvl,
+			ParentNo,
+			CustGRNo,
+			TeamID,
+			CustomerDesc,
+			BizNo,
+			BizTypeCode,
+			BizItem,
+			Active,
+			CountryID,
+			CEOName,		
+			CreationTime,
+			RegUserID)
+		VALUES(
+			#{customerNo},
+			#{custType},
+			#{custLvl},
+			<choose>
+				<when test="parentNo != null and parentNo != ''">
+					#{parentNo},
+				</when>
+				<when test="parentNo == null or parentNo == ''">
+					NULL,
+				</when>
+			</choose>
+			#{custGRNo},
+			#{TeamID},
+			#{customerDesc},
+			#{bizNo},
+			#{bizType},
+			#{bizItem},
+			1,
+			#{countryID},
+			#{ceoName},			
+			getDate(),
+			#{userID}
+		)
+	</insert>
+	
+	<insert id="insertCustAddr" parameterType="java.util.HashMap">
+		INSERT INTO
+		XBOLTAPP.CRM_CUST_ADDR(
+			CustomerNo,
+			LanguageID,
+			State,
+			City,
+			Addr1,
+			Addr2,
+			CreationTime,
+			RegUserID)
+		VALUES(
+			#{customerNo},
+			#{languageID},
+			#{state},
+			#{city},
+			#{addr1},
+			#{addr2},
+			getDate(),
+			#{userID}
+		)
+	</insert>
+	
+	<update id="updateCustMst" parameterType="java.util.HashMap">
+		UPDATE
+			XBOLTAPP.CRM_CUST_MST
+		SET
+			CustType = #{custType},
+			CustGRNo = #{custGRNo},
+			TeamID = #{TeamID},
+			CustomerDesc = #{customerDesc},
+			BizNo = #{bizNo},
+			BizTypeCode = #{bizType},
+			BizItem = #{bizItem},
+			CountryID = #{countryID},
+			CEOName = #{ceoName},		
+			LastUpdated = getDate(),
+			LastUser = #{userID},
+			CustLvl = #{custLvl},
+			ParentNo = #{parentNo},
+			Active = #{active}
+		WHERE
+			CustomerNo = #{customerNo}
+	</update>
+	
+	<update id="updateCustAddr" parameterType="java.util.HashMap">
+		UPDATE
+			XBOLTAPP.CRM_CUST_ADDR
+		SET
+			State = #{state},
+			City = #{city},
+			Addr1 = #{addr1},
+			Addr2 = #{addr2},
+			LastUpdated = getDate(),
+			LastUser = #{userID}
+		WHERE 
+			CustomerNo = #{customerNo} AND LanguageID = ${languageID}
+	</update>
+	
+	<select id="getCustMstDetail" resultType="java.util.HashMap">
+		SELECT
+			TCM.CustomerNo,
+			TTX.Name As CustomerNM,
+			TTX2.Name As CustomerNM_EN,
+			TCM.CustGRNo,
+			CASE WHEN TCM.CustType = 'CS' THEN 'Customer' ELSE 'Partner' END As CustType,
+			TD.Name As CustLvlNM,
+			TCM.BizNo,
+			TCM.CEOName,
+			TCM.BizTypeCode As BizType,
+			TCM.BizItem,
+			TC.Name As CountryName,
+			TCM.CountryID,		
+			TCM.TeamID,
+			TTX.Name As CompanyName,
+			CONVERT(varchar(20), TCM.CreationTime, 111) As CreationTime,
+			CONVERT(varchar(20), TCM.LastUpdated, 111) As LastUpdated,
+			TM.Name As Creator,
+			TCM.CustomerDesc,
+			TCM.CustLvl,
+			TCM.ParentNo,
+			TCM.TeamID As CompanyID,
+			TCA.State,
+			TCA.City,
+			TCA.Addr1,
+			TCA.Addr2,
+			TCA.State + ' ' + TCA.City + ' ' + TCA.Addr1 + ' ' + TCA.Addr2 As Address,
+			TCM.Active
+		FROM XBOLTAPP.CRM_CUST_MST TCM
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TCM.RegUserID = TM.MemberID
+		LEFT OUTER JOIN XBOLTADM.TB_COUNTRY TC ON TCM.CountryID = TC.CountryID
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TTX ON TCM.TeamID = TTX.TeamID AND TTX.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TTX2 ON TCM.TeamID = TTX2.TeamID AND TTX2.LanguageID = '1033'
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TCM.CustLvl AND TD.LanguageID = #{languageID} AND TD.Category = 'CUSTTP'
+		LEFT OUTER JOIN XBOLTAPP.CRM_CUST_ADDR TCA ON TCM.CustomerNo = TCA.CustomerNo AND TCA.LanguageID = #{languageID}
+		WHERE
+			TCM.CustomerNo = #{customerNo}
+	</select>
+	
+	<delete id="deleteCust">
+		DELETE 
+			FROM XBOLTAPP.CRM_CUST_MST
+		WHERE
+			TeamID = #{teamID} OR ParentNo = (SELECT CustomerNo FROM XBOLTAPP.CRM_CUST_MST WHERE TeamID = #{teamID}) 
+	</delete>
+	
+	<select id="getTeamIDFromCust" resultType="String">
+		Select TeamID 
+		From XBOLTAPP.CRM_CUST_MST
+		Where CustomerNo = #{customerNo}
+	</select>
+	
+	<select id="getCustTeamID" resultType="String">
+		Select CustomerNo 
+		From XBOLTAPP.CRM_CUST_MST
+		Where TeamID = #{custTeamID}
+	</select>
+	
+	<select id="getCustGRNo" resultType="String">
+		Select CustGRNo 
+		From XBOLTAPP.CRM_CUST_MST
+		<where>
+			<if test="parentNo != null and parentNo != ''">
+				CustomerNo = #{parentNo}
+			</if>
+			<if test="teamID != null and teamID != ''">
+				TeamID = #{teamID}
+			</if>	
+		</where>	
+	</select>	
+	
+	<select id="getTeamItemID" resultType="String">
+		Select ItemID From XBOLTADM.TB_TEAM	Where TeamID = #{teamID}
+	</select>
+	
+	<select id="getCompnayTreeList" resultType="java.util.HashMap">
+		 WITH TeamTable AS (
+			 SELECT A.TeamID, A.ParentID
+			 FROM XBOLTADM.TB_TEAM A
+			 WHERE A.ParentID = #{companyID}
+		 
+			 UNION ALL
+		 
+			 SELECT B.TeamID, B.ParentID
+			 FROM XBOLTADM.TB_TEAM B, TeamTable C WHERE B.ParentID = C.TeamID
+		) 
+		 
+		 SELECT T1.TeamID
+		 FROM TeamTable T1 
+		
+		 UNION ALL 
+		
+		 SELECT T2.TeamID
+		 FROM XBOLTADM.TB_TEAM T2
+		 Where T2.TeamID =  #{companyID}
+	</select>
+	
+	<select id="getCustList" resultType="java.util.HashMap">
+		SELECT 
+			Distinct CCM.CustomerNo AS CODE, TMT.Name AS NAME
+		FROM XBOLTAPP.CRM_CUST_MST CCM
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON CCM.TeamID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+		Where CCM.Active != 0
+			<if test="custLvl != null and custLvl != ''">
+				And CCM.CustLvl = #{custLvl}
+			</if>
+			<if test="customerGRNo != null and customerGRNo != ''">
+				And CCM.CustGRNo = #{customerGRNo}
+			</if>
+		ORDER BY TMT.NAME		
+	</select>
+	
+	<select id="getItemByCustomer" resultType="java.util.HashMap">
+		SELECT TI.ItemID AS CODE, TIA.PlainText AS NAME
+		FROM XBOLTADM.TB_ITEM TI
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA on TIA.ItemID = TI.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 on TIA2.ItemID = TI.ItemID AND TIA2.AttrTypeCode = 'AT00036' AND TIA2.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TTT  on TI.CompanyID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+		Where TIA2.PlainText = #{srType}
+		<if test="customerNo != null and customerNo != ''">
+			And TTT.TeamID = (Select TeamID From XBOLTAPP.CRM_CUST_MST Where CustomerNo = #{customerNo})
+		</if>
+		<if test="memberID != null and memberID != ''">
+			And TTT.TeamID = (Select CompanyID From XBOLTADM.TB_MEMBER Where MemberID = #{memberID})
+		</if>
+		Order by TI.ClassCode ASC, TIA.PlainText ASC
+	</select>
+	
+	<select id="getCustMailInfo" resultType="java.util.HashMap">
+		SELECT 
+			CCM.CustomerNo, CCM.EmailSvrDomain, CCM.SenderAcc, CCM.SenderPwd
+		FROM XBOLTAPP.CRM_CUST_MST CCM
+		Where CCM.Active != 0
+		<if test="customerNo != null and customerNo != ''">
+			And CustomerNo = #{customerNo}
+		</if>
+	</select>
+</mapper>

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="gloval_SQL">
+	
+	<insert id="insertVisitLog">
+		INSERT INTO XBOLTADM.TB_VISIT_LOG /*insertVisitLog*/ (
+			MemberID, TeamID, Time, ItemID, MenuID, ClientID , ActionType					
+	 		<if test="IpAddress != null and IpAddress != ''">
+				,IpAddress
+			</if>
+	 		<if test="source != null and source != ''">
+				,source
+			</if>
+			<if test="comment != null and comment != ''">
+				,Comment
+			</if>
+			<if test="instanceNo != null and instanceNo != ''">
+				,InstanceNo
+			</if>
+		)
+		VALUES(
+			#{sessionUserId}, #{sessionTeamId}, getDate(), #{ItemId}, #{MenuID}, #{sessionClientId} , #{ActionType}			
+	 		<if test="IpAddress != null and IpAddress != ''">
+				,#{IpAddress}
+			</if>
+	 		<if test="source != null and source != ''">
+				,#{source}
+			</if>
+			<if test="comment != null and comment != ''">
+				,#{comment}
+			</if>
+			<if test="instanceNo != null and instanceNo != ''">
+				,#{instanceNo}
+			</if>
+		)
+		
+	</insert>
+	
+	<select id="getVisitLogIpAddress" resultType="String">
+	   Select 
+	   		Top 1 ISNULL(IpAddress,'') AS IpAddress
+	   FROM XBOLTADM.TB_VISIT_LOG
+ 	   WHERE MemberID IN(Select memberID From XBOLTADM.TB_MEMBER Where LoginID = #{loginID}) 
+ 	   Order by SEQ DESC
+	</select>
+	
+	<select id="getVisitLogLoginErrCount" resultType="java.util.HashMap">
+	   SELECT
+	   		<choose>
+	   			<when test="top != null and top != ''">
+	   				Top ${top} *
+	   			</when>
+	   			<otherwise>
+	   				Count(*) cnt
+	   			</otherwise>
+	   		</choose>
+	   FROM XBOLTADM.TB_VISIT_LOG
+ 	   WHERE 1=1
+ 	   <if test="ActionType != null and ActionType != ''">
+ 	   		AND ActionType = #{ActionType}
+ 	   </if>
+ 	   <if test="scStartDt != null and scStartDt != ''">
+ 	   		AND TIME BETWEEN #{scStartDt} AND #{scEndDt}
+ 	   </if>
+ 	   <if test="IpAddress != null and IpAddress != ''">
+ 	   		AND IpAddress = #{IpAddress}
+   		</if>
+ 	   	<if test="sessionUserId != null and sessionUserId != ''">
+ 	   		AND MemberID = #{sessionUserId}
+   		</if>
+   		<if test="top != null and top != ''">
+   			Order by SEQ DESC
+   		</if>
+	</select>
+	
+	<select id="getVisitLogComment" resultType="java.util.HashMap">
+	   Select 
+	   		Top 1 ISNULL(Comment,'') AS Comment, Time
+	   FROM XBOLTADM.TB_VISIT_LOG
+ 	   WHERE MemberID IN(Select memberID From XBOLTADM.TB_MEMBER Where LoginID = #{loginID})
+ 	   And ActionType =#{actionType}
+ 	   Order by SEQ DESC
+	</select>
+	
+	<insert id="insertTranLog">
+		INSERT INTO XBOLTADM.TB_TRAN_API_LOG ( Contents, MemberID, CreationTime )
+		VALUES( #{contents}, #{memberID}, getDate())
+	</insert>
+
+	<insert id="insertEventLog">
+		INSERT INTO XBOLTAPI.EVENT_LOG ( ObjectID, ObjectType, ObjectTypeCode, Operation, Completed, ChangeSetID, CreationTime, LastUpdated )
+		VALUES( #{objectID}, #{objectType}, #{objectTypeCode}, #{operation}, #{completed}, #{changeSetID}, getDate(), getDate() )
+	</insert>
+</mapper>

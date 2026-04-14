@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<proxyConfig>
+	<ssoSite value="www.kamten.com">
+        <ProxyServer dns="proxy.kamten.com">
+			<SSOProviderProxy>
+                <ProxyDNS value="proxy.kamten.com"/>
+                <ProxyPort value="80"/>
+				<ProxyVirtualPath value="/c001" />
+				<ProxyRemoveVirtualPath value="/nsso-authweb"/>
+				<ProxyUseSSL value="false" />
+			</SSOProviderProxy>
+			<ProxyUseSSL value="false"/>
+            <ProxyPort value="80"/>
+			<ProxyIPHeader name="X-Forwarded-For" value="10.74.132.115"/>
+			<ProxyDNSHeader name="X-Forwarded-Server" />
+			<ProxyRootURLHeader name="X_ORIG_URI"/>
+		</ProxyServer>
+	</ssoSite>
+	<ssoSite value="www.kamten.co.kr">
+        <ProxyServer dns="proxy.kamten.co.kr">
+			<SSOProviderProxy>
+                <ProxyDNS value="proxy.kamten.com"/>
+                <ProxyPort value="80"/>
+				<ProxyVirtualPath value="/c001"/>
+				<ProxyRemoveVirtualPath value="/nsso-authweb"/>
+				<ProxyUseSSL value="false" />
+			</SSOProviderProxy>
+			<ProxyUseSSL value="false"/>
+            <ProxyPort value="80"/>
+			<ProxyIPHeader name="X-Forwarded-For" value="10.74.132.115"/>
+			<ProxyDNSHeader name="X-Forwarded-Server"/>
+			<ProxyRootURLHeader name="X_ORIG_URI"/>
+		</ProxyServer>
+	</ssoSite>
+</proxyConfig>

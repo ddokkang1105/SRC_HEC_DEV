@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="cr_SQL">
+ 	<select id="getCrMstList_gridList" resultType="java.util.HashMap">
+	 	Select 
+	 	    Row_Number()OVER(ORDER BY TCM.CRID DESC ) as RNUM,
+	 	    TCM.CRID,
+			TCM.CRCode,
+			TCM.CSRID, CSR.ProjectCode As CSRCode,
+			TCM.SRID,TSM.SRCode,
+			TCM.ProjectID,
+			TPT1.Name As CsrName,
+			TCM.Subject,
+			TCM.Description,
+			TCM.Status, TCM.Priority, TD1.Name As PriorityNM,
+			TD.Name As StatusNM,
+			TCM.RegUserID,
+			TM1.Name As RegUserName, TM1.EmployeeNum As RequestEmpNo,
+			TCM.RegTeamID,
+			TTT1.Name As RegTeamName,
+		    TCM.CRArea1, TIA.PlainText As CRArea1NM,
+			TCM.CRArea2, TIA2.PlainText As CRArea2NM,
+			TCM.ITSMTP, TIA3.Value As ITSMNM,
+			TCM.ReceiptUserID,
+			TCM.ReceiptTeamID,
+			TM2.Name As ReceiptName,TM2.EmployeeNum As ReceiptEmpNo,
+			TTT2.Name As ReceiptTeamName, 
+			TCM.ProcessorID, TCM.ProcessorTeamID,
+			TM3.Name As ProcessorName, TM3.EmployeeNum As ProcessorEmpNo,
+			TTT3.Name As ProcessorTeamName,
+			ISNULL(CONVERT(char(10),TCM.RegDT, 21),'') As RegDT,
+			ISNULL(CONVERT(char(10),TCM.ReqDueDate, 21),'') As ReqDueDate,
+			ISNULL(CONVERT(char(10),TCM.ReceiptDT, 21),'') As ReceiptDT,
+			TSM.ProjectID,
+			TPT2.Name As ProjectName,
+			TCM.ProcessorID,
+			TCM.ProcessorTeamID, 
+			ISNULL(CONVERT(char(10),TCM.CompletionDT, 21),'') As CompletionDT,
+			ISNULL(CONVERT(char(10),TCM.DueDate, 21),'') As DueDate,
+			TCM.Comment,
+			TCM.ITSMIF,
+			TCM.ProcOption, TD2.Name As ProcOptionNM , TCM.ChangeNotice , #{languageID} As languageID,
+			TDSR1.Name As SRCategory,
+			TDSR2.Name As SRSubCategory,
+			TCM.RegDT AS RegDatOrg,
+			TCM.ReqDueDate As ReqDueDateOrg,
+			TCM.DueDate AS DueDateOrg,
+			TCM.CompletionDT As CompletionDTOrg,
+			TSM.Description AS SRDescription,
+			TSM.ItemTypeCode
+		From XBOLTADM.TB_CR_MST TCM
+		 Left Outer JOIN XBOLTAPP.ESM_SR_MST TSM ON TSM.SRID = TCM.SRID
+		 Left Outer JOIN XBOLTADM.TB_PROJECT CSR ON CSR.ProjectID = TCM.CSRID
+		 Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT1 ON TPT1.ProjectID = TCM.CSRID And TPT1.LanguageID  = #{languageID}
+		 Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT2 ON TPT2.ProjectID = TSM.ProjectID And TPT2.LanguageID  = #{languageID}
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TCM.Status And TD.LanguageID  = #{languageID} And TD.Category = 'CRSTS'
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TD1 On TD1.TypeCode = TCM.Priority And TD1.Category = 'PRT' And TD1.LanguageID = #{languageID}
+		 Left Outer Join XBOLTADM.TB_MEMBER TM1 ON TM1.MemberID = TCM.RegUserID 
+		 Left Outer Join XBOLTADM.TB_MEMBER TM2 ON TM2.MemberID = TCM.ReceiptUserID
+		 Left Outer Join XBOLTADM.TB_MEMBER TM3 ON TM3.MemberID = TCM.ProcessorID
+		 Left Outer Join XBOLTADM.TB_TEAM_TXT TTT1 ON TTT1.TeamID = TCM.RegTeamID And TTT1.LanguageID = #{languageID}
+		 Left Outer Join XBOLTADM.TB_TEAM_TXT TTT2 ON TTT2.TeamID = TCM.ReceiptTeamID And TTT2.LanguageID = #{languageID}
+		 Left Outer Join XBOLTADM.TB_TEAM_TXT TTT3 ON TTT3.TeamID = TCM.ProcessorTeamID And TTT3.LanguageID = #{languageID}
+		 Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TCM.CRArea1 And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID  =  #{languageID} 
+		 Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 ON TIA2.ItemID = TCM.CRArea2 And TIA2.AttrTypeCode = 'AT00001' And TIA2.LanguageID  =  #{languageID} 
+		 Left Outer Join XBOLTADM.TB_ATTR_TYPE_LOV TIA3 ON TIA3.LovCode = TCM.ITSMTP  And TIA3.AttrTypeCode = 'AT00035' And TIA3.LanguageID  =  #{languageID} 
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = TCM.ProcOption And TD2.LanguageID  = #{languageID} And TD2.Category = 'PROCOPTION'
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TDSR1 ON TDSR1.TypeCode = TSM.Category And TDSR1.LanguageID  = #{languageID} And TDSR1.Category = 'SRCAT'
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TDSR2 ON TDSR2.TypeCode = TSM.SubCategory And TDSR2.LanguageID  = #{languageID} And TDSR2.Category = 'SRCAT'
+		<where>
+			<if test="loginUserId != null and loginUserId != ''">
+				#{loginUserId} IN (TCM.RegUserID, TCM.ReceiptUserID, TCM.ProcessorID)
+			</if>
+			<if test="crCode != null and crCode != ''">
+				AND TCM.CRCode like N'%'+#{crCode}+'%'
+			</if>
+			<if test="itemID != null and itemID != ''">
+				AND #{itemID} in (TCM.CRArea1, TCM.CRArea2 , TCM.CRArea3)
+			</if>
+			<if test="crMode != null and crMode != ''">
+			<choose>
+				<when test="crMode.equals('PG')">
+					AND TCM.ProjectID IN(Select ProjectID From XBOLTADM.TB_PROJECT Where RefPGID = #{refID} And ProjectType = 'PJT' )
+				</when>
+				<when test="crMode.equals('PJT')">
+					AND ProjectID IN(Select ProjectID From XBOLTADM.TB_PROJECT Where RefPjtID = #{refID} And ProjectType = 'PJT' )
+				</when>
+				<when test="crMode.equals('myCr')">
+					AND #{sessionUserId} IN (TCM.RegUserID, TCM.ReceiptUserID, TCM.ProcessorID)		
+				</when>
+				<when test="crMode.equals('myTeam')">
+					AND #{sessionTeamId} IN (TCM.RegTeamID, TCM.ReceiptTeamID, TCM.ProcessorTeamID)
+				</when>
+			</choose>
+			</if>
+			<if test="receiptTeam != null and receiptTeam != ''">
+				AND TCM.ReceiptTeamID = #{receiptTeam}
+			</if>
+			<if test="csrID != null and csrID != ''">
+				AND TCM.CSRID = #{csrID}
+			</if>
+			<if test="srID != null and srID != ''">
+				AND TCM.SRID = #{srID} 
+			</if>
+			<if test="crID != null and crID != ''">
+				AND TCM.CRID = #{crID} 
+			</if>
+			<if test="requestUserName != null and requestUserName != ''">
+				AND TM1.Name like N'%'+#{requestUserName}+'%'
+			</if>
+			<if test="receiptUserName != null and receiptUserName != ''">
+				AND TM2.Name like N'%'+#{receiptUserName}+'%'
+			</if>
+			<if test="subject != null and subject != ''">
+				AND TCM.Subject like N'%'+#{subject}+'%'
+			</if>
+			<if test="crArea1 != null and crArea1 != ''">
+				AND TCM.CRArea1 = #{crArea1} 
+			</if>
+			<if test="crArea2 != null and crArea2 != ''">
+				AND TCM.CRArea2 = #{crArea2} 
+			</if>
+			<if test="crStatus != null and crStatus != ''">
+				AND TCM.CRArea2 = #{crArea2}
+			</if>
+			<if test="reqdueDate != null and reqdueDate != ''">
+				AND <![CDATA[ Convert(varchar(10),TCM.ReqDueDate, 120)  <= #{reqdueDate}  ]]>
+			</if>
+			<if test="dueDate != null and dueDate != ''">
+				AND <![CDATA[ Convert(varchar(10),TCM.DueDate, 120)  <= #{dueDate}  ]]>
+			</if>
+			<if test="completionDT != null and completionDT != ''">
+				AND <![CDATA[ Convert(varchar(10),TCM.CompletionDT, 120)  <= #{completionDT}  ]]>
+			</if>
+		</where>
+		Order By  TCM.CRCode DESC
+	</select>
+	
+	<select id="getMaxCrID" resultType="String">
+		SELECT	ISNULL(MAX(CRID)+1, 1) as CRID FROM XBOLTADM.TB_CR_MST
+	</select> 
+	
+	<select id="getMaxCRCode" resultType="String">
+  		SELECT
+      		TOP 1 CRCode
+  		FROM XBOLTADM.TB_CR_MST
+  		Where subString(CRCode, 3,6) = #{thisYmd}  order by CRID DESC
+
+	</select>
+	
+	<insert id="insertCR" parameterType="java.util.HashMap">
+		Insert Into 
+			XBOLTADM.TB_CR_MST(
+				CRID,
+				CRCode, 
+				SRID,
+				CSRID,
+				ProjectID,
+				Subject,
+				Description,
+				CRArea1,
+				CRArea2,
+				ITSMTP,
+				Status,
+				Priority,
+				RegUserID,
+				RegTeamID,
+				RegDT,
+				ReqDueDate,
+				ReceiptUserID,
+				ReceiptTeamID,
+				ProcessorID,
+				ProcessorTeamID,
+				ReceiptDT,
+				DueDate,
+				CompletionDT
+				<if test="ITSMIF != null and ITSMIF != ''">,ITSMIF</if>
+				<if test="procOption != null and procOption != ''">,ProcOption</if>
+			)Values(
+				#{crID},
+				#{crCode},
+				<choose><when test="srID != null and srID != ''">#{srID},</when><otherwise>NULL,</otherwise></choose>
+				<choose><when test="csrID != null and csrID != ''">#{csrID},</when><otherwise>NULL,</otherwise></choose>
+				#{projectID},
+				#{Subject},
+				#{Description},
+				#{crArea1},
+				#{crArea2},
+				#{ITSMType},
+				#{status},
+				#{priority},
+				#{RegUserID},
+				#{RegTeamID},
+				GETDATE(),
+				<choose><when test="ReqDueDate != null and ReqDueDate != ''">#{ReqDueDate},</when><otherwise>GetDate(),</otherwise></choose>
+				#{receiptID},
+				#{receiptTeamID},
+				#{ProcessorID},
+				#{ProcessorTeamID},
+				<choose>
+					<when test="status.equals('CLS')">GETDATE(), GETDATE(), GETDATE()</when>
+					<otherwise>NULL,NULL,NULL</otherwise>
+				</choose>	
+				<if test="ITSMIF != null and ITSMIF != ''">,#{ITSMIF}</if>
+				<if test="procOption != null and procOption != ''">,#{procOption}</if>	
+			)
+	</insert>
+	
+	<select id="getReceipt" resultType="java.util.HashMap">
+		Select MemberID, Name, TeamID
+		From XBOLTADM.TB_MEMBER 
+		Where MemberID = (Select AuthorID From XBOLTADM.TB_ITEM Where ItemID = #{crArea2})
+	</select>
+	
+	<select id="getITSMType" resultType="String">
+		Select LovCode As ITSMType From XBOLTADM.TB_ITEM_ATTR Where ItemID = #{crArea2} And AttrTypeCode = 'AT00035' And LanguageID =  #{languageID}
+	</select>
+	
+	<update id="updateCR" parameterType="java.util.HashMap">
+		Update XBOLTADM.TB_CR_MST SET
+			<if test="projectID != null and projectID != ''">ProjectID = #{projectID},</if>
+			<if test="comment != null and comment != ''">Comment = #{comment},</if>
+			<if test="crArea1 != null and crArea1 != ''">CRArea1 = #{crArea1},</if>
+			<if test="crArea2 != null and crArea2 != ''">cRArea2 = #{crArea2},</if>
+			<if test="ITSMType != null and ITSMType != ''">ITSMTP = #{ITSMType},</if>
+			<if test="ITSMIF != null and ITSMIF != ''">ITSMIF = #{ITSMIF},</if>
+			<if test="priority != null and priority != ''">Priority = #{priority},</if>
+			<if test="status != null and status != ''">Status = #{status},</if>
+			LastUpdated = GETDATE(),
+			LastUser = #{lastUser}		
+		<where>
+			<if test="crID != null and crID != ''">
+				CRID = #{crID}
+			</if>
+			<if test="CSRID != null and CSRID != ''">
+				CSRID = #{CSRID}
+			</if>
+		</where>		 		
+	</update>
+	
+	<select id="getCRAreaUserInfo" resultType="java.util.HashMap">
+		Select TI.AuthorID, TI.OwnerTeamID, TIA.LovCode As ITSM  
+		From XBOLTADM.TB_ITEM TI
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA 
+			ON TIA.ItemID = TI.ItemID 
+			And TIA.LanguageID = #{languageID} And TIA.AttrTypeCode = 'AT00035'
+		Where TI.ItemID = #{crArea2}
+	</select>
+	
+	<select id="getCRID" resultType="String">
+		Select CRID From XBOLTADM.TB_CR_MST 
+		<where>
+			<if test="srID != null and srID != ''">
+				SRID = #{srID} 
+			</if>
+			<if test="CSRID != null and CSRID != ''">
+				CSRID = #{CSRID}
+			</if>
+		</where>	
+	</select>
+	
+	<select id="getCRIDList" resultType="java.util.HashMap">
+		Select CRID From XBOLTADM.TB_CR_MST
+		Where CSRID IN (Select ProjectID From XBOLTADM.TB_WF_INST Where WFInstanceID = #{WFInstanceID} And AprvOption = #{AprvOption})
+	</select>
+	
+</mapper>

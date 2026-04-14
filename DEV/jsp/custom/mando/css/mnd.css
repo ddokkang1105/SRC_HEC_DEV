@@ -1,0 +1,145 @@
+#login_wrap{
+	min-width: 1100px;
+	max-width: 1920px;
+	z-index: 1;
+	min-height: 100%;
+	max-height: 100%;
+	background:url(../images/login_bg.jpg) no-repeat 0 0 ;
+	background-size:cover;
+}
+#login_wrap .login_logo{
+	position:absolute;
+	top:30px;
+	left:45px;
+}
+
+
+#login_wrap .login_area{
+	width:444px;
+	margin:0 auto;
+	background-color: rgba(0, 0, 0, 0.5);
+	border:3px #FFF solid;
+	padding:50px 55px 40px;
+}
+
+#login_wrap h1 {
+	position:relative;
+	text-align:center;
+	overflow:hidden;
+	border-bottom:1px solid #878e92;
+	margin-bottom:35px;
+}
+
+#login_wrap h1 img{
+	margin-bottom:30px;
+}
+
+#login_wrap .login_box {
+	position:relative;
+	height:150px;
+	border-bottom:1px solid #878e92;
+	margin-bottom:35px;
+}
+
+#login_wrap .login_input {
+	float:left;
+	margin-right:10px;
+	margin-bottom:25px;
+}
+
+#login_wrap .login_input p{
+	font-size:14px;
+	color:#fff;
+	margin-bottom:7px;
+}
+
+#login_wrap .login_input p label{
+	display:block;
+	float:left;
+	width:80px;
+	margin-left:75px;
+	margin-top:5px;
+}
+
+#login_wrap .login_input p input{
+	font-size:16px;
+	border:hidden;
+	background-color: rgba(255, 255, 255, 0.7);
+	padding-left:5px;
+	width:210px;
+	height:37px;
+	color:#000;
+}
+
+
+#login_wrap .login_btn {
+	text-align:center;
+}
+
+
+#login_wrap input.btn_login{
+	width:212px; 
+	height:42px; 
+	border:2px solid #FFF;
+	background-color: rgba(255, 255, 255, 0);
+	color:#FFF;
+	font-size:16px;
+	font-weight:700;
+	cursor:pointer;
+}
+
+#login_wrap input.btn_login:hover{
+	width:212px; 
+	height:42px; 
+	background-color: #000;
+	color:#FFF;
+	font-size:16px;
+	font-weight:700;
+}
+
+#login_wrap .forgot{
+	text-align:center;
+	margin-top:12px;
+}
+
+#login_wrap .forgot a{
+	color:#FFF;
+	font-size:14px;
+	text-decoration:underline;
+	
+}
+
+#login_wrap .forgot a:hover{
+	color:#ff9600;
+}
+
+.language_select {
+	font-size: 14px;
+	color: #fff;
+	text-align: left;
+	text-indent: 0.5em;
+	width: 215px;
+	height: 28px;
+	border: 1px solid #000;
+	background: url('../images/drop.png') no-repeat;
+	background-color: #000;
+	padding-top: 5px;
+	border-radius: 0px;
+	-moz-appearance:none; /* Firefox */
+	-webkit-appearance:none; /* Safari and Chrome */
+	appearance:none;
+}
+.language_select::-ms-expand {
+    display: none;
+}
+.language_select option {
+	font-size: 14px;
+	background-color: #000;
+	color: #FFFFFF;
+	text-align: left;
+	text-indent: 0.5em;
+	padding: 1px 0;
+	width: 215px;
+	height: 28px;
+	line-height: 28px;
+}

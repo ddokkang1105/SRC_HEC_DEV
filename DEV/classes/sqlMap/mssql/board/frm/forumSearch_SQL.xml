@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+	PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+	
+<mapper namespace="forumSearch_SQL">
+    <select id="forumTotalCnt" resultType="String" parameterType="java.util.HashMap">
+       
+        	SELECT COUNT(*) totalCnt
+        	FROM XBOLTADM.TB_BOARD brd
+        		LEFT OUTER JOIN XBOLTADM.TB_MEMBER mbr ON brd.RegUserID = mbr.MemberID
+        	WHERE BoardMgtID = 4
+        	
+		<if test="itemType != null and itemType != ''">
+			AND brd.ItemTypeCode = #{itemType}
+		</if>
+		<if test="searchValue != null and searchValue != ''">
+			<choose>
+				<when test="searchType.equals('001')"> AND (Subject like '%'+#{searchValue}+'%'
+ 					or
+ 					Content like '%'+#{searchValue}+'%') </when>
+				<when test="searchType.equals('002')"> AND mbr.Name like '%'+#{searchValue}+'%' </when>
+			</choose>
+		</if>	
+		<if test='!"-1".equals(s_itemID)'>
+			AND ItemID = #{s_itemID}
+		</if>
+    </select>
+    
+	<select id="WordSearch" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+	<![CDATA[
+		SELECT *
+		FROM (
+			SELECT
+				Row_number() OVER( ORDER BY brd.RegDT DESC ) as RNUM
+				, brd.BoardID AS privateId
+				, BoardMgtID
+				, ItemID
+				, Subject
+				, Content
+				, ISNULL(CommentCNT,'0') AS count
+				, ISNULL(mbr.Name, '') AS WriteUserNM
+				, CONVERT(VARCHAR, brd.RegDT, 120) AS RegDT
+				, ISNULL((SELECT Name FROM  XBOLTADM.TB_DICTIONARY WHERE TypeCode = brd.ItemTypeCode AND LanguageID = #{languageID}), '-') AS Category
+				, ISNULL(brd.ReadCNT, '0') AS ReadCNT
+				, CASE WHEN DATEDIFF( day, brd.RegDT, getDate() ) > 7 THEN 'N' ELSE 'YES' END AS IsNew
+			FROM XBOLTADM.TB_BOARD brd
+				LEFT OUTER JOIN XBOLTADM.TB_MEMBER mbr ON brd.RegUserID=mbr.MemberID
+				LEFT OUTER JOIN ( SELECT BoardID, COUNT(*) AS AttchCnt
+					FROM XBOLTADM.TB_BOARD_ATTCH
+					GROUP By BoardID
+				) att ON brd.BoardID = att.BoardID
+			WHERE BoardMgtID = 4
+		]]>
+		<if test="itemType != null and itemType != ''">
+			AND brd.ItemTypeCode = #{itemType}
+		</if>
+		<if test="searchValue != null and searchValue != ''">
+			<choose>
+				<when test="searchType.equals('001')"> AND (Subject like '%'+#{searchValue}+'%'
+ 					or
+ 					Content like '%'+#{searchValue}+'%') </when>
+				<when test="searchType.equals('002')"> AND mbr.Name like '%'+#{searchValue}+'%' </when>
+			</choose>
+		</if>	
+		<if test='!"-1".equals(s_itemID)'>
+			AND ItemID = #{s_itemID}
+		</if>
+		) brd
+		<where>
+			<if test="pageNo != null and pageNo != ''">
+				brd.RNUM BETWEEN ((#{pageNo}-1)*#{listCnt} + 1) AND (#{pageNo}*#{listCnt})
+			</if>
+		</where>
+		ORDER BY brd.RegDT DESC
+	</select>
+	
+	
+	
+</mapper>

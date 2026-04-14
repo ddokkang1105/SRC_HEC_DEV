@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	메뉴 관련	-->
+<mapper namespace="e2e_SQL">
+		
+<select id="e2eCreate_treeList" resultType="java.util.HashMap">
+
+		SELECT
+				Distinct 0 AS s_itemID , C.ItemID, C.ClassCode, ISNULL(TIT.Icon, 'img_job.png') ItemTypeImg , C.Level
+				, CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE C.Identifier + ' ' + ATR.PlainText END AS PlainText
+				, ISNULL(TT.Name, '') as TeamName, TOT.Name as OwnerTeamName, Convert(nvarchar(20), C.LastUpdated, 111) AS LastUpdated
+				, C.Identifier, LEN(REPLACE(C.Identifier,'.','')) AS Depth
+				FROM 
+					XBOLTADM.TB_ITEM C
+					INNER JOIN XBOLTADM.TB_ITEM_ATTR ATR ON C.ItemID = ATR.ItemID
+						AND ATR.AttrTypeCode = 'AT00001' AND ATR.LanguageID =  #{sessionCurrLangType}
+					INNER JOIN XBOLTADM.TB_ARC ARC ON ARC.ArcCode = #{ArcCode}
+					Left Outer JOIN XBOLTADM.TB_ITEM_CLASS TIT ON C.ClassCode = TIT.ItemClassCode					
+					Left outer join XBOLTADM.TB_TEAM_TXT TT on C.CompanyID = TT.TeamID AND TT.LanguageID = #{sessionCurrLangType}
+					Left outer join XBOLTADM.TB_TEAM_TXT TOT on C.OwnerTeamID = TOT.TeamID AND TOT.LanguageID = #{sessionCurrLangType}
+				WHERE 
+					C.ItemID in (Select RootItemID FROM XBOLTADM.TB_ARC_FILTER where ArcCode = 'AR010100'  )
+					AND C.Deleted != '1'			
+			UNION
+				
+			SELECT
+				Distinct C.FromItemID AS s_itemID , C.ToItemID AS ItemID, Obj.ClassCode, ISNULL(TIT.Icon, 'img_job.png') ItemTypeImg, Obj.Level
+				, CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS PlainText 
+				, ISNULL(TT.Name, '') as TeamName, TOT.Name as OwnerTeamName, Convert(nvarchar(20),C.LastUpdated, 111) AS LastUpdated
+				, Obj.Identifier, LEN(REPLACE( Obj.Identifier,'.','')) AS Depth 
+				FROM 
+					XBOLTADM.TB_ITEM C
+					INNER JOIN XBOLTADM.TB_ITEM_ATTR ATR ON C.ToItemID = ATR.ItemID
+						AND ATR.AttrTypeCode = 'AT00001' AND ATR.LanguageID =  #{sessionCurrLangType}
+					INNER JOIN XBOLTADM.TB_ITEM Obj ON C.ToItemID = Obj.ItemID
+						AND Obj.ClassCode not in (Select FClass FROM XBOLTADM.TB_ARC_FILTER_CLS where ArcCode = #{ArcCode}  )
+					INNER JOIN XBOLTADM.TB_ARC_FILTER ARCF ON ARCF.ArcCode = #{ArcCode}
+					INNER JOIN XBOLTADM.TB_ARC ARC ON ARC.ArcCode = #{ArcCode}
+					Left Outer JOIN XBOLTADM.TB_ITEM_CLASS TIT ON Obj.ClassCode = TIT.ItemClassCode					
+					Left outer join XBOLTADM.TB_TEAM_TXT TT on Obj.CompanyID = TT.TeamID AND TT.LanguageID = #{sessionCurrLangType}
+					Left outer join XBOLTADM.TB_TEAM_TXT TOT on Obj.OwnerTeamID = TOT.TeamID AND TOT.LanguageID = #{sessionCurrLangType}
+				WHERE
+					C.FromItemID != 0 
+					AND C.ItemTypeCode in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{ArcCode}  )
+					AND C.Deleted != '1'
+							
+			ORDER BY
+				Identifier,s_itemID,ItemID,PlainText ASC		
+	</select> 
+	
+</mapper>

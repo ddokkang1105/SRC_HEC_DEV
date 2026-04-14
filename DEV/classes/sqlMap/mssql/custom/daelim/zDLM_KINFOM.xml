@@ -1,0 +1,283 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+        
+<mapper namespace="zDLM_KINFOM">
+	
+	<select id="boardList_gridList" resultType="java.util.HashMap">
+	<![CDATA[
+				SELECT    RNUM
+				, knoId
+	            , knoNm
+	            , orgnztId
+				, orgnztNm
+				, knoTypeNm
+				, userNm
+				, appYmd
+				, frstRegisterId
+				, frstRegistPnttm
+				, lastUpdusrId
+				, lastUpdtPnttm
+
+		FROM (
+			SELECT Row_Number() OVER(ORDER BY A.FRST_REGIST_PNTTM desc ) as RNUM
+				,	A.KNWLDG_ID				knoId		     		
+				,	A.KNWLDG_NM				knoNm
+				,	C.ORGNZT_ID				orgnztId
+				,	C.ORGNZT_NM				orgnztNm
+				,	B.KNWLDG_TY_NM			knoTypeNm			 
+				,	D.Name					userNm
+				,	FORMAT(CONVERT(datetime, A.EVL_DE), 'yyyy-MM-dd') appYmd
+				,	A.FRST_REGISTER_ID		frstRegisterId
+				,	A.FRST_REGIST_PNTTM		frstRegistPnttm
+				,	A.LAST_UPDUSR_ID		lastUpdusrId
+				,	A.LAST_UPDT_PNTTM		lastUpdtPnttm
+
+			FROM  XBOLTDLM.COMTNDAMKNOIFM A
+			INNER JOIN XBOLTDLM.COMTNDAMMAPKNO B ON A.KNWLDG_TY_CODE = B.KNWLDG_TY_CODE
+    		INNER JOIN XBOLTDLM.COMTNDAMMAPTEAM C ON C.ORGNZT_ID = B.ORGNZT_ID
+    		LEFT OUTER JOIN XBOLTADM.TB_MEMBER D ON A.FRST_REGISTER_ID = D.LoginId
+			WHERE 
+			A.OTHBC_AT = 'Y'
+			AND A.KNWLDG_EVL = '1' 
+			]]>
+			
+ 			<if test="projectID != null and projectID != ''">
+					AND C.ORGNZT_ID = #{projectID}
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+				<choose>
+					<when test="searchKey.equals('KnoName')">
+						AND A.KNWLDG_NM like CONCAT('%', TRIM(#{searchValue}), '%')
+					</when>
+					<when test="searchKey.equals('UserNm')">
+						AND D.Name like CONCAT('%', TRIM(#{searchValue}), '%')
+					</when>
+				</choose>
+			</if> 			
+	<![CDATA[ ) brd
+	]]>
+	</select>		
+	
+	<!-- 신규 등록 필요 쿼리  -->
+	<select id="getForumRegID" resultType="String">
+	<![CDATA[
+		SELECT FRST_REGISTER_Id
+		FROM XBOLTDLM.COMTNDAMKNOIFM
+		WHERE KNWLDG_ID = #{knoId}
+	]]>
+	</select>
+
+	<select id="boardNextVal" resultType="String">
+	<![CDATA[
+		SELECT TOP 1 'DMID_' + CAST(CAST(SUBSTRING(KNWLDG_ID, 6, LEN(KNWLDG_ID) - 5) AS BIGINT) + 1 AS VARCHAR)
+		FROM XBOLTDLM.COMTNDAMKNOIFM
+		ORDER BY KNWLDG_ID DESC;
+	]]>
+	</select>
+	
+	<select id="getKnoTypeCd" resultType="String">
+	<![CDATA[
+		SELECT KNWLDG_TY_CODE
+		FROM XBOLTDLM.COMTNDAMMAPKNO
+		WHERE ORGNZT_ID = #{orgnztId}
+	]]>
+	</select>
+	
+	<insert id="insertKnoPersonal">
+	<![CDATA[
+		    INSERT 
+		      INTO  XBOLTDLM.COMTNDAMKNOIFM
+		         (  KNWLDG_ID
+		         ,  KNWLDG_NM
+		         ,	ORGNZT_ID
+		         ,  KNWLDG_TY_CODE
+		         ,  KNWLDG_CN
+		         ,  COLCT_DE
+		         ,  OTHBC_AT
+		         ,  ATCH_FILE_ID
+			     ,	FRST_REGISTER_ID
+			     ,	FRST_REGIST_PNTTM
+		         ,  LAST_UPDUSR_ID			     	         
+		         ,  LAST_UPDT_PNTTM
+		         ,  CORP_ID
+				 ,  SVC_CI_ID
+				 ,  SYMPTON_DESC
+				 ,  ROOTCAUSE_DESC
+				 ,  KNWLDG_EVL 
+		         ) 
+		    VALUES  
+		         (  #{knoId}
+		         ,  #{knoNm}
+		         ,  #{project}		         		         
+		         ,  #{knoTypeCd}
+		         ,  #{knwldgCn}
+		         ,  GETDATE()
+		         ,  'Y'
+		         ,  #{AtchFileId}
+		         ,  #{userId}
+		         ,  GETDATE()      		 
+		         ,  #{userId}
+		         ,  GETDATE()
+		         ,  #{srArea1}	
+		         ,  #{srArea2}
+		         ,  #{sympton}
+		         ,  #{rootCause}
+		         , '1'
+		         ) 
+	]]>
+	</insert>
+	
+	<!--상세 조회 필요 쿼리-->
+	
+	<!-- 조직 및 서비스파트 조회 -->
+	<select id="selectKnoCorpAndService" resultType="java.util.HashMap">
+	<![CDATA[
+		SELECT 
+
+	        Isnull(ttt.NAME, '') AS companyName													  
+	
+	       ,Isnull(srarea2atr.plaintext, '')  AS srarea2Name
+
+  
+		FROM
+		-- srArea1 
+		xboltadm.tb_item_attr SRType,
+		xboltadm.tb_item_attr SRArea1ATR,
+		xboltadm.tb_item_attr SRArea1ITM
+		INNER JOIN xboltadm.tb_item ITM1
+		        ON ITM1.itemid = SRArea1ITM.itemid
+		INNER JOIN xboltadm.tb_item ITM
+		        ON ITM.fromitemid = SRArea1ITM.itemid
+		           AND ITM.categorycode = 'ST1'
+		           AND ITM.deleted != 1
+		INNER JOIN xboltadm.tb_item ITM2
+		        ON ITM2.itemid = ITM.toitemid
+		INNER JOIN xboltadm.tb_item_attr SRArea2ATR
+		        ON SRArea2ATR.itemid = ITM2.itemid
+		           AND SRArea2ATR.attrtypecode = 'AT00001'
+		           AND SRArea2ATR.languageid = '1042'
+		INNER JOIN xboltadm.tb_item_attr SRArea2T
+		        ON SRArea2T.itemid = SRArea2ATR.itemid
+		           AND SRArea2T.attrtypecode = 'AT00036'
+		           AND ( SRArea2T.plaintext = 'ITSP'
+		                  OR SRArea2T.plaintext = 'CMM'
+		                  OR SRArea2T.plaintext = '' )
+		INNER JOIN xboltapp.crm_cust_mst CCM
+		        ON itm2.clientid = CCM.customerno
+		INNER JOIN xboltadm.tb_team_txt TTT
+		        ON TTT.teamid = CCM.teamid
+		           AND TTT.languageid = '1042'
+		LEFT OUTER JOIN xboltadm.tb_item_attr SRArea2ATR2
+		             ON SRArea2ATR2.itemid = SRArea2T.itemid
+		                AND SRArea2ATR2.attrtypecode = 'AT00035'
+		                AND SRArea2ATR2.languageid = '1042'
+		LEFT OUTER JOIN xboltadm.tb_attr_type_lov TATL
+		             ON TATL.attrtypecode = 'AT00035'
+		                AND TATL.lovcode = SRArea2ATR2.plaintext
+		                AND TATL.languageid = '1042'
+		WHERE  SRType.attrtypecode = 'AT00036'
+		       AND ( SRType.plaintext = 'ITSM'
+		              OR SRType.plaintext = 'CMM'
+		              OR SRType.plaintext = '' )
+		       AND SRType.itemid = SRArea1ITM.itemid
+		       AND SRArea1ITM.lovcode = 'LV38001'
+		       AND SRArea1ATR.attrtypecode = 'AT00001'
+		       AND SRArea1ITM.itemid = SRArea1ATR.itemid
+		       AND SRArea1ATR.languageid = '1042'
+		       AND ITM2.deleted != 1
+			   AND srarea1itm.itemid = TRY_CAST(#{svcId1} AS INT)
+		       AND itm2.itemid = #{svcId}
+		ORDER  BY ITM2.clientid,
+		          ITM1.identifier,
+		          ITM2.identifier 
+	]]>
+	</select>
+
+	<!-- 지식정보 상세조회 -->
+	<select id="selectKnoDetail" resultType="java.util.HashMap">
+	<![CDATA[
+		SELECT	 
+			 knoId
+			,userNm
+			,knoNm
+			,orgnztId
+			,knoCn
+			,ATCH_FILE_ID
+			,frstRegisterId
+			,corpId
+			,svcId
+			,svcId1
+			,symtonDesc
+			,RootCauseDesc
+		From (
+			SELECT 
+			 A.KNWLDG_ID knoId
+			,B.Name userNm
+			,A.KNWLDG_NM knoNm
+			,A.ORGNZT_ID orgnztId
+			,A.KNWLDG_CN knoCn
+			,A.ATCH_FILE_ID ATCH_FILE_ID
+			,A.FRST_REGISTER_ID frstRegisterId
+			,A.CORP_ID corpId
+			,A.SVC_CI_ID svcId
+			,(SELECT Top 1 FromItemID FROM XBOLTADM.TB_ITEM WHERE ToItemID = (SELECT Top 1 ItemID FROM XBOLTADM.TB_ITEM WHERE ItemID = A.SVC_CI_ID) AND CategoryCode = 'ST1' ) AS svcId1
+			,A.SYMPTON_DESC symtonDesc
+			,A.ROOTCAUSE_DESC RootCauseDesc
+			FROM XBOLTDLM.COMTNDAMKNOIFM A
+			LEFT OUTER JOIN XBOLTADM.TB_MEMBER B ON A.FRST_REGISTER_ID = B.LoginId
+			WHERE KNWLDG_ID = #{knoId}
+		) sel
+	]]>
+	</select>
+	
+	<!-- 매니저 권한 조회 -->
+	<select id="selectManagerAuth" resultType="String">
+	<![CDATA[
+	SELECT 
+	 	    isManager
+	 
+	FROM XBOLTDLM.CC_USER_STS
+	WHERE  CC_USR_EMP_NO = #{userId}
+	]]>
+	</select>
+	
+	<!-- 지식정보 삭제 -->
+	<delete id="deleteKInfoM" parameterType="java.util.HashMap">
+	<![CDATA[
+			DELETE FROM XBOLTDLM.COMTNDAMKNOIFM
+			WHERE  KNWLDG_ID=#{knoId}
+	]]>
+	</delete>
+	
+	<!-- 등록자 조회 -->
+	<select id="getRegId" resultType="String">
+	<![CDATA[
+		SELECT 
+			FRST_REGISTER_ID
+		FROM XBOLTDLM.COMTNDAMKNOIFM
+		WHERE KNWLDG_ID = #{knoId}
+	]]>
+	</select>
+	
+	<!-- 지식정보 업데이트 -->
+	<update id="updateKInfoM" parameterType="java.util.HashMap">
+	<![CDATA[
+			UPDATE XBOLTDLM.COMTNDAMKNOIFM 
+			SET
+				KNWLDG_NM = #{knoNm}
+			 ,	KNWLDG_CN = #{knwldgCn}
+			 ,	ORGNZT_ID = #{project}
+			 ,	KNWLDG_TY_CODE = #{knoTypeCd}
+	         ,  ATCH_FILE_ID = #{AtchFileId}
+	         ,  LAST_UPDUSR_ID = #{userId}			     	         
+	         ,  LAST_UPDT_PNTTM = GETDATE()
+   			 ,  SYMPTON_DESC = #{sympton}
+   			 ,  ROOTCAUSE_DESC = #{rootCause}	 
+   			 ,	CORP_ID = #{srArea1}
+   			 ,	SVC_CI_ID = #{srArea2}
+ 			WHERE  KNWLDG_ID = #{knoId}
+ 	]]>
+	</update>
+</mapper>

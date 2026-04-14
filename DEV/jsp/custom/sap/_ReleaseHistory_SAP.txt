@@ -1,0 +1,8 @@
+
+ 
+ 2018/12/05
+  - Ver.3.1.20181204.5279 mssql XML
+  - OLM_DEMO.bak.20181204
+  - OLM_DEMO Create Table Script 공유 
+  
+ 2018/12/19  DBCFG.20181219.040 테이블 수정 적용
