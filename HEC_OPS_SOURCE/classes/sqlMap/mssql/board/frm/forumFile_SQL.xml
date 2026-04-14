@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+		PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="forumFile_SQL" >
+
+    <insert id="boardFile_insert" >
+		INSERT INTO XBOLTADM.TB_BOARD_ATTCH (
+			 BoardID
+			, Seq
+			, FileNm
+			, FileRealNm
+			<if test="FileSize != null and FileSize">
+			,FileSize
+			</if>				
+			, FilePath
+		)
+		VALUES (
+			 #{BoardID}
+			<choose>
+				<when test='!"0".equals(Seq)'>,#{Seq}</when>
+				<otherwise>,(SELECT ISNULL(MAX(Seq)+1,'1') FROM XBOLTADM.TB_BOARD_ATTCH)</otherwise>
+			</choose>
+			, #{FileRealNm}			
+			, #{FileNm}
+			<if test="FileSize != null and FileSize">
+			,#{FileSize}
+			</if>	
+			, #{FilePath}
+		)
+    </insert>
+    
+    <insert id="commentFile_insert" >
+		INSERT INTO XBOLTADM.TB_BOARD_ATTCH (
+			 BoardID
+			, Seq
+			, FileNm
+			, FileRealNm
+			, FileSize
+			, FilePath
+		)
+		VALUES (
+			 #{BoardID}
+			, #{Seq}
+			, #{FileNm}
+			, #{FileRealNm}			
+			, #{FileSize}
+			, #{FilePath}
+		)
+
+    </insert>
+
+    <select
+        id="forumFile_nextVal"
+        resultType="String" >
+		SELECT ISNULL(MAX(Seq)+1,'1') AS BoardID_NEXTVAL
+		FROM XBOLTADM.TB_BOARD_ATTCH
+    </select>
+
+    <delete id="forumFile_delete" >
+		DELETE FROM XBOLTADM.TB_BOARD_ATTCH
+		WHERE BoardID=#{privateId}
+			AND CommentSeq=#{commentId}
+			
+    </delete>
+    
+    <delete id="forumEditFile_delete" >
+		DELETE FROM XBOLTADM.TB_BOARD_ATTCH
+		WHERE Seq = #{Seq}
+			
+    </delete>
+
+    <select id="forumFile_select" resultType="java.util.HashMap" >
+		SELECT BoardID
+			, FilePath + FileNm fullFileName
+			, Seq
+			, FilePath
+			, FileNm FileName
+			, FileRealNm FileRealName
+			, CommentSeq commentId
+		FROM XBOLTADM.TB_BOARD_ATTCH
+		WHERE BoardID = #{boardID}
+		OR BoardID IN (Select BoardID From XBOLTADM.TB_BOARD Where ParentID = #{boardID} And ReplyLev=1)
+    </select>
+    
+     <select id="getFrmFileList" resultType="java.util.HashMap" >
+		SELECT BoardID
+			, FilePath + FileNm fullFileName
+			, Seq
+			, FilePath
+			, FileNm FileName
+			, FileRealNm FileRealName
+			, CommentSeq commentId
+		FROM XBOLTADM.TB_BOARD_ATTCH
+		WHERE BoardID = #{boardID}
+    </select>
+    
+     <select id="getReplyFileCnt" resultType="String" >
+		SELECT Count(*)
+		FROM XBOLTADM.TB_BOARD_ATTCH
+		WHERE BoardID IN (Select BoardID From XBOLTADM.TB_BOARD Where ParentID = #{boardID} And ReplyLev=1)
+    </select>
+<!--comment단위로 선택  -->
+	<select id="forumCommentFile_select" resultType="java.util.HashMap" >
+		SELECT BoardID 
+			,FilePath+FileNM fullFileName
+			, Seq
+			, FilePath
+			, FileNm FileName
+			, FileRealNm FileRealName
+		FROM XBOLTADM.TB_BOARD_ATTCH
+		WHERE BoardID=#{boardID}
+    </select>
+    <select id="forumFile_select2" resultType="String" >
+		SELECT FilePath+FileNM AS fullFileName
+		FROM XBOLTADM.TB_BOARD_ATTCH
+		WHERE BoardID = #{boardID} 
+    </select>
+    <select id="forumFile_select3" resultType="String" >
+		Select FilePath From XBOLTADM.TB_BOARD_ATTCH 
+		Where BoardID = #{boardID} 
+			OR BoardID IN (Select BoardID From XBOLTADM.TB_BOARD Where ParentID = #{boardID})
+    </select>
+    <select
+        id="forumFile_select4"
+        resultType="String" >
+		SELECT FilePath+FileNM AS fullFileName
+		FROM XBOLTADM.TB_BOARD_ATTCH
+		WHERE Seq=#{Seq}
+    </select>
+    
+    <select id="forumFile_selectList" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+		SELECT BoardID
+			  , FilePath + '/' + FileNm fullFileName	/* boardFile_selectList */
+			  ,Seq
+			  ,FilePath
+			  ,FileNm FileName
+   			  ,FileRealNM FileRealName
+		 FROM XBOLTADM.TB_BOARD_ATTCH
+	     WHERE BoardID = #{boardID}
+<!-- 	     OR BoardID IN (Select BoardID From XBOLTADM.TB_BOARD Where ParentID = #{boardID} And ReplyLev=1) -->
+	</select>
+	
+</mapper>

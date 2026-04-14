@@ -1,0 +1,375 @@
+<%@ page language="java" contentType="text/html; charset=utf-8" pageEncoding="utf-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+ <%@ page import="xbolt.cmm.framework.val.GlobalVal"%>  
+ <link rel="stylesheet" type="text/css" href="${root}cmm/common/css/pim.css"/>
+<jsp:include page="/WEB-INF/jsp/template/tagInc.jsp" flush="true"/>
+
+<!-- 화면 표시 메세지 취득  -->
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00049" var="WM00049"/>
+<script type="text/javascript">
+	
+	$(document).ready(function(){
+		var height = setWindowHeight();
+		if(document.getElementById('PlmViewPjtDIV')!=null&&document.getElementById('PlmViewPjtDIV')!=undefined){
+			document.getElementById('PlmViewPjtDIV').style.height = (height)+"px";
+		};
+		
+		window.onresize = function(){
+			height = setWindowHeight();
+			document.getElementById('PlmViewPjtDIV').style.height = (height)+"px";
+		};
+		var agent = navigator.userAgent.toLowerCase();		
+		setFrame(1);
+	
+	});
+	
+	function setWindowHeight(){var size = window.innerHeight;var height = 0;if( size == null || size == undefined){height = document.body.clientHeight;}else{height=window.innerHeight;}return height;}
+	function getHeigth(){
+		var topHeight = 23+$(".SubinfoTabs").height();
+		var height = document.body.clientHeight - topHeight-33;
+		return height;
+	}
+	function setFrame(avg) {
+		var browserType="";
+		var IS_IE11=!!navigator.userAgent.match(/Trident\/7\./);
+		if(IS_IE11){browserType="IE11";}
+		
+		var url= "";
+		var data = "&languageID=${sessionScope.loginInfo.sessionCurrLangType}"
+						+ "&s_itemID=${s_itemID}"
+						+ "&fromModelYN=${fromModelYN}"
+						+ "&instanceNo=${procInstanceInfo.ProcInstNo}"
+						+ "&instanceClass=${instanceClass}"
+						+ "&processID=${procInstanceInfo.ProcessID}";
+		var target = "cfgFrame";
+						
+		if(avg != 4){
+			if(avg == 1){
+				url = "elmInstanceViewList.do";
+			}else if(avg == 2){
+				url = "procInstRoleList.do";
+			}else if(avg == 3){
+				url = "pim_instanceFileList.do";
+			}
+//	 		var src = url +"?" + data+"&browserType="+browserType;
+//	 		var idx = (window.location.href).lastIndexOf('/');
+			var height = (setWindowHeight() - $(".wrapView").height()) - 400;
+//	 		$("#clickedURL").val((window.location.href).substring(0,idx)+"/"+src);
+			$("#cfgFrame").empty();
+			$("#digramFrame").attr("style", "display:none;");
+			$("#cfgFrame").attr("style", "display:block;height:"+ height +"px;");
+			console.log(data);
+			ajaxTabPage(url, data, target);
+		} else {
+			url = "newDiagramViewer.do";
+			data += "&getAuth=${sessionScope.loginInfo.sessionLogintype}"+"&userID=${sessionScope.loginInfo.sessionUserId}";
+			var src = url +"?" + data+"&browserType="+browserType;
+			var idx = (window.location.href).lastIndexOf('/');
+			$("#clickedURL").val((window.location.href).substring(0,idx)+"/"+src);
+			document.getElementById('digramFrame').contentWindow.location.href= src; // firefox 호환성  location.href에서 변경
+			$("#digramFrame").attr("style", "display:block;height:"+getHeigth()+"px;border: 0;");
+			$("#cfgFrame").attr("style", "display:none;");
+		}
+	}
+
+	var SubTabNum = 1; /* 처음 선택된 tab메뉴 ID값*/
+	$(function(){
+		$("#cli"+SubTabNum).addClass('on');
+		
+		$('.SubTab ul li').mouseover(function(){
+			$(this).addClass('on');
+		}).mouseout(function(){
+			if($(this).attr('id').replace('cli', '') != SubTabNum) {
+				$(this).removeClass('on');
+			}
+			$('#tempDiv').html('SubTabNum : ' + SubTabNum);
+		}).click(function(){
+			$(".SubTab ul li").removeClass("on"); //Remove any "active" class
+			$(this).addClass('on');
+			SubTabNum = $(this).attr('id').replace('cli', '');
+		});
+	});
+
+	function LayerPopupView(sLinkName, sDivName)  { 
+		var oPopup = document.getElementById(sDivName);
+		var oLink = document.getElementById(sLinkName);
+		var scrollTop = document.getElementById("cfgFrame").scrollTop;
+		var nTop = 140;
+		oPopup.style.top = (oLink.offsetTop + nTop - scrollTop) + "px";    
+		oPopup.style.left = (oLink.offsetLeft + 10) + "px";
+	}
+	
+	function fnHideTable() {
+		var tempSrc = $("#fitWindow").attr("src");
+		if($("#fitWindow").hasClass("frame_show")) {
+			//$("#wrapView").hide();
+			var height = $("#wrapView").height();
+			$("#wrapView").attr("style","visibility:hidden");
+			$("#bottomView").attr("style","position:relative;top:-" + height + "px;");
+			$("#PlmViewPjtDIV").scrollTop(0);
+			$("#fitWindow").attr("class","frame_hide");
+			$("#fitWindow").attr("alt","${WM00159}");
+		}
+		else {
+			$("#wrapView").attr("style","visibility:visible");
+			$("#bottomView").attr("style","position:relative;top:" + height + "px;");
+			$("#fitWindow").attr("class","frame_show");
+			$("#fitWindow").attr("alt","${WM00158}");
+		}
+	}
+	
+	
+	
+	/* 의견공유, 변경이력, 관련문서, Dimension 등의 화면으로 이동 */
+	function goMenu(avg){
+		var url = "";
+		var target = "PlmViewPjtDIV";
+		var data = "s_itemID=${s_itemID}&languageID=${sessionScope.loginInfo.sessionCurrLangType}&myItem=${myItem}"
+					+ "&instanceNo=${procInstanceInfo.ProcInstNo}"
+					+ "&instanceClass=${procInstanceInfo.instanceClass}"
+					+ "&processID=${procInstanceInfo.ProcessID}"; 
+		
+		if (avg == "fileMgt") {
+			url = "pim_instanceFileList.do?&fileOption=${menuDisplayMap.FileOption}";
+		} else if (avg == "changeMgt") {
+			url = "itemHistory.do"; // 변경이력
+			data = data + "&myItem=${myItem}&itemStatus=${itemStatus}";
+		} else if (avg == "forum") {
+			url = "forumMgt.do"; // 의견공유
+		} else if (avg == "dim") {
+			url = "dimListForItemInfo.do"; // Dimension
+		} else if (avg == "model") {
+			url = "getModelListGrid.do"; // Model
+			data = data + "&filter=subElement&isFromMain=Y";
+		} else if (avg == "rev") {
+			url = "revisionList.do?docCategory=ITM"; // Revision
+		} 
+		
+		ajaxPage(url, data, target);
+	}
+	
+	/* 첨부문서, 관련문서 다운로드 */
+	function FileDownload(checkboxName, isAll){ 
+		var originalFileName = new Array();
+		var sysFileName = new Array();
+		var filePath = new Array();
+		var seq = new Array();
+		var j =0;
+		var checkObj = document.all(checkboxName);
+		
+		// 모두 체크 처리를 해준다.
+		if (isAll == 'Y') {
+			if (checkObj.length == undefined) {
+				checkObj.checked = true;
+			}
+			for (var i = 0; i < checkObj.length; i++) {
+				checkObj[i].checked = true;
+			}
+		}
+		
+		// 하나의 파일만 체크 되었을 경우
+		if (checkObj.length == undefined) {
+			if (checkObj.checked) {
+				var checkObjVal = checkObj.value.split(',');
+				sysFileName[0] =  checkObjVal[2] + checkObjVal[0];
+				originalFileName[0] =  checkObjVal[1];
+				filePath[0] = checkObjVal[2];
+				seq[0] = checkObjVal[3];
+				j++;
+			}
+		};
+		for (var i = 0; i < checkObj.length; i++) {
+			if (checkObj[i].checked) {
+				var checkObjVal = checkObj[i].value.split(',');
+				sysFileName[j] =  checkObjVal[2] + checkObjVal[0];
+				originalFileName[j] =  checkObjVal[1];
+				filePath[j] = checkObjVal[2];
+				seq[j] = checkObjVal[3];
+				j++;
+			}
+		}
+		if(j==0){
+			alert("${WM00049}");
+			return;
+		}
+		j =0;
+		var url  = "fileDownload.do?seq="+seq+"&scrnType=INST";
+		ajaxSubmitNoAdd(document.PLMFrm, url,"blankFrame");
+		// 모두 체크 해제
+		if (isAll == 'Y') {
+			if (checkObj.length == undefined) {
+				checkObj.checked = false;
+			}
+			for (var i = 0; i < checkObj.length; i++) {
+				checkObj[i].checked = false;
+			}
+		}
+	}
+	
+	/* edit */
+	function goProcInstanceInfoEdit() {	
+	    var url = "editProcInstanceInfo.do";
+		var target = "PlmViewPjtDIV";
+		var data = "s_itemID=${s_itemID}&instanceNo=${procInstanceInfo.ProcInstNo}&instanceClass=${procInstanceInfo.InstanceClass}";
+	 	ajaxPage(url, data, target);
+		
+	}
+	
+	function fileNameClick(avg1, avg2, avg3, avg4, avg5){
+		var originalFileName = new Array();
+		var sysFileName = new Array();
+		var filePath = new Array();
+		var seq = new Array();
+		sysFileName[0] =  avg3 + avg1;
+		originalFileName[0] =  avg3;
+		filePath[0] = avg3;
+		seq[0] = avg4;
+		
+		var url  = "fileDownload.do?seq="+seq+"&scrnType=INST";
+		ajaxSubmitNoAdd(document.PLMFrm, url,"blankFrame");
+		
+	}
+	
+</script>
+
+<input type="text" id="clickedURL" style="display:none;">
+<div id="PlmViewPjtDIV" style="width:100%; height:100%; float:left; position:relative;">
+<form name="PLMFrm" id="PLMFrm" action="" method="post" onsubmit="return false;">
+<div class="pdL10 pdR10 wrapView" id="wrapView" style="float:left;" >
+	<div class="child_search01 pdT6 pdB5">
+		<ul>
+			<li class="floatL"><h3 class="floatL"><img src="${root}${HTML_IMG_DIR}/icon_folder_upload_title.png"></img>&nbsp;Project Information</h3></li>
+			<li class="floatR">
+				<c:if test="${sessionScope.loginInfo.sessionUserId == procInstanceInfo.OwnerID }">
+				&nbsp;<span class="btn_pack small icon"><span class="edit"></span><input value="Edit" type="submit" onclick="goProcInstanceInfoEdit();"></span>
+				</c:if>
+			</li>
+	    </ul>
+	</div>
+	
+	<table style="table-layout: fixed;" width="100%" cellpadding="0" cellspacing="0" border="0" class="tbl_blue01">
+		<colgroup>
+			<col width="15%">
+			<col width="35%">
+			<col width="15%">
+			<col width="35%">		
+		</colgroup>
+		<tr>	
+			<th>Project No.</th>
+			<td>${procInstanceInfo.DocumentNo}</td>
+			<th>Project Name</th>
+			<td>${procInstanceInfo.ProcInstanceNM}</td>
+		
+		</tr>
+		<tr>	
+			<th>Manager</th>
+			<td>${procInstanceInfo.OwnerName}(${procInstanceInfo.OwnerTeamName})</td>
+			<th>Created On</th>
+			<td class="last">${procInstanceInfo.CreateDT}</td>
+		</tr>
+		<tr>	
+			<th>Start date</th>
+			<td>${procInstanceInfo.StartTime}</td>
+			<th>Due date</th>
+			<td>${procInstanceInfo.DueDate}</td>		
+		</tr>	
+		<tr>	
+			<th style="height:60px;">${menu.LN00035}</th>
+			<td style="height:60px;" class="tdLast alignL pdL5" colspan="3">
+			${procInstanceInfo.PrcInstanceDesc}</td>
+		</tr>		
+	</table>
+
+	<!-- BIGIN :: 속성 -->
+	<c:if test="${attributesList.size() > 0}">
+	<div id="attrList">
+		<table width="100%" cellpadding="0" cellspacing="0" border="0" class="tbl_preview">
+			<c:forEach var="attrList" items="${attributesList}" varStatus="status">
+				<c:choose>
+		   		<c:when test="${columnNum2YN eq 'N' }" >
+		   			<colgroup>	
+						<col width="11%">
+						<col width="89%">
+					</colgroup>
+		   		</c:when>
+		   		<c:otherwise>
+		   			<colgroup>	
+						<col width="11%">
+						<col width="39%">
+						<col width="11%">
+						<col width="39%">
+					</colgroup>
+		   		</c:otherwise>
+	   		</c:choose>				
+			<tr>
+				<th>
+					<c:if test="${attrList.Mandatory eq '1'}"><p style="display:inline;color:#FF0000;">*</p></c:if> ${attrList.Name}
+				</th>
+				<td class="tdLast alignL pdL5"
+				<c:if test="${attrList.DataType eq 'Text'}">style="height:${attrList.RowHeight}px;" </c:if>
+				<c:if test="${attrList.ColumnNum2 ne '2' }"> colspan="3" </c:if>
+				>
+					<c:if test="${attrList.HTML eq '1'}">
+						<textarea class="tinymceText" style="width:100%;height:${attrList.RowHeight}px;" readonly="readonly">
+						 <div class="mceNonEditable">${attrList.PlainText} </div>		
+						</textarea>
+					</c:if>
+					<c:if test="${attrList.HTML ne '1'}">	
+						<c:if test="${attrList.Link == null}">
+						<textarea style="width:100%;height:${attrList.RowHeight}px;" readonly="readonly">${attrList.PlainText}</textarea></c:if>
+						<c:if test="${attrList.Link != null || attrUrl != null}" >
+							<a onClick="fnRunLink('${attrList.URL}','${attrUrl}');" style="color:#0054FF;text-decoration:underline;cursor:pointer;">
+							${attrList.PlainText}
+							</a>
+						</c:if>
+					</c:if>
+				</td>
+				<!-- 두번째 컬럼   -->
+				<c:if test="${attrList.ColumnNum2 eq '2' }">
+				<th>
+					<c:if test="${attrList.Mandatory2 eq '1'}"><p style="display:inline;color:#FF0000;">*</p></c:if> ${attrList.Name2}
+				</th>
+				<td class="tdLast alignL pdL5"
+				<c:if test="${attrList.DataType2 eq 'Text'}">style="height:${attrList.RowHeight2}px;" </c:if>
+				>
+					<c:if test="${attrList.HTML2 eq '1'}">
+						<textarea class="tinymceText" style="width:100%;height:${attrList.RowHeight2}px;" readonly="readonly">${attrList.PlainText2}</textarea>
+					</c:if>
+					<c:if test="${attrList.HTML ne '1'}">	
+						<c:if test="${attrList.Link2 == null}">
+						<textarea style="width:100%;height:${attrList.RowHeight2}px;" readonly="readonly">${attrList.PlainText2}</textarea></c:if>
+						<c:if test="${attrList.Link2 != null || attrUrl != null}" >
+							<a onClick="fnRunLink('${attrList.URL2}','${attrUrl}');" style="color:#0054FF;text-decoration:underline;cursor:pointer;">
+							${attrList.PlainText2}
+							</a>
+						</c:if>
+					</c:if>
+				</td>
+				</c:if>
+			</tr>													
+		</c:forEach>
+		<c:if test="${relItemRowList.size() > 0}">
+		<tr>
+			<td colspan="4" class="hr1">&nbsp;</td>
+		</tr>
+		</c:if>
+	</table>				
+	</div>
+	</c:if>
+</div>
+</form>
+
+<div id="bottomView" class="pdL10 pdR10">
+	<div class="SubTab" style="margin-top:20px;">
+		<ul>
+			<li id="cli1" onclick="setFrame(1)" class="on"><a><span>Activity List</span></a></li>	
+			<li id="cli2" onclick="setFrame(2)"><a><span>Member</span></a></li>		
+			<li id="cli4" onclick="setFrame(4)"><a><span>Process Map</span></a></li>
+
+		</ul>
+		<div class="instance_top_btn mgR10" ><a id="fitWindow" class="frame_show" onclick="fnHideTable()"></a></div>
+	</div>
+	<div id="cfgFrame" style="width:100%;overflow:auto; padding:0 0 17px 0;" ></div>
+	<iframe width="100%" frameborder="0" scrolling="no" style="display:none;border: 0;overflow:auto; padding:0 0 17px 0;" name="digramFrame" id="digramFrame"></iframe>
+</div>
+</div>

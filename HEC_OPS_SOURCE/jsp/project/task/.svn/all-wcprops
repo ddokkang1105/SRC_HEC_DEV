@@ -1,0 +1,77 @@
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/olm_dev/!svn/ver/8787/OLM3/WebContent/WEB-INF/jsp/project/task
+END
+taskDeliverables.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/svn/olm_dev/!svn/ver/4094/OLM3/WebContent/WEB-INF/jsp/project/task/taskDeliverables.jsp
+END
+editTaskResultList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 90
+/svn/olm_dev/!svn/ver/4094/OLM3/WebContent/WEB-INF/jsp/project/task/editTaskResultList.jsp
+END
+taskExcelUpdate.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/svn/olm_dev/!svn/ver/4393/OLM3/WebContent/WEB-INF/jsp/project/task/taskExcelUpdate.jsp
+END
+taskMonitoringList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 90
+/svn/olm_dev/!svn/ver/4094/OLM3/WebContent/WEB-INF/jsp/project/task/taskMonitoringList.jsp
+END
+taskSearchList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 86
+/svn/olm_dev/!svn/ver/3927/OLM3/WebContent/WEB-INF/jsp/project/task/taskSearchList.jsp
+END
+editTaskActorPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/svn/olm_dev/!svn/ver/2017/OLM3/WebContent/WEB-INF/jsp/project/task/editTaskActorPop.jsp
+END
+taskResultEdit.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 86
+/svn/olm_dev/!svn/ver/4094/OLM3/WebContent/WEB-INF/jsp/project/task/taskResultEdit.jsp
+END
+selectTaskAuthor.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/svn/olm_dev/!svn/ver/2017/OLM3/WebContent/WEB-INF/jsp/project/task/selectTaskAuthor.jsp
+END
+taskPlan.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/svn/olm_dev/!svn/ver/4094/OLM3/WebContent/WEB-INF/jsp/project/task/taskPlan.jsp
+END
+taskFileUploadPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 89
+/svn/olm_dev/!svn/ver/2309/OLM3/WebContent/WEB-INF/jsp/project/task/taskFileUploadPop.jsp
+END
+taskEdit.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/svn/olm_dev/!svn/ver/2017/OLM3/WebContent/WEB-INF/jsp/project/task/taskEdit.jsp
+END
+taskMgt.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/svn/olm_dev/!svn/ver/8787/OLM3/WebContent/WEB-INF/jsp/project/task/taskMgt.jsp
+END

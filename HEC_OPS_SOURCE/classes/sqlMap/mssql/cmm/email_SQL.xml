@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+        
+<mapper namespace="email_SQL">
+
+	<select id="emailLog_nextVal" resultType="String">
+		SELECT ISNULL(MAX(SEQ)+1,'1') AS ID_NEXTVAL FROM XBOLTADM.TB_EMAIL_LOG
+	</select>	
+	
+	<insert id="insertEmailLog" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_EMAIL_LOG
+			(
+				SEQ
+				,Sender
+				,Receiver 
+				,CreationTime 
+				,EmailCode 
+			) VALUES (
+				 #{SEQ}
+				, #{Sender}
+				, #{Receiver} 
+				, getDate()
+				, #{EmailCode}
+			)
+	</insert>	
+	
+	<select id="getEmailHTMLForm" resultType="String">
+  		SELECT HTMLForm
+  		FROM XBOLTADM.TB_EMAIL_FORM
+  		Where EmailCode = #{emailCode}
+  		And LanguageID = #{languageID}
+	</select>
+	
+	<select id="getGlobalReviewCCUsers" resultType="java.util.HashMap">
+	 SELECT 
+		CC_ID,
+		MemberID,
+		LoginID,
+		Name,
+		TeamID,
+		Enabled
+	 FROM XBOLTADM.TB_REVIEW_CC_GLOBAL WITH (NOLOCK)
+	 Where Enabled = 1
+	 ORDER BY CC_ID ASC
+	</select>
+	
+</mapper>

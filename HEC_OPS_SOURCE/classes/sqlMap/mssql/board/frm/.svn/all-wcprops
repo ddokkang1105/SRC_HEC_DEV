@@ -1,0 +1,35 @@
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/svn/olm_dev/!svn/ver/9369/OLM3/src/sqlMap/mssql/board/frm
+END
+forumSearch_SQL.xml
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svn/olm_dev/!svn/ver/8150/OLM3/src/sqlMap/mssql/board/frm/forumSearch_SQL.xml
+END
+forumFile_SQL.xml
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/svn/olm_dev/!svn/ver/5242/OLM3/src/sqlMap/mssql/board/frm/forumFile_SQL.xml
+END
+forumComment_SQL.xml
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/svn/olm_dev/!svn/ver/8150/OLM3/src/sqlMap/mssql/board/frm/forumComment_SQL.xml
+END
+forum_SQL.xml
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/svn/olm_dev/!svn/ver/9377/OLM3/src/sqlMap/mssql/board/frm/forum_SQL.xml
+END
+forumScore_SQL.xml
+K 25
+svn:wc:ra_dav:version-url
+V 77
+/svn/olm_dev/!svn/ver/5242/OLM3/src/sqlMap/mssql/board/frm/forumScore_SQL.xml
+END

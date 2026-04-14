@@ -1,0 +1,89 @@
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/olm_dev/!svn/ver/8851/OLM3/WebContent/WEB-INF/jsp/app/pim/config
+END
+pim_EditItemConfigInfo.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 96
+/svn/olm_dev/!svn/ver/8851/OLM3/WebContent/WEB-INF/jsp/app/pim/config/pim_EditItemConfigInfo.jsp
+END
+pim_ConfigProcRole.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svn/olm_dev/!svn/ver/8851/OLM3/WebContent/WEB-INF/jsp/app/pim/config/pim_ConfigProcRole.jsp
+END
+pim_AllocateItemReportType.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 100
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/pim/config/pim_AllocateItemReportType.jsp
+END
+pim_menuListPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 89
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/pim/config/pim_menuListPop.jsp
+END
+pim_ItemConfigMgt.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 91
+/svn/olm_dev/!svn/ver/8851/OLM3/WebContent/WEB-INF/jsp/app/pim/config/pim_ItemConfigMgt.jsp
+END
+pim_AllocateItemMenu.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 94
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/pim/config/pim_AllocateItemMenu.jsp
+END
+pim_AllocateItemWF.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/pim/config/pim_AllocateItemWF.jsp
+END
+pim_AddAllocItemMenuPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/pim/config/pim_AddAllocItemMenuPop.jsp
+END
+pim_AddAllocItemWFPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 95
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/pim/config/pim_AddAllocItemWFPop.jsp
+END
+pim_AllocateItemFileType.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 98
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/pim/config/pim_AllocateItemFileType.jsp
+END
+pim_AddItemAttrTypeCode.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/pim/config/pim_AddItemAttrTypeCode.jsp
+END
+pim_AddAllocItemFilePop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/pim/config/pim_AddAllocItemFilePop.jsp
+END
+pim_AddAllocItemReportCode.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 100
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/pim/config/pim_AddAllocItemReportCode.jsp
+END
+pim_AllocateItemAttrType.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 98
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/pim/config/pim_AllocateItemAttrType.jsp
+END

@@ -1,0 +1,23 @@
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/svn/olm_dev/!svn/ver/8164/OLM3/src/sqlMap/mssql/board/brd
+END
+boardFile_SQL.xml
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/svn/olm_dev/!svn/ver/5343/OLM3/src/sqlMap/mssql/board/brd/boardFile_SQL.xml
+END
+boardProject_SQL.xml
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/svn/olm_dev/!svn/ver/8150/OLM3/src/sqlMap/mssql/board/brd/boardProject_SQL.xml
+END
+board_SQL.xml
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/svn/olm_dev/!svn/ver/8164/OLM3/src/sqlMap/mssql/board/brd/board_SQL.xml
+END

@@ -1,0 +1,41 @@
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/olm_dev/!svn/ver/9317/OLM3/WebContent/WEB-INF/jsp/itm/connection
+END
+selectCxnItemTypePop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 94
+/svn/olm_dev/!svn/ver/9165/OLM3/WebContent/WEB-INF/jsp/itm/connection/selectCxnItemTypePop.jsp
+END
+connectionList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/svn/olm_dev/!svn/ver/7065/OLM3/WebContent/WEB-INF/jsp/itm/connection/connectionList.jsp
+END
+itemConnectionList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svn/olm_dev/!svn/ver/7995/OLM3/WebContent/WEB-INF/jsp/itm/connection/itemConnectionList.jsp
+END
+cxnItemTreeMgt.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/svn/olm_dev/!svn/ver/9317/OLM3/WebContent/WEB-INF/jsp/itm/connection/cxnItemTreeMgt.jsp
+END
+newPertinentListGrid.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 94
+/svn/olm_dev/!svn/ver/8820/OLM3/WebContent/WEB-INF/jsp/itm/connection/newPertinentListGrid.jsp
+END
+addRelItemPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/svn/olm_dev/!svn/ver/4393/OLM3/WebContent/WEB-INF/jsp/itm/connection/addRelItemPop.jsp
+END

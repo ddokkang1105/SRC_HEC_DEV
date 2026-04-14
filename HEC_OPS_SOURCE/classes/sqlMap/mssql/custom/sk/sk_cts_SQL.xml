@@ -1,0 +1,652 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	CTS 관련 관련	-->
+<mapper namespace="sk_cts_SQL">
+
+	<select id="getSystemList" resultType="java.util.HashMap">
+		SELECT TypeCode AS ID
+		      ,Name     AS NAME
+		  FROM XBOLTADM.TB_DICTIONARY
+		WHERE Category = 'CTSSYS'
+		  AND LanguageID = '1042'
+		ORDER BY TypeCode  
+	</select>
+	
+	<select id="getSubSystemList" resultType="java.util.HashMap">
+		SELECT TypeCode AS ID
+		      ,Name     AS NAME
+		  FROM XBOLTADM.TB_DICTIONARY
+		WHERE Category = 'CTSSUBSYS'
+		  AND LanguageID = '1042'
+		ORDER BY TypeCode  
+	</select>
+	
+	<select id="getReqTypeList" resultType="java.util.HashMap">
+		SELECT TypeCode AS ID
+		      ,Name     AS NAME
+		  FROM XBOLTADM.TB_DICTIONARY
+		WHERE Category = 'CTSTYPE'
+		  AND LanguageID = '1042'
+		ORDER BY TypeCode  
+	</select>
+	
+	<select id="getProgressList" resultType="java.util.HashMap">
+		SELECT TypeCode AS ID
+		      ,Name     AS NAME
+		  FROM XBOLTADM.TB_DICTIONARY
+		WHERE Category = 'CTSSTAT'
+		  AND LanguageID = '1042'
+		ORDER BY TypeCode  
+	</select>
+	
+	<select id="getUrgentTypeList" resultType="java.util.HashMap">
+		SELECT TypeCode AS ID
+		      ,Name     AS NAME
+		  FROM XBOLTADM.TB_DICTIONARY
+		WHERE Category = 'UGTTYPE'
+		  AND LanguageID = '1042'
+		ORDER BY TypeCode  
+	</select>
+	
+	<select id="getUrgentExecList" resultType="java.util.HashMap">
+		SELECT TypeCode AS ID
+		      ,Name     AS NAME
+		  FROM XBOLTADM.TB_DICTIONARY
+		WHERE Category = 'UGTEXEC'
+		  AND LanguageID = '1042'
+		ORDER BY TypeCode  
+	</select>
+	
+	
+	<select id="getCTSCntFirst" resultType="java.util.HashMap">
+		SELECT /* getCTSCntFirst */
+		       ISNULL(SUM(1), 0) AS TOTAL_CNT
+		      ,ISNULL(SUM(CASE WHEN TC.ProgressCD = '01' THEN 1 END), 0) AS CD_01
+		      ,ISNULL(SUM(CASE WHEN TC.ProgressCD = '02' THEN 1 END), 0) AS CD_02
+		      --,ISNULL(SUM(CASE WHEN TC.ProgressCD = '03' OR TC.ProgressCD = '04' THEN 1 END), 0) AS CD_03_04
+		      ,ISNULL(SUM(CASE WHEN TC.ProgressCD = '03' THEN 1 END), 0) AS CD_03
+		      ,ISNULL(SUM(CASE WHEN TC.ProgressCD = '04' THEN 1 END), 0) AS CD_04
+		      --,ISNULL(SUM(CASE WHEN TC.ProgressCD = '05' THEN 1 END), 0) AS CD_05
+		      ,ISNULL(SUM(CASE WHEN TC.ProgressCD = '06' THEN 1 END), 0) AS CD_06
+		      ,ISNULL(SUM(CASE WHEN TC.ProgressCD = '07' THEN 1 END), 0) AS CD_07
+		      ,ISNULL(SUM(CASE WHEN TC.ProgressCD = '08' THEN 1 END), 0) AS CD_08
+		      ,ISNULL(SUM(CASE WHEN TC.ProgressCD = '09' THEN 1 END), 0) AS CD_09
+		  FROM XBOLTADM.TB_CTS TC
+		 <where>
+			<if test="systemCD != null and systemCD != ''">
+				TC.SystemCD = #{systemCD}
+			</if>
+			<if test="subSystemCD.size > 0">
+				AND TC.SubSystemCD IN
+							<foreach collection="subSystemCD" index="index" item="item" open="(" close=")"  separator=",">
+								${item}
+							</foreach>
+			</if>
+			<if test="reqTypeCD.size > 0">
+				AND TC.ReqTypeCD IN
+							<foreach collection="reqTypeCD" index="index" item="item" open="(" close=")"  separator=",">
+								${item}
+							</foreach>
+			</if>
+			<if test="reqLoginID != null and reqLoginID != ''">
+				AND (TC.ReqLoginID = #{reqLoginID} OR TC.FtReviewLoginID = #{reqLoginID} OR TC.SdReviewLoginID = #{reqLoginID} OR TC.ApproveLoginID = #{reqLoginID} OR TC.ProcessLoginID = #{reqLoginID})
+			</if>
+			<if test="reqSubject != null and reqSubject != ''">
+				AND TTC.ReqSubject LIKE #{reqSubject}+'%'
+			</if>
+			<if test="progressCD != null and progressCD != ''">
+				AND TC.SystemCD = #{systemCD}
+			</if>
+			<if test="reqStartDT != null and reqStartDT != '' and reqEndDT != null and reqEndDT != ''">
+				AND CONVERT(char(8),TC.ReqDate, 112) BETWEEN #{reqStartDT} AND #{reqEndDT}
+			</if>  
+		 </where>	
+	</select>
+	
+	
+	<select id="getCTS_gridList" resultType="java.util.HashMap">
+		SELECT /* getCTS_gridList */
+			 Row_Number()OVER(ORDER BY  TC.CtsReqID DESC ) as RNUM 
+			,TC.CtsReqID
+			,TC.SystemCD
+			,A.Name AS SystemNM
+			,TC.SubSystemCD
+			,B.Name AS SubSystemNM
+			,TC.ProgressCD
+			,D.Name AS ProgressNM
+			,TC.UrgentYN
+			,TC.ReqSubject
+			,TC.ReqTypeCD
+			,C.Name AS ReqTypeNM
+            ,TC.ReqLoginID
+            ,E.Name AS ReqLoginNM
+            ,TC.ReqDate
+            ,TC.DueDate
+            ,TC.ApplySystemClient
+            ,TC.SdReviewLoginID
+            ,F.Name AS SdReviewLoginNM
+            ,TC.SdReviewDate
+            ,TC.ApproveLoginID
+            ,G.Name AS ApproveLoginNM
+            ,TC.FtReviewLoginID
+            ,H.Name AS FtReviewLoginNM
+            ,TC.FtReviewDate
+            ,TC.ReqContent
+		FROM XBOLTADM.TB_CTS TC
+		     Left Outer Join XBOLTADM.TB_DICTIONARY A ON TC.SystemCD    = A.TypeCode AND A.LanguageID = '1042' AND A.Category = 'CTSSYS'
+             Left Outer Join XBOLTADM.TB_DICTIONARY B ON TC.SubSystemCD = B.TypeCode AND B.LanguageID = '1042' AND B.Category = 'CTSSUBSYS'
+             Left Outer Join XBOLTADM.TB_DICTIONARY C ON TC.ReqTypeCD   = C.TypeCode AND C.LanguageID = '1042' AND C.Category = 'CTSTYPE'
+             Left Outer Join XBOLTADM.TB_DICTIONARY D ON TC.ProgressCD  = D.TypeCode AND D.LanguageID = '1042' AND D.Category = 'CTSSTAT'
+             Left Outer Join XBOLTADM.TB_MEMBER E ON TC.ReqLoginID      = E.LoginID 
+             Left Outer Join XBOLTADM.TB_MEMBER F ON TC.SdReviewLoginID = F.LoginID 
+             Left Outer Join XBOLTADM.TB_MEMBER G ON TC.ApproveLoginID  = G.LoginID 
+             Left Outer Join XBOLTADM.TB_MEMBER H ON TC.FtReviewLoginID = H.LoginID 
+	   <where>
+			<if test="systemCD != null and systemCD != ''">
+				TC.SystemCD = #{systemCD}
+			</if>
+			<if test="subSystemCD.size > 0">
+				AND TC.SubSystemCD IN
+							<foreach collection="subSystemCD" index="index" item="item" open="(" close=")"  separator=",">
+								${item}
+							</foreach>
+			</if>
+			<if test="reqTypeCD.size > 0">
+				AND TC.ReqTypeCD IN
+							<foreach collection="reqTypeCD" index="index" item="item" open="(" close=")"  separator=",">
+								${item}
+							</foreach>
+			</if>
+			<if test="progressCD != null and progressCD != ''">
+				AND TC.ProgressCD = #{progressCD}
+			</if>
+			<if test="reqSubject != null and reqSubject != ''">
+				AND TC.ReqSubject LIKE #{reqSubject}+'%'
+			</if>
+			<if test="reqLoginID != null and reqLoginID != ''">
+				AND AND (TC.ReqLoginID = #{reqLoginID} OR TC.FtReviewLoginID = #{reqLoginID} OR TC.SdReviewLoginID = #{reqLoginID} OR TC.ApproveLoginID = #{reqLoginID} OR TC.ProcessLoginID = #{reqLoginID})
+			</if>
+			<if test="reqStartDT != null and reqStartDT != '' and reqEndDT != null and reqEndDT != ''">
+				AND CONVERT(char(8),TC.ReqDate, 112) BETWEEN #{reqStartDT} AND #{reqEndDT}
+			</if>  
+		 </where>	
+	ORDER BY TC.CtsReqID DESC
+	</select>
+	
+	
+	<select id="getMaxCTSReqID" resultType="String">
+		SELECT /* getMaxCTSReqID */
+		        REPLICATE('0', 5 - LEN(ISNULL(MAX(SUBSTRING(CtsReqID,10,5)) + 1, 1))) + CAST(ISNULL(MAX(SUBSTRING(CtsReqID,10,5)) + 1, 1) AS VARCHAR)
+		  FROM XBOLTADM.TB_CTS
+		 WHERE CtsReqID LIKE #{prefix}+'%'
+	</select>
+	
+	<select id="getMaxCTSHistorySeq" resultType="String">
+		SELECT /* getMaxCTSHistorySeq */
+		       ISNULL(MAX(HistorySeq),0) + 1 AS HistorySeq
+		  FROM XBOLTADM.TB_CTS_HISTORY
+		 WHERE CtsReqID = #{CtsReqID}
+	</select>
+	
+	<insert id="insertCTS">
+		INSERT INTO XBOLTADM.TB_CTS(
+		  CtsReqID
+		, SystemCD
+		, SubSystemCD
+		, ProgressCD
+		, ReqTypeCD
+		, ReqLoginID
+		, ReqDate
+		, ReqTime
+		, DueDate
+		, ReqSubject
+		, ReqContent
+		, ApplySystemClient
+		, HiSOSReqInfo
+		, MpmDocumentInfo
+		, TestResult
+		, FtReviewLoginID
+		, FtReviewDate
+		, FtReviewTime
+		, FtReviewOpinion
+		, SdReviewLoginID
+		, SdReviewDate
+		, SdReviewTime
+		, SdReviewOpinion
+		, ApproveLoginID
+		, ApproveDate
+		, ApproveTime
+		, ApproveOpinion
+		, ProcessLoginID
+		, ProcessDate
+		, ProcessTime
+		, ProcessOpinion
+		, ModuleEffectYN
+		, ModuleReviewResult
+		, UrgentYN
+		, UrgentTypeCD
+		, UrgentExecCD
+		, UrgentReason
+		, Etc01
+		, Etc02
+		)
+		VALUES(
+		  #{CtsReqID}
+		, #{SystemCD}
+		, #{SubSystemCD}
+		, #{ProgressCD}
+		, #{ReqTypeCD}
+		, #{ReqLoginID}
+		, #{ReqDate}
+		, getDate()
+		, #{DueDate}
+		, #{ReqSubject}
+		, #{ReqContent}
+		, #{ApplySystemClient}
+		, #{HiSOSReqInfo}
+		, #{MpmDocumentInfo}
+		, #{TestResult}
+		, #{FtReviewLoginID}
+		, null
+		, null
+		, #{FtReviewOpinion}
+		, #{SdReviewLoginID}
+		, null
+		, null
+		, #{SdReviewOpinion}
+		, #{ApproveLoginID}
+		, null
+		, null
+		, #{ApproveOpinion}
+		, #{ProcessLoginID}
+		, null
+		, null
+		, #{ProcessOpinion}
+		, #{ModuleEffectYN}
+		, #{ModuleReviewResult}
+		, #{UrgentYN}
+		, #{UrgentTypeCD}
+		, #{UrgentExecCD}
+		, #{UrgentReason}
+		, #{Etc01}
+		, #{Etc02}
+		)
+	</insert>
+	
+	<select id="getCtsDetail" resultType="java.util.HashMap">
+	
+	 SELECT /* getCtsDetail */
+		    A.CtsReqID
+		   ,A.SystemCD
+		   ,A.SubSystemCD
+		   ,A.ProgressCD
+		   ,A.ReqTypeCD
+		   ,A.ReqLoginID
+		   ,B.Name                                           AS ReqLoginNM
+		   ,ISNULL(CONVERT(char(10),A.ReqDate, 120),'')      AS ReqDate
+		   ,SUBSTRING(CONVERT(char(10),A.ReqTime, 108),1, 5) AS ReqTime
+		   ,ISNULL(CONVERT(char(10),A.DueDate, 120),'')      AS DueDate
+		   ,A.ReqSubject
+		   ,A.ReqContent
+		   ,A.ApplySystemClient
+		   ,A.HiSOSReqInfo
+		   ,A.MpmDocumentInfo
+		   ,A.TestResult
+		   ,A.FtReviewLoginID
+		   ,C.Name                                                AS FtReviewLoginNM 
+		   ,ISNULL(CONVERT(char(10),A.FtReviewDate, 120),'')      AS FtReviewDate
+		   ,SUBSTRING(CONVERT(char(10),A.FtReviewTime, 108),1, 5) AS FtReviewTime
+		   ,A.FtReviewOpinion
+		   ,A.SdReviewLoginID
+		   ,D.Name                                                AS SdReviewLoginNM
+		   ,ISNULL(CONVERT(char(10),A.SdReviewDate, 120),'')      AS SdReviewDate
+		   ,SUBSTRING(CONVERT(char(10),A.SdReviewTime, 108),1, 5) AS SdReviewTime
+		   ,A.SdReviewOpinion
+		   ,A.ApproveLoginID
+		   ,E.Name                                               AS ApproveLoginNM
+		   ,ISNULL(CONVERT(char(10),A.ApproveDate, 120),'')      AS ApproveDate
+		   ,SUBSTRING(CONVERT(char(10),A.ApproveTime, 108),1, 5) AS ApproveTime
+		   ,A.ApproveOpinion
+		   ,A.ProcessLoginID
+		   ,F.Name                                               AS ProcessLoginNM
+		   ,ISNULL(CONVERT(char(10),A.ProcessDate, 120),'')      AS ProcessDate
+		   ,SUBSTRING(CONVERT(char(10),A.ProcessTime, 108),1, 5) AS ProcessTime
+		   ,A.ProcessOpinion
+		   ,A.ModuleEffectYN
+		   ,A.ModuleReviewResult
+		   ,A.UrgentYN
+		   ,A.UrgentTypeCD
+		   ,A.UrgentExecCD
+		   ,A.UrgentReason
+		   ,A.Etc01
+		   ,A.Etc02
+           ,G.Name AS UrgentTypeNM
+           ,H.Name AS UrgentExecNM
+	  FROM XBOLTADM.TB_CTS A
+	       Left Outer Join XBOLTADM.TB_MEMBER B ON A.ReqLoginID       = B.LoginID 
+	       Left Outer Join XBOLTADM.TB_MEMBER C ON A.FtReviewLoginID  = C.LoginID 
+	       Left Outer Join XBOLTADM.TB_MEMBER D ON A.SdReviewLoginID  = D.LoginID 
+	       Left Outer Join XBOLTADM.TB_MEMBER E ON A.ApproveLoginID   = E.LoginID 
+	       Left Outer Join XBOLTADM.TB_MEMBER F ON A.ProcessLoginID   = F.LoginID 
+           Left Outer Join XBOLTADM.TB_DICTIONARY G ON A.UrgentTypeCD = G.TypeCode AND G.Category='UGTTYPE'
+           Left Outer Join XBOLTADM.TB_DICTIONARY H ON A.UrgentExecCD = H.TypeCode AND H.Category='UGTEXEC'
+	 WHERE A.CtsReqID = #{CtsReqID}
+		
+	</select>
+	
+ 	<update id="updateCTS" parameterType="java.util.HashMap">
+		UPDATE 
+			XBOLTADM.TB_CTS
+		SET
+		    SystemCD              = #{SystemCD}
+		   ,SubSystemCD           = #{SubSystemCD}
+		   ,ProgressCD            = #{ProgressCD}
+		   ,ReqTypeCD             = #{ReqTypeCD}
+		   ,ReqLoginID            = #{ReqLoginID}
+		   ,ReqDate               = #{ReqDate}
+		   ,DueDate               = #{DueDate}
+		   ,ReqSubject            = #{ReqSubject}
+		   ,ReqContent            = #{ReqContent}
+		   ,ApplySystemClient     = #{ApplySystemClient}
+		   ,HiSOSReqInfo          = #{HiSOSReqInfo}
+		   ,MpmDocumentInfo       = #{MpmDocumentInfo}
+		   ,ModuleEffectYN        = #{ModuleEffectYN}
+		   ,ModuleReviewResult    = #{ModuleReviewResult}
+		   ,UrgentYN              = #{UrgentYN}
+		   ,UrgentTypeCD          = #{UrgentTypeCD}
+		   ,UrgentExecCD          = #{UrgentExecCD}
+		   ,UrgentReason          = #{UrgentReason}
+		   ,Etc01                 = #{Etc01}
+		   ,Etc02                 = #{Etc02}
+		   ,TestResult            = #{TestResult}
+		WHERE CtsReqID = #{CtsReqID}
+	</update>
+	
+ 	<update id="updateCTSFtReview" parameterType="java.util.HashMap">
+		UPDATE 
+			XBOLTADM.TB_CTS
+		SET
+		    ProgressCD            = #{ProgressCD}
+		   ,FtReviewDate          = #{FtReviewDate}
+		   ,FtReviewTime          = getDate()
+		   ,FtReviewOpinion       = #{FtReviewOpinion}
+		   ,ReqSubject            = #{ReqSubject}
+		WHERE CtsReqID = #{CtsReqID}
+	</update>
+	
+ 	<update id="updateCTSSdReview" parameterType="java.util.HashMap">
+		UPDATE 
+			XBOLTADM.TB_CTS
+		SET
+		    ProgressCD            = #{ProgressCD}
+		   ,SdReviewDate          = #{SdReviewDate}
+		   ,SdReviewTime          = getDate()
+		   ,SdReviewOpinion       = #{SdReviewOpinion}
+		WHERE CtsReqID = #{CtsReqID}
+	</update>
+	
+ 	<update id="updateCTSApprove" parameterType="java.util.HashMap">
+		UPDATE 
+			XBOLTADM.TB_CTS
+		SET
+		    ProgressCD           = #{ProgressCD}
+		   ,ApproveDate          = #{ApproveDate}
+		   ,ApproveTime          = getDate()
+		   ,ApproveOpinion       = #{ApproveOpinion}
+		   ,ReqSubject           = #{ReqSubject}
+		WHERE CtsReqID = #{CtsReqID}
+	</update>
+	
+ 	<update id="updateCTSProcess" parameterType="java.util.HashMap">
+		UPDATE 
+			XBOLTADM.TB_CTS
+		SET
+		    ProgressCD           = #{ProgressCD}
+		   ,ProcessLoginID       = #{ProcessLoginID}
+		   ,ProcessDate          = #{ProcessDate}
+		   ,ProcessTime          = getDate()
+		   ,ProcessOpinion       = #{ProcessOpinion}
+		WHERE CtsReqID = #{CtsReqID}
+	</update>
+	
+ 	<update id="updateCTSEnd" parameterType="java.util.HashMap">
+		UPDATE 
+			XBOLTADM.TB_CTS
+		SET
+		    ProgressCD           = #{ProgressCD}
+		WHERE CtsReqID = #{CtsReqID}
+	</update>
+	
+	<insert id="insertCTSHistory">
+		INSERT INTO XBOLTADM.TB_CTS_HISTORY(
+		  CtsReqID
+		, HistorySeq
+		, UpdateTime
+		, ProgressCD
+		, UpdateLoginNM
+		, UpdateContent
+		)
+		VALUES(
+		  #{CtsReqID}
+		, #{HistorySeq}
+		, getDate()
+		, #{ProgressCD}
+		, #{UpdateLoginNM}
+		, #{UpdateContent}
+		)
+	</insert>
+	
+	<!-- 160120 CTS File 채번 -->
+	<select id="getCtsFile_nextVal" resultType="String" parameterType="java.util.HashMap">
+	
+		SELECT /* getCtsFile_nextVal */
+		       CASE WHEN MAX(Seq) IS NULL THEN 1 
+		            ELSE MAX(Seq) + 1  
+		       END AS cts_nextVal
+		  FROM (
+		         SELECT MAX(Seq) AS Seq
+			       FROM XBOLTADM.TB_CTS_ATTCH
+			      WHERE 1=1
+		            AND CtsReqID    = #{CtsReqID}
+		            AND ProcessCD   = #{ProcessCD}
+			     GROUP BY CtsReqID, ProcessCD
+			) T1
+	</select>
+	
+	<!-- 160120 CTS File 인서트 -->
+	<insert id="insertCTSFile" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_CTS_ATTCH
+		  (
+		      CtsReqID			
+		    , ProcessCD
+		    , Seq
+		    , FileNM
+		    , FileRealName
+		    , FilePath
+		    , FileSize
+		    , RegDT
+		    , RegUserID
+		    , DownCNT
+		  )
+		VALUES
+		  (
+		      #{CtsReqID}
+		    , #{ProcessCD}
+		    , #{Seq}
+		    , #{FileNM}
+		    , #{FileRealName}
+		    , #{FilePath}
+		    , #{FileSize}
+		    , CONVERT(dateTime, #{RegDT})
+		    , #{RegUserID}
+		    , #{DownCNT}
+		  )
+	</insert>
+	
+	
+	<select id="getCTSHistory_gridList" resultType="java.util.HashMap">
+	
+		SELECT /* getCTSHistory_gridList */
+		       Row_Number() OVER (ORDER BY  A.HistorySeq DESC ) as RNUM 
+		      ,A.HistorySeq
+		      ,CONVERT(char(16),A.UpdateTime, 120) AS UpdateTime
+		      ,A.ProgressCD
+		      ,B.Name                             AS ProgressNM
+		      ,A.UpdateLoginNM
+		      ,A.UpdateContent 
+		  FROM XBOLTADM.TB_CTS_HISTORY A
+		       Left Outer Join XBOLTADM.TB_DICTIONARY B ON A.ProgressCD  = B.TypeCode AND B.LanguageID = '1042' AND B.Category = 'CTSSTAT'
+		 WHERE CtsReqID = #{CtsReqID}      
+		ORDER BY HistorySeq DESC
+
+	</select>
+	
+	
+	<!-- 160125 CTS Attach File List Select -->
+	<select id="getAttchFileList" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+
+		SELECT /* getAttchFileList */
+		       CtsReqID					AS CtsReqID
+		     , ProcessCD				AS ProcessCD
+		     , Seq						AS Seq
+		     , FilePath + '/' + FileNM 	AS FullFileName
+		     , FilePath					AS FilePath
+		     , FileNM 					AS FileName
+		     , FileRealName				AS FileRealName
+		  FROM XBOLTADM.TB_CTS_ATTCH
+		 WHERE 1=1
+		   AND CtsReqID = #{CtsReqID}
+	</select>
+	
+	<!-- 160125 CTS Attach File Detail Select -->
+	<select id="ctsAttchFile_select" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+	
+		SELECT /* ctsAttchFile_select */
+		       CtsReqID					AS CtsReqID
+		     , ProcessCD				AS ProcessCD
+		     , Seq						AS Seq
+		     , FilePath					AS FilePath
+		     , FileNM					AS FileName
+		     , FileRealName				AS FileRealName
+		  FROM XBOLTADM.TB_CTS_ATTCH
+		 WHERE 1=1
+		   AND CtsReqID		= #{CtsReqID}
+		   AND ProcessCD	= #{ProcessCD}
+		   AND Seq			= #{Seq}
+	</select>
+	
+	
+ 	<update id="updateCTSHistory" parameterType="java.util.HashMap">
+		UPDATE 
+			XBOLTADM.TB_CTS_HISTORY
+		SET
+		    UpdateTime          = getDate()
+		   ,UpdateLoginNM       = #{UpdateLoginNM}
+		   ,UpdateContent       = #{UpdateContent}
+		WHERE CtsReqID   = #{CtsReqID}
+		  AND HistorySeq = 1
+	</update>
+	
+	<!-- 160125 deleteCTS 분리 조성우 -->
+	<!--
+ 	<delete id="deleteCTS" parameterType="java.util.HashMap">
+ 		DELETE FROM XBOLTADM.TB_CTS_HISTORY WHERE CtsReqID = #{CtsReqID}
+ 	
+ 		DELETE FROM XBOLTADM.TB_CTS WHERE CtsReqID = #{CtsReqID}
+ 	</delete>
+ 	-->
+ 	
+ 	<delete id="deleteCTS" parameterType="java.util.HashMap">
+ 		DELETE FROM XBOLTADM.TB_CTS WHERE CtsReqID = #{CtsReqID}
+ 	</delete>
+ 	 	
+ 	<!-- 160125 CTS History 삭제처리 -->
+ 	<delete id="deleteCTSHistory" parameterType="java.util.HashMap">
+ 		DELETE FROM XBOLTADM.TB_CTS_HISTORY
+ 		 WHERE 1=1
+ 		   AND CtsReqID 		= #{CtsReqID} 
+			<if test="HistorySeq != null and HistorySeq != ''">
+				AND HistorySeq 	= #{HistorySeq}
+			</if>
+ 	</delete>
+ 	
+ 	<!-- 160125 CTS ATTACH FILE 삭제처리 -->
+ 	<delete id="deleteCTSAttch" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_CTS_ATTCH
+		 WHERE 1=1
+		   AND CtsReqID			= #{CtsReqID}
+			<if test="ProcessCD != null and ProcessCD != ''">
+				AND ProcessCD	= #{ProcessCD}
+			</if>
+			<if test="Seq != null and Seq != ''">
+				AND Seq 		= #{Seq}
+			</if>
+ 	</delete>
+ 	
+ 	<!-- 160125 CTS ATTACH FILE DOWNLOAD COUNT -->
+ 	<update id="updateCtsAttchDownCNT" parameterType="java.util.HashMap">
+ 		UPDATE XBOLTADM.TB_CTS_ATTCH SET
+ 			DownCNT = DownCNT + 1
+ 		 WHERE 1=1
+ 		   AND CtsReqID 	= #{CtsReqID}
+ 		   AND ProcessCD 	= #{ProcessCD}
+ 		   AND Seq 			= #{Seq}	
+ 	</update>
+ 	
+	<select id="getReqEmailAddr" resultType="String">
+		SELECT /* getReqEmailAddr */
+		       ISNULL(MAX(EMAIL_ADDR), 'N')
+		  FROM XBOLTADM.MDM_IF_PA
+		 WHERE EMP_NUM = ( SELECT ReqLoginID 
+		                     FROM XBOLTADM.TB_CTS 
+		                    WHERE CtsReqID = #{CtsReqID}
+		                  )
+	</select>
+	
+	<select id="getReqEmailAddrUrgent" resultType="String">
+		SELECT /* getReqEmailAddrUrgent */
+		       ISNULL(B.Email,'')+','+ISNULL(D.Email,'')
+		  FROM XBOLTADM.TB_CTS A
+		       Left Outer Join XBOLTADM.TB_MEMBER B ON A.FtReviewLoginID       = B.LoginID
+		       Left Outer Join XBOLTADM.TB_MEMBER D ON A.ApproveLoginID        = D.LoginID
+		 WHERE A.CtsReqID = #{CtsReqID}
+	</select>
+	
+	<select id="getReqEmailAddrCreate" resultType="String">
+		SELECT /* getReqEmailAddrCreate */
+		       ISNULL(B.Email,'')+','
+		  FROM XBOLTADM.TB_CTS A
+		       Left Outer Join XBOLTADM.TB_MEMBER B ON A.FtReviewLoginID       = B.LoginID
+		       Left Outer Join XBOLTADM.TB_MEMBER D ON A.ApproveLoginID        = D.LoginID
+		 WHERE A.CtsReqID = #{CtsReqID}
+	</select>
+	
+	<select id="getReqEmailAddrReview" resultType="String">
+		SELECT /* getReqEmailAddrReview */
+		       ISNULL(D.Email,'')+','
+		  FROM XBOLTADM.TB_CTS A
+		       Left Outer Join XBOLTADM.TB_MEMBER B ON A.FtReviewLoginID       = B.LoginID
+		       Left Outer Join XBOLTADM.TB_MEMBER D ON A.ApproveLoginID        = D.LoginID
+		 WHERE A.CtsReqID = #{CtsReqID}
+	</select>
+	
+	<select id="getReqEmailAddrRejectReview" resultType="String">
+		SELECT /* getReqEmailAddrRejectReview */
+		       ISNULL(B.Email,'')+','
+		  FROM XBOLTADM.TB_CTS A
+		       Left Outer Join XBOLTADM.TB_MEMBER B ON A.FtReviewLoginID       = B.LoginID
+		       Left Outer Join XBOLTADM.TB_MEMBER D ON A.ApproveLoginID        = D.LoginID
+		 WHERE A.CtsReqID = #{CtsReqID}
+	</select>
+	
+	<select id="getReqEmailAddrRejectApprove" resultType="String">
+		SELECT /* getReqEmailAddrRejectApprove */
+		       ISNULL(D.Email,'')+','
+		  FROM XBOLTADM.TB_CTS A
+		       Left Outer Join XBOLTADM.TB_MEMBER B ON A.FtReviewLoginID       = B.LoginID
+		       Left Outer Join XBOLTADM.TB_MEMBER D ON A.ApproveLoginID        = D.LoginID
+		 WHERE A.CtsReqID = #{CtsReqID}
+	</select>
+</mapper>

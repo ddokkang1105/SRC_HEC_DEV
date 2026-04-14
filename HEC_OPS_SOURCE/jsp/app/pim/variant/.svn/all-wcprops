@@ -1,0 +1,47 @@
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/olm_dev/!svn/ver/9021/OLM3/WebContent/WEB-INF/jsp/app/pim/variant
+END
+registerVariantProject.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/svn/olm_dev/!svn/ver/8106/OLM3/WebContent/WEB-INF/jsp/app/pim/variant/registerVariantProject.jsp
+END
+variantProjectInfoview.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/pim/variant/variantProjectInfoview.jsp
+END
+varItemList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 86
+/svn/olm_dev/!svn/ver/9021/OLM3/WebContent/WEB-INF/jsp/app/pim/variant/varItemList.jsp
+END
+editVariantDetail.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/pim/variant/editVariantDetail.jsp
+END
+variantProjectList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 93
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/pim/variant/variantProjectList.jsp
+END
+variantMgt.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/olm_dev/!svn/ver/9007/OLM3/WebContent/WEB-INF/jsp/app/pim/variant/variantMgt.jsp
+END
+variantDetail.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/pim/variant/variantDetail.jsp
+END

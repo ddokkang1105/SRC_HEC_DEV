@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="issue_SQL">
+ 
+ 	<select id="getIssueCount" resultType="String">
+  		SELECT
+      		COUNT(*)
+  		FROM XBOLTADM.TB_ISSUE
+  		<where>
+			<if test="projectID != null and projectID != ''">
+			ProjectID = #{ProjectID}
+			</if>
+			<if test="CSRID != null and CSRID != ''">
+			AND CSRID = #{CSRID}
+			</if>
+			<if test="ChangeSetID != null and ChangeSetID != ''">
+			AND ChangeSetID = #{ChangeSetID}
+			</if>
+			<if test="ItemTypeCode != null and ItemTypeCode != ''">
+				<choose>
+					<when test="ItemTypeCode.equals('blank')">AND ItemTypeCode = #{ItemTypeCode}</when>
+					<otherwise>AND ItemTypeCode = ''</otherwise>
+				</choose>
+			</if>
+			<if test="ReqTeamID != null and ReqTeamID != ''">
+			AND ReqTeamID = #{ReqTeamID}
+			</if>
+			<if test="Status != null and Status != ''">
+			AND Status = #{Status}
+			</if>
+			<if test="StatusCheck != null and StatusCheck != ''">
+			AND Status != #{StatusCheck}
+			</if>
+			<if test="SC_STR_DT != null and SC_STR_DT != '' and SC_END_DT != null and SC_END_DT != ''">
+				<choose>
+					<when test='"1".equals(period)'>AND CONVERT(char(10), CreationTime, 21) BETWEEN #{SC_STR_DT} AND #{SC_END_DT}</when>
+					<when test='"2".equals(period)'>AND CONVERT(char(10), ActionDate, 21) BETWEEN #{SC_STR_DT} AND #{SC_END_DT}</when>
+				</choose>
+			</if>
+  		</where>
+	</select>
+	
+	<select id="getIssueActTeamList" resultType="java.util.HashMap">
+		SELECT Distinct 
+			T1.ActTeamID As TeamID
+			, T2.Name AS TeamName
+		FROM
+			XBOLTADM.TB_ISSUE T1
+			Left Outer Join XBOLTADM.TB_TEAM_TXT T2 On T1.ActTeamID = T2.TeamID  AND T2.LanguageID = #{languageID}
+		WHERE T1.Actor is not null
+	</select>
+	
+	<select id="getIssueInfo_gridList" resultType="java.util.HashMap">
+		SELECT
+			Top 1000
+			Row_Number()OVER(ORDER BY T1.CreationTime DESC ) as RNUM  
+			, T1.IssueID
+      		, T1.IssueCode
+      		, T1.ProjectID
+      		, T2.Name As ProjectName
+      		, T1.CSRID
+      		, T3.Name As CSRName
+      		, T2.Name + '/' + T3.Name As pjtCsrName
+      		, T1.ChangeSetID
+      		, T1.ItemTypeCode
+      		, T4.Name As ItemTypeName
+      		, T1.Subject
+      		, T1.Content
+      		, T1.Priority
+      		, T1.Status
+      		, T8.Name As StatusName
+      		, T1.Requestor
+      		, T1.ReqTeamID
+      		, T5.Name As ReqTeamName
+            , T1.ReqDueDate
+      		, T1.Receiver
+      		, T1.RecTeamID
+      		, T6.Name As RecTeamName
+            , T1.Response
+            , T1.Actor
+            , T1.ActTeamID
+            , T7.Name As ActTeamName
+      		, ISNULL(CONVERT(char(10),T1.CreationTime, 21),'') as CreationTime
+       		, ISNULL(CONVERT(char(10),T1.DueDate, 21),'') as DueDate
+      		, ISNULL(CONVERT(char(10),T1.ActionDate, 21),'') as ActionDate
+      		, ISNULL(CONVERT(char(10),T1.ReqDueDate, 21),'') as ReqDueDate2
+      		, T1.Result
+      		, T1.LastUpdated
+            , T1.LastUser
+            , T9.Name As RequestorName
+            , T10.Name As ReceiverName
+            , T11.Name As ActorName
+  		FROM XBOLTADM.TB_ISSUE T1
+		  Left Outer Join XBOLTADM.TB_PROJECT_TXT T2
+				on T1.ProjectID = T2.ProjectID AND T2.LanguageID = #{languageID}
+		  Left Outer Join XBOLTADM.TB_PROJECT_TXT T3
+				on T1.CSRID = T3.ProjectID AND T3.LanguageID = #{languageID}
+		  Left Outer Join XBOLTADM.TB_DICTIONARY T4
+				on T1.ItemTypeCode = T4.TypeCode AND T4.LanguageID = #{languageID}
+				AND T4.Category = 'OJ'
+		  Left Outer Join XBOLTADM.TB_TEAM_TXT T5
+				on T1.ReqTeamID = T5.TeamID AND T5.LanguageID = #{languageID}
+		  Left Outer Join XBOLTADM.TB_TEAM_TXT T6
+				on T1.RecTeamID = T6.TeamID AND T6.LanguageID = #{languageID}
+		  Left Outer Join XBOLTADM.TB_TEAM_TXT T7
+				on T1.ActTeamID = T7.TeamID AND T7.LanguageID = #{languageID}
+		  Left Outer Join XBOLTADM.TB_DICTIONARY T8
+				on T1.Status = T8.TypeCode AND T8.LanguageID = #{languageID}
+				AND T8.Category = 'ISSTS'
+		  Left Outer Join XBOLTADM.TB_MEMBER T9 on T1.Requestor = T9.MemberID
+		  Left Outer Join XBOLTADM.TB_MEMBER T10 on T1.Receiver = T10.MemberID
+		  Left Outer Join XBOLTADM.TB_MEMBER T11 on T1.Actor = T11.MemberID
+		<where>		
+			<if test="loginUserId != null and loginUserId != ''">
+			#{loginUserId} IN (T1.Requestor, T1.Receiver, T1.Actor)
+			</if>	
+			<if test="ProjectID != null and ProjectID != ''">
+			AND T1.ProjectID = #{ProjectID}
+			</if>		
+			<if test="CSRID != null and CSRID != ''">
+			AND T1.CSRID = #{CSRID}
+			</if>	
+			<if test="IssueID != null and IssueID != ''">
+			AND T1.IssueID = #{IssueID}
+			</if>	
+			<if test="ItemTypeCode != null and ItemTypeCode != ''">
+			AND T1.ItemTypeCode = #{ItemTypeCode}
+			</if>	
+			<if test="Status != null and Status != ''">
+			AND T1.Status = #{Status}
+			</if>		
+			<if test="Requestor != null and Requestor != ''">
+			AND T1.Requestor = #{Requestor}
+			</if>		
+			<if test="Receiver != null and Receiver != ''">
+			AND T1.Receiver = #{Receiver}
+			</if>		
+			<if test="Actor != null and Actor != ''">
+			AND T1.Actor = #{Actor}
+			</if>
+			<if test="ActTeamID != null and ActTeamID != ''">
+			AND T1.ActTeamID = #{ActTeamID}
+			</if>	
+			<if test="REQ_STR_DT != null and REQ_STR_DT != '' and REQ_END_DT != null and REQ_END_DT != ''">
+			AND CONVERT(VARCHAR, T1.CreationTime, 112) BETWEEN #{REQ_STR_DT} AND #{REQ_END_DT}
+			</if>	
+			<if test="REQDUE_STR_DT != null and REQDUE_STR_DT != '' and REQDUE_END_DT != null and REQDUE_END_DT != ''">
+			AND CONVERT(VARCHAR, T1.ReqDueDate, 112) BETWEEN #{REQDUE_STR_DT} AND #{REQDUE_END_DT}
+			</if>
+			<if test="DUE_STR_DT != null and DUE_STR_DT != '' and DUE_END_DT != null and DUE_END_DT != ''">
+			AND CONVERT(VARCHAR, T1.DueDate, 112) BETWEEN #{DUE_STR_DT} AND #{DUE_END_DT}
+			</if>
+			<if test="ACT_STR_DT != null and ACT_STR_DT != '' and ACT_END_DT != null and ACT_END_DT != ''">
+			AND CONVERT(VARCHAR, T1.ActionDate, 112) BETWEEN #{ACT_STR_DT} AND #{ACT_END_DT}
+			</if>				
+		</where>	
+	</select>
+	
+	<select id="getIssueFileList" resultType="java.util.HashMap">
+		SELECT
+		   issuefl.Seq
+		  ,issuefl.IssueID
+		  ,issuefl.FileName
+		  ,issuefl.FileFormat
+		  ,issuefl.FileRealName
+		  ,issuefl.FileSize
+		  ,issuefl.FileMgt
+		  ,issuefl.RegMemberID
+		  ,CONVERT(CHAR(10),CONVERT(datetime,issuefl.CreationTime),21) as CreationTime
+		  ,CONVERT(CHAR(10),CONVERT(datetime,issuefl.LastUpdated),21) as LastUpdated
+		  ,issuefl.LastUser
+		  ,issuefl.Version
+		  ,issuefl.DownCNT
+		FROM XBOLTADM.TB_ISSUE_FILE issuefl
+		<where>	
+			<if test="IssueID != null and IssueID != ''">
+				IssueID = #{IssueID}
+			</if>
+		</where>
+ 	</select>
+	
+	<select id="getMaxIssueID" resultType="String">
+		SELECT
+			ISNULL(MAX(IssueID)+1, 1) as IssueID
+		FROM
+			XBOLTADM.TB_ISSUE
+	</select> 
+	
+	<select id="getMaxIssueCode" resultType="String">
+  		SELECT
+      		TOP 1 IssueCode
+  		FROM XBOLTADM.TB_ISSUE
+  		WHERE ProjectID = #{ProjectID}
+  		ORDER BY IssueID DESC
+	</select>
+	
+	<select id="issueFile_nextVal" resultType="String">
+		SELECT ISNULL(MAX(Seq)+1,'1') AS FILEID_NEXTVAL FROM XBOLTADM.TB_ISSUE_FILE
+	</select>
+	
+	<select id="selectDownFile" resultType="java.util.HashMap">
+		SELECT  FileName as filename
+				, FileRealName as original
+				, #{FilePath} + FileName as downFile
+		FROM XBOLTADM.TB_ISSUE_FILE
+		WHERE Seq = #{Seq}
+	</select>
+	
+	<select id="getCsrCreator" resultType="java.util.HashMap">
+  		SELECT
+      		Creator
+      		, T2.TeamID
+      		, AuthorID
+  		FROM XBOLTADM.TB_PROJECT T1
+  		Left Outer Join XBOLTADM.TB_MEMBER T2 on T1.Creator = T2.MemberID
+  		WHERE ProjectID = #{CSRID}
+	</select>
+	
+	<select id="getActorList" resultType="java.util.HashMap">
+		SELECT Distinct PMR.MemberID AS CODE
+			,TM.Name AS NAME	
+	  	FROM XBOLTADM.TB_PJT_MEMBER_REL PMR,
+	  		     XBOLTADM.TB_MEMBER TM
+	  	WHERE 
+	  		PMR.MemberID = TM.MemberID
+	  		AND PMR.ProjectID = #{CsrID}
+		ORDER BY PMR.MemberID
+	</select>
+	
+	<select id="getIssueMemberList" resultType="java.util.HashMap">
+		SELECT Distinct 
+			T1.${RoleName} As CODE
+			, T2.Name As NAME
+		  FROM XBOLTADM.TB_ISSUE T1,
+		  XBOLTADM.TB_MEMBER T2
+		  WHERE T1.${RoleName} = T2.MemberID
+		  ORDER BY T1.${RoleName}
+	</select>
+	
+	<insert id="createIssue" parameterType="java.util.HashMap">
+ 		INSERT INTO
+ 			XBOLTADM.TB_ISSUE(
+ 				 IssueID
+           		, IssueCode
+           		, ProjectID
+           		, CSRID
+           		, ChangeSetID
+           		, Category
+           		, ItemTypeCode
+           		, Subject
+           		, Content
+           		, Priority
+           		, Status
+           		, Requestor
+           		, ReqTeamID
+           		, ReqDueDate
+           		, Receiver
+           		, RecTeamID
+           		, DueDate
+           		, Response
+           		, Actor
+           		, ActTeamID
+           		, ActionDate
+           		, Result
+           		, CreationTime
+           		, LastUpdated
+           		, LastUser
+ 		)VALUES(
+ 				#{IssueID}
+           		, #{IssueCode}
+           		, #{ProjectID}
+           		, #{CSRID}
+           		, #{ChangeSetID}
+           		, #{Category}
+           		, #{ItemTypeCode}
+           		, #{Subject}
+           		, #{Content}
+           		, #{Priority}
+           		, #{Status}
+           		, #{Requestor}
+           		, #{ReqTeamID}
+           		, #{ReqDueDate}
+           		, #{Receiver}
+           		, #{RecTeamID}
+           		, #{DueDate}
+           		, #{Response}
+           		, #{Actor}
+           		, #{ActTeamID}
+           		, #{ActionDate}
+           		, #{Result}
+           		, getDate()
+           		, getDate()
+           		, #{LastUser}
+ 		)	
+ 	</insert>
+ 	
+ 	<insert id="issueFile_insert" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_ISSUE_FILE (
+			Seq
+			, IssueID
+        	, FileName
+        	, FileRealName 
+        	, FileSize 
+        	, FileMgt 
+        	, FileFormat 
+        	, RegMemberID 
+        	, CreationTime 
+        	, LastUpdated 
+        	, LastUser
+        	, LanguageID
+		)
+		VALUES (
+			#{Seq}
+			, #{IssueID}
+          	, #{FileName}
+          	, #{FileRealName}
+          	, #{FileSize}
+          	, #{FileMgt}
+          	, #{FileFormat}
+          	, #{RegMemberID}
+          	, getDate()
+          	, getDate()
+          	, #{LastUser}
+          	, #{LanguageID}
+		)
+	</insert>
+	
+	<update id="updateIssue" parameterType="java.util.HashMap">
+ 		UPDATE	XBOLTADM.TB_ISSUE
+ 		SET
+ 			LastUpdated = getDate()
+			<if test="LastUpdate != null and LastUpdate != ''">
+				,LastUpdated = #{LastUpdate}
+			</if>
+			<if test="ProjectID != null and ProjectID != ''">
+				,ProjectID = #{ProjectID}
+			</if>
+			<if test="CSRID != null and CSRID != ''">
+				,CSRID = #{CSRID}
+			</if>
+			<if test="ChangeSetID != null and ChangeSetID != ''">
+				,ChangeSetID = #{ChangeSetID}
+			</if>
+			<if test="Category != null and Category != ''">
+				,Category = #{Category}
+			</if>
+			<if test="ItemTypeCode != null and ItemTypeCode != ''">
+				,ItemTypeCode = #{ItemTypeCode}
+			</if>
+			<if test="Subject != null and Subject != ''">
+				,Subject = #{Subject}
+			</if>
+			<if test="Content != null and Content != ''">
+				,Content = #{Content}
+			</if>
+			<if test="Priority != null and Priority != ''">
+				,Priority = #{Priority}
+			</if>
+			<if test="Status != null and Status != ''">
+				,Status = #{Status}
+			</if>
+			<if test="ReqDueDate != null and ReqDueDate != ''">
+				,ReqDueDate = #{ReqDueDate}
+			</if>
+			<if test="Receiver != null and Receiver != ''">
+				,Receiver = #{Receiver}
+			</if>
+			<if test="RecTeamID != null and RecTeamID != ''">
+				,RecTeamID = #{RecTeamID}
+			</if>
+			<if test="RecTeamID != null and RecTeamID != ''">
+				,RecTeamID = #{RecTeamID}
+			</if>
+			<if test="DueDate != null and DueDate != ''">
+				,DueDate = #{DueDate}
+			</if>
+			<if test="Actor != null and Actor != ''">
+				,Actor = #{Actor}
+			</if>
+			<if test="ActTeamID != null and ActTeamID != ''">
+				,ActTeamID = #{ActTeamID}
+			</if>
+			<if test="ActionDate != null and ActionDate != ''">
+				,ActionDate = getDate()
+			</if>
+			<if test="Result != null and Result != ''">
+				,Result = #{Result}
+			</if>
+ 		WHERE
+ 			IssueID = #{IssueID}
+ 	</update>
+	
+	<delete id="delIssueFile" parameterType="java.util.HashMap">
+	  	Delete FROM XBOLTADM.TB_ISSUE_FILE
+	  	WHERE IssueID = #{IssueID} AND Seq = #{Seq}
+	 </delete>
+	
+</mapper>

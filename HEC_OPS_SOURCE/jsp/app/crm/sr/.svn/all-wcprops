@@ -1,0 +1,101 @@
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/olm_dev/!svn/ver/8851/OLM3/WebContent/WEB-INF/jsp/app/crm/sr
+END
+transferSRPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/crm/sr/transferSRPop.jsp
+END
+viewSRIframe.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/crm/sr/viewSRIframe.jsp
+END
+srListByCompany.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/olm_dev/!svn/ver/8851/OLM3/WebContent/WEB-INF/jsp/app/crm/sr/srListByCompany.jsp
+END
+processSR.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/svn/olm_dev/!svn/ver/8172/OLM3/WebContent/WEB-INF/jsp/app/crm/sr/processSR.jsp
+END
+registSR.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svn/olm_dev/!svn/ver/8106/OLM3/WebContent/WEB-INF/jsp/app/crm/sr/registSR.jsp
+END
+srReqMain.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/svn/olm_dev/!svn/ver/7373/OLM3/WebContent/WEB-INF/jsp/app/crm/sr/srReqMain.jsp
+END
+srAreaInfo.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/crm/sr/srAreaInfo.jsp
+END
+srMgt.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/crm/sr/srMgt.jsp
+END
+viewSR_slider.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svn/olm_dev/!svn/ver/8106/OLM3/WebContent/WEB-INF/jsp/app/crm/sr/viewSR_slider.jsp
+END
+srList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/svn/olm_dev/!svn/ver/7540/OLM3/WebContent/WEB-INF/jsp/app/crm/sr/srList.jsp
+END
+confirmSR.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/crm/sr/confirmSR.jsp
+END
+procLogDetail.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/crm/sr/procLogDetail.jsp
+END
+srConfirmMaster.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/crm/sr/srConfirmMaster.jsp
+END
+viewSR.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/svn/olm_dev/!svn/ver/8172/OLM3/WebContent/WEB-INF/jsp/app/crm/sr/viewSR.jsp
+END
+registSRCR.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/svn/olm_dev/!svn/ver/8106/OLM3/WebContent/WEB-INF/jsp/app/crm/sr/registSRCR.jsp
+END
+approveSRPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svn/olm_dev/!svn/ver/7540/OLM3/WebContent/WEB-INF/jsp/app/crm/sr/approveSRPop.jsp
+END

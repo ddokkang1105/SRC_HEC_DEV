@@ -1,0 +1,2865 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	메뉴 관련	-->
+<mapper namespace="menu_SQL">
+	
+	<select id="selectArcFilter" resultType="String">
+		SELECT Distinct FilterType FROM XBOLTADM.TB_ARC
+		WHERE ArcCode = #{SelectMenuId}
+	</select>
+	
+	<select id="selectArcTreeDataFiltered" resultType="String">
+		SELECT TF.TreeDataFiltered FROM XBOLTADM.TB_ARC ARC 
+		       Left Outer Join XBOLTADM.TB_TFILTER TF ON TF.TfilterCode = ARC.FilterType
+		WHERE ARC.ArcCode = #{SelectMenuId}
+	</select>
+	
+	<select id="defaultTopMenu_select" resultType="java.util.HashMap">
+		SELECT TB.MenuID, TB.URL, TB.VarFilter FILTER, TB.Icon, ISNULL(TD.Name,'') AS Name
+		FROM XBOLTADM.TB_MENU TB
+	   		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TB.DicCode = TD.TypeCode AND TD.LanguageID = #{sessionCurrLangType}
+		WHERE TB.MenuCat='BASE' AND ISNULL(TB.Deactivated,'0') != '1'
+		ORDER BY TB.SortNum 
+	</select>	
+	<select id="mainTempl_select" resultType="java.util.HashMap">
+	  SELECT Distinct tmpl.TemplCode,
+	  		 ISNULL(dc.Name, tmpl.TemplCode) TemplText
+	  		 , tmpl.Style, Rtrim(ISNULL(tmpl.Type, '1')) MENU_TYPE
+	  		 , tmpl.SortNum
+	  		 , (ISNULL(mn.URL, 'mainHomLayer')) AS MainURL
+	  		 ,ISNULL(mn.VarFilter,'') AS URLFilter
+	  		 , ISNULL(mndc.Name, ISNULL(mn.URL, 'mainHomLayer')) MainScnText
+	  		 , ISNULL(tmpl.VarFilter,'') AS TmplFilter
+	  		 , tmpl.Type AS TmplType
+	  		 , tmpl.Invisible
+	  FROM XBOLTADM.TB_TEMPL tmpl
+	   LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY dc ON tmpl.TemplCode = dc.TypeCode AND dc.LanguageID = #{sessionCurrLangType}
+	   LEFT OUTER JOIN XBOLTADM.TB_MENU mn ON tmpl.MenuID=mn.MenuID
+	   LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY mndc ON mn.DicCode = mndc.TypeCode AND mndc.LanguageID = #{sessionCurrLangType}
+		
+	  WHERE ISNULL(tmpl.MenuID, '') != ''
+	    <if test='!"Y".equals(cmpnyYN)'>
+	    	AND ISNULL(tmpl.Deactivated, 0) != 1
+	    </if>
+ 		<if test="templCode != null and templCode != ''">
+			AND tmpl.TemplCode = #{templCode}	
+		</if>
+		
+		<if test="sessionAuthLev neq 1">
+			AND tmpl.TemplCode IN (SELECT TemplCode FROM XBOLTADM.TB_ACCESS_RIGHT WHERE MemberID =  #{sessionUserId} or MemberID in (SELECT GroupID FROM XBOLTADM.TB_MEMBER_GR WHERE MemberID = #{sessionUserId}) GROUP BY TemplCode)
+		</if>
+	  ORDER BY tmpl.SortNum 
+	</select> 
+	<select id="company_select" resultType="java.util.HashMap">
+	<![CDATA[	
+			SELECT team.TeamID AS CmpnyCode , txt.Name AS CmpnyText
+			FROM XBOLTADM.TB_TEAM team 
+			INNER JOIN XBOLTADM.TB_TEAM_TXT txt ON team.TeamID = txt.TeamID AND txt.LanguageID = #{sessionCurrLangType}
+			WHERE team.TeamType = '2'
+	]]>			
+	  ORDER BY txt.Name 
+	</select> 	
+	<select id="mainMenu_select" resultType="java.util.HashMap"> 
+	
+		  SELECT dic.TypeCode MENU_ID, dic.Name MENU_NM, arctmpl.TemplCode 
+		    , acr.ParentID PRNT_MENU_ID
+		    , acr.DimTypeID
+		    , ISNULL(menu_cnt.CHILD_MENT_CNT,0) CHILD_MENT_CNT
+		    , ISNULL(acr.Icon, '') ICON
+		    , ISNULL(acr.Style, '') STYLE		  
+		    , ISNULL(tm.URL,'') AS URL, ISNULL(acr.VarFilter, tm.VarFilter) AS FILTER
+		    , arctmpl.SortNum
+		  FROM XBOLTADM.TB_ARC acr
+			   LEFT OUTER JOIN XBOLTADM.TB_ARC_FILTER flt ON acr.ArcCode = flt.ArcCode
+			   LEFT OUTER JOIN XBOLTADM.TB_ARC_FILTER_DIM dim ON flt.ArcCode = dim.ArcCode
+			   LEFT OUTER JOIN XBOLTADM.TB_MENU tm ON acr.MenuID=tm.MenuID
+			   INNER JOIN XBOLTADM.TB_DICTIONARY dic ON acr.ArcCode = dic.TypeCode AND dic.Category = 'AR'		
+			  <choose>
+			  	<when test="sessionCurrLangType != null and sessionCurrLangType != ''">	
+			  		AND dic.LanguageID = #{sessionCurrLangType}
+			  	</when>
+			  	<otherwise>
+			  		AND dic.LanguageID = '1042'
+			  	</otherwise>
+			  </choose>
+			  <choose>
+			  	<when test="sessionAuthLev != null and sessionAuthLev neq 1">
+			  		INNER JOIN XBOLTADM.TB_MEMBER_GR tmg ON tmg.MemberID = #{sessionUserId} 
+					INNER JOIN XBOLTADM.TB_ACCESS_RIGHT acc ON acc.MemberID = #{sessionUserId} or acc.MemberID = tmg.GroupID
+					INNER JOIN XBOLTADM.TB_ARC_TEMPL arctmpl ON arctmpl.TemplCode = acc.TemplCode AND acr.ArcCode = arctmpl.ArcCode    
+					INNER JOIN XBOLTADM.TB_TEMPL tmpl ON ISNULL(tmpl.Deactivated, 0) != 1 AND acc.TemplCode = tmpl.TemplCode 
+			  	</when>
+			  	<otherwise>
+			  		INNER JOIN XBOLTADM.TB_ARC_TEMPL arctmpl ON acr.ArcCode = arctmpl.ArcCode
+					INNER JOIN XBOLTADM.TB_TEMPL tmpl ON ISNULL(tmpl.Deactivated, 0) != 1 AND arctmpl.TemplCode = tmpl.TemplCode
+			  	</otherwise>
+			  </choose>
+		   LEFT OUTER JOIN (SELECT ParentID ArcCode, COUNT(*) CHILD_MENT_CNT FROM XBOLTADM.TB_ARC WHERE ISNULL(Deactivated, 0) != 1 GROUP BY ParentID) menu_cnt ON acr.ArcCode = menu_cnt.ArcCode    
+		  WHERE acr.ParentID IS NULL AND ISNULL(acr.Deactivated, 0) != 1
+		  GROUP BY dic.TypeCode, dic.Name, arctmpl.TemplCode, acr.ParentID
+		    , acr.DimTypeID, ISNULL(menu_cnt.CHILD_MENT_CNT,0), ISNULL(acr.Icon, ''), ISNULL(acr.Style, '')		  
+		    , ISNULL(tm.URL,''), ISNULL(acr.VarFilter, tm.VarFilter), arctmpl.SortNum
+		  ORDER BY arctmpl.SortNum ASC
+	</select>
+	 
+	<select id="secondMenu_select" resultType="java.util.HashMap"> 
+	
+		  SELECT Distinct dic.TypeCode MENU_ID, dic.Name MENU_NM    , acr.ParentID PRNT_MENU_ID
+		    , acr.DimTypeID	    , arctmpl.SortNum, arctmpl.TemplCode
+		    , ISNULL(tm.URL,'') AS URL, ISNULL(acr.VarFilter, tm.VarFilter) AS FILTER	    , ISNULL(acr.Style, '') STYLE
+		  FROM XBOLTADM.TB_ARC acr
+			   LEFT OUTER JOIN XBOLTADM.TB_ARC_FILTER flt ON acr.ArcCode = flt.ArcCode			
+			   LEFT OUTER JOIN XBOLTADM.TB_MENU tm ON acr.MenuID=tm.MenuID
+			   INNER JOIN XBOLTADM.TB_DICTIONARY dic ON acr.ArcCode = dic.TypeCode AND dic.Category = 'AR'		
+			  <choose>
+			  	<when test="sessionCurrLangType != null and sessionCurrLangType != ''">	
+			  		AND dic.LanguageID = #{sessionCurrLangType}
+			  	</when>
+			  	<otherwise>
+			  		AND dic.LanguageID = '1042'
+			  	</otherwise>
+			  </choose>
+			  <choose>
+			  	<when test="sessionAuthLev != null and sessionAuthLev neq 1">
+			  		INNER JOIN XBOLTADM.TB_MEMBER_GR tmg ON tmg.MemberID = #{sessionUserId} 
+				    INNER JOIN XBOLTADM.TB_ACCESS_RIGHT acc ON acc.MemberID = #{sessionUserId} or acc.MemberID = tmg.GroupID
+				    INNER JOIN XBOLTADM.TB_ARC_TEMPL arctmpl ON arctmpl.TemplCode = acc.TemplCode AND acr.ArcCode = arctmpl.ArcCode    
+				    INNER JOIN XBOLTADM.TB_TEMPL tmpl ON ISNULL(tmpl.Deactivated, 0) != 1 AND acc.TemplCode = tmpl.TemplCode 
+			  	</when>
+			  	<otherwise>
+			  		INNER JOIN XBOLTADM.TB_ARC_TEMPL arctmpl ON acr.ArcCode = arctmpl.ArcCode
+				    INNER JOIN XBOLTADM.TB_TEMPL tmpl ON ISNULL(tmpl.Deactivated, 0) != 1 AND arctmpl.TemplCode = tmpl.TemplCode
+			  	</otherwise>
+			  </choose>
+		  WHERE acr.ParentID IS NOT NULL AND ISNULL(acr.Deactivated, 0) != 1 
+		  ORDER BY arctmpl.SortNum ASC
+	</select>
+
+	<select id="thirdMenu_select" resultType="java.util.HashMap"> 
+	<![CDATA[	
+		 SELECT Distinct acr.DimTypeID MENU_ID, dic.Name MENU_NM, acr.ArcCode PRNT_MENU_ID
+		   , dim.DimValueID AS DefDimValueID
+		   , ISNULL(tm.URL,'') AS URL, ISNULL(ISNULL(acr.VarFilter,tm.VarFilter),'') AS FILTER
+		   , acr.SortNum
+		 FROM XBOLTADM.TB_ARC acr
+			  LEFT OUTER JOIN XBOLTADM.TB_ARC_FILTER flt ON acr.ArcCode = flt.ArcCode
+			  LEFT OUTER JOIN XBOLTADM.TB_MENU tm ON acr.MenuID=tm.MenuID
+			  INNER JOIN XBOLTADM.TB_DIM_VALUE dim ON acr.DimTypeID = dim.DimTypeID
+			  INNER JOIN XBOLTADM.TB_DIM_VALUE_TXT dic ON dim.DimTypeID = dic.DimTypeID AND dim.DimValueID = dic.DimValueID
+	]]>			 
+			  <choose>
+			  	<when test="sessionCurrLangType != null and sessionCurrLangType != ''">	
+			  		AND dic.LanguageID = #{sessionCurrLangType}
+			  	</when>
+			  	<otherwise>
+			  		AND dic.LanguageID = '1042'
+			  	</otherwise>
+			  </choose>
+			  	<if test="sessionAuthLev != null and sessionAuthLev neq 1">
+			  	   INNER JOIN XBOLTADM.TB_MEMBER_GR tmg ON tmg.MemberID = #{sessionUserId} 
+				   INNER JOIN XBOLTADM.TB_ACCESS_RIGHT acc ON acc.MemberID = #{sessionUserId} or acc.MemberID = tmg.GroupID
+				   INNER JOIN XBOLTADM.TB_ARC_TEMPL arctmpl ON arctmpl.TemplCode = acc.TemplCode AND acr.ArcCode = arctmpl.ArcCode    
+				   INNER JOIN XBOLTADM.TB_TEMPL tmpl ON ISNULL(tmpl.Deactivated, 0) != 1 AND acc.TemplCode = tmpl.TemplCode 
+			  	</if>
+		 WHERE acr.FilterType = 'DM' AND ISNULL(acr.DimTypeID,0) > 0 
+		 ORDER BY acr.SortNum, acr.ArcCode, dic.Name
+	</select> 
+	
+	<select id="getMenuTreeSqlName" resultType="String">
+		SELECT SqlName FROM XBOLTADM.TB_TFILTER TT, XBOLTADM.TB_ARC TA
+		WHERE TT.TfilterCode=TA.FilterType AND TA.ArcCode=#{SelectMenuId}
+	</select>	
+	
+	<select id="menuTreeListNoFilter_treeList" resultType="java.util.HashMap">
+		SELECT
+			0 AS PRE_TREE_ID , C.ItemID AS TREE_ID , TIC.Level
+			, CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE (CASE WHEN ARC.IDFilter IS NULL THEN C.Identifier ELSE RIGHT(C.Identifier,ARC.IDFilter) END) + ' ' + ISNULL(ATR.PlainText, 'Untitled') END AS TREE_NM 
+			, '' AS SortNum, C.ClassCode, 'tree_' + TIC.Icon AS ClassIcon
+		FROM 
+			XBOLTADM.TB_ITEM C Left Outer Join XBOLTADM.TB_ITEM_ATTR ATR on C.ItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001'
+			AND ATR.LanguageID =  #{sessionCurrLangType}, XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM_CLASS TIC
+		WHERE 
+			C.ItemID in (Select RootItemID FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+			AND C.Deleted != '1'
+			AND ARC.ArcCode = #{SelectMenuId}
+			AND TIC.ItemClassCode = C.ClassCode
+			
+		UNION
+				
+		SELECT
+			C.FromItemID AS PRE_TREE_ID , C.ToItemID AS TREE_ID , TIC.Level
+			,CASE ARC.WID WHEN '1' THEN  (CASE WHEN ARC.IDFilter IS NULL THEN ISNULL(Obj.Identifier,'') ELSE RIGHT(ISNULL(Obj.Identifier,''),ARC.IDFilter) END) + ' ' + ISNULL(ATR.PlainText, 'Untitled')				  			 
+			  			  WHEN '2' THEN  ISNULL(ATR.PlainText, 'Untitled') + ' ' + ISNULL(Obj.Identifier,'')
+			  			  WHEN '3' THEN  (CASE WHEN ARC.IDFilter IS NULL THEN ISNULL(C.Identifier,Obj.Identifier) ELSE RIGHT(ISNULL(C.Identifier,Obj.Identifier),ARC.IDFilter) END) + ' ' + ISNULL(ATR.PlainText, 'Untitled')
+						  ELSE  ISNULL(ATR.PlainText, 'Untitled')  END AS TREE_NM 
+			, ISNULL(C.SortNum,'') AS SortNum, Obj.ClassCode, 'tree_' + TIC.Icon AS ClassIcon
+		FROM 
+		XBOLTADM.TB_ITEM C Left Outer Join  XBOLTADM.TB_ITEM_ATTR ATR on C.ToItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+				, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM_CLASS TIC
+			WHERE
+				C.FromItemID != 0 
+				AND ARCF.ArcCode = #{SelectMenuId} 
+				AND C.ItemTypeCode in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+				AND C.ToItemID = Obj.ItemID
+				AND C.Deleted != '1'					
+				AND ARC.ArcCode = #{SelectMenuId}
+			    AND (ARC.UntitledOption = 'Y' OR ((ARC.UntitledOption IS NULL OR ARC.UntitledOption = 'N') AND ATR.PlainText IS NOT NULL))
+			    <if test='!"Y".equals(showTOJ)'>
+			    AND Obj.CategoryCode != 'TOJ'
+			    </if>	
+			    AND TIC.ItemClassCode = Obj.ClassCode
+		
+	  <if test='"Y".equals(showVAR)'>
+		 
+		UNION
+				
+		SELECT
+			Obj.RefItemID AS PRE_TREE_ID , Obj.ItemID AS TREE_ID , TIC.Level
+			,CASE ARC.WID WHEN '1' THEN  (CASE WHEN ARC.IDFilter IS NULL THEN ISNULL(Obj.Identifier,'') ELSE RIGHT(ISNULL(Obj.Identifier,''),ARC.IDFilter) END) + ' ' + ISNULL(ATR.PlainText, 'Untitled')				  			 
+			  			  WHEN '2' THEN  ISNULL(ATR.PlainText, 'Untitled') + ' ' + ISNULL(Obj.Identifier,'')
+			  			  ELSE  ISNULL(ATR.PlainText, 'Untitled')  END AS TREE_NM 
+			, ISNULL(Obj.SortNum,'') AS SortNum, Obj.ClassCode, 'tree_' + TIC.Icon AS ClassIcon
+		FROM 
+		XBOLTADM.TB_ITEM Obj Left Outer Join  XBOLTADM.TB_ITEM_ATTR ATR on Obj.ItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001'	AND ATR.LanguageID =  #{sessionCurrLangType}
+				, XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM_CLASS TIC
+			WHERE				
+				ARC.ArcCode = #{SelectMenuId}
+				AND Obj.ClassCode In (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included = 'Y')	
+				AND Obj.RefItemID IS NOT NULL AND Obj.RefItemID != 0
+				AND Obj.Deleted != '1'			    	
+			    AND (ARC.UntitledOption = 'Y' OR ((ARC.UntitledOption IS NULL OR ARC.UntitledOption = 'N') AND ATR.PlainText IS NOT NULL))
+			    AND Obj.CategoryCode = 'OJ'			   
+			    AND TIC.ItemClassCode = Obj.ClassCode		
+			   
+	</if>
+			  
+		<choose>
+			<when test="sortOption eq 1">
+				ORDER BY SortNum, Level, TREE_NM ASC
+			</when>
+			<otherwise>
+				ORDER BY Level, TREE_NM ASC		 	
+			</otherwise>
+		</choose>
+	</select>   
+
+<select id="itemTreeListOPSMode_treeList" resultType="java.util.HashMap">
+		SELECT
+			0 AS PRE_TREE_ID , C.ItemID AS TREE_ID , TIC.Level
+			, CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE (CASE WHEN ARC.IDFilter IS NULL THEN C.Identifier ELSE RIGHT(C.Identifier,ARC.IDFilter) END) + ' ' + ISNULL(ISNULL(ATRV.PlainText, ATR.PlainText), 'Untitled')END AS TREE_NM 
+			, '' AS SortNum, C.ClassCode, 'tree_' + TIC.Icon AS ClassIcon
+		FROM 
+			XBOLTADM.TB_ITEM C 
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR ATR on C.ItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001'	AND ATR.LanguageID =  #{sessionCurrLangType} 
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR_REV ATRV on C.ItemID = ATRV.ItemID AND ATRV.AttrTypeCode = 'AT00001' AND ATRV.LanguageID =  #{sessionCurrLangType} AND ATRV.ChangeSetID = C.ReleaseNo ,
+			XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM_CLASS TIC
+		WHERE 
+			C.ItemID in (Select RootItemID FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+			AND C.Deleted != '1'
+			AND ARC.ArcCode = #{SelectMenuId}
+			AND TIC.ItemClassCode = C.ClassCode
+			
+		UNION
+				
+		SELECT
+			C.FromItemID AS PRE_TREE_ID , C.ToItemID AS TREE_ID , TIC.Level
+			,CASE ARC.WID WHEN '1' THEN  (CASE WHEN ARC.IDFilter IS NULL THEN ISNULL(Obj.Identifier,'') ELSE RIGHT(ISNULL(Obj.Identifier,''),ARC.IDFilter) END) + ' ' + ISNULL(ISNULL(ATRV.PlainText, ATR.PlainText), 'Untitled')				  			 
+			  			  WHEN '2' THEN  ISNULL(ATR.PlainText, 'Untitled') + ' ' + ISNULL(Obj.Identifier,'')
+			  			  WHEN '3' THEN  (CASE WHEN ARC.IDFilter IS NULL THEN ISNULL(C.Identifier,Obj.Identifier) ELSE RIGHT(ISNULL(C.Identifier,Obj.Identifier),ARC.IDFilter) END) + ' ' + ISNULL(ISNULL(ATRV.PlainText, ATR.PlainText), 'Untitled')
+						  ELSE  ISNULL(ISNULL(ATRV.PlainText, ATR.PlainText), 'Untitled')  END AS TREE_NM 
+			, ISNULL(C.SortNum,'') AS SortNum, Obj.ClassCode, 'tree_' + TIC.Icon AS ClassIcon
+		FROM 
+		XBOLTADM.TB_ITEM C 
+		INNER JOIN XBOLTADM.TB_ITEM Obj ON C.ToItemID = Obj.ItemID And Obj.Deleted != 1
+		INNER JOIN XBOLTADM.TB_ITEM_CLASS TIC ON TIC.ItemClassCode = Obj.ClassCode	
+					Left Outer Join XBOLTADM.TB_ITEM_ATTR ATR on C.ToItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001'	AND ATR.LanguageID =  #{sessionCurrLangType} 
+					Left Outer Join XBOLTADM.TB_ITEM_ATTR_REV ATRV on C.ToItemID = ATRV.ItemID AND ATRV.AttrTypeCode = 'AT00001' AND ATRV.LanguageID =  #{sessionCurrLangType} AND ATRV.ChangeSetID = OBJ.ReleaseNo 
+					,XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ARC ARC 
+		WHERE
+				C.FromItemID != 0 
+				AND ARCF.ArcCode = #{SelectMenuId} 
+				AND C.ItemTypeCode in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+				AND C.ToItemID = Obj.ItemID
+				AND C.Deleted != '1'					
+				AND ARC.ArcCode = #{SelectMenuId}
+			    AND (ARC.UntitledOption = 'Y' OR ((ARC.UntitledOption IS NULL OR ARC.UntitledOption = 'N') AND ATR.PlainText IS NOT NULL))
+			    <if test='!"Y".equals(showTOJ)'>
+				 AND Obj.CategoryCode != 'TOJ'
+			    </if>	
+			    AND TIC.ItemClassCode = Obj.ClassCode	
+			  
+		<choose>
+			<when test="sortOption eq 1">
+				ORDER BY SortNum, Level, TREE_NM ASC
+			</when>
+			<otherwise>
+				ORDER BY Level, TREE_NM ASC		 	
+			</otherwise>
+		</choose>
+	</select>   
+	   
+
+<select id="menuTreeListClassFilter" resultType="java.util.HashMap">
+
+			SELECT
+				Distinct 0 AS PRE_TREE_ID , C.ItemID AS TREE_ID , C.Level , '' AS SortNum
+				, CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE C.Identifier + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM C, XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ARC ARC
+				WHERE 
+					C.ItemID in (Select RootItemID FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId})
+					AND C.ItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+					AND C.Deleted != '1'
+					AND ARC.ArcCode = #{SelectMenuId} 
+			
+			UNION
+				
+			SELECT
+					Distinct C.FromItemID AS PRE_TREE_ID , C.ToItemID AS TREE_ID , Obj.Level , ISNULL(C.SortNum,'') AS SortNum
+					, CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+					FROM 
+						XBOLTADM.TB_ITEM C, XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ARC ARC
+					WHERE
+						C.FromItemID != 0 
+						AND ARCF.ArcCode = #{SelectMenuId} 
+						AND C.ItemTypeCode in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+						AND C.ToItemID = Obj.ItemID
+						AND C.ToItemID = ATR.ItemID
+						AND C.Deleted != '1'
+						AND Obj.ClassCode Not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y')	
+						AND ATR.AttrTypeCode = 'AT00001'
+						AND ATR.LanguageID =  #{sessionCurrLangType}
+						AND ARC.ArcCode = #{SelectMenuId}
+				
+					<choose>
+					<when test="sortOption eq 1">
+						ORDER BY SortNum, TREE_NM ASC
+					</when>
+					<otherwise>
+						ORDER BY TREE_NM ASC		 	
+					</otherwise>
+				</choose>
+		
+	</select>  
+	
+
+	<select id="menuTreeListByDIM_treeList" resultType="java.util.HashMap">
+
+	WITH XBOLT_FILTER(ParentID, MyItemID, TREE_NM, SortNum, ClassCode, ClassIcon)
+			AS 
+			(
+				SELECT 
+					DISTINCT ICN.FromItemID AS ParentID, ICN.ToItemID AS MyItemID
+					, CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+					, ISNULL(ICN.SortNum,'') AS SortNum, Obj.ClassCode, 'tree_' + TIC.Icon AS ClassIcon
+				FROM XBOLTADM.TB_ITEM ICN,  XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ITEM_CLASS TIC,
+					(
+						SELECT 
+								DIM.ItemID 
+						FROM 
+								XBOLTADM.TB_ITEM_DIM DIM, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ARC_FILTER_DIM ARCFDIM,  XBOLTADM.TB_ARC_FILTER_CLS ARCFCL
+						WHERE 
+								ARCF.ArcCode =  #{SelectMenuId}
+								AND ARCF.ArcCode = ARCFDIM.ArcCode  
+								AND DIM.DimTypeID = ARCFDIM.DimTypeID
+								AND ARCFCL.ArcCode = #{SelectMenuId}
+								AND DIM.ItemClassCode = ARCFCL.ItemClassCode	
+						<choose>
+					 		<when test="DefDimValueID != null and DefDimValueID != ''">
+								AND DIM.DimValueID = #{DefDimValueID}
+							</when>
+							<otherwise>
+								AND DIM.DimValueID = ARCFDIM.DefDimValueID
+							</otherwise>
+						</choose>	
+					) DIM
+				WHERE 
+					ICN.ToItemID = DIM.ItemID
+					AND ICN.ItemTypeCode in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ICN.ToItemID = Obj.ItemID
+					AND ICN.Deleted != '1'
+					AND ICN.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+					AND Obj.ClassCode = TIC.ItemClassCode		
+
+			),
+			XBOLT_UCTE(ParentID, MyItemID, TREE_NM, SortNum, ClassCode, ClassIcon)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_U.FromItemID AS ParentID, ITM_U.ToItemID AS MyItemID
+					, CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+					, ISNULL(ITM_U.SortNum,'') AS SortNum, Obj.ClassCode, 'tree_' + TIC.Icon AS ClassIcon
+				FROM 
+					XBOLTADM.TB_ITEM ITM_U, XBOLT_UCTE UCTE,  XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ARC_FILTER ARCF , XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ITEM_CLASS TIC
+				WHERE
+					ARCF.ArcCode = #{SelectMenuId} 
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ITM_U.ItemTypeCode  in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+					AND ITM_U.Deleted != '1'
+					AND ITM_U.ToItemID = UCTE.ParentID
+					AND ITM_U.ToItemID = Obj.ItemID
+					AND Obj.ItemID Not In (Select RootItemID FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}) 
+					AND ITM_U.FromItemID != 0
+					AND Obj.ClassCode not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y'  )
+					AND ITM_U.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+					AND Obj.ClassCode = TIC.ItemClassCode
+			 ),
+			 XBOLT_LCTE(ParentID, MyItemID, TREE_NM, SortNum, ClassCode, ClassIcon)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_L.FromItemID AS ParentID, ITM_L.ToItemID AS MyItemID
+					, CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+					, ISNULL(ITM_L.SortNum,'') AS SortNum, Obj.ClassCode, 'tree_' + TIC.Icon AS ClassIcon
+				FROM 
+					XBOLTADM.TB_ITEM ITM_L, XBOLT_LCTE LCTE, XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ITEM_CLASS TIC
+				WHERE
+					ARCF.ArcCode = #{SelectMenuId} 
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ITM_L.ItemTypeCode in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+					AND ITM_L.Deleted != '1'					
+					AND ITM_L.FromItemID = LCTE.MyItemID
+					AND ITM_L.ToItemID = Obj.ItemID
+					AND Obj.ClassCode in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included = 'Y'  )
+					AND ITM_L.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+					AND Obj.ClassCode = TIC.ItemClassCode
+			 )
+			 
+			 SELECT	0 AS PRE_TREE_ID , C.ItemID AS TREE_ID , C.Level
+			 	, CASE ARC.WID WHEN '0' THEN ISNULL(ATR.PlainText, 'Untitled') + '(' + ISNULL(DIMTXT.Name,'N/A') + ')' ELSE C.Identifier + ' ' + ISNULL(ATR.PlainText, 'Untitled') + '(' + ISNULL(DIMTXT.Name,'N/A') + ')' END AS TREE_NM 
+			 	, 0 AS SortNum, C.ClassCode, 'tree_' + TIC.Icon AS ClassIcon
+				FROM XBOLTADM.TB_ARC ARC , XBOLTADM.TB_ARC_FILTER_DIM ARCFDIM ,	XBOLTADM.TB_DIM_VALUE_TXT DIMTXT ,
+					 XBOLTADM.TB_ITEM C  Left Outer Join XBOLTADM.TB_ITEM_ATTR ATR on C.ItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001'
+					 , XBOLTADM.TB_ITEM_CLASS TIC									
+				WHERE 
+					C.ItemID in (Select RootItemID FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+					AND C.Deleted != '1'
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ARCFDIM.ArcCode = #{SelectMenuId}
+				    AND ARCFDIM.DimTypeID = DIMTXT.DimTypeID 
+				    AND ARCFDIM.DefDimValueID = DIMTXT.DimValueID
+				    AND DIMTXT.LanguageID = #{sessionCurrLangType}
+				    AND ATR.LanguageID = #{sessionCurrLangType}
+				    AND C.ClassCode = TIC.ItemClassCode
+				 			
+			UNION
+			 
+			SELECT 
+				Distinct UCTE.ParentID AS PRE_TREE_ID, UCTE.MyItemID AS TREE_ID, 0 AS Level, UCTE.TREE_NM AS TREE_NM  , UCTE.SortNum AS SortNum, UCTE.ClassCode, UCTE.ClassIcon
+			FROM XBOLT_UCTE UCTE 
+				
+			UNION
+
+			SELECT 
+				Distinct LCTE.ParentID AS PRE_TREE_ID, LCTE.MyItemID AS TREE_ID, 0 AS Level, LCTE.TREE_NM AS TREE_NM  , LCTE.SortNum AS SortNum, LCTE.ClassCode, LCTE.ClassIcon
+			FROM XBOLT_LCTE LCTE
+				
+		    <choose>
+					<when test="sortOption eq 1">
+						ORDER BY SortNum, TREE_NM ASC
+					</when>
+					<otherwise>
+						ORDER BY TREE_NM ASC		 	
+					</otherwise>
+			</choose>						
+		
+						
+	</select>  
+
+<select id="menuTreeListByALLDIM_treeList" resultType="java.util.HashMap">
+		
+select Distinct A.PRE_TREE_ID, A.TREE_ID, A.TREE_NM , A.Level , A.SortNum, A.ClassCode, A.ClassIcon
+	From (
+			SELECT
+					Distinct 0 AS PRE_TREE_ID , C.ItemID AS TREE_ID ,  C.ClassCode as Level
+					, CASE ARC.WID WHEN '0' THEN ISNULL(ATR.PlainText, 'Untitled') + '(' + ISNULL(DIMTXT.Name,'N/A') + ')' ELSE C.Identifier + ' ' + ISNULL(ATR.PlainText, 'Untitled') + '(' + ISNULL(DIMTXT.Name,'N/A') + ')' END AS TREE_NM , 0 AS SortNum
+					, C.ClassCode as ClassCode, 'tree_' +  TIC.Icon AS ClassIcon
+					FROM 
+						XBOLTADM.TB_ITEM C Left Outer Join  XBOLTADM.TB_ITEM_ATTR ATR on C.ItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001'
+						AND ATR.LanguageID =  #{sessionCurrLangType}, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ARC ARC , XBOLTADM.TB_ARC_FILTER_DIM ARCFDIM
+						,XBOLTADM.TB_DIM_VALUE_TXT DIMTXT, XBOLTADM.TB_ITEM_CLASS TIC 
+					WHERE 
+						C.ItemID in (Select RootItemID FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+						AND C.Deleted != '1'
+						AND ARC.ArcCode = #{SelectMenuId} 
+						AND ARCFDIM.ArcCode = #{SelectMenuId} 
+						AND ARCFDIM.DimTypeID = DIMTXT.DimTypeID 
+						AND ARCFDIM.DefDimValueID = DIMTXT.DimValueID
+						AND DIMTXT.LanguageID = #{sessionCurrLangType}
+						AND C.ClassCode = TIC.ItemClassCode
+						
+			 UNION
+			 SELECT
+					Distinct C.FromItemID AS PRE_TREE_ID , C.ToItemID AS TREE_ID , PL.ClassCode as Level 
+					,CASE WHEN ARC.WID = '1' THEN ISNULL(Obj.Identifier,'') + ' ' + ISNULL(ATR.PlainText, 'Untitled')				  			 
+				  		  WHEN ARC.WID = '2' AND ISNULL(Obj.Identifier,'') != '' THEN ISNULL(ATR.PlainText, 'Untitled') + ' (' + ISNULL(Obj.Identifier,'') + ')' 
+				  		  WHEN ARC.WID = '3' THEN  ISNULL(C.Identifier,Obj.Identifier) + ' ' + ISNULL(ATR.PlainText, 'Untitled')
+						  ELSE ISNULL(ATR.PlainText, 'Untitled')  END AS TREE_NM 	, ISNULL(C.SortNum, 0)
+					, Obj.ClassCode, 'tree_' + TIC.Icon AS ClassIcon					
+					FROM 
+					XBOLTADM.TB_ITEM C Left Outer Join  XBOLTADM.TB_ITEM_ATTR ATR on C.ToItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001'
+								AND ATR.LanguageID =  #{sessionCurrLangType}
+							, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ARC ARC , XBOLTADM.TB_ITEM PL, XBOLTADM.TB_ITEM_CLASS TIC 
+						WHERE
+							C.FromItemID != 0 
+							AND ARCF.ArcCode = #{SelectMenuId} 
+							AND C.ItemTypeCode in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+							AND C.ToItemID = Obj.ItemID
+							AND Obj.ClassCode Not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y')
+							AND C.FromItemID = PL.ItemID
+							AND C.ToItemID  Not in (Select RootItemID FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId} )
+							AND C.Deleted != '1'						
+							AND ARC.ArcCode = #{SelectMenuId}							
+					  		AND (ARC.UntitledOption = 'Y' OR ((ARC.UntitledOption IS NULL OR ARC.UntitledOption = 'N') AND ATR.PlainText IS NOT NULL))	
+					  		AND Obj.ClassCode = TIC.ItemClassCode				  	
+				) A	
+	
+		Where A.PRE_TREE_ID in 
+			    (Select ItemID from  XBOLTADM.TB_ARC_FILTER_DIM ARCFDIM  
+					 Inner Join XBOLTADM.TB_ITEM_DIM DITM on DITM.ItemTypeCode = ARCFDIM.ObjTypeCode and ARCFDIM.DefDimValueID = DITM.DimValueID and ARCFDIM.DimTypeID = DITM.DimTypeID
+					 Inner Join XBOLTADM.TB_ARC_FILTER_CLS FCL on FCL.ArcCode = #{SelectMenuId} and A.Level = FCL.ItemClassCode and  FCL.Included != 'N'
+				 where ARCFDIM.ArcCode = #{SelectMenuId} 
+				 )
+			or A.TREE_ID in
+				 (Select ItemID from  XBOLTADM.TB_ARC_FILTER_DIM ARCFDIM  
+						 Left Outer Join XBOLTADM.TB_ITEM_DIM DITM on DITM.ItemTypeCode = ARCFDIM.ObjTypeCode and ARCFDIM.DefDimValueID = DITM.DimValueID and ARCFDIM.DimTypeID = DITM.DimTypeID
+						 where ARCFDIM.ArcCode = #{SelectMenuId})		    
+			or A.PRE_TREE_ID = 0
+
+		 <choose>
+				<when test="sortOption eq 1">
+					ORDER BY SortNum, TREE_NM ASC
+				</when>
+				<otherwise>
+					ORDER BY TREE_NM ASC		 	
+				</otherwise>
+			</choose>	
+	</select>  
+
+ <select id="menuTreeListByDMG_treeList" resultType="java.util.HashMap">
+	
+	WITH XBOLT_FILTER(ParentID, MyItemID, TREE_NM)
+			AS 
+			(
+				SELECT 
+					DISTINCT ICN.FromItemID AS ParentID, ICN.ToItemID AS MyItemID,  
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM XBOLTADM.TB_ITEM ICN,  XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ITEM_ATTR ATR,
+					(
+						SELECT Distinct	DIM.ItemID 
+						FROM 
+								XBOLTADM.TB_ITEM_DIM DIM, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ARC_FILTER_DIM ARCFDIM
+						WHERE 
+								ARCF.ArcCode =  #{SelectMenuId}
+								AND ARCF.ArcCode = ARCFDIM.ArcCode  
+				) DIM
+				WHERE 
+					ICN.ToItemID = DIM.ItemID
+					AND ICN.ItemTypeCode in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ICN.ToItemID = Obj.ItemID
+					AND ICN.Deleted != '1'
+					AND ICN.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+
+			),
+			XBOLT_UCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_U.FromItemID AS ParentID, ITM_U.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_U, XBOLT_UCTE UCTE,  XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ARC_FILTER ARCF , XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+					ARCF.ArcCode = #{SelectMenuId} 
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ITM_U.ItemTypeCode  in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+					AND ITM_U.Deleted != '1'
+					AND ITM_U.ToItemID = UCTE.ParentID
+					AND ITM_U.ToItemID = Obj.ItemID
+					AND Obj.ClassCode not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y'  )
+					AND ITM_U.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+
+			 ),
+			 XBOLT_LCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_L.FromItemID AS ParentID, ITM_L.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_L, XBOLT_LCTE LCTE, XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+					ARCF.ArcCode = #{SelectMenuId} 
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ITM_L.ItemTypeCode in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+					AND ITM_L.Deleted != '1'					
+					AND ITM_L.FromItemID = LCTE.MyItemID
+					AND ITM_L.ToItemID = Obj.ItemID
+					AND Obj.ClassCode not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y'  )
+					AND ITM_L.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+			 )
+			 
+			SELECT 
+				Distinct UCTE.ParentID AS PRE_TREE_ID, UCTE.MyItemID AS TREE_ID, 0 AS Level, UCTE.TREE_NM AS TREE_NM 
+			FROM XBOLT_UCTE UCTE
+
+			UNION
+
+			SELECT 
+				Distinct LCTE.ParentID AS PRE_TREE_ID, LCTE.MyItemID AS TREE_ID, 0 AS Level, LCTE.TREE_NM AS TREE_NM 
+			FROM XBOLT_LCTE LCTE
+		
+							
+			ORDER BY TREE_NM ASC
+					
+	</select> 
+ 
+
+	<select id="menuTreeListByFavorite_treeList" resultType="java.util.HashMap">
+	
+	WITH XBOLT_FILTER(ParentID, MyItemID, TREE_NM)
+			AS 
+			(
+				SELECT 
+					DISTINCT ICN.FromItemID AS ParentID, ICN.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM
+				FROM XBOLTADM.TB_ITEM ICN, XBOLTADM.TB_ARC_FILTER ARCF,  XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ARC ARC ,					
+					(
+						SELECT 
+								Distinct MYITM.ItemID 
+						FROM 
+								XBOLTADM.TB_MY_ITEM MYITM , XBOLTADM.TB_ITEM ITM
+						WHERE 								
+								MYITM.MemberID = #{sessionUserId} 
+								AND MYITM.AssignmentType = 'SUBSCR'
+								AND MYITM.ItemID = ITM.ItemID							
+					) MYITM
+				WHERE 
+					ICN.ToItemID = MYITM.ItemID
+					AND ICN.ItemTypeCode in (select ConTypeCode from XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId} )
+					AND ICN.ToItemID = ATR.ItemID
+					AND ICN.ToItemID = Obj.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}					
+					AND ICN.Deleted != '1'
+					AND ARC.ArcCode = #{SelectMenuId}
+			),
+			XBOLT_UCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_U.FromItemID AS ParentID, ITM_U.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM
+				FROM 
+					XBOLTADM.TB_ITEM ITM_U, XBOLT_UCTE UCTE, XBOLTADM.TB_ARC_FILTER ARCF , XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR , XBOLTADM.TB_ARC ARC
+				WHERE
+					ARCF.ArcCode = #{SelectMenuId}
+					AND ITM_U.CategoryCode = 'ST1'
+					AND ITM_U.Deleted != '1'
+					AND ITM_U.ToItemID = UCTE.ParentID
+					AND ITM_U.ToItemID = Obj.ItemID
+					AND Obj.ClassCode not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y'  )
+					AND ITM_U.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+					AND ARC.ArcCode = #{SelectMenuId}
+
+			 )			 
+			SELECT Distinct UCTE.ParentID AS PRE_TREE_ID, UCTE.MyItemID AS TREE_ID, 0 AS Level, UCTE.TREE_NM AS TREE_NM 
+			FROM XBOLT_UCTE UCTE
+
+			UNION
+
+			SELECT 
+				DISTINCT ICN.FromItemID AS PRE_TREE_ID, ICN.ToItemID AS TREE_ID, 0 AS Level, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM
+				FROM XBOLTADM.TB_ITEM ICN, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ITEM Obj , XBOLTADM.TB_ARC ARC,
+					(
+						SELECT 
+								Distinct MYITM.ItemID 
+						FROM 
+								XBOLTADM.TB_MY_ITEM MYITM , XBOLTADM.TB_ITEM ITM
+						WHERE 								
+								MYITM.MemberID = #{sessionUserId} 
+								AND MYITM.AssignmentType = 'SUBSCR'
+			
+						
+					) MYITM
+				WHERE 
+					ICN.FromItemID = MYITM.ItemID
+					AND ICN.ItemTypeCode in (select ConTypeCode from XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId} )
+					AND ICN.ToItemID = ATR.ItemID
+					AND ICN.ToItemID = Obj.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}					
+					AND ICN.Deleted != '1'   
+					AND ARC.ArcCode = #{SelectMenuId}      		 					
+					
+			ORDER BY TREE_NM ASC	
+	</select>  
+
+
+<select id="menuTreeListByJob_treeList" resultType="java.util.HashMap"> 
+
+SELECT 
+   Distinct 0 AS PRE_TREE_ID, ICNU.ToItemID AS TREE_ID, OBJ.Level,
+   CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE OBJ.Identifier + ' ' + ATR.PlainText END AS TREE_NM
+    FROM XBOLTADM.TB_ITEM ICNU,  XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ITEM OBJ, XBOLTADM.TB_ARC ARC,XBOLTADM.TB_ARC_FILTER ARCF,
+     ( 
+		 SELECT 
+			DISTINCT ICN.FromItemID AS ParentID
+			FROM XBOLTADM.TB_ITEM ICN,  XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ITEM OBJ, XBOLTADM.TB_ARC ARC,
+			 (
+			  SELECT 
+				Distinct ITM.ItemID 
+			  FROM 
+				XBOLTADM.TB_ITEM ITM , XBOLTADM.TB_TEAM TM 
+			  WHERE 
+				ITM.ItemTypeCode in (Select ObjTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId} )
+				AND ITM.AuthorID = #{sessionUserId}
+				AND ITM.ClassCode in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS where ArcCode = #{SelectMenuId} )
+		         
+			 ) MYITM
+			WHERE 
+			 ICN.ToItemID = MYITM.ItemID
+			 AND ARC.ArcCode = #{SelectMenuId}
+			 AND OBJ.ItemID = MYITM.ItemID
+			 AND ICN.ItemTypeCode in (select ConTypeCode from XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId} )
+			 AND ICN.Deleted != '1'
+	 )MYITMU
+	 
+	 WHERE 
+     ICNU.ToItemID = MYITMU.ParentID
+     AND ARC.ArcCode = #{SelectMenuId}
+     AND OBJ.ItemID = MYITMU.ParentID
+     AND ARCF.ArcCode = #{SelectMenuId} 
+     AND ICNU.ToItemID = ATR.ItemID
+     AND ATR.AttrTypeCode = 'AT00001'
+     AND ATR.LanguageID =#{sessionCurrLangType}    
+     AND ICNU.Deleted != '1'
+     
+  UNION
+  
+  SELECT 
+     DISTINCT ICN.FromItemID AS PRE_TREE_ID, ICN.ToItemID AS TREE_ID, OBJ.Level,
+   CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE OBJ.Identifier + ' ' + ATR.PlainText END AS TREE_NM
+    FROM XBOLTADM.TB_ITEM ICN,  XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ITEM OBJ, XBOLTADM.TB_ARC ARC,
+     (
+      SELECT 
+        Distinct ITM.ItemID 
+      FROM 
+        XBOLTADM.TB_ITEM ITM , XBOLTADM.TB_TEAM TM 
+      WHERE 
+        ITM.ItemTypeCode in (Select ObjTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId} )
+        AND ITM.AuthorID = #{sessionUserId}
+		AND ITM.ClassCode in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS where ArcCode = #{SelectMenuId} )
+         
+     ) MYITM
+    WHERE 
+     ICN.ToItemID = MYITM.ItemID
+     AND ARC.ArcCode = #{SelectMenuId}
+     AND OBJ.ItemID = MYITM.ItemID
+     AND ICN.ItemTypeCode in (select ConTypeCode from XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId} )
+     AND ICN.ToItemID = ATR.ItemID
+     AND ATR.AttrTypeCode = 'AT00001'
+     AND ATR.LanguageID =#{sessionCurrLangType}    
+     AND ICN.Deleted != '1'
+     
+ UNION
+ 
+ SELECT 
+	DISTINCT ICN.FromItemID AS PRE_TREE_ID, ICN.ToItemID AS TREE_ID, OBJ.Level,
+      CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE OBJ.Identifier + ' ' + ATR.PlainText END AS TREE_NM
+			FROM XBOLTADM.TB_ITEM ICN,  XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ITEM OBJ, XBOLTADM.TB_ARC ARC,
+			 (
+			  SELECT 
+				Distinct ITM.ItemID 
+			  FROM 
+				XBOLTADM.TB_ITEM ITM , XBOLTADM.TB_TEAM TM 
+			  WHERE 
+				ITM.ItemTypeCode in (Select ObjTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId} )
+				AND ITM.AuthorID = #{sessionUserId}
+				AND ITM.ClassCode in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS where ArcCode = #{SelectMenuId} )
+		         
+			 ) MYITM
+			WHERE 
+			 ICN.FromItemID = MYITM.ItemID
+			 AND ARC.ArcCode = #{SelectMenuId}
+			 AND OBJ.ItemID = ICN.ToItemID
+			 AND OBJ.ClassCode Not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y' )
+			 AND ICN.ItemTypeCode in (select ConTypeCode from XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId} )			 				
+			 AND ICN.ToItemID = ATR.ItemID
+			 AND ATR.AttrTypeCode = 'AT00001'
+			 AND ATR.LanguageID =#{sessionCurrLangType}    
+			 AND ICN.Deleted != '1'
+			 
+  ORDER BY TREE_NM ASC
+
+					
+	</select>  
+
+
+<select id="menuTreeList_MYITM" resultType="java.util.HashMap"> 
+	
+ WITH XBOLT_FILTER(ParentID, MyItemID, TREE_NM)
+			AS 
+			(
+				SELECT 
+					DISTINCT ICN.FromItemID AS ParentID, ICN.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM
+				FROM XBOLTADM.TB_ITEM ICN, XBOLTADM.TB_ARC_FILTER ARCF,  XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ARC ARC ,					
+					(
+						SELECT 
+								Distinct MYITM.ItemID 
+						FROM 
+								XBOLTADM.TB_MY_ITEM MYITM , XBOLTADM.TB_ITEM ITM
+						WHERE 								
+								MYITM.MemberID = #{sessionUserId} 
+								AND MYITM.AssignmentType = #{roleCategory}
+								AND MYITM.ItemID = ITM.ItemID							
+					) MYITM
+				WHERE 
+					ICN.ToItemID = MYITM.ItemID
+					AND ICN.ItemTypeCode in (select ConTypeCode from XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId} )
+					AND ICN.ToItemID = ATR.ItemID
+					AND ICN.ToItemID = Obj.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}					
+					AND ICN.Deleted != '1'
+					AND ARC.ArcCode = #{SelectMenuId}
+			),
+			XBOLT_UCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_U.FromItemID AS ParentID, ITM_U.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM
+				FROM 
+					XBOLTADM.TB_ITEM ITM_U, XBOLT_UCTE UCTE, XBOLTADM.TB_ARC_FILTER ARCF , XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR , XBOLTADM.TB_ARC ARC
+				WHERE
+					ARCF.ArcCode = #{SelectMenuId}
+					AND ITM_U.CategoryCode = 'ST1'
+					AND ITM_U.Deleted != '1'
+					AND ITM_U.ToItemID = UCTE.ParentID
+					AND ITM_U.ToItemID = Obj.ItemID
+					AND Obj.ClassCode not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y'  )
+					AND ITM_U.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+					AND ARC.ArcCode = #{SelectMenuId}
+
+			 )			 
+			SELECT Distinct UCTE.ParentID AS PRE_TREE_ID, UCTE.MyItemID AS TREE_ID, 0 AS Level, UCTE.TREE_NM AS TREE_NM 
+			FROM XBOLT_UCTE UCTE
+
+			UNION
+
+			SELECT 
+				DISTINCT ICN.FromItemID AS PRE_TREE_ID, ICN.ToItemID AS TREE_ID, 0 AS Level, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM
+				FROM XBOLTADM.TB_ITEM ICN, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ITEM Obj , XBOLTADM.TB_ARC ARC,
+					(
+						SELECT 
+								Distinct MYITM.ItemID 
+						FROM 
+								XBOLTADM.TB_MY_ITEM MYITM , XBOLTADM.TB_ITEM ITM
+						WHERE 								
+								MYITM.MemberID = #{sessionUserId} 
+								AND MYITM.AssignmentType = #{roleCategory}
+			
+						
+					) MYITM
+				WHERE 
+					ICN.FromItemID = MYITM.ItemID
+					AND ICN.ItemTypeCode in (select ConTypeCode from XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId} )
+					AND ICN.ToItemID = ATR.ItemID
+					AND ICN.ToItemID = Obj.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}					
+					AND ICN.Deleted != '1'   
+					AND ARC.ArcCode = #{SelectMenuId}      		 					
+					
+			ORDER BY TREE_NM ASC
+			
+	</select>  
+
+
+<select id="menuTreeList_OWNER" resultType="java.util.HashMap"> 
+	
+	WITH XBOLT_FILTER(ParentID, MyItemID, TREE_NM, ClassCode, ClassIcon)
+			AS 
+			(
+				SELECT 
+					DISTINCT ICN.FromItemID AS ParentID, ICN.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM
+					, Obj.ClassCode, 'tree_' + TIC.Icon AS ClassIcon
+				FROM XBOLTADM.TB_ITEM ICN, XBOLTADM.TB_ARC_FILTER ARCF,  XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ARC ARC , XBOLTADM.TB_ITEM_CLASS TIC,				
+					(
+						SELECT 	ITM.ItemID
+						FROM 	XBOLTADM.TB_ITEM ITM , XBOLTADM.TB_ITEM_CLASS CLS
+						WHERE 
+								ITM.AuthorID =  #{sessionUserId}
+								AND ITM.Deleted != '1'	
+								AND CLS.ChangeMgt = 1
+								AND ITM.ClassCode = CLS.ItemClassCode
+								<if test="itemStatus != null and itemStatus != ''">
+									AND ITM.Status = #{itemStatus}
+								</if>		
+								<if test="classCodeList != null and classCodeList != ''">
+									AND ITM.ClassCode IN (${classCodeList})
+								</if>		
+							
+					) MYITM
+				WHERE 
+					ICN.ToItemID = MYITM.ItemID
+					AND ICN.CategoryCode = 'ST1'
+					AND ICN.ToItemID = ATR.ItemID
+					AND ICN.ToItemID = Obj.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}			
+			 		AND ICN.Deleted != '1'		
+					AND ARC.ArcCode = #{SelectMenuId} 
+					<if test="updated != null and updated != ''">
+						AND XBOLTADM.fn_CheckItemUpdated(ICN.ToItemID) = 'Y'
+					</if> 	
+				    AND TIC.ItemClassCode = Obj.ClassCode	
+			),
+			XBOLT_UCTE(ParentID, MyItemID, TREE_NM, ClassCode, ClassIcon)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					CASE ITM_U.FromItemID WHEN '0' THEN '201' ELSE ITM_U.FromItemID END AS ParentID, ITM_U.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM
+					, Obj.ClassCode, 'tree_' + TIC.Icon AS ClassIcon
+				FROM 
+					XBOLTADM.TB_ITEM ITM_U, XBOLT_UCTE UCTE, XBOLTADM.TB_ITEM Obj
+					, XBOLTADM.TB_ITEM_ATTR ATR , XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM_CLASS TIC
+				WHERE
+				
+					 ITM_U.CategoryCode = 'ST1'
+					AND ITM_U.Deleted != '1'
+					AND ITM_U.ToItemID = UCTE.ParentID
+					AND ITM_U.ToItemID = Obj.ItemID
+					AND ITM_U.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+					AND ARC.ArcCode = #{SelectMenuId} 
+					AND TIC.ItemClassCode = Obj.ClassCode
+
+			 )			 
+			SELECT Distinct UCTE.ParentID AS PRE_TREE_ID, UCTE.MyItemID AS TREE_ID, 0 AS Level
+			, UCTE.TREE_NM AS TREE_NM , UCTE.ClassCode, UCTE.ClassIcon
+			FROM XBOLT_UCTE UCTE
+			
+			UNION
+			
+				SELECT '0' AS PRE_TREE_ID, '201' AS TREE_ID, 0 AS Level, 'My Item' AS TREE_NM, 'CLX0001' AS ClassCode, '' AS ClassIcon 
+					
+			UNION
+
+			SELECT 
+					DISTINCT ICN.FromItemID AS ParentID, ICN.ToItemID AS MyItemID, 0 AS Level,
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM,
+					Obj.ClassCode, 'tree_' + TIC.Icon AS ClassIcon
+				FROM XBOLTADM.TB_ITEM ICN,  XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ARC ARC , XBOLTADM.TB_ITEM_CLASS TIC,			
+					(
+						SELECT 	ITM.ItemID
+						FROM 	XBOLTADM.TB_ITEM ITM , XBOLTADM.TB_ITEM_CLASS CLS
+						WHERE 
+								ITM.AuthorID =  #{sessionUserId}
+								AND ITM.Deleted != '1'
+								<if test="itemStatus != null and itemStatus != ''">
+									AND ITM.Status = #{itemStatus}
+								</if>							
+								<if test="classCodeList != null and classCodeList != ''">
+									AND ITM.ClassCode IN (${classCodeList})
+								</if>		
+							
+					) MYITM
+				WHERE 
+					ICN.FromItemID = MYITM.ItemID
+					AND ICN.CategoryCode = 'ST1'
+					AND ICN.ToItemID = ATR.ItemID
+					AND ICN.ToItemID = Obj.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}					
+					AND ICN.Deleted != '1'
+					AND ARC.ArcCode = #{SelectMenuId}
+					<if test="updated != null and updated != ''">
+						AND XBOLTADM.fn_CheckItemUpdated(ICN.ToItemID) = 'Y'		 
+					</if>	
+					AND Obj.ClassCode = TIC.ItemClassCode
+					
+			ORDER BY TREE_NM ASC
+					
+	</select>  
+
+
+<select id="menuTreeList_MY_CHANGE" resultType="java.util.HashMap"> 
+		
+	<![CDATA[	
+	WITH XBOLT_FILTER(ParentID, MyItemID, TREE_NM)
+			AS 
+			(
+				SELECT 
+					DISTINCT ICN.FromItemID AS ParentID, ITM.ItemID AS MyItemID,  
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(ITM.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM XBOLTADM.TB_ITEM ICN,  XBOLTADM.TB_ARC ARC,  XBOLTADM.TB_ITEM_ATTR ATR,
+					(
+					SELECT 
+						Obj.ItemID, Obj.ClassCode , Obj.Identifier
+						FROM  XBOLTADM.TB_CHANGE_SET CNGS, XBOLTADM.TB_ITEM Obj
+					
+						WHERE 
+								CNGS.Status =  'MOD'
+								AND ( CNGS.AuthorID = #{sessionUserId} or 
+								CNGS.ChangeSetID in (Select Distinct ChangeSetID from XBOLTADM.TB_TASK where Actor = #{sessionUserId} ) )
+								AND CNGS.ItemID = Obj.ItemID								 										
+					) ITM
+				WHERE 
+					ICN.ToItemID = ITM.ItemID
+					AND ICN.CategoryCode in ('ST1', 'ST2')
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ICN.Deleted != '1'
+					AND ICN.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+			]]>
+				<if test="ChangeMgt != null and ChangeMgt != ''">
+					AND (SELECT ChangeMgt FROM XBOLTADM.TB_ITEM_CLASS WHERE ItemClassCode = ITM.ClassCode) = 1
+				</if>
+			<![CDATA[
+			),
+		 XBOLT_LCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_L.FromItemID AS ParentID, ITM_L.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_L, XBOLT_LCTE LCTE, XBOLTADM.TB_ARC ARC,  XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+					ARC.ArcCode = #{SelectMenuId}
+					AND ITM_L.CategoryCode in ('ST1', 'ST2')
+					AND ITM_L.Deleted != '1'					
+					AND ITM_L.FromItemID = LCTE.MyItemID
+					AND ITM_L.ToItemID = Obj.ItemID
+					AND Obj.ClassCode not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y'  )
+					AND ITM_L.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+			
+			 )
+			 
+			SELECT 
+				Distinct 0 AS PRE_TREE_ID, ITMTP.RootItemID AS TREE_ID, 0 AS Level, ATR.PlainText  AS TREE_NM 
+			FROM XBOLT_FILTER , XBOLTADM.TB_ITEM_ATTR ATR , XBOLTADM.TB_ARC ARC,  XBOLTADM.TB_ITEM Obj ,  XBOLTADM.TB_ITEM_TYPE ITMTP
+			Where XBOLT_FILTER.MyItemID = Obj .ItemID 
+		         AND obj.ItemTypeCode = ITMTP.ItemTypeCode
+		         AND ITMTP.RootItemID = ATR.ItemID
+			     AND ATR.LanguageID =  #{sessionCurrLangType}
+			     AND ATR.AttrTypeCode = 'AT00001' 
+			     			    
+			UNION   
+						    
+			SELECT 
+				Distinct ITMTP.RootItemID AS PRE_TREE_ID, XBOLT_FILTER.ParentID AS TREE_ID, 0 AS Level, 
+				CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+			FROM XBOLT_FILTER , XBOLTADM.TB_ITEM_ATTR ATR , XBOLTADM.TB_ARC ARC,  XBOLTADM.TB_ITEM Obj , XBOLTADM.TB_ITEM_TYPE ITMTP
+			Where XBOLT_FILTER.ParentID = ATR.ItemID 
+			     AND ATR.AttrTypeCode = 'AT00001' 
+			     AND ATR.LanguageID =  #{sessionCurrLangType}
+			     AND ARC.ArcCode = #{SelectMenuId}
+			     AND XBOLT_FILTER.ParentID = Obj.ItemID 
+			     AND Obj.ItemTypeCode = ITMTP.ItemTypeCode
+			
+			UNION
+
+			SELECT 
+				Distinct LCTE.ParentID AS PRE_TREE_ID, LCTE.MyItemID AS TREE_ID, 0 AS Level, LCTE.TREE_NM AS TREE_NM 
+			FROM XBOLT_LCTE LCTE
+		
+							
+			ORDER BY TREE_NM ASC
+				]]>			
+	</select>  		
+			
+<select id="menuTreeListByTeamJob_treeList" resultType="java.util.HashMap"> 
+		
+ WITH XBOLT_FILTER(ParentID, MyItemID, TREE_NM)
+		AS 
+			(
+			SELECT 
+					DISTINCT ICN.FromItemID AS ParentID, ICN.ToItemID AS MyItemID,  
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM XBOLTADM.TB_ITEM ICN,  XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR,
+					(
+						SELECT 
+								TMR.ItemID 
+						FROM 
+								XBOLTADM.TB_TEAM_ROLE TMR , XBOLTADM.TB_ITEM ITM
+						WHERE 
+						        TMR.TeamID = #{sessionTeamId}
+						        AND TMR.ItemID = ITM.ItemID	
+					) TMR
+				WHERE 
+					ICN.ToItemID = TMR.ItemID
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ICN.CategoryCode = 'ST1'
+					AND ICN.ItemTypeCode in (select ConTypeCode from XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId} )
+					AND ICN.ToItemID = Obj.ItemID
+					AND ICN.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}					
+					AND ICN.Deleted != '1'
+
+			),
+			XBOLT_UCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_U.FromItemID AS ParentID, ITM_U.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_U, XBOLT_UCTE UCTE,  XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+					ARC.ArcCode = #{SelectMenuId}
+					AND ITM_U.CategoryCode = 'ST1'
+					AND ITM_U.Deleted != '1'
+					AND ITM_U.ToItemID = UCTE.ParentID
+					AND ITM_U.ToItemID = Obj.ItemID
+					AND ITM_U.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}	
+
+			 ),
+			 XBOLT_LCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_L.FromItemID AS ParentID, ITM_L.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_L, XBOLT_LCTE LCTE, XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+				   ARC.ArcCode = #{SelectMenuId}
+					AND ITM_L.CategoryCode = 'ST1'
+					AND ITM_L.Deleted != '1'					
+					AND ITM_L.FromItemID = LCTE.MyItemID
+					AND ITM_L.ToItemID = Obj.ItemID
+					AND Obj.ClassCode not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y'  )
+					AND ITM_L.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+			 )
+			 
+			SELECT 
+				Distinct UCTE.ParentID AS PRE_TREE_ID, UCTE.MyItemID AS TREE_ID, 0 AS Level, 
+				CASE UCTE.MyItemID WHEN  ARCF.RootItemID THEN UCTE.TREE_NM + '(' + TEAMT.Name + ')' Else UCTE.TREE_NM END AS TREE_NM 
+				FROM 
+					 XBOLT_UCTE UCTE  ,	XBOLTADM.TB_TEAM_TXT TEAMT , XBOLTADM.TB_ARC_FILTER ARCF
+				where  
+					 TEAMT.TeamID = #{sessionTeamId}
+					 AND TEAMT.LanguageID =  #{sessionCurrLangType}	
+					 AND ARCF.ArcCode = #{SelectMenuId}
+
+			UNION
+
+			SELECT 	Distinct LCTE.ParentID AS PRE_TREE_ID, LCTE.MyItemID AS TREE_ID, 0 AS Level, LCTE.TREE_NM AS TREE_NM 
+				FROM XBOLT_LCTE LCTE
+		
+							
+			ORDER BY TREE_NM ASC
+			
+						
+	</select>  
+
+<select id="menuTreeListByTeamJob_Cxn_treeList" resultType="java.util.HashMap"> 
+		
+ WITH XBOLT_FILTER(ParentID, MyItemID, TREE_NM)
+		AS 
+			(
+			SELECT 
+					DISTINCT ICN.FromItemID AS ParentID, ICN.ToItemID AS MyItemID,  
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM XBOLTADM.TB_ITEM ICN,  XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR,
+					(
+						SELECT 
+								TCN.ToItemID 
+						FROM 
+								XBOLTADM.TB_TEAM_ROLE TMR , XBOLTADM.TB_ITEM ITM , XBOLTADM.TB_ITEM TCN
+						WHERE 
+						        TMR.TeamID = #{sessionTeamId}
+						        AND TMR.ItemID = ITM.ItemID	AND ITM.Deleted != '1' AND TCN.Deleted != '1'
+						        AND ITM.ItemTypeCode = 'OJ00002'
+						        AND ITM.ItemID = TCN.FromItemID
+								AND TCN.ItemTypeCode in (select ConTypeCode from XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId} )
+					) TMC
+				WHERE 
+					ICN.ToItemID = TMC.ToItemID
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ICN.CategoryCode = 'ST1'
+					AND ICN.ToItemID = Obj.ItemID
+					AND ICN.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}					
+					AND ICN.Deleted != '1'
+
+			),
+			XBOLT_UCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_U.FromItemID AS ParentID, ITM_U.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_U, XBOLT_UCTE UCTE,  XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+					ARC.ArcCode = #{SelectMenuId}
+					AND ITM_U.CategoryCode = 'ST1'
+					AND ITM_U.Deleted != '1'
+					AND ITM_U.ToItemID = UCTE.ParentID
+					AND ITM_U.ToItemID = Obj.ItemID
+					AND ITM_U.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}	
+
+			 ),
+			 XBOLT_LCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_L.FromItemID AS ParentID, ITM_L.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_L, XBOLT_LCTE LCTE, XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+				   ARC.ArcCode = #{SelectMenuId}
+					AND ITM_L.CategoryCode = 'ST1'
+					AND ITM_L.Deleted != '1'					
+					AND ITM_L.FromItemID = LCTE.MyItemID
+					AND ITM_L.ToItemID = Obj.ItemID
+					AND Obj.ClassCode not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y'  )
+					AND ITM_L.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+			 )
+			 
+			SELECT 
+				Distinct UCTE.ParentID AS PRE_TREE_ID, UCTE.MyItemID AS TREE_ID, 0 AS Level, 
+				CASE UCTE.MyItemID WHEN  ARCF.RootItemID THEN UCTE.TREE_NM + '(' + TEAMT.Name + ')' Else UCTE.TREE_NM END AS TREE_NM 
+				FROM 
+					 XBOLT_UCTE UCTE  ,	XBOLTADM.TB_TEAM_TXT TEAMT , XBOLTADM.TB_ARC_FILTER ARCF
+				where  
+					 TEAMT.TeamID = #{sessionTeamId}
+					 AND TEAMT.LanguageID =  #{sessionCurrLangType}	
+					 AND ARCF.ArcCode = #{SelectMenuId}
+
+			UNION
+
+			SELECT 	Distinct LCTE.ParentID AS PRE_TREE_ID, LCTE.MyItemID AS TREE_ID, 0 AS Level, LCTE.TREE_NM AS TREE_NM 
+				FROM XBOLT_LCTE LCTE
+		
+							
+			ORDER BY TREE_NM ASC
+						
+	</select> 
+
+
+	<select id="menuTreeListByMyJob_Cxn_treeList" resultType="java.util.HashMap"> 
+		
+ WITH XBOLT_FILTER(ParentID, MyItemID, TREE_NM)
+		AS 
+			(
+			SELECT 
+					DISTINCT ICN.FromItemID AS ParentID, ICN.ToItemID AS MyItemID,  
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM XBOLTADM.TB_ITEM ICN,  XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR,
+					(
+						SELECT 
+								TCN.ToItemID 
+						FROM 
+								XBOLTADM.TB_MY_ITEM MYT , XBOLTADM.TB_ITEM ITM , XBOLTADM.TB_ITEM TCN
+						WHERE 
+						        MYT.MemberID = #{sessionUserId} AND MYT.AssignmentType = 'JOBALLOCTP'
+						        AND MYT.ItemID = ITM.ItemID	 AND ITM.Deleted != '1'
+						        AND ITM.ItemTypeCode = 'OJ00002'
+						        AND ITM.ItemID = TCN.FromItemID
+								AND TCN.ItemTypeCode in (select ConTypeCode from XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId} )
+					) TMC
+				WHERE 
+					ICN.ToItemID = TMC.ToItemID
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ICN.CategoryCode = 'ST1'
+					AND ICN.ToItemID = Obj.ItemID
+					AND ICN.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}					
+					AND ICN.Deleted != '1'
+
+			),
+			XBOLT_UCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_U.FromItemID AS ParentID, ITM_U.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_U, XBOLT_UCTE UCTE,  XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+					ARC.ArcCode = #{SelectMenuId}
+					AND ITM_U.CategoryCode = 'ST1'
+					AND ITM_U.Deleted != '1'
+					AND ITM_U.ToItemID = UCTE.ParentID
+					AND ITM_U.ToItemID = Obj.ItemID
+					AND ITM_U.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}	
+
+			 ),
+			 XBOLT_LCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_L.FromItemID AS ParentID, ITM_L.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_L, XBOLT_LCTE LCTE, XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+				   ARC.ArcCode = #{SelectMenuId}
+					AND ITM_L.CategoryCode = 'ST1'
+					AND ITM_L.Deleted != '1'					
+					AND ITM_L.FromItemID = LCTE.MyItemID
+					AND ITM_L.ToItemID = Obj.ItemID
+					AND Obj.ClassCode not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y'  )
+					AND ITM_L.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+			 )
+			 
+			SELECT 
+				Distinct UCTE.ParentID AS PRE_TREE_ID, UCTE.MyItemID AS TREE_ID, 0 AS Level, 
+				CASE UCTE.MyItemID WHEN  ARCF.RootItemID THEN UCTE.TREE_NM + '(' + TEAMT.Name + ')' Else UCTE.TREE_NM END AS TREE_NM 
+				FROM 
+					 XBOLT_UCTE UCTE  ,	XBOLTADM.TB_TEAM_TXT TEAMT , XBOLTADM.TB_ARC_FILTER ARCF
+				where  
+					 TEAMT.TeamID = #{sessionTeamId}
+					 AND TEAMT.LanguageID =  #{sessionCurrLangType}	
+					 AND ARCF.ArcCode = #{SelectMenuId}
+
+			UNION
+
+			SELECT 	Distinct LCTE.ParentID AS PRE_TREE_ID, LCTE.MyItemID AS TREE_ID, 0 AS Level, LCTE.TREE_NM AS TREE_NM 
+				FROM XBOLT_LCTE LCTE
+		
+							
+			ORDER BY TREE_NM ASC
+						
+	</select> 
+
+<select id="menuTreeListByTeam_treeList" resultType="java.util.HashMap"> 
+<![CDATA[	
+WITH XBOLT_FILTER(ParentID, MyItemID, TREE_NM)
+			AS 
+			(
+				SELECT 
+					DISTINCT ICN.FromItemID AS ParentID, ICN.ToItemID AS MyItemID, ATR.PlainText AS TREE_NM 
+				FROM XBOLTADM.TB_ITEM ICN, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ITEM_ATTR ATR,
+					(
+						SELECT 
+								ITM.ItemID 
+						FROM 
+								XBOLTADM.TB_ITEM ITM , XBOLTADM.TB_ITEM_DIM DIM , XBOLTADM.TB_TEAM TM , XBOLTADM.TB_ITEM ICN
+						WHERE 
+								DIM.DimTypeID in (Select DimTypeID FROM XBOLTADM.TB_ARC_FILTER_DIM where ArcCode = #{SelectMenuId} )
+								AND DIM.ItemTypeCode in (Select ObjTypeCode FROM XBOLTADM.TB_ARC_FILTER_DIM where ArcCode = #{SelectMenuId} )
+								AND TM.TeamID = #{sessionTeamId}
+								AND DIM.DimValueID = TM.RefTeamCode
+								AND DIM.ItemID =  ITM.ItemID
+							    AND ITM.ClassCode in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS where ArcCode = #{SelectMenuId}  )	
+					) ITM
+				WHERE 
+					ICN.ToItemID = ITM.ItemID
+					AND ICN.ItemTypeCode in (select ConTypeCode from XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId} )
+					AND ICN.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}					
+					AND ICN.Deleted != '1'
+			),
+			XBOLT_UCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_U.FromItemID AS ParentID, ITM_U.ToItemID AS MyItemID, ATR.PlainText AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_U, XBOLT_UCTE UCTE, XBOLTADM.TB_ARC_FILTER ARCF , XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+					ARCF.ArcCode = #{SelectMenuId} 
+					AND ITM_U.ItemTypeCode  in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+					AND ITM_U.Deleted != '1'
+					AND ITM_U.ToItemID = UCTE.ParentID
+					AND ITM_U.FromItemID != 0
+					AND ITM_U.ToItemID = Obj.ItemID
+					AND ITM_U.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+
+			 )
+		 	SELECT 
+			     Distinct 0 AS PRE_TREE_ID, ITM.ItemID AS TREE_ID, 0 AS Level,  (ATR.PlainText +' (' + TEAMT.Name + ')') AS TREE_NM
+			FROM XBOLTADM.TB_ITEM ITM , XBOLTADM.TB_ARC_FILTER ARCF , XBOLTADM.TB_ITEM_ATTR ATR,  XBOLTADM.TB_TEAM_TXT TEAMT
+			
+			WHERE 
+					 ITM.ItemID in (Select RootItemID FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )	
+					 AND TEAMT.TeamID = #{sessionTeamId}		
+					 AND TEAMT.LanguageID =  #{sessionCurrLangType}						 
+					 AND ITM.ItemID = ATR.ItemID
+					 AND ATR.AttrTypeCode = 'AT00001'
+					 AND ATR.LanguageID =  #{sessionCurrLangType}
+			
+				
+			UNION
+			 
+			SELECT 
+				Distinct UCTE.ParentID AS PRE_TREE_ID, UCTE.MyItemID AS TREE_ID, 0 AS Level, UCTE.TREE_NM AS TREE_NM 
+			FROM XBOLT_UCTE UCTE
+				
+			ORDER BY TREE_NM ASC
+			]]>			
+</select>  
+
+
+<select id="menuTreeListByCompany_treeList" resultType="java.util.HashMap"> 
+	<![CDATA[	
+	WITH XBOLT_FILTER(ParentID, MyItemID, TREE_NM)
+			AS 
+			(
+				SELECT 
+					DISTINCT ICN.FromItemID AS ParentID, ITM.ItemID AS MyItemID,  
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(ITM.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM XBOLTADM.TB_ITEM ICN,  XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM_ATTR ATR,
+					(
+						SELECT 
+								ITM.ItemID, ITM.ClassCode , ITM.Identifier
+						FROM 
+								XBOLTADM.TB_ITEM ITM, XBOLTADM.TB_ARC ARC
+						WHERE 
+								ARC.ArcCode = #{SelectMenuId}
+								AND ITM.CompanyID = ARC.DimTypeID 
+								AND ITM.Deleted != '1'
+								AND ITM.CategoryCode = 'OJ'
+								
+							 										
+					) ITM
+				WHERE 
+					ICN.ToItemID = ITM.ItemID
+					AND ICN.CategoryCode in ('ST1', 'ST2')
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ICN.Deleted != '1'
+					AND ICN.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+				    AND (SELECT ChangeMgt FROM XBOLTADM.TB_ITEM_CLASS WHERE ItemClassCode = ITM.ClassCode) = 1
+							
+			),
+			XBOLT_UCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_U.FromItemID AS ParentID, ITM_U.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_U, XBOLT_UCTE UCTE,  XBOLTADM.TB_ARC ARC,  XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+					ARC.ArcCode = #{SelectMenuId}
+					AND ITM_U.CategoryCode in ('ST1', 'ST2')
+					AND ITM_U.Deleted != '1'
+					AND ITM_U.ToItemID = UCTE.ParentID
+					AND ITM_U.ToItemID = Obj.ItemID
+					AND Obj.ClassCode not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y'  )
+					AND ITM_U.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+			
+
+			 ),
+			 XBOLT_LCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_L.FromItemID AS ParentID, ITM_L.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_L, XBOLT_LCTE LCTE, XBOLTADM.TB_ARC ARC,  XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+					ARC.ArcCode = #{SelectMenuId}
+					AND ITM_L.CategoryCode in ('ST1', 'ST2')
+					AND ITM_L.Deleted != '1'					
+					AND ITM_L.FromItemID = LCTE.MyItemID
+					AND ITM_L.ToItemID = Obj.ItemID
+					AND Obj.ClassCode not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y'  )
+					AND ITM_L.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+			
+			 )
+			 
+			SELECT 
+				Distinct UCTE.ParentID AS PRE_TREE_ID, UCTE.MyItemID AS TREE_ID, 0 AS Level, UCTE.TREE_NM AS TREE_NM 
+			FROM XBOLT_UCTE UCTE
+
+			UNION
+
+			SELECT 
+				Distinct LCTE.ParentID AS PRE_TREE_ID, LCTE.MyItemID AS TREE_ID, 0 AS Level, LCTE.TREE_NM AS TREE_NM 
+			FROM XBOLT_LCTE LCTE
+								
+			ORDER BY  TREE_NM  ASC
+				]]>				
+	</select>    
+<select id="menuTreeListByCompany_treeList2" resultType="java.util.HashMap"> 
+	<![CDATA[	
+
+				SELECT 
+					DISTINCT ICN.FromItemID AS PRE_TREE_ID, ITM.ItemID AS TREE_ID, 0 AS Level, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(ITM.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM XBOLTADM.TB_ITEM ICN,  XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM_ATTR ATR,
+					(
+						SELECT 
+								ITM.ItemID , ITM.Identifier, ITM.ClassCode
+						FROM 
+								XBOLTADM.TB_ITEM ITM, XBOLTADM.TB_ARC ARC
+						WHERE 
+								ARC.ArcCode = #{SelectMenuId}
+								AND ITM.Version = 'T' 
+								AND ITM.Deleted != '1'
+								AND ITM.CategoryCode = 'OJ'
+								
+							 										
+					) ITM
+				WHERE 
+					ICN.ToItemID = ITM.ItemID
+					AND ICN.CategoryCode  = 'ST1'
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ICN.Deleted != '1'
+					AND ICN.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+									
+	
+			ORDER BY  PRE_TREE_ID, TREE_ID  ASC
+				]]>				
+	</select>    
+<select id="menuTreeListByMyOwnerTeam_treeList" resultType="java.util.HashMap"> 
+	WITH XBOLT_FILTER(ParentID, MyItemID, TREE_NM)
+			AS 
+			(
+				SELECT 
+					DISTINCT ICN.FromItemID AS ParentID, ITM.ItemID AS MyItemID,  
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(ITM.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM XBOLTADM.TB_ITEM ICN,  XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM_ATTR ATR,
+					(
+						SELECT 
+								ITM.ItemID, ITM.ClassCode , ITM.Identifier
+						FROM 
+								XBOLTADM.TB_ITEM ITM
+						WHERE 
+								
+								ITM.OwnerTeamID =  #{sessionTeamId}
+								AND ITM.Deleted != '1'
+								AND (SELECT ChangeMgt FROM XBOLTADM.TB_ITEM_CLASS WHERE ItemClassCode = ITM.ClassCode) = 1
+								
+							 										
+					) ITM
+				WHERE 
+					ICN.ToItemID = ITM.ItemID
+					AND ICN.CategoryCode in ('ST1', 'ST2')
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ICN.ItemTypeCode In (Select ConTypeCode From XBOLTADM.TB_ARC_FILTER Where ArcCode = #{SelectMenuId})
+					AND ICN.Deleted != '1'
+					AND ICN.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+							
+			),
+			XBOLT_UCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_U.FromItemID AS ParentID, ITM_U.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_U, XBOLT_UCTE UCTE,  XBOLTADM.TB_ARC ARC,  XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+					ARC.ArcCode = #{SelectMenuId}
+					AND ITM_U.CategoryCode in ('ST1', 'ST2')
+					AND ITM_U.Deleted != '1'
+					AND ITM_U.ToItemID = UCTE.ParentID
+					AND ITM_U.ToItemID = Obj.ItemID
+					AND Obj.ClassCode not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y'  )
+					AND ITM_U.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+			
+
+			 ),
+			 XBOLT_LCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_L.FromItemID AS ParentID, ITM_L.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_L, XBOLT_LCTE LCTE, XBOLTADM.TB_ARC ARC,  XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+					ARC.ArcCode = #{SelectMenuId}
+					AND ITM_L.CategoryCode in ('ST1', 'ST2')
+					AND ITM_L.Deleted != '1'					
+					AND ITM_L.FromItemID = LCTE.MyItemID
+					AND ITM_L.ToItemID = Obj.ItemID
+					AND Obj.ClassCode not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y'  )
+					AND ITM_L.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+			
+			 )
+			 
+			SELECT 
+				Distinct UCTE.ParentID AS PRE_TREE_ID, UCTE.MyItemID AS TREE_ID, 0 AS Level, UCTE.TREE_NM AS TREE_NM 
+			FROM XBOLT_UCTE UCTE
+
+			UNION
+
+			SELECT 
+				Distinct LCTE.ParentID AS PRE_TREE_ID, LCTE.MyItemID AS TREE_ID, 0 AS Level, LCTE.TREE_NM AS TREE_NM 
+			FROM XBOLT_LCTE LCTE
+								
+			ORDER BY TREE_NM ASC
+					
+	</select>  
+
+<select id="menuTreeListByOwnerTeam_treeList" resultType="java.util.HashMap"> 
+	<![CDATA[	
+	WITH XBOLT_FILTER(ParentID, MyItemID, TREE_NM)
+			AS 
+			(
+				SELECT 
+					DISTINCT ICN.FromItemID AS ParentID, ITM.ItemID AS MyItemID,  
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(ITM.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM XBOLTADM.TB_ITEM ICN,  XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM_ATTR ATR,
+					(
+						SELECT 
+								ITM.ItemID, ITM.ClassCode , ITM.Identifier
+						FROM 
+								XBOLTADM.TB_ITEM ITM, XBOLTADM.TB_ARC ARC
+						WHERE 
+								ARC.ArcCode = #{SelectMenuId}
+								AND ITM.OwnerTeamID = ARC.DimTypeID 
+								AND ITM.Deleted != '1'
+								
+							 										
+					) ITM
+				WHERE 
+					ICN.ToItemID = ITM.ItemID
+					AND ICN.CategoryCode in ('ST1', 'ST2')
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ICN.Deleted != '1'
+					AND ICN.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+				    AND (SELECT ChangeMgt FROM XBOLTADM.TB_ITEM_CLASS WHERE ItemClassCode = ITM.ClassCode) = 1
+							
+			),
+			XBOLT_UCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_U.FromItemID AS ParentID, ITM_U.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_U, XBOLT_UCTE UCTE,  XBOLTADM.TB_ARC ARC,  XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+					ARC.ArcCode = #{SelectMenuId}
+					AND ITM_U.CategoryCode in ('ST1', 'ST2')
+					AND ITM_U.Deleted != '1'
+					AND ITM_U.ToItemID = UCTE.ParentID
+					AND ITM_U.ToItemID = Obj.ItemID
+					AND Obj.ClassCode not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y'  )
+					AND ITM_U.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+			
+
+			 ),
+			 XBOLT_LCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_L.FromItemID AS ParentID, ITM_L.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_L, XBOLT_LCTE LCTE, XBOLTADM.TB_ARC ARC,  XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+					ARC.ArcCode = #{SelectMenuId}
+					AND ITM_L.CategoryCode in ('ST1', 'ST2')
+					AND ITM_L.Deleted != '1'					
+					AND ITM_L.FromItemID = LCTE.MyItemID
+					AND ITM_L.ToItemID = Obj.ItemID
+					AND Obj.ClassCode not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y'  )
+					AND ITM_L.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+			
+			 )
+			 
+			SELECT 
+				Distinct UCTE.ParentID AS PRE_TREE_ID, UCTE.MyItemID AS TREE_ID, 0 AS Level, UCTE.TREE_NM AS TREE_NM 
+			FROM XBOLT_UCTE UCTE
+
+			UNION
+
+			SELECT 
+				Distinct LCTE.ParentID AS PRE_TREE_ID, LCTE.MyItemID AS TREE_ID, 0 AS Level, LCTE.TREE_NM AS TREE_NM 
+			FROM XBOLT_LCTE LCTE
+								
+			ORDER BY TREE_NM ASC
+				]]>				
+	</select>  
+
+	<select id="menuTreeListByModel_treeList" resultType="java.util.HashMap">
+	<![CDATA[	
+			SELECT
+				Distinct 0 AS PRE_TREE_ID , C.ItemID AS TREE_ID , C.Level, ATR.PlainText AS TREE_NM
+				FROM 
+					XBOLTADM.TB_ITEM C, XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ARC_FILTER ARCF
+				WHERE 
+					C.ItemID in (Select RootItemID FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+					AND C.ItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+					AND C.Deleted != '1'
+			
+			UNION				
+			SELECT
+					Distinct C.FromItemID AS PRE_TREE_ID , C.ToItemID AS TREE_ID , Obj.Level, ATR.PlainText AS TREE_NM
+					FROM 
+						XBOLTADM.TB_ITEM C, XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ARC_FILTER ARCF
+					WHERE
+						C.FromItemID != 0 
+						AND ARCF.ArcCode = #{SelectMenuId} 
+						AND C.ItemTypeCode in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+						AND C.ToItemID = Obj.ItemID
+						AND C.ToItemID = ATR.ItemID
+						AND C.Deleted != '1'
+						AND Obj.ClassCode not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included != 'Y'  )
+						AND ATR.AttrTypeCode = 'AT00001'
+						AND ATR.LanguageID =  #{sessionCurrLangType}
+			
+			UNION			
+			SELECT 
+				DISTINCT Model.ItemID AS PRE_TREE_ID, Model.ModelID AS TREE_ID, 1 AS Level, (MDTXT.Name+'(' + DIC.Name + ')') AS TREE_NM
+				FROM XBOLTADM.TB_ITEM ICN, XBOLTADM.TB_MODEL Model, XBOLTADM.TB_MODEL_TXT MDTXT , XBOLTADM.TB_DICTIONARY DIC
+						
+				WHERE 
+					Model.ItemID = ICN.ItemID
+					AND ICN.Deleted != '1' AND Model.Deleted != '1'
+					AND Model.ModelID = MDTXT.ModelID
+					AND DIC.TypeCode = Model.ModelTypeCode
+					AND DIC.LanguageID =  #{sessionCurrLangType}
+					AND MDTXT.LanguageID =  #{sessionCurrLangType}	
+				
+			ORDER BY TREE_NM ASC
+				]]>			
+	</select> 
+	
+	<select id="menuTreeListByPJT_ITEM" resultType="java.util.HashMap">
+	
+	WITH XBOLT_FILTER(ParentID, MyItemID, TREE_NM)
+			AS 
+			(
+				SELECT 
+					DISTINCT ICN.FromItemID AS ParentID, ICN.ToItemID AS MyItemID,  
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM XBOLTADM.TB_ITEM ICN,  XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ITEM_ATTR ATR,
+					(
+						SELECT 
+								CNGS.ItemID 
+						FROM 
+								XBOLTADM.TB_CHANGE_SET CNGS, XBOLTADM.TB_PROJECT PJT
+						WHERE 
+								PJT.RefPjtID =  #{projectId}
+								AND CNGS.ProjectID = PJT.ProjectID  
+				   	) CNGS
+				WHERE 
+					ICN.ToItemID = CNGS.ItemID
+					AND ICN.CategoryCode  in ('ST1', 'ST2')
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ICN.ToItemID = Obj.ItemID
+					AND ICN.Deleted != '1'
+					AND ICN.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+
+			),
+			XBOLT_UCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_U.FromItemID AS ParentID, ITM_U.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_U, XBOLT_UCTE UCTE,  XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ARC_FILTER ARCF , XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+					ARCF.ArcCode = #{SelectMenuId} 
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ITM_U.CategoryCode  in ('ST1', 'ST2')
+					AND ITM_U.Deleted != '1'
+					AND ITM_U.ToItemID = UCTE.ParentID
+					AND ITM_U.ToItemID = Obj.ItemID
+					AND ITM_U.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+
+			 ),
+			 XBOLT_LCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_L.FromItemID AS ParentID, ITM_L.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_L, XBOLT_LCTE LCTE, XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+					ARCF.ArcCode = #{SelectMenuId} 
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ITM_L.CategoryCode  in ('ST1', 'ST2')
+					AND ITM_L.Deleted != '1'					
+					AND ITM_L.FromItemID = LCTE.MyItemID
+					AND ITM_L.ToItemID = Obj.ItemID
+					AND ITM_L.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}
+			 )
+			 
+			SELECT 
+				Distinct UCTE.ParentID AS PRE_TREE_ID, UCTE.MyItemID AS TREE_ID, 0 AS Level, UCTE.TREE_NM AS TREE_NM 
+			FROM XBOLT_UCTE UCTE
+
+			UNION
+
+			SELECT 
+				Distinct LCTE.ParentID AS PRE_TREE_ID, LCTE.MyItemID AS TREE_ID, 0 AS Level, LCTE.TREE_NM AS TREE_NM 
+			FROM XBOLT_LCTE LCTE
+									
+			ORDER BY TREE_NM ASC
+					
+	</select>   
+
+	
+
+	<select id="menuTreeListByOrg_treeList" resultType="java.util.HashMap"> 
+	
+			SELECT
+				C.ParentID AS PRE_TREE_ID , C.TeamID AS TREE_ID , D.Name AS TREE_NM , SortNum, C.TeamType
+			FROM 
+				XBOLTADM.TB_TEAM C, XBOLTADM.TB_TEAM_TXT D
+			WHERE 
+				C.TeamID = D.TeamID
+				AND C.Deleted != '1'
+				AND D.LanguageID = #{sessionCurrLangType}
+			ORDER BY SortNum,	TREE_NM ASC
+		
+	</select>
+	
+	
+	<select id="orgTreeByItemClass_treeList" resultType="java.util.HashMap"> 
+		
+		WITH StaffTree AS
+		(
+				SELECT 
+					'0' AS PRE_TREE_ID,	'15' AS TREE_ID,
+					(SELECT NAME FROM XBOLTADM.TB_DICTIONARY WHERE TypeCode = 'LN00018' AND LanguageID = #{sessionCurrLangType}) AS TREE_NM,
+					0 AS SortNum
+			UNION ALL
+				
+				SELECT
+					C.ParentID AS PRE_TREE_ID , C.TeamID AS TREE_ID , Convert(nvarchar(1000),D.Name) AS TREE_NM , c.SortNum
+				FROM 
+					XBOLTADM.TB_TEAM C, XBOLTADM.TB_TEAM_TXT D
+				WHERE 
+					C.TeamID = D.TeamID
+					AND C.Deleted != '1'
+					AND D.LanguageID = #{sessionCurrLangType}
+					AND C.TeamID in (
+						SELECT DISTINCT OwnerTeamID FROM XBOLTADM.TB_ITEM 
+						WHERE Deleted != 1 AND CategoryCode = 'OJ'
+						<choose>
+							<when test="defItemTypeCode != null and defItemTypeCode != ''">	
+								AND ItemTypeCode = #{defItemTypeCode}
+							</when>
+							<otherwise>
+								AND ClassCode in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included = 'Y'  )
+							</otherwise>
+						</choose>
+						) 
+					AND TeamType Not In ( '1', '2') 			
+		    UNION ALL
+		        
+				SELECT
+					CASE ss.ParentID When 1 Then '-1' Else ss.ParentID END AS PRE_TREE_ID, ss.TeamID AS TREE_ID, Convert(nvarchar(1000),DD.Name) AS TREE_NM , ss.SortNum
+				FROM 
+					XBOLTADM.TB_TEAM ss INNER JOIN StaffTree t ON t.PRE_TREE_ID = ss.TeamID, XBOLTADM.TB_TEAM_TXT DD			
+				WHERE 
+					ss.TeamID = DD.TeamID
+					AND ss.Deleted != '1'
+					AND DD.LanguageID = #{sessionCurrLangType}
+					AND ss.ParentID != 0
+		)
+		SELECT DISTINCT PRE_TREE_ID, TREE_ID, TREE_NM, SortNum FROM StaffTree
+		ORDER BY SortNum , TREE_NM
+	</select>
+	
+	<select id="menuTreeListByCust_treeList" resultType="java.util.HashMap"> 
+		SELECT Distinct T.TREE_ID, T.PRE_TREE_ID, T.TREE_NM 
+		FROM (
+			Select TM.ParentID AS PRE_TREE_ID , TM.TeamID AS TREE_ID, TMT.Name AS TREE_NM
+			From XBOLTAPP.CRM_CUST_MST TCM
+			Left Outer Join XBOLTADM.TB_TEAM TM ON TM.TeamID = TCM.TeamID 
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TMT.TeamID = TCM.TeamID And TMT.LanguageID = #{languageID}
+			Where TCM.CustLvl != 'G'
+			      AND (TCM.CustGRNo = #{custGRNo} OR TCM.CustomerNo = #{custGRNo})
+			
+			UNION ALL
+
+			SELECT
+				0 AS PRE_TREE_ID , C.TeamID AS TREE_ID , D.Name AS TREE_NM
+			FROM 
+				XBOLTADM.TB_TEAM C, XBOLTADM.TB_TEAM_TXT D , XBOLTAPP.CRM_CUST_MST TCM
+			WHERE C.TeamID = D.TeamID
+				AND C.Deleted != '1'
+				AND D.LanguageID = #{languageID}
+				AND TCM.CustomerNo =  #{custGRNo}
+				AND C.TeamID = 	TCM.TeamID
+		) T
+	</select>
+
+	<select id="menuTreeListByPrj_treeList" resultType="java.util.HashMap"> 
+		SELECT 
+			C.RefPjtID AS PRE_TREE_ID , C.ProjectID AS TREE_ID , D.Name AS TREE_NM
+		FROM
+			XBOLTADM.TB_PROJECT C
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT D on C.ProjectID = D.ProjectID
+		WHERE
+			C.PJCategory = 'PC1'	
+	</select>
+
+	<select id="menuTreeListByCfg_treeList" resultType="java.util.HashMap"> 
+			SELECT 
+				ISNULL(TC.ConfigurationCode, '0') AS TREE_ID
+				, ISNULL(TC.ParentID, '0') AS PRE_TREE_ID
+				, TD.Name AS TREE_NM
+			FROM 
+				XBOLTADM.TB_CONFIGURATION TC
+				Left Outer Join XBOLTADM.TB_DICTIONARY TD 
+					ON TC.ConfigurationCode  = TD.TypeCode
+					AND TD.LanguageID = #{sessionCurrLangType}
+	</select>
+
+	<select id="menuTreeListByImp_treeList" resultType="java.util.HashMap"> 
+		SELECT 
+			C.RefPjtID AS PRE_TREE_ID , C.ProjectID AS TREE_ID , D.Name AS TREE_NM
+		FROM
+			XBOLTADM.TB_PROJECT C
+			Left Outer Join XBOLTADM.TB_PROJECT_TXT D on C.ProjectID = D.ProjectID
+		WHERE
+			C.PJCategory = 'PC2'
+	</select>
+
+	<select id="projectPopTreeList_treeList" resultType="java.util.HashMap">
+			SELECT
+				Distinct
+			       	TPB.RefPjtID AS PRE_TREE_ID
+			       	, TPB.ProjectID AS TREE_ID 
+			      	, ProjectType AS Level
+			        , TPBT.Name AS TREE_NM 
+			FROM
+				XBOLTADM.TB_PROJECT TPB
+				Left Outer Join XBOLTADM.TB_PROJECT_TXT TPBT
+					on TPB.ProjectID = TPBT.ProjectID 
+					AND TPBT.LanguageID = #{sessionCurrLangType}
+ 	</select> 
+
+	<select id="menuTreeListALL_treeList" resultType="java.util.HashMap">
+	
+	SELECT
+		Distinct C.FromItemID AS PRE_TREE_ID , C.ToItemID AS TREE_ID , Obj.Level		
+		, CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ISNULL(ATR.PlainText, 'Untitled') END AS TREE_NM 
+	FROM 
+		XBOLTADM.TB_ITEM C Left Outer Join  XBOLTADM.TB_ITEM_ATTR ATR on C.ToItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001'
+		AND ATR.LanguageID =  #{sessionCurrLangType} , XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ARC ARC
+	WHERE
+		C.CategoryCode = 'ST1' 
+		AND C.ToItemID = Obj.ItemID	
+		AND C.Deleted != '1'
+		AND ARC.ArcCode = #{SelectMenuId} 
+	
+		<if test="ItemTypeCode != null and ItemTypeCode != ''">
+			 AND Obj.ItemTypeCode = #{ItemTypeCode}
+		</if>
+		<if test="fromItemTypeCode != null and fromItemTypeCode != ''">
+			 AND Obj.ItemTypeCode In (#{fromItemTypeCode}, #{toItemTypeCode}) 
+		</if>	
+		<if test="hiddenClassList != null and hiddenClassList != ''">
+			 AND Obj.ClassCode Not in (${hiddenClassList}) 
+		</if>			
+		<if test='!"Y".equals(showTOJ)'>
+			 AND Obj.CategoryCode != 'TOJ'
+		</if>		
+		
+		AND (ARC.UntitledOption = 'Y' OR ((ARC.UntitledOption IS NULL OR ARC.UntitledOption = 'N') AND ATR.PlainText IS NOT NULL))
+	
+	ORDER BY TREE_NM ASC
+	   
+	</select>  
+
+	<select id="menuURL" resultType="String">
+		/*menu_SQL.menuURL*/	
+		SELECT DISTINCT TOP 1 ISNULL(TMU.URL,'') AS URL
+		FROM XBOLTADM.TB_ITEM TI			
+			INNER JOIN XBOLTADM.TB_MENU_ALLOC TM ON TI.ClassCode = TM.ClassCode
+			<if test="ARCHITECTURE_CODE != null and ARCHITECTURE_CODE != ''">
+				 AND TM.ArcCode = #{ARCHITECTURE_CODE}
+			</if>		
+			INNER JOIN XBOLTADM.TB_MENU TMU ON TMU.MenuID = TM.MenuID	
+		WHERE TI.ItemID = #{ITEM_ID}			
+	</select>
+	
+	<select id="getNotItemURL" resultType="String">
+		/*menu_SQL.getNotItemURL*/		
+		SELECT DISTINCT TOP 1 ISNULL(U.URL, '') AS URL
+		FROM XBOLTADM.TB_MENU_ALLOC U
+		WHERE U.ArcCode = #{ARCHITECTURE_CODE}
+		Order By URL DESC	
+	</select>
+	
+	<select id="getLevel" resultType="java.util.HashMap">
+		Select Distinct Level
+		FROM XBOLTADM.TB_ITEM
+		WHERE ToItemID = #{MENU_ID}	
+	</select>
+	
+	<select id="contentMenu" resultType="java.util.HashMap">
+		SELECT 
+			TypeCode as CODE , Name as NAME 
+		FROM 
+			XBOLTADM.TB_DICTIONARY, XBOLTADM.TB_ARCHITECTURE
+ 		WHERE 
+ 			TypeCode = ArchitectureCode and LanguageID = #{languageID}
+	</select>
+	
+		
+	
+	<select id="selectTreeFilter" resultType="String">
+		SELECT CASE WHEN acr.DimTypeID IS NULL THEN acc.DefDimValueID ELSE acr.DimTypeID END DefDimValueID
+		FROM XBOLTADM.TB_ARC acr
+			LEFT OUTER JOIN XBOLTADM.TB_ACCESS_RIGHT acc 
+				ON acr.ArcCode = acc.ArcCode
+				AND acc.MemberID = #{sessionUserId}
+		WHERE acr.ArcCode = #{SelectMenuId}
+	</select>
+	
+	<select id="reportMenuList" resultType="java.util.HashMap">
+	<![CDATA[	
+			SELECT
+				C.FromItemID AS PRE_TREE_ID , C.ToItemID AS TREE_ID , C.Level, D.PlainText AS TREE_NM
+			FROM 
+				XBOLTADM.TB_ITEM C, XBOLTADM.TB_ITEM_ATTR D
+			WHERE 
+				C.ToItemID = D.ItemID
+				AND C.ItemTypeCode in (select ItemTypeCode from XBOLTADM.TB_ARCHITECTURE_ITEM_TYPE_REL where ArchitectureCode = #{SelectMenuId})
+				AND C.FromItemID = 0 and C.ToItemID = (select ItemID from XBOLTADM.TB_ARCHITECTURE where ArchitectureCode = #{SelectMenuId})
+				AND D.AttrTypeCode = 'AT00001'
+				AND C.Deleted != '1'
+				or 
+				C.ToItemID = D.ItemID
+				AND C.ItemTypeCode in (select ItemTypeCode from XBOLTADM.TB_ARCHITECTURE_ITEM_TYPE_REL where ArchitectureCode = #{SelectMenuId})
+				AND C.FromItemID != 0
+				AND D.AttrTypeCode = 'AT00001'
+				AND C.Deleted != '1'				
+			ORDER BY
+				TREE_NM ASC
+	]]>			
+	</select>  
+	
+	<select id="menuName" resultType="java.util.HashMap">
+		SELECT 
+			TypeCode, Name 
+		FROM 
+			XBOLTADM.TB_DICTIONARY
+		WHERE 
+			Category = #{mnCategory}
+			AND LanguageID = #{languageID}	
+			ORDER BY
+				Name ASC
+	</select>
+
+	<select id="changeSetStatus" resultType="java.util.HashMap">
+		SELECT 
+			TypeCode AS CODE , NAME 
+		FROM 
+			XBOLTADM.TB_DICTIONARY
+			
+		WHERE 
+			Category = 'STS' 
+			AND LanguageID = #{languageID}	
+	</select>
+
+	<select id="tabCheck" resultType="java.util.HashMap">
+		SELECT 
+			HasCoP, HasDimension, ChangeMgt, HasFile
+		FROM 
+			XBOLTADM.TB_ITEM_CLASS
+		WHERE 
+			ItemClassCode = ( 
+				Select ClassCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{s_itemID} 
+			)
+	 </select>
+
+	<select id="selectMiddleMenu" resultType="java.util.HashMap">
+		SELECT 
+			ISNULL(TD.Name, TMU.URL) AS Name, TMU.URL, ISNULL(TMA.VarFilter, TMU.VarFilter) AS VarFilter, RTRIM(TM.Sort) AS Sort
+		FROM 
+			XBOLTADM.TB_MENU_ALLOC TMA
+			Left Outer Join XBOLTADM.TB_MENU TMU
+			on TMU.MenuID = TMA.MenuID
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD
+			on TMA.MenuDicCode = TD.TypeCode
+			AND LanguageID  = #{languageID}
+		WHERE 
+			( TMA.ArcCode = #{ArcCode}	AND TMA.ClassCode = (Select ClassCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{s_itemID}) )
+			OR
+			( TMA.ArcCode = #{ArcCode} AND TMA.ClassCode IS NULL )
+				
+			
+		ORDER BY TM.Sort ASC	
+	</select>
+
+	<select id="selectDiagramMiddleMenu" resultType="java.util.HashMap">
+		SELECT 
+			ISNULL(TD.Name, TMU.URL) AS Name, TMU.URL, ISNULL(TMU.VarFilter, 1) AS VarFilter, RTRIM(TM.Sort) AS Sort
+		FROM 
+			XBOLTADM.TB_MENU_ALLOC TM
+			Left Outer Join XBOLTADM.TB_MENU TMU
+			on TMU.MenuID = TM.MenuID
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD
+			on TMU.DicCode = TD.TypeCode
+			AND LanguageID  = #{languageID}
+		WHERE
+			TM.ArcCode = #{ArcCode}	AND TM.ClassCode = (Select ClassCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{s_itemID})			
+		ORDER BY TM.Sort ASC	
+	</select>
+	
+	<select id="selectModelMiddleMenu" resultType="java.util.HashMap">
+		SELECT 
+			ISNULL(TD.Name, TMU.URL) AS Name, TMU.URL, ISNULL(TMU.VarFilter, 1) AS VarFilter, RTRIM(TM.Sort) AS Sort
+		FROM 
+			XBOLTADM.TB_MENU_ALLOC TM
+			Left Outer Join XBOLTADM.TB_MENU TMU
+			on TMU.MenuID = TM.MenuID
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD
+			on TMU.DicCode = TD.TypeCode
+			AND LanguageID  = #{languageID}
+		WHERE
+			1 = 1 
+			AND ( TM.ArcCode = #{ArcCode} AND TM.ClassCode IS NULL )
+			<if test="s_itemID != null and s_itemID != ''">
+				AND TMU.MenuID NOT IN ( CASE WHEN (SELECT COUNT(*) FROM XBOLTADM.TB_MODEL WHERE ItemID = #{s_itemID}) = 0 THEN  '27' ELSE '0' END)
+			</if>		
+		ORDER BY TM.Sort ASC	
+	</select>
+	
+	
+	<select id="defaultMiddleMenu" resultType="java.util.HashMap">
+		SELECT 
+			ISNULL(TD.Name, TMU.URL) AS Name, TMU.URL, ISNULL(TMU.VarFilter, 1) AS VarFilter, RTRIM(TM.Sort) AS Sort
+		FROM 
+			XBOLTADM.TB_MENU_ALLOC TM
+			Left Outer Join XBOLTADM.TB_MENU TMU
+			on TMU.MenuID = TM.MenuID
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD
+			on TMU.DicCode = TD.TypeCode
+			AND LanguageID  = #{languageID}
+		WHERE 
+			TM.ArcCode = 'AR010101'
+			AND TM.ClassCode = 'CL01000'
+			<if test="s_itemID != null and s_itemID != ''">
+				AND TMU.MenuID NOT IN ( CASE WHEN (SELECT COUNT(*) FROM XBOLTADM.TB_MODEL WHERE ItemID = #{s_itemID}) = 0 THEN  '27' ELSE '0' END)
+			</if>			
+		ORDER BY TM.Sort ASC	
+	</select>
+	
+	<select id="popupMiddleMenu" resultType="java.util.HashMap">
+		SELECT 
+			ISNULL(TD.Name, TMU.URL) AS Name, TMU.URL, ISNULL(TMU.VarFilter, 1) AS VarFilter, RTRIM(TM.Sort) AS Sort
+		FROM 
+			XBOLTADM.TB_MENU_ALLOC TM
+			Left Outer Join XBOLTADM.TB_MENU TMU
+			on TMU.MenuID = TM.MenuID
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD
+			on TMU.DicCode = TD.TypeCode
+			AND LanguageID  = #{languageID}
+		WHERE 
+			TM.ArcCode = 'AR000000'
+			AND TM.ClassCode = 'CL01000'
+			<if test="modelID != null and modelID != ''">
+				AND TMU.MenuID NOT IN ('MN027', 'MN013','MN017')
+			</if>
+			<if test="HasFile != null and HasFile != ''">
+				AND TMU.MenuID NOT IN ('MN053')
+			</if>	
+		ORDER BY TM.Sort ASC	
+	</select>
+	
+	<select id="getHasFile" resultType="String">
+		SELECT 
+ 			ISNULL(HasFile, '') As HasFile
+			FROM XBOLTADM.TB_ITEM_CLASS 
+		WHERE 
+			ItemClassCode = (SELECT ClassCode From [XBOLTADM].[TB_ITEM] WHERE ItemID = #{s_itemID})
+	</select>
+	
+	<!-- TB_MMENU_ALLOC :: get VarFilter -->
+	<select id="selectFilter" resultType="String">
+		SELECT
+			VarFilter
+		FROM
+			XBOLTADM.TB_MENU_ALLOC
+		WHERE
+			ArcCode = #{ArcCode}
+			AND MenuID = #{MenuID}		
+	</select>
+	
+	<select id="getTabMenu" resultType="java.util.HashMap">
+		SELECT 
+			ISNULL(TD.Name, TMU.URL) AS Name, ISNULL(TMA.ScrURL,TMU.URL) AS URL, ISNULL(TMA.VarFilter, TMU.VarFilter) AS VarFilter, ISNULL(RTRIM(TMA.Sort),1) AS Sort
+		FROM 
+			XBOLTADM.TB_MENU_ALLOC TMA
+			Left Outer Join XBOLTADM.TB_MENU TMU
+			on TMU.MenuID = TMA.MenuID
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD
+			on TMA.MenuDicCode = TD.TypeCode
+			AND LanguageID  = #{languageID}
+		WHERE 
+			TMA.ArcCode = #{ArcCode}
+			<choose>
+				<when test="s_itemID != null and s_itemID != '' and !s_itemID.equals('null')">
+					AND TMA.ClassCode = (Select ClassCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{s_itemID})
+				</when>
+				<otherwise>
+					<if test="ClassCode != null and ClassCode != ''">
+						AND TMA.ClassCode = 'CL01000'
+					</if>				 	
+				</otherwise>
+			</choose>
+			<if test='"Y".equals(fromModelYN)'>
+				AND ISNULL(TMA.HideOption,'')  != 'Y'
+			</if>
+		ORDER BY TMA.Sort ASC	
+	</select>
+	
+	
+	<select id="getMenuUrlListByCfg" resultType="java.util.HashMap"> 
+			SELECT 
+				ISNULL(TC.ConfigurationCode, '0') AS CNFG_CODE
+				, ISNULL(TM.URL, 'empty') AS URL
+			FROM 
+				XBOLTADM.TB_CONFIGURATION TC
+				Left Outer Join XBOLTADM.TB_MENU TM 
+					ON TC.MenuID  = TM.MenuID AND TM.MenuCat='CFG'
+				<where>
+					<if test="menuID != null and menuID != ''">
+						TC.ConfigurationCode = #{menuID}
+					</if>
+				</where>
+	</select>
+	
+	<select id="getDefaultTemplate" resultType="String"> 
+		Select TemplCode From XBOLTADM.TB_ACCESS_RIGHT
+	   Where MemberID = #{sessionUserId}
+	   And IsDefault = 1
+	</select>
+	
+	<select id="getArcFilter" resultType="String">
+		Select VarFilter From XBOLTADM.TB_ARC Where ArcCode = #{arcCode}
+	</select>
+	
+	<select id="getItemClassMenuURL" resultType="String">
+		Select TM.URL AS MenuURL From XBOLTADM.TB_ITEM_CLASS TIC
+		Left Outer Join XBOLTADM.TB_MENU TM ON TM.MenuID = TIC.MenuID
+		Where TIC.ItemClassCode IN(Select ClassCode From XBOLTADM.TB_ITEM Where ItemID = #{itemID})
+	</select>
+	
+	<select id="getItemClassMenuVarFilter" resultType="String">
+		Select VarFilter AS VarFilter 
+		From XBOLTADM.TB_ITEM_CLASS 
+		Where ItemClassCode IN(Select ClassCode From XBOLTADM.TB_ITEM Where ItemID = #{itemID})
+	</select>
+	
+	<select id="getMenuVarFilterByClass" resultType="String">
+		Select TM.VarFilter AS VarFilter From XBOLTADM.TB_ITEM_CLASS TIC
+		Left Outer Join XBOLTADM.TB_MENU TM ON TM.MenuID = TIC.MenuID
+		Where TIC.ItemClassCode IN(Select ClassCode From XBOLTADM.TB_ITEM Where ItemID = #{itemID})
+	</select>
+	
+	<select id="VariantProjectModel_treeList" resultType="java.util.HashMap">
+
+	WITH XBOLT_FILTER(ParentID, MyItemID, TREE_NM)
+			AS 
+			(
+				SELECT 
+					DISTINCT ICN.FromItemID AS ParentID, ICN.ToItemID AS MyItemID,  
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM XBOLTADM.TB_ITEM ICN,  XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ITEM_ATTR ATR,
+					(
+						SELECT 
+								Distinct  ELE.Link , ELE.ClassCode
+						FROM 
+								XBOLTADM.TB_MODEL MDL, XBOLTADM.TB_ARC_FILTER ARCF,  XBOLTADM.TB_ARC_FILTER_CLS ARCFCL , XBOLTADM.TB_ELEMENT ELE
+						WHERE 
+								ARCF.ArcCode =  #{SelectMenuId}
+								AND MDL.ItemID = ARCF.RootItemID and MDL.ModelTypeCode = #{masterModelType} and MTCategory = 'BAS'
+								AND ELE.ModelID = MDL.ModelID
+								AND ARCFCL.ArcCode = #{SelectMenuId} and ARCFCL.ItemClassCode = ELE.ClassCode and ARCFCL.Included ='Y'
+								
+					) A
+				WHERE 
+					ICN.ToItemID = A.Link
+					AND ICN.ItemTypeCode in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ICN.ToItemID = Obj.ItemID
+					AND ICN.Deleted != '1'
+					AND ICN.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID = #{sessionCurrLangType}
+
+			),
+			XBOLT_UCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_U.FromItemID AS ParentID, ITM_U.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_U, XBOLT_UCTE UCTE,  XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ARC_FILTER ARCF , XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+					ARCF.ArcCode = #{SelectMenuId} 
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ITM_U.ItemTypeCode  in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+					AND ITM_U.Deleted != '1'
+					AND ITM_U.ToItemID = UCTE.ParentID
+					AND ITM_U.ToItemID = Obj.ItemID
+					AND Obj.ClassCode not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS where ArcCode = #{SelectMenuId} and Included = 'N'  )
+					AND ITM_U.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID = #{sessionCurrLangType}
+
+			 ),
+			 XBOLT_LCTE(ParentID, MyItemID, TREE_NM)
+			 AS
+			 (
+				SELECT * FROM XBOLT_FILTER		
+
+				UNION ALL
+
+				SELECT 
+					ITM_L.FromItemID AS ParentID, ITM_L.ToItemID AS MyItemID, 
+					CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM ITM_L, XBOLT_LCTE LCTE, XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ITEM_ATTR ATR
+				WHERE
+					ARCF.ArcCode = #{SelectMenuId} 
+					AND ARC.ArcCode = #{SelectMenuId}
+					AND ITM_L.ItemTypeCode in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+					AND ITM_L.Deleted != '1'					
+					AND ITM_L.FromItemID = LCTE.MyItemID
+					AND ITM_L.ToItemID = Obj.ItemID
+					AND Obj.ClassCode not in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS where ArcCode = #{SelectMenuId} and Included = 'N' )
+					AND ITM_L.ToItemID = ATR.ItemID
+					AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID = #{sessionCurrLangType}
+			 )
+
+		SELECT 
+			Distinct CASE ITM.ClassCode WHEN ARCFCL.ItemClassCode THEN ARCF.RootItemID ELSE UCTE.ParentID END AS PRE_TREE_ID,
+					 UCTE.MyItemID AS TREE_ID, 0 AS Level, UCTE.TREE_NM AS TREE_NM 
+			FROM XBOLT_UCTE UCTE ,  XBOLTADM.TB_ARC_FILTER_CLS ARCFCL , XBOLTADM.TB_ARC_FILTER ARCF , XBOLTADM.TB_ITEM ITM, XBOLTADM.TB_ITEM_CLASS ITMCLS
+			Where ARCFCL.ArcCode = #{SelectMenuId} 
+		          AND ARCF.ArcCode = #{SelectMenuId} 
+				  AND ITM.ItemID = UCTE.MyItemID
+				  AND ITM.ClassCode = ITMCLS.ItemClassCode	
+				  AND ARCFCL.IsSecondary = 'Y'	      
+
+		UNION
+		 	
+		SELECT 
+			Distinct LCTE.ParentID AS PRE_TREE_ID, LCTE.MyItemID AS TREE_ID, 0 AS Level, LCTE.TREE_NM AS TREE_NM 
+		FROM XBOLT_LCTE LCTE
+
+		UNION		
+
+
+		SELECT
+			Distinct 0 AS PRE_TREE_ID , C.ItemID AS TREE_ID , C.Level
+			, CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE C.Identifier + ' ' + ISNULL(ATR.PlainText, 'Untitled') END AS TREE_NM 
+			FROM 
+				XBOLTADM.TB_ITEM C Left Outer Join XBOLTADM.TB_ITEM_ATTR ATR on C.ItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001'
+				AND ATR.LanguageID = #{sessionCurrLangType}, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ARC ARC , XBOLTADM.TB_DICTIONARY DIC
+			WHERE 
+				C.ItemID in (Select RootItemID FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+				AND C.Deleted != '1'
+				AND ARC.ArcCode = #{SelectMenuId}								
+		
+		ORDER BY PRE_TREE_ID, TREE_NM ASC	
+		
+	</select> 
+	
+	<select id="itemWithVariant_treeList" resultType="java.util.HashMap">
+			SELECT
+				Distinct 0 AS PRE_TREE_ID , C.ItemID AS TREE_ID , C.Level
+				, CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE C.Identifier + ' ' + ISNULL(ATR.PlainText, 'Untitled') END AS TREE_NM 
+				FROM 
+					XBOLTADM.TB_ITEM C Left Outer Join XBOLTADM.TB_ITEM_ATTR ATR on C.ItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{sessionCurrLangType}, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ARC ARC
+				WHERE 
+					C.ItemID in (Select RootItemID FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+					AND C.Deleted != '1'
+					AND ARC.ArcCode = #{SelectMenuId}
+			
+			UNION
+				
+			SELECT
+				Distinct C.FromItemID AS PRE_TREE_ID , C.ToItemID AS TREE_ID , Obj.Level
+				,CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ISNULL(ATR.PlainText, 'Untitled') END AS TREE_NM 
+				FROM 
+				XBOLTADM.TB_ITEM C Left Outer Join  XBOLTADM.TB_ITEM_ATTR ATR on C.ToItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001'
+							AND ATR.LanguageID =  #{sessionCurrLangType}
+						, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ARC ARC
+					WHERE
+						C.FromItemID != 0 
+						AND ARCF.ArcCode = #{SelectMenuId} 
+						AND C.ItemTypeCode in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+						AND C.ToItemID = Obj.ItemID
+						AND C.Deleted != '1'					
+						AND ARC.ArcCode = #{SelectMenuId}						
+						AND (ARC.UntitledOption = 'Y' OR ((ARC.UntitledOption IS NULL OR ARC.UntitledOption = 'N') AND ATR.PlainText IS NOT NULL))
+			
+			UNION	
+				
+			SELECT
+			Distinct C.RefItemID AS PRE_TREE_ID , C.ItemID AS TREE_ID , C.Level
+			,CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(C.Identifier,'') + ' ' + ISNULL(ATR.PlainText, 'Untitled') END AS TREE_NM 
+			FROM 
+			XBOLTADM.TB_ITEM C Left Outer Join  XBOLTADM.TB_ITEM_ATTR ATR on C.ItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001'
+						AND ATR.LanguageID =  #{sessionCurrLangType} , XBOLTADM.TB_ARC ARC
+				WHERE C.ClassCode in (Select ItemClassCode FROM XBOLTADM.TB_ARC_FILTER_CLS  where ArcCode = #{SelectMenuId}  and Included = 'Y')	
+					  AND ARC.ArcCode = #{SelectMenuId}
+					  AND C.Deleted != '1'						
+					  AND (ARC.UntitledOption = 'Y' OR ((ARC.UntitledOption IS NULL OR ARC.UntitledOption = 'N') AND ATR.PlainText IS NOT NULL))
+									
+			ORDER BY TREE_NM ASC		
+	</select>
+	
+	<select id="getArcInfo" resultType="java.util.HashMap" >
+		Select 	TA.ArcCode, TD.Name As ArcName
+				, ISNULL(TM.URL,'') AS URL, ISNULL(TA.VarFilter,TM.VarFilter) AS VarFilter
+				, ISNULL(TA.Style,'') AS MenuStyle
+				, ISNULL(TA.SortOption,'') As SortOption
+				, ISNULL(TA.FilterType,'') AS FilterType 	
+				, ISNULL(TF.StrType,'') AS StrType 	
+		From XBOLTADM.TB_ARC TA
+		Left Outer Join XBOLTADM.TB_MENU TM ON TM.MenuID = TA.MenuID 
+		Left Outer Join XBOLTADM.TB_TFILTER TF ON TF.TfilterCode = TA.FilterType
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TA.ArcCode And TD.LanguageID = #{languageID}
+		<where>
+		<choose>
+			<when test="parentID != null and parentID != '' and !parentID.equals('null')">
+				 TA.ParentID = #{parentID}
+			</when>
+			<otherwise>	
+			<if test="subArcCode != null and subArcCode != ''">
+				 TA.ParentID = (Select ParentID From XBOLTADM.TB_ARC Where ArcCode = #{subArcCode})
+				 </if>
+			<if test="arcCode != null and arcode != ''">
+				TA.ArcCode = #{arcCode}	
+			</if>		
+			</otherwise>
+		</choose>
+		</where>
+	</select>
+	
+	<select id="getMenuVarfilter" resultType="String">
+		SELECT VarFilter
+			FROM XBOLTADM.TB_MENU
+			WHERE MenuID = #{MenuID}
+	</select>
+	
+	
+	<select id="menuTreeListItsp_treeList" resultType="java.util.HashMap">
+	
+	SELECT
+		Distinct C.FromItemID AS PRE_TREE_ID , C.ToItemID AS TREE_ID , Obj.Level		
+		, CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ISNULL(ATR.PlainText, 'Untitled') END AS TREE_NM 
+	FROM 
+		XBOLTADM.TB_ITEM C Left Outer Join  XBOLTADM.TB_ITEM_ATTR ATR on C.ToItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001'
+		AND ATR.LanguageID =  #{sessionCurrLangType} , XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ARC ARC
+	WHERE
+		C.CategoryCode = 'ST1' 
+		AND C.ToItemID = Obj.ItemID	
+		AND C.Deleted != '1'
+		AND ARC.ArcCode = #{SelectMenuId} 
+		AND OBJ.ItemID NOT IN (SELECT ItemID FROM XBOLTADM.TB_ITEM_PROPOSAL WHERE Status = '00')
+	
+		<if test="ItemTypeCode != null and ItemTypeCode != ''">
+			 AND Obj.ItemTypeCode = #{ItemTypeCode}
+		</if>
+		<if test="fromItemTypeCode != null and fromItemTypeCode != ''">
+			 AND Obj.ItemTypeCode In (#{fromItemTypeCode}, #{toItemTypeCode}) 
+		</if>		
+		AND (ARC.UntitledOption = 'Y' OR ((ARC.UntitledOption IS NULL OR ARC.UntitledOption = 'N') AND ATR.PlainText IS NOT NULL))
+	
+	ORDER BY TREE_NM ASC
+	   
+	</select>  
+	
+	<select id="assignDimension_treeList" resultType="java.util.HashMap">
+		SELECT 
+				'0'  AS PRE_TREE_ID
+				, CAST(TDV.DimTypeID AS VARCHAR(20)) AS TREE_ID
+				, 0 AS LEVEL
+				, TIA.PlainText AS TREE_NM
+		 FROM XBOLTADM.TB_DIM_VALUE TDV 
+		      INNER JOIN XBOLTADM.TB_ITEM_ATTR TIA
+			                 ON TDV.DimTypeID = TIA.ItemID 
+							 AND TIA.AttrTypeCode = 'AT00001'
+							 AND TIA.LanguageID = #{languageID}
+			  <if test="s_itemID != null and s_itemID != ''">
+			  INNER JOIN XBOLTADM.TB_ITEM_DIM TID
+							ON TID.DimTypeID = TDV.DimTypeID
+							AND TID.DimValueID = TDV.DimValueID
+							AND TID.ItemID = #{s_itemID}
+			  </if>
+		      LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA2
+			                  ON TIA2.ItemID = TIA.ItemID 
+							 AND TIA2.AttrTypeCode = 'AT10000'
+							 AND TIA2.LanguageID = #{languageID}
+							 AND TIA2.ClassCode = 'CL10002' 
+		WHERE TDV.Deleted = 0 AND (TIA2.PlainText = #{itemTypeCode} OR TIA2.PlainText IS NULL)
+		GROUP BY TDV.DimTypeID, TIA.PlainText
+		UNION ALL
+		SELECT 
+				CASE WHEN TDV.ParentID IS NULL THEN CAST(TDV.DimTypeID AS VARCHAR(20)) WHEN TDV.ParentID = '0' THEN CAST(TDV.DimTypeID AS VARCHAR(20)) ELSE 
+				CAST(TDV.DimTypeID AS VARCHAR(20))+'/'+TDV.ParentID END AS PRE_TREE_ID
+				, CAST(TDV.DimTypeID AS VARCHAR(20))+'/'+TDV.DimValueID AS TREE_ID
+				, TDV.LEVEL
+				, TDVT.Name AS TREE_NM
+		 FROM  XBOLTADM.TB_DIM_VALUE TDV
+		 		<if test="s_itemID != null and s_itemID != ''">
+		 		INNER JOIN XBOLTADM.TB_ITEM_DIM TID
+							ON TID.DimTypeID = TDV.DimTypeID
+							AND TID.DimValueID = TDV.DimValueID
+							AND TID.ItemID = #{s_itemID}
+				</if>
+				LEFT OUTER JOIN XBOLTADM.TB_DIM_VALUE_TXT TDVT
+								ON TDV.DimTypeID = TDVT.DimTypeID 
+								AND TDV.DimValueID = TDVT.DimValueID
+								AND TDVT.LanguageID = #{languageID}
+		WHERE TDV.Deleted = 0
+		GROUP BY TDV.DimTypeID,TDV.DimValueID, TDVT.Name, TDV.LEVEL, TDV.ParentID				
+		ORDER BY PRE_TREE_ID,TREE_ID,LEVEL
+	</select>
+	
+	
+	<select id="itemStr_treeList" resultType="java.util.HashMap">
+	 SELECT
+			0 AS PRE_TREE_ID , ST.ItemID AS TREE_ID , TIC.Level
+			, CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE (CASE WHEN ARC.IDFilter IS NULL THEN obj.Identifier ELSE RIGHT(obj.Identifier,ARC.IDFilter) END) + ' ' + ISNULL(ATR.PlainText, 'Untitled') END AS TREE_NM 
+			, '' AS SortNum, obj.ClassCode, 'tree_' + TIC.Icon AS ClassIcon
+		FROM 
+			XBOLTADM.TB_ITEM ST, XBOLTADM.TB_ITEM obj Left Outer Join XBOLTADM.TB_ITEM_ATTR ATR on obj.ItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001'
+			AND ATR.LanguageID =  #{languageID}, XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM_CLASS TIC
+		WHERE 
+			obj.ItemID in (Select RootItemID FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+			AND obj.Deleted != '1'
+			AND ARC.ArcCode = #{SelectMenuId}
+			AND TIC.ItemClassCode = obj.ClassCode
+			AND ST.ToItemID = obj.ItemID
+			
+		UNION
+				
+		SELECT
+			ST.ParentID AS PRE_TREE_ID , ST.ItemID AS TREE_ID , TIC.Level
+			,CASE ARC.WID WHEN '1' THEN  (CASE WHEN ARC.IDFilter IS NULL THEN ISNULL(Obj.Identifier,'') ELSE RIGHT(ISNULL(Obj.Identifier,''),ARC.IDFilter) END) + ' ' + ISNULL(ATR.PlainText, 'Untitled')				  			 
+			  			  WHEN '2' THEN  ISNULL(ATR.PlainText, 'Untitled') + ' ' + ISNULL(Obj.Identifier,'')
+			  			  WHEN '3' THEN  (CASE WHEN ARC.IDFilter IS NULL THEN ISNULL(ST.Identifier,Obj.Identifier) ELSE RIGHT(ISNULL(ST.Identifier,Obj.Identifier),ARC.IDFilter) END) + ' ' + ISNULL(ATR.PlainText, 'Untitled')
+						  ELSE  ISNULL(ATR.PlainText, 'Untitled')  END AS TREE_NM 
+			, ISNULL(ST.SortNum,'') AS SortNum, Obj.ClassCode, 'tree_' + TIC.Icon AS ClassIcon
+		FROM 
+		XBOLTADM.TB_ITEM ST Left Outer Join  XBOLTADM.TB_ITEM_ATTR ATR on ST.ToItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001'
+					AND ATR.LanguageID =  #{languageID}
+				, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ARC ARC, XBOLTADM.TB_ITEM_CLASS TIC
+			WHERE
+			    ST.ItemTypeCode in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+				AND ST.ToItemID = Obj.ItemID
+				AND ST.Deleted != '1'					
+				AND ARC.ArcCode = #{SelectMenuId}
+			    AND Obj.CategoryCode != 'TOJ'			  
+			    AND TIC.ItemClassCode = Obj.ClassCode
+			  
+		<choose>
+			<when test="sortOption eq 1">
+				ORDER BY SortNum, Level, TREE_NM ASC
+			</when>
+			<otherwise>
+				ORDER BY Level, TREE_NM ASC		 	
+			</otherwise>
+		</choose>
+	</select>   
+	
+		
+	<select id="getTemplVarFilter" resultType="String">
+		Select VarFilter From XBOLTADM.TB_TEMPL Where TemplCode = #{templCode}
+	</select>
+	
+	<select id="getSqlNameForTfilterCode" resultType="String">
+		Select SqlName From XBOLTADM.TB_TFILTER Where TfilterCode = #{tFilterCode}
+	</select>
+	
+	<select id="getArcSortOption" resultType="String">
+		SELECT SortOption
+		FROM XBOLTADM.TB_ARC
+		WHERE ArcCode = #{arcCode}
+	</select>
+	
+	<select id="getMNVarFilter" resultType="String">		
+		Select VarFilter 
+		From XBOLTADM.TB_MENU 
+		Where MenuID IN (Select MenuID From XBOLTADM.TB_TEMPL Where TemplCode = #{templCode})
+	</select>
+	
+	<select id="getMenuStyle" resultType="String">
+		Select Style From XBOLTADM.TB_ARC Where ArcCode = #{arcCode}
+	</select>
+
+	<select id="menuTreeListByRole_treeList" resultType="java.util.HashMap">	
+		WITH ViewCxnData AS (
+		    SELECT DISTINCT ToItemID
+		    FROM XBOLTADM.TB_ITEM
+		    WHERE Deleted != '1'
+		    AND CategoryCode = 'CN'
+		    AND ItemTypeCode = 'CN00519'		      
+		)
+		
+		SELECT 
+		    0 AS PRE_TREE_ID,
+		    C.ItemID AS TREE_ID,
+		    TIC.Level,
+		    CASE ARC.WID 
+		        WHEN '0' THEN ATR.PlainText
+		        ELSE (
+		            CASE 
+		                WHEN ARC.IDFilter IS NULL THEN C.Identifier
+		                ELSE RIGHT(C.Identifier, ARC.IDFilter)
+		            END
+		        ) + ' ' + ISNULL(ATR.PlainText, 'Untitled')
+		    END AS TREE_NM,
+		    '' AS SortNum,
+		    C.ClassCode,
+		    'tree_' + TIC.Icon AS ClassIcon
+		FROM 
+		    XBOLTADM.TB_ITEM C
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR ON C.ItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001' AND ATR.LanguageID = #{languageID},
+		    XBOLTADM.TB_ARC ARC,
+		    XBOLTADM.TB_ITEM_CLASS TIC
+		WHERE 
+		    C.ItemID IN (
+		        SELECT RootItemID 
+		        FROM XBOLTADM.TB_ARC_FILTER 
+		        WHERE ArcCode = #{SelectMenuId}
+		    )
+		    AND C.Deleted != '1'
+		    AND ARC.ArcCode = #{SelectMenuId}
+		    AND TIC.ItemClassCode = C.ClassCode
+		
+		UNION
+		
+		SELECT 
+		    C.FromItemID AS PRE_TREE_ID,
+		    C.ToItemID AS TREE_ID,
+		    TIC.Level,
+		    CASE ARC.WID
+		        WHEN '1' THEN 
+		            (CASE 
+		                WHEN ARC.IDFilter IS NULL THEN ISNULL(Obj.Identifier, '')
+		                ELSE RIGHT(ISNULL(Obj.Identifier, ''), ARC.IDFilter)
+		            END) + ' ' + ISNULL(ATR.PlainText, 'Untitled')
+		        WHEN '2' THEN ISNULL(ATR.PlainText, 'Untitled') + ' ' + ISNULL(Obj.Identifier, '')
+		        WHEN '3' THEN 
+		            (CASE 
+		                WHEN ARC.IDFilter IS NULL THEN ISNULL(C.Identifier, Obj.Identifier)
+		                ELSE RIGHT(ISNULL(C.Identifier, Obj.Identifier), ARC.IDFilter)
+		            END) + ' ' + ISNULL(ATR.PlainText, 'Untitled')
+		        ELSE ISNULL(ATR.PlainText, 'Untitled')
+		    END AS TREE_NM,
+		    ISNULL(C.SortNum, '') AS SortNum,
+		    Obj.ClassCode,
+		    'tree_' + TIC.Icon AS ClassIcon
+		FROM 
+		    XBOLTADM.TB_ITEM C
+		    LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR ON C.ToItemID = ATR.ItemID AND ATR.AttrTypeCode = 'AT00001' AND ATR.LanguageID = #{languageID},
+		    XBOLTADM.TB_ITEM Obj,
+		    XBOLTADM.TB_ARC ARC,
+		    XBOLTADM.TB_ITEM_CLASS TIC	
+		WHERE 
+		    C.FromItemID != 0
+		    AND C.ItemTypeCode IN (
+		        SELECT ConTypeCode 
+		        FROM XBOLTADM.TB_ARC_FILTER 
+		        WHERE ArcCode = #{SelectMenuId}
+		    )
+		    AND C.ToItemID = Obj.ItemID
+		    AND C.Deleted != '1'
+		    AND ARC.ArcCode = #{SelectMenuId}
+		    AND (
+		        ARC.UntitledOption = 'Y' 
+		        OR (
+		            (ARC.UntitledOption IS NULL OR ARC.UntitledOption = 'N') 
+		            AND ATR.PlainText IS NOT NULL
+		        )
+		    )
+		    AND Obj.CategoryCode != 'TOJ'
+		    AND TIC.ItemClassCode = Obj.ClassCode
+		
+			AND (
+				Obj.ClassCode != 'CL19002'
+				OR Obj.ItemID IN (SELECT ToItemID FROM ViewCxnData)
+			)
+		ORDER BY 
+		    Level, TREE_NM ASC
+	</select>
+
+</mapper>

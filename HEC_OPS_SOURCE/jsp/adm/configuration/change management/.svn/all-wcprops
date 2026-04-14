@@ -1,0 +1,125 @@
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svn/olm_dev/!svn/ver/9231/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management
+END
+addEvalAttrAlloc.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 113
+/svn/olm_dev/!svn/ver/9039/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/addEvalAttrAlloc.jsp
+END
+srAreaList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 107
+/svn/olm_dev/!svn/ver/8874/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/srAreaList.jsp
+END
+srTypeDetail.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 109
+/svn/olm_dev/!svn/ver/8165/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/srTypeDetail.jsp
+END
+workFlowStep.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 109
+/svn/olm_dev/!svn/ver/6567/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/workFlowStep.jsp
+END
+taskTypeMgtDetail.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 114
+/svn/olm_dev/!svn/ver/6297/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/taskTypeMgtDetail.jsp
+END
+srCategoryDetail.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 113
+/svn/olm_dev/!svn/ver/8378/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/srCategoryDetail.jsp
+END
+roleTypeList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 109
+/svn/olm_dev/!svn/ver/6831/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/roleTypeList.jsp
+END
+workFlowStepRel.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 112
+/svn/olm_dev/!svn/ver/4234/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/workFlowStepRel.jsp
+END
+addEmailFormPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 112
+/svn/olm_dev/!svn/ver/9039/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/addEmailFormPop.jsp
+END
+evalTypeList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 109
+/svn/olm_dev/!svn/ver/9077/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/evalTypeList.jsp
+END
+workFlowDetailView.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 115
+/svn/olm_dev/!svn/ver/8025/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/workFlowDetailView.jsp
+END
+srTypeList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 107
+/svn/olm_dev/!svn/ver/6567/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/srTypeList.jsp
+END
+taskTypeMgtList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 112
+/svn/olm_dev/!svn/ver/6567/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/taskTypeMgtList.jsp
+END
+workFlowType.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 109
+/svn/olm_dev/!svn/ver/6567/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/workFlowType.jsp
+END
+addEvalTypePop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 111
+/svn/olm_dev/!svn/ver/9039/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/addEvalTypePop.jsp
+END
+srCategoryList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 111
+/svn/olm_dev/!svn/ver/8378/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/srCategoryList.jsp
+END
+editEmailFormPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 113
+/svn/olm_dev/!svn/ver/9231/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/editEmailFormPop.jsp
+END
+workFlowMenuAllocation.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 119
+/svn/olm_dev/!svn/ver/4391/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/workFlowMenuAllocation.jsp
+END
+emailFormList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 110
+/svn/olm_dev/!svn/ver/9077/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/emailFormList.jsp
+END
+workFlowStepDetailView.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 119
+/svn/olm_dev/!svn/ver/4232/OLM3/WebContent/WEB-INF/jsp/adm/configuration/change%20management/workFlowStepDetailView.jsp
+END

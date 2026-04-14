@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	project Item 관련 관련	-->
+<mapper namespace="wf_SQL">
+ 	
+	<select id="getWfMemberList_gridList" resultType="java.util.HashMap">		
+		Select
+			<if test='"Y".equals(secYN) and "".equals(selectMember)'>
+			TOP 0 
+			</if>
+			Row_Number()OVER(ORDER BY TM.Name) as RNUM, 
+			<![CDATA[
+			ISNULL(TM.Name,'') +'/'+ISNULL(TCTXT.Name,'') + '<BR>' 
+			+ ISNULL(master.dbo.dec_varchar_sel(0,'HTMAIL',TM.Email),'') 
+			+ ', '
+			+ ISNULL(master.dbo.dec_varchar_sel(0,'HTPHONE',TM.MTelNum),'') 
+			+ Case When ISNULL(TM.TelNum,'') != '' Then  ', '  Else '' End + ISNULL(TM.TelNum,'') AS MemberInfo,
+			]]> 
+			TM.Name+Case When ISNULL(master.dbo.dec_varchar_sel(0,'HTMAIL',TM.Email),'') != '' Then '/' 
+			+ ISNULL(master.dbo.dec_varchar_sel(0,'HTMAIL',TM.Email),'') Else '' End AS MemberName,
+			TMTXT.Name AS TeamName,
+			XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{languageID}) + '/' + TMTXT.Name AS TeamPath,
+			TM.MemberID,
+			TM.Name,
+			<choose>
+				<when test='"Y".equals(secYN) and !"".equals(selectMember)'>
+					CASE XBOLTADM.fn_GetMemberRoll(#{selectMember},#{tmpSelSHR},TM.MemberID)
+					WHEN 'H' THEN '합의'
+					WHEN 'S' THEN '승인'
+					WHEN 'R' THEN '참조'
+					ELSE '' END AS Role
+				</when>
+				<otherwise>
+					'' AS Role
+				</otherwise>
+			</choose>
+			<if test='"Y".equals(secYN) and !"".equals(selectMember)'>
+			, XBOLTADM.fn_GetWFMemberListIndex(#{selectMember},TM.MemberID) AS MemberIndex
+			</if>
+		From XBOLTADM.TB_MEMBER TM
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TMTXT ON TMTXT.TeamID = TM.TeamID And TMTXT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TCTXT ON TCTXT.TeamID = TM.CompanyID And TCTXT.LanguageID = #{languageID}
+		<where>
+			TM.UserType = 1
+			<if test="teamID != null and teamID != ''">
+				AND TM.TeamID = #{teamID}
+			</if>
+			<if test="UserLevel != null and !UserLevel.equals('ALL')">
+				AND TM.Authority != 4
+			</if>
+			<if test='selectMember != null and !"".equals(selectMember) and "Y".equals(secYN)'>
+				AND TM.MemberID IN (${selectMember})
+			</if>
+			<if test='selectMember != null and !"".equals(selectMember) and !"Y".equals(secYN)'>
+				AND TM.MemberID NOT IN (${selectMember})
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+				<choose>
+					<when test="searchKey.equals('Name')">
+						AND TM.Name Like N'%'+#{searchValue}+'%'
+					</when>
+					<when test="searchKey.equals('ID')">
+						AND TM.LoginID Like N'%'+#{searchValue}+'%'
+					</when>
+				</choose>
+			</if>
+		</where>
+		ORDER BY 
+			<if test='"Y".equals(secYN) and !"".equals(selectMember)'>
+				MemberIndex , 
+			</if>
+			TM.Name	
+	</select>
+	
+	<select id="workFlowAllocation_gridList" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY WA.WFID ASC) as RNUM
+		, 0 AS CHK
+		, WA.WFID
+		, WA.Description
+		, WA.Deactivated
+		, WA.Creator
+		, CONVERT(varchar(20),WA.CreationTime, 111) AS CreationTime
+		From
+		XBOLTADM.TB_WF_ALLOCATION WA
+		WHERE WA.WFID = #{WFID}
+	
+	</select>
+	
+	<select id="WFAllocation_gridList" resultType="java.util.HashMap">
+		SELECT 
+			  TypeCode,
+			  LanguageID,
+			  Name
+		FROM  XBOLTADM.TB_DICTIONARY 
+		WHERE TypeCode like 'WFA%'
+			   AND LanguageID = #{LanguageID}
+			   AND Editable = 1
+		Order By SortNum
+	
+	</select>
+	
+	<select id="getWFID" resultType="String">
+		SELECT 
+			  WFID
+		FROM  XBOLTADM.TB_WF_INST 
+		WHERE WFInstanceID = #{WFInstanceID}	
+	</select>
+	
+	<select id="getProjectID" resultType="String">
+		SELECT 
+			  ProjectID
+		FROM  XBOLTADM.TB_WF_INST 
+		WHERE WFInstanceID = #{WFInstanceID}	
+	</select>
+	
+	<select id="getPostProcessing" resultType="String">
+		SELECT 
+			  PostProcessing
+		FROM  XBOLTADM.TB_WF 
+		WHERE WFID = #{WFID}
+	</select>
+	
+	<select id="getMandatoryGRID" resultType="String">
+		SELECT 
+			  MandatoryGRID
+		FROM  XBOLTADM.TB_WF 
+		WHERE WFID = #{WFID}	
+	</select>
+	
+	<select id="getAgrSeq" resultType="String">
+		SELECT 
+			  AgrSeq
+		FROM  XBOLTADM.TB_WF 
+		WHERE WFID = #{WFID}	
+	</select>
+	
+	<select id="getWFActorID" resultType="String">
+		SELECT 
+			  ActorID
+		FROM  XBOLTADM.TB_WF_INST TWI
+			LEFT OUTER JOIN XBOLTADM.TB_WF_STEP_INST TWSI 
+				 ON TWI.WFID = TWSI.WFID 
+				 AND TWI.WFInstanceID = TWSI.WFInstanceID 
+				 AND TWI.ProjectID = TWSI.ProjectID
+		WHERE TWI.ProjectID = #{projectID}
+		  AND WFStepID = #{wfStepID}
+		  AND TWI.WFInstanceID = #{wfInstanceID}
+	</select>
+	
+	<select id="getWFDescription" resultType="java.util.HashMap">
+		SELECT 
+			  TP.ProjectCode,
+			  TD.Description
+		FROM  XBOLTADM.TB_PROJECT TP
+		LEFT OUTER JOIN XBOLTADM.TB_WF_INST TWI ON TP.ProjectID = TWI.ProjectID 
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TWI.WFID = TD.TypeCode
+		WHERE TB.ProjectID = #{projectID}
+	
+	</select>
+	
+	<select id="getApprTransYN" resultType="String">
+		SELECT ISNULL(TransferYN,'N') AS TransferYN
+		  FROM XBOLTADM.TB_WF_STEP
+		 WHERE WFStepID = #{WFStepID}
+	</select>
+	
+  	<update id="changeActor" parameterType="java.util.HashMap">
+  		UPDATE XBOLTADM.TB_WF_STEP_INST
+  		  SET ActorID = #{actorID},
+  		      ActorTeamID = #{actorTeamID}
+		Where StepInstID = #{stepInstID}
+  	</update>
+	
+</mapper>

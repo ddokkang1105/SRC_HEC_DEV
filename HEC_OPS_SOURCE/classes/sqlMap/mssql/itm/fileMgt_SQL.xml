@@ -1,0 +1,848 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	Item 관련 관련	-->
+<mapper namespace="fileMgt_SQL">
+	<select id="getMyFile_gridList" resultType="java.util.HashMap">
+		SELECT 
+			Distinct Row_Number() OVER (order by  TC.Seq desc) AS RNUM 
+			, TC.*
+		FROM(	
+			SELECT 
+				  itfl.Seq
+				  ,0 as CHK
+			      ,itfl.DocumentID
+			      ,itfl.LinkType
+			      ,itfl.FileName
+			      ,itfl.FltpCode
+			      ,itfl.FileFormat
+			      ,itfl.FileRealName
+			      ,itfl.FileSize
+			      ,itfl.FileMgt
+			      ,itfl.RegMemberID
+			      ,CONVERT(CHAR(10),CONVERT(datetime,itfl.CreationTime),21) as CreationTime
+			      ,CONVERT(CHAR(10),CONVERT(datetime,itfl.LastUpdated),21) as LastUpdated
+			      ,itfl.LastUser
+			      ,itfl.Version
+			      ,itfl.DownCNT
+			      ,ISNULL(mbr.Name, '') WriteUserNM
+			      ,fltp.FilePath+itfl.FileName as SysFile
+			      ,fltp.FilePath+itfl.FileRealName as OrigFile
+			      ,fltp.FilePath
+			      ,td.Name as FltpName
+			      ,itfl.FilePath as ExtFileURL
+			      ,itfl.ProjectID
+				  <if test="itemTypeCode != null and itemTypeCode != ''">
+				  ,ti2.ItemTypeCode
+				  </if>
+			      ,( select t2.name from XBOLTADM.TB_MEMBER t1 left outer join XBOLTADM.TB_TEAM_TXT t2 
+			      on t1.teamId = t2.teamId where t1.memberId = itfl.RegMemberID and t2.LanguageID = #{languageID} ) as TeamName
+			      , Case itfl.DocCategory When 'ITM' Then XBOLTADM.fn_GetMyAbsPathForList(itfl.DocumentID, '1042')  + '/' + (SELECT PlainText FROM XBOLTADM.TB_ITEM_ATTR WHERE LanguageID = '1042' AND AttrTypeCode  = 'AT00001' AND ItemID  = itfl.DocumentID)
+			        Else XBOLTADM.fn_getMyAbsPathForProject(itfl.ProjectID, #{languageID}) End AS Path
+			      ,ti2.ClassCode
+			      ,TL.LanguageCode
+	  		FROM XBOLTADM.TB_FILE itfl
+	  			LEFT OUTER JOIN XBOLTADM.TB_MEMBER mbr ON itfl.RegMemberID = mbr.MemberID
+	  			LEFT OUTER JOIN XBOLTADM.TB_FLTP fltp ON itfl.FltpCode = fltp.FltpCode
+	  			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY td ON itfl.FltpCode = td.TypeCode AND td.languageID = #{sessionCurrLangType}
+	  			Left Outer Join XBOLTADM.TB_ITEM ti2 On ti2.ItemID = itfl.DocumentID And ti2.Deleted = 0 AND itfl.DocCategory = 'ITM'
+	  			Left Outer Join XBOLTADM.TB_LANGUAGE TL On TL.LanguageID = itfl.LanguageID 
+			    <if test="itemTypeCode != null and itemTypeCode != ''">
+			 		And ti2.ItemTypeCode = #{itemTypeCode}
+			    </if>
+	  		WHERE itfl.RegMemberID = #{sessionUserId}
+	  			or ti2.AuthorID = #{sessionUserId} 
+										  		
+			) TC
+		<where>
+			<if test="projectID != null and projectID != '' and !projectID.equals('null')">
+				AND TC.ProjectID = #{projectID}
+			</if>
+			<if test="fltpCode != null and fltpCode != '' and !fltpCode.equals('null')">
+				AND TC.fltpCode = #{fltpCode}
+			</if>
+			<if test="DocCategory != null and DocCategory != '' and !DocCategory.equals('null')">
+				    And TC.DocCategory = #{DocCategory}
+			</if>
+			<if test="refPjtID != null and refPjtID != '' and !refPjtID.equals('null')">
+				AND TC.RefPjtID = #{refPjtID}
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+				<choose>
+					<when test="searchKey.equals('Name')">
+						AND TC.fileRealName like N'%'+#{searchValue}+'%'
+					</when>
+					<when test="searchKey.equals('Info')">
+						AND TC.Description like N'%'+#{searchValue}+'%'
+					</when>
+				</choose>
+			</if>
+			<if test="pageNo != null and pageNo != ''">
+				AND TC.RNUM BETWEEN ((#{pageNo}-1)*#{LIST_PAGE_SCALE}  + 1) AND (#{pageNo}*#{LIST_PAGE_SCALE})
+			</if>
+		</where>
+	</select>
+	
+	<select id="getFile_gridList" resultType="java.util.HashMap">
+		SELECT 
+			*
+		FROM(	
+			SELECT 
+				<choose>
+					<when test='"Y".equals(fileNameSorting)'>
+				  		TOP 500 Row_Number() OVER (order by itfl.FileRealName, itfl.Blocked, itfl.LastUpdated DESC, itfl.FltpCode) AS RNUM 
+				  	</when>
+				  	<otherwise>
+				  		TOP 500 Row_Number() OVER (order by itfl.Blocked, itfl.LastUpdated DESC, itfl.FltpCode, itfl.FileRealName) AS RNUM 
+				  	</otherwise>
+				  </choose>
+				  ,itfl.Seq
+				  ,0 as CHK
+			      ,itfl.DocumentID 
+			      ,itfl.DocCategory
+			      ,itfl.LinkType
+			      ,itfl.FileName
+			      ,itfl.FltpCode
+			      ,itfl.FileFormat
+			      ,itfl.FileRealName
+			      ,itfl.FileSize
+			      ,itfl.FileMgt
+			      ,itfl.RegMemberID
+			      ,CONVERT(CHAR(10),CONVERT(datetime,itfl.CreationTime),21) as CreationTime
+			      ,CONVERT(CHAR(10),CONVERT(datetime,itfl.LastUpdated),21) as LastUpdated
+			      ,itfl.LastUser
+			      ,itfl.Version
+			      ,itfl.DownCNT
+			      ,ISNULL(mbr.Name, '') WriteUserNM
+			      ,fltp.FilePath+itfl.FileName as SysFile
+			      ,fltp.FilePath+itfl.FileRealName as OrigFile
+			      ,fltp.FilePath
+			      ,itfl.FilePath as ExtFileURL
+			      ,td.Name as FltpName
+			      ,fltp.fileOption
+			      ,ti2.ItemTypeCode As ItemTypeCode
+			      ,( select t2.name from XBOLTADM.TB_MEMBER t1 left outer join XBOLTADM.TB_TEAM_TXT t2 
+			      on t1.teamId = t2.teamId where t1.memberId = itfl.RegMemberID and t2.LanguageID = #{languageID} ) as TeamName
+			      , Case itfl.DocCategory When 'ITM' Then XBOLTADM.fn_GetMyAbsPathForList(itfl.DocumentID, #{languageID})  + '/' + (SELECT PlainText FROM XBOLTADM.TB_ITEM_ATTR WHERE LanguageID = #{languageID} AND AttrTypeCode  = 'AT00001' AND ItemID  = itfl.DocumentID)
+			        Else XBOLTADM.fn_getMyAbsPathForProject(itfl.ProjectID, #{languageID}) End AS Path	
+			     ,ti2.ClassCode
+			     ,TL.LanguageCode
+			     ,CASE WHEN itfl.Blocked = 1 then 'Y'
+				  ELSE '' END Blocked
+				 ,TCS.Version AS CSVersion
+	  		FROM XBOLTADM.TB_FILE itfl
+	  			LEFT OUTER JOIN XBOLTADM.TB_MEMBER mbr ON itfl.RegMemberID = mbr.MemberID
+	  			LEFT OUTER JOIN XBOLTADM.TB_FLTP fltp ON itfl.FltpCode = fltp.FltpCode
+	  			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY td ON itfl.FltpCode = td.TypeCode AND td.languageID = #{languageID}
+	  			Left Outer Join XBOLTADM.TB_ITEM ti2 On ti2.ItemID = itfl.DocumentID And ti2.Deleted = 0 
+	  			Left Outer Join XBOLTADM.TB_PROJECT TP ON TP.ProjectID = itfl.ProjectID
+	  			Left Outer Join XBOLTADM.TB_LANGUAGE TL On TL.LanguageID = itfl.LanguageID 
+	  			Left Outer Join XBOLTADM.TB_CHANGE_SET TCS On TCS.ChangeSetID = itfl.ChangeSetID
+	  		<where>
+	  			<if test='"Y".equals(itmIfMain)'>
+			 	  AND itfl.Blocked != 1 AND (CASE ISNULL(fltp.RevisionYN,'N') 
+										         WHEN 'Y' THEN 
+										                  CASE WHEN ISNULL(TCS.Status,'') = 'CLS' THEN 1 ELSE 0 END
+														  ELSE 1 END) = 1
+			    </if>
+			   <if test='!"N".equals(langFilter)'> 
+		  		<if test="languageID != null and languageID != '' and !languageID.equals('null')">
+				  	AND itfl.languageID = #{languageID}
+				</if>
+			    </if>	  			
+				<if test="DocCategory != null and DocCategory != '' and !DocCategory.equals('null')">
+				    And itfl.DocCategory = #{DocCategory}
+				</if>
+				<if test="itemTypeCode != null and itemTypeCode != ''">
+					And ti2.ItemTypeCode = #{itemTypeCode}
+				</if>
+				<if test="classCode != null and classCode != ''">
+					And ti2.ClassCode = #{classCode}
+				</if>
+				<if test="myDoc != null and myDoc != ''">
+					And (itfl.RegMemberID = #{sessionUserId}	or itfl.lastUser = #{sessionUserId} )
+				</if>
+	  			<if test="deleted != null and deleted != ''">
+			 	  AND ti2.Deleted = #{deleted}
+	  			</if>
+				<if test="DocumentID != null and DocumentID != '' and !DocumentID.equals('null')">
+					AND itfl.DocumentID = #{DocumentID}
+				</if>
+				<if test="fltpCode != null and fltpCode != '' and !fltpCode.equals('null')">
+					AND itfl.fltpCode = #{fltpCode}
+				</if>
+				<if test="parentID != null and parentID != '' and !parentID.equals('null')">
+					AND TP.RefPjtID = #{parentID}
+				</if>
+				<if test="projectID != null and projectID != '' and !projectID.equals('null')">
+					AND itfl.ProjectID = #{projectID}
+				</if>
+				<if test="changeSetID != null and changeSetID != '' and !changeSetID.equals('null')">
+					AND itfl.ChangeSetID = #{changeSetID}
+				</if>
+				<if test="ownerTeamID != null and ownerTeamID != '' and !ownerTeamID.equals('null')">
+					AND ti2.OwnerTeamID = #{ownerTeamID}
+				</if>				
+				<if test="refPjtID != null and refPjtID != '' and !refPjtID.equals('null')">
+					AND TP.RefPjtID = #{refPjtID}
+				</if>
+				<if test='rltdItemId != null and !"Y".equals(fileListYN)'>
+					<choose>
+						<when test="rltdItemId != ''">
+						OR itfl.DocumentID IN(${rltdItemId})
+							<if test='"Y".equals(itmIfMain)'>
+								ANd fltp.FltpCode IN (Select FltpCode From XBOLTADM.TB_FLTP_ALLOC
+							    						Where LinkType = '02' AND ItemClassCode =(Select ClassCode From XBOLTADM.TB_ITEM Where ItemID = #{s_itemID}))
+							</if>
+						</when>
+						<otherwise>
+						OR itfl.DocumentID IN('')
+						</otherwise>
+					</choose>
+				</if>
+				<if test='rltdItemId != null and "Y".equals(fileListYN)'>
+					<choose>
+						<when test="rltdItemId != ''">
+						OR itfl.DocumentID IN(${rltdItemId})
+								ANd fltp.FltpCode IN (Select FltpCode From XBOLTADM.TB_FLTP_ALLOC
+							    						Where LinkType = '02' AND ItemClassCode =(Select ClassCode From XBOLTADM.TB_ITEM Where ItemID = #{s_itemID}))
+						</when>
+						<otherwise>
+						OR itfl.DocumentID IN('')
+						</otherwise>
+					</choose>
+				</if>
+				<if test="searchValue != null and searchValue != ''">
+					<choose>
+						<when test="searchKey.equals('Name')">
+							AND itfl.fileRealName like N'%'+#{searchValue}+'%'
+						</when>
+						<when test="searchKey.equals('Info')">
+							AND itfl.Description like N'%'+#{searchValue}+'%'
+						</when>
+					</choose>
+				</if>
+				<if test="updatedStartDT != null and updatedStartDT != ''">
+					And <![CDATA[ CONVERT(varchar(10), itfl.LastUpdated, 120) BETWEEN #{updatedStartDT} AND #{updatedEndDT}  ]]>
+				</if>
+				<if test="regMemberName != null and regMemberName != ''">
+					And mbr.Name like N'%'+#{regMemberName}+'%'
+				</if>
+				<if test='!"N".equals(isPublic)'>
+					And fltp.IsPublic = 1
+				</if>	
+			</where> 
+			<choose>
+				<when test='"Y".equals(fileNameSorting)'>
+					order by itfl.FileRealName, itfl.Blocked, itfl.LastUpdated DESC, itfl.FltpCode
+				</when>
+				<otherwise>
+					order by itfl.Blocked, itfl.LastUpdated , itfl.FltpCode, itfl.FileRealName 
+				</otherwise>
+			</choose>
+			) TC		
+		<where>
+			<if test="pageNo != null and pageNo != ''">
+				And TC.RNUM BETWEEN ((#{pageNo}-1)*#{LIST_PAGE_SCALE}  + 1) AND (#{pageNo}*#{LIST_PAGE_SCALE})
+			</if>
+	  	</where>		
+	</select>
+	
+	<select id="itemFile_nextVal" resultType="String">
+		SELECT ISNULL(MAX(Seq)+1,'1') AS FILEID_NEXTVAL FROM XBOLTADM.TB_FILE
+	</select>
+	
+	<insert id="itemFile_insert"  parameterType="java.util.HashMap">
+			INSERT INTO XBOLTADM.TB_FILE (
+				Seq
+				,DocumentID	
+				,DocCategory	
+				,ProjectID
+				,LinkType	
+				,FileName
+				<if test="FilePath != null and FilePath != ''">
+					,FilePath
+				</if>
+				<if test="FltpCode != null and FltpCode != ''">
+					,FltpCode
+				</if>
+				<if test="ItemID != null and ItemID != ''">
+					,ItemID
+				</if>
+				<if test="ChangeSetID != null and ChangeSetID != ''">
+					,ChangeSetID
+				</if>
+				,FileRealName
+				,FileSize
+				,FileMgt
+				,FileFormat
+				,RegMemberID
+				,CreationTime
+				,LastUpdated
+				,LastUser
+				,DownCNT
+				,LanguageID
+				,Blocked
+				<if test="Description != null and Description != ''">
+					,Description
+				</if>
+			)
+			VALUES (
+				#{Seq}
+				, #{DocumentID}
+				, #{DocCategory} 
+				, #{projectID}
+				, #{LinkType}
+				, #{FileName}
+				<if test="FilePath != null and FilePath != ''">
+					, #{FilePath}
+				</if>
+				<if test="FltpCode != null and FltpCode != ''">
+					, #{FltpCode}
+				</if>
+				<if test="ItemID != null and ItemID != ''">
+					,#{ItemID}
+				</if>
+				<if test="ChangeSetID != null and ChangeSetID != ''">
+					, #{ChangeSetID}
+				</if>
+				, #{FileRealName}
+				, #{FileSize}
+				, #{FileMgt}
+				, #{FileFormat}
+				, #{userId}
+				, getDate()
+				, getDate()
+				, #{userId}
+				, 0
+				, #{LanguageID}
+				, 0
+				<if test="Description != null and Description != ''">
+					,#{Description}
+				</if>
+			)
+	</insert>
+	
+	<update id="itemFile_update" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_FILE SET
+			FltpCode = #{FltpCode}
+			<if test="FileName != null and FileName != ''">,FileName = #{FileName}</if>
+			<if test="FileRealName != null and FileRealName != ''">,FileRealName = #{FileRealName}</if>
+			<if test="FileSize != null and FileSize != ''">,FileSize = #{FileSize}</if>
+			<if test="projectID != null and projectID != ''">,ProjectID = #{projectID}</if>
+			<if test="ChangeSetID != null and ChangeSetID != ''">,ChangeSetID = #{ChangeSetID}</if>
+			<if test="Blocked != null and Blocked != ''">,Blocked = #{Blocked}</if>
+			<if test="FileFormat != null and FileFormat != ''">,FileFormat = #{FileFormat}</if>
+			<choose>
+				<when test="'VIEWER'.equals(FilePath)">
+					,FilePath = ''
+				</when>
+				<when test="filePath != null and filePath != ''">
+					,FilePath = #{FilePath}
+				</when>
+		 		<otherwise>,FilePath = NULL</otherwise>
+		 	</choose>	
+			, Description = #{Description}
+			, LastUpdated = getDate()
+			, LastUser = #{sessionUserId}
+			, LanguageID = #{LanguageID}
+		WHERE Seq = #{Seq}
+	</update>
+	<delete id="itemFile_delete">
+		DELETE XBOLTADM.TB_FILE	WHERE Seq = #{Seq}
+	</delete>
+	
+	<update id="itemFileDownCnt_update" parameterType="java.util.HashMap">
+			UPDATE XBOLTADM.${TableName} SET
+				DownCNT = ISNULL(DownCNT,0)+1
+			WHERE Seq = #{Seq}
+	</update>
+	
+	<select id="selectDownFile" resultType="java.util.HashMap">
+		SELECT  tif.FileName as filename
+				, tif.FileRealName as original
+				, ISNULL(tft.FilePath,tif.FilePath) + tif.FileName as downFile
+		FROM XBOLTADM.TB_FILE tif
+		Left Outer Join XBOLTADM.TB_FLTP tft On tif.FltpCode = tft.FltpCode
+		WHERE tif.Seq = #{Seq}
+	</select>
+	
+	<select id="getItemClassCode" resultType="java.util.HashMap">
+		SELECT  ClassCode as itemClassCode
+		FROM XBOLTADM.TB_ITEM
+		WHERE ItemID = #{itemID}
+	</select>
+	
+	<select id="getFilePath" resultType="String">
+		SELECT FilePath FROM XBOLTADM.TB_FLTP 
+		WHERE FltpCode = #{fltpCode}
+	</select>
+	
+	<select id="selectItemAuthorID" resultType="java.util.HashMap">
+		SELECT AuthorID, Blocked, Status, LockOwner, ItemTypeCode, ClassCode, ProjectID, CurChangeSet FROM XBOLTADM.TB_ITEM
+		WHERE ItemID = #{itemId}
+	</select>
+	
+	<update id="itemStatus_update" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_ITEM SET
+			Status = 'MOD1'
+		WHERE ItemID = #{itemId}
+	</update>
+	
+	<select id="getFileMyPg_gridList" resultType="java.util.HashMap">
+		 
+		SELECT 
+			  TOP 1000 Row_Number() OVER (order by itfl.CreationTime) AS RNUM
+			  ,itfl.Seq
+			  ,0 as CHK
+		      ,itfl.DocumentID As ItemID
+		      ,itfl.LinkType
+		      ,itfl.FileName
+		      ,itfl.FltpCode
+		      ,itfl.FileFormat
+		      ,itfl.FileRealName
+		      ,itfl.FileSize
+		      ,itfl.FileMgt
+		      ,itfl.RegMemberID
+		      ,CONVERT(CHAR(10),CONVERT(datetime,itfl.CreationTime),21) as CreationTime
+		      ,CONVERT(CHAR(10),CONVERT(datetime,itfl.LastUpdated),21) as LastUpdated
+		      ,itfl.LastUser
+		      ,itfl.Version
+		      ,itfl.DownCNT
+		      ,ISNULL(mbr.Name, '') WriteUserNM
+		      ,itfl.FilePath+itfl.FileName as SysFile
+		      ,itfl.FilePath+itfl.FileRealName as OrigFile
+		      ,itfl.FltpCode
+		      ,fltp.FilePath
+		      ,td.Name as FltpName
+		      ,fltpalc.itemClassCode
+		      ,( select t2.name from XBOLTADM.TB_MEMBER t1 left outer join XBOLTADM.TB_TEAM_TXT t2 
+		      on t1.teamId = t2.teamId where t1.memberId = itfl.RegMemberID and t2.LanguageID = #{languageID} ) as TeamName
+		      ,XBOLTADM.fn_GetMyAbsPathForList(itfl.DocumentID, #{languageID})  + '/' + (SELECT PlainText FROM XBOLTADM.TB_ITEM_ATTR WHERE LanguageID = #{languageID} AND AttrTypeCode  = 'AT00001' AND ItemID  = itfl.DocumentID)  AS Path
+  		FROM XBOLTADM.TB_FILE itfl
+  			LEFT OUTER JOIN XBOLTADM.TB_MEMBER mbr ON itfl.RegMemberID = mbr.MemberID
+  			LEFT OUTER JOIN XBOLTADM.TB_FLTP fltp ON itfl.FltpCode = fltp.FltpCode
+  			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY td ON itfl.FltpCode = td.TypeCode
+  			LEFT OUTER JOIN XBOLTADM.TB_FLTP_ALLOC fltpalc ON itfl.FltpCode = fltpalc.FltpCode
+  		WHERE 1=1
+  		AND td.LanguageID = #{sessionCurrLangType}
+  		AND itfl.RegMemberID = #{sessionUserId}
+		<if test="!'null'.equals(itemId)">
+			AND itfl.DocumentID = #{itemId}
+		</if>
+		<if test="!'null'.equals(itemClassCode)">
+			AND fltpalc.ItemClassCode = #{itemClassCode}
+		</if>
+		<if test="!'null'.equals(fltpCode)">
+			AND fltp.fltpCode = #{fltpCode}
+		</if>
+		<if test="!'null'.equals(searchValue)">
+			AND itfl.fileRealName like N'%'+#{searchValue}+'%'
+		</if>
+		order by itfl.CreationTime desc
+  			
+	</select>
+	
+	<update id="itemFileMyPg_update" parameterType="java.util.HashMap">
+			UPDATE XBOLTADM.TB_FILE SET
+				FileName = #{FileName}
+				, FileRealName = #{FileRealName}
+				, LastUpdated = getDate()
+				, LastUser = #{userId}
+				, FltpCode = #{fltpCode}
+			WHERE Seq = #{Seq}
+	</update>
+	
+	<select id="selectFileList" resultType="java.util.HashMap">
+		SELECT 
+		      TOP 1000 itfl.FileSize as size
+		      , #{baseUrl}+SubString(fltp.FilePath,30,len(fltp.FilePath))+itfl.FileRealName as filePath
+		      ,itfl.FileRealName as fileName
+		      ,itfl.Seq as id
+  		FROM XBOLTADM.TB_FILE itfl
+  			LEFT OUTER JOIN XBOLTADM.TB_MEMBER mbr ON itfl.RegMemberID = mbr.MemberID
+  			LEFT OUTER JOIN XBOLTADM.TB_FLTP fltp ON itfl.FltpCode = fltp.FltpCode
+  			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY td ON itfl.FltpCode = td.TypeCode
+  			LEFT OUTER JOIN XBOLTADM.TB_FLTP_ALLOC fltpalc ON itfl.FltpCode = fltpalc.FltpCode
+  		WHERE 1=1
+  		AND  td.LanguageID = #{languageID}
+		<if test="!'null'.equals(itemId)">
+			AND itfl.DocumentID = #{itemId}
+		</if>
+		<if test="!'null'.equals(itemClassCode)">
+			AND fltpalc.ItemClassCode = #{itemClassCode}
+		</if>
+		<if test="!'null'.equals(fltpCode)">
+			AND fltp.fltpCode = #{fltpCode}
+		</if>
+		<if test="!'null'.equals(searchValue)">
+			AND itfl.fileRealName like N'%'+#{searchValue}+'%'
+		</if>
+		order by itfl.CreationTime desc
+	</select>
+	
+	<select id="getFileCnt" resultType="String">
+		SELECT 
+			Count(*)
+  		FROM XBOLTADM.TB_FILE 
+  		<where>
+			<if test="itemId != null and itemId != '' and !itemId.equals('null')">
+				DocumentID = #{itemId}
+			</if>
+  		</where>
+	</select>
+	
+	<select id="getItemTypeFromFltpAlloc" resultType="java.util.HashMap">
+	   SELECT Distinct TIC.ItemTypeCode As ItemTypeCode, TD.Name As ItemTypeName
+	    FROM XBOLTADM.TB_ITEM_CLASS TIC
+	    Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TIC.ItemTypeCode And TD.LanguageID =  #{LanguageID}
+	   Where ItemClassCode In (select distinct ItemClassCode From XBOLTADM.TB_FLTP_ALLOC)	
+	</select>
+	
+	<select id="getFileTypeFromFltpAlloc" resultType="java.util.HashMap">
+		Select Distinct TFA.FltpCode AS FltpCode, TD.Name As FltpName, 
+		 (Select ItemTypeCode From XBOLTADM.TB_ITEM_CLASS Where ItemClassCode = TFA.ItemClassCode) As ItemTypeCode
+		From XBOLTADM.TB_FLTP_ALLOC TFA
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TFA.FltpCode And TD.LanguageID = #{LanguageID}
+	</select>
+	
+	<select id="getFltpName" resultType="String">
+		Select Name As FltpName From XBOLTADM.TB_DICTIONARY Where TypeCode= #{fltpCode}  And LanguageID = #{LanguageID}
+	</select>
+	
+	<select id="getFielDetailList" resultType="java.util.HashMap">
+		Select
+			TIF.Seq, 
+			TM.Name As WriterName, TTT.Name AS TeamName, TIF.FltpCode, 
+			CONVERT(CHAR(10),CONVERT(datetime,TIF.LastUpdated),21) as LastUpdated,
+			CONVERT(CHAR(10),CONVERT(datetime,TIF.CreationTime),21) as CreationTime,
+			Case WHEN TIF.DocCategory = 'ITM' Then XBOLTADM.fn_GetMyAbsPathForList(TIF.DocumentID, 1042)  + '/' + TIA.PlainText ELSE Null END AS Path ,
+			TIF.Description, TF.FilePath + TIF.FileName As SysFile, TIF.DocumentID As DocumentID
+			, TIF.FileName, TIF.FileRealName, TF.FilePath, TD.Name As FltpName
+			, TP.ProjectID, TP.RefPjtID As ParentID, TPT1.Name AS ProjectName, TPT2.Name As CsrName
+			, TIF.FileMgt As FileMgt, TF.RevisionYN, TI.Blocked AS ItemBlocked, TIF.DocCategory, TP.Status AS PjtStatus
+			, TIF.Blocked
+		From XBOLTADM.TB_FILE TIF
+		 Left Outer Join XBOLTADM.TB_MEMBER TM On TM.MemberID = TIF.RegMemberID
+		 Left Outer Join XBOLTADM.TB_TEAM_TXT TTT ON TTT.TeamID = TM.TeamID And TTT.LanguageID = #{LanguageID}
+		 Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TIF.DocumentID And TIA.LanguageID = #{LanguageID} And TIa.AttrTypeCode = 'AT00001' And TIF.DocumentID = TIA.ItemID 
+		 Left Outer Join XBOLTADM.TB_FLTP TF On TF.FltpCode = TIF.FltpCode 
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TD On TIF.FltpCode = TD.TypeCode And TD.LanguageID =  #{LanguageID}
+		 Left Outer Join XBOLTADM.TB_ITEM TI ON TI.ItemID = TIF.DocumentID 
+		 Left Outer Join XBOLTADM.TB_PROJECT TP ON TP.ProjectID = TIF.ProjectID 
+ 		 Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT1 ON TPT1.ProjectID = TP.RefPjtID And TPT1.LanguageID = #{LanguageID}
+ 		 Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT2 ON TPT2.ProjectID = TP.ProjectID And TPT2.LanguageID = #{LanguageID}
+		 Where TIF.Seq = #{seq}
+	</select>
+	
+	<select id="getFileFromTask" resultType="String">
+		Select FileID From XBOLTADM.TB_TASK Where FileID = #{Seq}
+	</select>
+	
+	<update id="updateNullToTaskFile" >
+		Update XBOLTADM.TB_TASK Set FileID = NULL Where FileID = #{taskFileID} 
+	</update>
+	
+	<select id="getFltpCodeAlloc" resultType="String" >
+		Select FltpCode From XBOLTADM.TB_FLTP_ALLOC Where ProjectID = #{projectID}
+	</select>
+	
+	<select id="getSubItemFileList_gridList" resultType="java.util.HashMap" >
+		 WITH ItemMaster(MyItemID)
+		 AS
+		 (
+			SELECT ToItemID AS MyItemID
+			FROM XBOLTADM.TB_ITEM ITM
+			WHERE ITM.FromItemID =  #{itemID}					
+				AND ITM.CategoryCode = 'ST1'
+				AND ITM.Deleted != '1'						
+				AND (Select Deleted From XBOLTADM.TB_ITEM Where ItemID = ITM.ToItemID ) != '1'
+			UNION ALL
+			SELECT ITM_L.ToItemID AS MyItemID			
+			FROM XBOLTADM.TB_ITEM ITM_L, ItemMaster LCTE, XBOLTADM.TB_ITEM ITM
+			WHERE ITM_L.Deleted != '1'			
+				AND ITM_L.CategoryCode = 'ST1'		
+				AND ITM_L.FromItemID = LCTE.MyItemID						
+				AND ITM.ItemID = ITM_L.ToItemID	
+		 )
+		, ItemStructure(MyItemID)
+		 AS
+		 (
+		 	SELECT  ItemID AS MyItemID
+	    	FROM XBOLTADM.TB_ITEM
+	    	WHERE ItemID =  #{itemID}		    	
+	    	UNION ALL		    	
+			SELECT MyItemID  
+			FROM ItemMaster		
+		 )
+		 
+		 SELECT Distinct Row_Number()OVER(ORDER BY ITM.Identifier ) as RNUM
+			, ITM_STR.MyItemID AS MyItemID
+			, ITM.Identifier As Identifier
+			, ATR.PlainText AS ItemName
+			, ITM.ClassCode AS ClassCode
+			, TM.Name As LastUser
+     		, Convert(nvarchar(20),TF.LastUpdated, 21) AS LastUpdated
+			, TF.DocumentID	
+			, TF.Seq
+			, TF.FileRealName 
+			, TD.Name As FltpName
+			, TL.LanguageCode
+			, TM.Name As RegUserName
+			, TF.DownCNT
+			, TFTP.FilePath+TF.FileName as SysFile
+		    , TFTP.FilePath+TF.FileRealName as OrigFile
+		    , TFTP.FilePath
+		    , TCS.Version
+		    , CONVERT(nvarchar(10),CONVERT(datetime,TCS.ValidFrom),21) as ValidFrom
+		 FROM 
+			ItemStructure ITM_STR
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM ITM ON ITM.CategoryCode = 'OJ'	AND ITM.ItemID = ITM_STR.MyItemID
+			LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR ATR ON ATR.AttrTypeCode = 'AT00001' AND ATR.LanguageID = #{languageID} AND ATR.ItemID = ITM.ItemID										
+			Inner Join XBOLTADM.TB_FILE TF ON TF.DocumentID = ITM_STR.MyItemID 
+			Left outer join XBOLTADM.TB_MEMBER TM on TF.RegMemberID = TM.MemberID
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TF.FltpCode And TD.LanguageID = #{languageID} 
+			Left Outer Join XBOLTADM.TB_LANGUAGE TL On TL.LanguageID = TF.LanguageID 
+			Left Outer Join XBOLTADM.TB_FLTP TFTP ON TFTP.FltpCode = TF.FltpCode 	
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = ITM.ItemTypeCode And TD2.LanguageID = 1042 
+			Left Outer Join XBOLTADM.TB_CHANGE_SET TCS ON ITM.CurChangeSet = TCS.ChangeSetID  			
+			<where>						
+				<if test='"Y".equals(filtered)'>
+					(TF.Blocked = 0 OR TF.Blocked IS NULL)
+					And ITM.CurChangeSet = TF.ChangeSetID
+				</if>
+				<if test="classCode != null and classCode != ''">
+					AND ITM.ClassCode IN (${classCode})
+				</if>
+				<if test="selectedLanguageID != null and selectedLanguageID != ''">
+					AND TF.LanguageID = #{selectedLanguageID}
+				</if>
+				<if test="fltpCode != null and fltpCode != ''">
+					AND TF.FltpCode = #{fltpCode}
+				</if>
+				<if test="startLastUpdated != null and startLastUpdated != ''">
+					AND <![CDATA[ CONVERT(varchar(10), TF.LastUpdated, 120) BETWEEN #{startLastUpdated} AND #{endLastUpdated}  ]]>
+				</if>
+				<if test="itemName != null and itemName != ''">
+					AND ATR.PlainText Like '%'+#{itemName}+'%' 
+				</if>
+				<if test="fileName != null and fileName != ''">
+					AND TF.FileRealName Like '%'+#{fileName}+'%'
+				</if>
+				<if test="regUserName != null and regUserName != ''">
+					AND TM.Name Like '%'+#{regUserName}+'%'
+				</if>
+			</where>
+			ORDER BY Identifier
+	</select>
+	
+	<select id="getFileName" resultType="String">
+		SELECT FileRealName FROM XBOLTADM.TB_FILE 
+		WHERE Seq = #{seq}
+	</select>
+	
+	
+	
+	<select id="getFltpDocCategory" resultType="String">
+		SELECT DocCategory FROM XBOLTADM.TB_FLTP
+		WHERE FltpCode = #{FltpCode}
+	</select>
+	
+	<select id="getFilePathInSeq" resultType="String">
+		SELECT ISNULL(TFP.FilePath,TF.FilePath) as FilePath FROM XBOLTADM.TB_FILE TF
+		LEFT OUTER JOIN XBOLTADM.TB_FLTP TFP ON TF.FltpCode = TFP.FltpCode
+		WHERE Seq = #{seq}
+	</select>	
+	
+	<select id="getExtModFileList" resultType="java.util.HashMap">
+		SELECT  
+			Seq
+	        , FileRealName
+	        , FltpCode
+	        , FilePath
+		FROM XBOLTADM.TB_FILE 
+		WHERE Seq in ( ${Seq} )
+	</select>
+	
+	<update id="updateExtFile" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_FILE 
+		SET
+			<if test="FileRealName != null and FileRealName != ''">
+			FileRealName = #{FileRealName}, 
+			</if>
+			LastUser = #{userId}
+			<if test="userId != null and userId != ''">
+			,RegMemberID = #{userId}
+			</if>			
+			, LastUpdated = getDate()
+			, FilePath = #{FilePath}
+		WHERE Seq = #{Seq}
+	</update>	
+	
+	<select id="getFileSysName" resultType="String">
+		SELECT FileName FROM XBOLTADM.TB_FILE 
+		WHERE Seq = #{seq}
+	</select>	
+	
+	<select id="getFileOption" resultType="String">
+		SELECT TIC.FileOption 
+		  FROM XBOLTADM.TB_ITEM TI 
+		  LEFT OUTER JOIN XBOLTADM.TB_ITEM_CLASS TIC ON TI.ClassCode = TIC.ItemClassCode AND TI.ItemTypeCode = TIC.ItemTypeCode
+		WHERE TI.ItemID = #{itemId}
+	</select>
+	
+	<select id="getFilePathInFileTable" resultType="String">
+		SELECT  
+			FilePath
+		FROM XBOLTADM.TB_FILE 
+		WHERE Seq = ${Seq}
+	</select>
+	
+	<select id="getFileSeq" resultType="String" >
+		SELECT Seq FROM XBOLTADM.TB_FILE 
+		<where>
+			<if test="itemID != null and itemID != ''">
+				DocumentID = #{itemID}
+			</if>
+			<if test="fileName != null and !fileName.equals('')">
+				AND FileRealName = #{fileName}
+			</if>
+		</where>
+	</select>
+	
+	<update id="updateFileRegMember" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_FILE 
+		SET	RegMemberID = #{regMemberID}
+			,LastUser = #{userID}		
+			, LastUpdated = getDate()
+		WHERE Seq IN (${seq})
+	</update>	
+	
+	<select id="getFileUploadYN" resultType="String">
+		SELECT  
+			TOP 1 ISNULL(LinkType,'') AS uploadYN
+		FROM XBOLTADM.TB_ITEM TI
+			LEFT OUTER JOIN XBOLTADM.TB_FLTP_ALLOC TFA ON TI.ClassCode = TFA.ItemClassCode
+		WHERE TI.ItemID = #{itemId} AND LinkType is not null
+	</select>
+
+	<select id="getCxnItemFileList_gridList" resultType="java.util.HashMap">
+		Select  Distinct Row_Number()OVER(ORDER BY TI.Identifier ) as RNUM
+			, TI.ItemID
+			, TI.Identifier
+			, TIA.PlainText AS ItemName
+			, TI.ClassCode
+			, TM2.Name AS LastUser
+			, Convert(nvarchar(20),TF.LastUpdated, 111) AS LastUpdated
+			, TF.DocumentID	
+			, TF.Seq
+			, TF.FileRealName 
+			, TD.Name As FltpName
+			, TL.LanguageCode
+			, TM.Name As RegUserName
+			, TF.DownCNT
+			, TFTP.FilePath+TF.FileName as SysFile
+			, TFTP.FilePath+TF.FileRealName as OrigFile
+			, TFTP.FilePath		 
+		From XBOLTADM.TB_FILE TF
+		Left Outer Join XBOLTADM.TB_ITEM TI ON TI.ItemID = TF.DocumentID 
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR TIA ON TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID} AND TIA.ItemID = TI.ItemID
+		Left outer join XBOLTADM.TB_MEMBER TM on TF.RegMemberID = TM.MemberID	
+		Left outer join XBOLTADM.TB_MEMBER TM2 on TF.LastUser = TM2.MemberID
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TF.FltpCode And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_LANGUAGE TL On TL.LanguageID = TF.LanguageID 
+		Left Outer Join XBOLTADM.TB_FLTP TFTP ON TFTP.FltpCode = TF.FltpCode 
+		Where TF.DocumentID IN(${itemIDs})	
+			<if test="selectedLanguageID != null and selectedLanguageID != ''">
+				AND TF.LanguageID = #{selectedLanguageID}
+			</if>
+			<if test="fltpCode != null and fltpCode != ''">
+				AND TF.FltpCode = #{fltpCode}
+			</if>
+			<if test="startLastUpdated != null and startLastUpdated != ''">
+				AND <![CDATA[ CONVERT(varchar(10), TF.LastUpdated, 120) BETWEEN #{startLastUpdated} AND #{endLastUpdated}  ]]>
+			</if>
+			<if test="itemName != null and itemName != ''">
+				AND TIA.PlainText Like '%'+#{itemName}+'%' 
+			</if>
+			<if test="fileName != null and fileName != ''">
+				AND TF.FileRealName Like '%'+#{fileName}+'%'
+			</if>
+			<if test="regUserName != null and regUserName != ''">
+				AND TM.Name Like '%'+#{regUserName}+'%'
+			</if>
+	</select>
+	
+	<select id="getDocFilePath" resultType="String">
+		Select FilePath From XBOLTADM.TB_FLTP Where FltpCode = #{FltpCode}
+	</select>
+	
+	 <select id="getFltpByDocCategory" resultType="java.util.HashMap">
+		Select Distinct TFLTP.FltpCode As CODE, TD.Name AS NAME 
+		From XBOLTADM.TB_FILE TFL
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TFL.FltpCode And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_FLTP TFLTP ON TFLTP.FltpCode = TFL.FltpCode  
+		<where>
+		  	<if test="fileOption != null and fileOption != ''">
+				TFLTP.FileOption = #{fileOption}
+			</if>  	
+		  		<if test="docCategory != null and docCategory != ''">
+				AND TFLTP.DocCategory = #{docCategory}
+			</if>  	
+		</where>
+		Order By Code
+	</select>
+		
+	
+	<update id="updateFileBlocked" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_FILE 
+		SET	Blocked = CASE Blocked WHEN 1 THEN 0 WHEN 0 THEN 1 ELSE 1 END
+		WHERE Seq IN (${seq})
+	</update>
+	
+	<update id="updateFileBlockPreVersionWithCS" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_FILE
+		       SET Blocked = 1
+	     FROM XBOLTADM.TB_FILE TF 
+	           INNER JOIN XBOLTADM.TB_CHANGE_SET TCS ON TF.DocumentID = TCS.ItemID
+	           INNER JOIN XBOLTADM.TB_FLTP FTP ON FTP.FltpCode = TF.FltpCode AND FTP.RevisionYN = 'Y'
+	     WHERE TF.DocumentID = #{itemID} AND TF.ChangeSetID != #{csID} AND TF.Blocked != 1 AND TF.DocCategory = 'ITM'
+	</update>
+	
+	<update id="updateFileBlockWithCSID" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_FILE
+		       SET Blocked = 1
+	     FROM XBOLTADM.TB_FILE
+	     WHERE ItemID = #{s_itemID} AND ChangeSetID = #{csID}
+	</update>
+			
+	<select id="getDicTypeCodeByDocCategory" resultType="java.util.HashMap">
+  		SELECT distinct
+      		TF.DocCategory AS CODE
+	  		, TD.Name AS NAME
+  		FROM XBOLTADM.TB_FILE TF LEFT Outer Join XBOLTADM.TB_DICTIONARY TD 
+  			ON TF.DocCategory = TD.TypeCode
+		where TD.Category = 'DOCCAT'
+		AND	 TD.LanguageID = #{languageID}
+	</select>
+		
+ 	<select id="getWfFileList" resultType="java.util.HashMap">
+		SELECT
+		   Seq
+		  ,FileRealName
+		FROM XBOLTADM.TB_FILE TF
+		     Left Outer Join XBOLTADM.TB_CHANGE_SET TCS ON TF.ChangeSetID = TCS.ChangeSetID
+		WHERE TCS.WFInstanceID = #{wfInstanceID} AND TF.Blocked = 0
+ 	</select>
+ 	
+	<select id="getFileRevisionForChangeSetID" resultType="String">
+		Select TOP 1 RevisionYN 
+		  From XBOLTADM.TB_FLTP TFL
+		       INNER JOIN XBOLTADM.TB_FILE TF ON TFL.FltpCode = TF.FltpCode
+		       INNER JOIN XBOLTADM.TB_CHANGE_SET TCS ON TF.ChangeSetID = TCS.ChangeSetID AND TF.DocumentID = TCS.ItemID	       
+		 Where TCS.ChangeSetID = #{csID} AND TF.Blocked = 0		
+		 GROUP BY RevisionYN 
+	</select>
+	
+</mapper>

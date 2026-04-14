@@ -1,0 +1,47 @@
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svn/olm_dev/!svn/ver/9058/OLM3/WebContent/WEB-INF/jsp/board/brd
+END
+boardDetail.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/svn/olm_dev/!svn/ver/8526/OLM3/WebContent/WEB-INF/jsp/board/brd/boardDetail.jsp
+END
+boardProjectGroupList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 90
+/svn/olm_dev/!svn/ver/4105/OLM3/WebContent/WEB-INF/jsp/board/brd/boardProjectGroupList.jsp
+END
+editBoard.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svn/olm_dev/!svn/ver/8526/OLM3/WebContent/WEB-INF/jsp/board/brd/editBoard.jsp
+END
+boardMainMenu.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svn/olm_dev/!svn/ver/8526/OLM3/WebContent/WEB-INF/jsp/board/brd/boardMainMenu.jsp
+END
+boardList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svn/olm_dev/!svn/ver/9058/OLM3/WebContent/WEB-INF/jsp/board/brd/boardList.jsp
+END
+boardMgt.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 77
+/svn/olm_dev/!svn/ver/4105/OLM3/WebContent/WEB-INF/jsp/board/brd/boardMgt.jsp
+END
+boardAlarmPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svn/olm_dev/!svn/ver/8820/OLM3/WebContent/WEB-INF/jsp/board/brd/boardAlarmPop.jsp
+END

@@ -1,0 +1,596 @@
+<%@ page contentType="text/html; charset=utf-8" pageEncoding="utf-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+<%@ taglib uri="http://www.springframework.org/tags" prefix="spring" %>
+<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %> 
+<c:url value="/" var="root"/>
+
+<!DOCTYPE html">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+<!--1. Include JSP -->
+<%@ include file="/WEB-INF/jsp/template/tagInc.jsp"%>
+<%@ include file="/WEB-INF/jsp/cmm/fileAttachHelper.jsp"%>
+
+<script type="text/javascript" src="${root}cmm/js/xbolt/tinyEditorHelper.js"></script>
+
+<script src="${root}cmm/js/jquery/jquery-1.9.1.min.js" type="text/javascript"></script> 
+<script src="${root}cmm/js/jquery/jquery.timepicker.min.js" type="text/javascript"></script> 
+<script src="${root}cmm/js/jquery/jquery.timepicker.js" type="text/javascript"></script>
+<link rel="stylesheet" type="text/css" href="${root}cmm/common/css/jquery.timepicker.css"/>
+
+<!-- 화면 표시 메세지 취득  -->
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.CM00001" var="CM00001"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00049" var="WM00049"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.CM00042" var="CM00042"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.CM00057" var="CM00057"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.CM00054" var="CM00054"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.CM00035" var="CM00035"/>
+<script type="text/javascript">
+	var fileSize = "${itemFiles.size()}";
+	var scrnType = "${scrnType}";
+	var srType = "${srType}";
+
+	jQuery(document).ready(function() {
+		$("input.datePicker").each(generateDatePicker);
+		
+		var data = "languageID=${sessionScope.loginInfo.sessionCurrLangType}&userID=${sessionScope.loginInfo.sessionUserId}&srType=${srType}";
+		fnSelect('subCategory', data+"&level=2", 'getESMSRCategory', '${srInfoMap.SubCategory}', 'Select', 'esm_SQL');
+		
+		if("${itemProposal}" == "Y") 
+			$("#itemListTR").attr("style","display:none");		
+	
+		$('#dueDateTime').timepicker({
+            timeFormat: 'H:i:s',
+        });
+		
+		if("${itemID}" != null && "${itemID}" != ""){
+			$("#actFrame").css("overflow-y","auto");
+		}
+		
+		$('#ispItem').click(function(){
+			var itemId = "${srInfoMap.SRArea3}";
+			var url = "popupMasterItem.do?languageID=${sessionScope.loginInfo.sessionCurrLangType}&id="+itemId+"&scrnType=pop&screenMode=pop";
+			var w = 1200;
+			var h = 900;
+			itmInfoPopup(url,w,h,itemId);
+		});
+	});
+
+		
+	function fnSaveReceiveItspInfo(){
+		if(!confirm("${CM00001}")){ return;}
+		$('#srMode').val('N');
+		var priority = $("#priority").val() ; if(priority == ""){ $("#priority").val("03")}
+		var url  = "updateESRInfo.do";
+		ajaxSubmit(document.receiptSRFrm, url,"saveFrame");
+	}
+	
+	function fnCallBackSR(){
+		var url = "processISP.do";
+		var data = "srCode=${srCode}&pageNum=${pageNum}&srMode=${srMode}&srType=${srType}&scrnType=${scrnType}"
+						+"&srID=${srInfoMap.SRID}&receiptUserID=${srInfoMap.ReceiptUserID}&status=${status}&projectID=${projectID}"
+						+"&itemID=${itemID}&varFilter=${varFilter}&searchStatus=${searchStatus}&srStatus=${srStatus}";
+		if( "${itemID}" == "" ) {
+			var target = "mainLayer";
+		} else {
+			var target = "srListDiv";
+		}
+		
+		if("${scrnType}"=="ITM"){
+			target = "processSRDIV";
+		}
+		ajaxPage(url, data, target);
+	}
+	
+	function fnCompletion(){		
+		if(!confirm("${CM00054}")){ return;}
+		if(!fnCheckValidation()){return;}
+		var url  = "completeESR.do?speCode=${srInfoMap.LastSpeCode}&svcCompl=Y&blockSR=Y";
+		ajaxSubmit(document.receiptSRFrm, url,"saveFrame");
+	}
+	
+	function fnGoSRList(){
+		var url = "ispList.do";
+		var data = "srType=${srType}&scrnType=${scrnType}&srMode=${srMode}&pageNum=${pageNum}&projectID=${projectID}"
+					+ "&status=${status}&category=${category}&subCategory=${subCategory}&subject=${subject}"
+					+ "&receiptUser=${receiptUser}&requestUser=${requestUser}&requestTeam=${requestTeam}"
+					+ "&startRegDT=${startRegDT}&endRegDT=${endRegDT}&searchSrCode=${searchSrCode}"
+					+ "&stSRDueDate=${stSRDueDate}&endSRDueDate=${endSRDueDate}&stCRDueDate=${stCRDueDate}&endCRDueDate=${endCRDueDate}"
+					+ "&srReceiptTeam=${srReceiptTeam}&crReceiptTeam=${crReceiptTeam}&searchStatus=${searchStatus}&srStatus=${srStatus}&varFilter=${varFilter}&itemID=${itemID}&multiComp=${multiComp}&itemTypeCode=${itemTypeCode}";
+
+		if( "${itemID}" == "" ) {
+			var target = "mainLayer";
+		} else {
+			var target = "actFrame";
+		}
+		if("${scrnType}"=="ITM"){
+			target = "processSRDIV";
+		}
+		ajaxPage(url, data, target);
+	}
+	
+	//browser detect
+	var browser = (function() {
+	  var s = navigator.userAgent.toLowerCase();
+	  var match = /(webkit)[ \/](\w.]+)/.exec(s) ||
+
+	              /(opera)(?:.*version)?[ \/](\w.]+)/.exec(s) ||
+
+	              /(msie) ([\w.]+)/.exec(s) ||               
+
+	              /(mozilla)(?:.*? rv:([\w.]+))?/.exec(s) ||
+
+	             [];
+	  return { name: match[1] || "", version: match[2] || "0" };
+	}());
+
+	function doAttachFile(){
+		var browserType="";
+		if(browser.name == 'msie'){browserType="IE";}
+		var url="addFilePop.do";
+		var data="scrnType=SR&browserType="+browserType+"&fltpCode=SRDOC";
+		if(browserType=="IE"){fnOpenLayerPopup(url,data,"",400,400);}
+		else{openPopup(url+"?"+data,360,360, "Attach File");}
+	}
+	
+	function fnDeleteSRFile(srID, seq, fileName, filePath){
+		var url = "deleteSRFile.do";
+		var data = "srID="+srID+"&Seq="+seq+"&realFile="+filePath+fileName;
+		ajaxPage(url, data, "saveFrame");
+		$('#divDownFile'+seq).hide();
+	}
+	
+	function fnDeleteFileHtml(seq){	
+		var divId = "divDownFile"+seq;
+		$('#'+divId).hide();		
+	}
+	
+	function fnAttacthFileHtml(seq, fileName){ 
+		display_scripts=$("#tmp_file_items").html();
+		display_scripts = display_scripts+
+			'<div id="divDownFile'+seq+'"  class="mm" name="divDownFile'+seq+'">'+fileName+
+			'	<img src="${root}${HTML_IMG_DIR}/btn_filedel.png" style="cursor:pointer;width:13;height:13;padding-left:10px" alt="파일삭제" align="absmiddle" onclick="fnDeleteFileHtml('+seq+')">'+
+			'	<br>'+
+			'</div>';		
+		document.getElementById("tmp_file_items").innerHTML = display_scripts;		
+	}
+	
+	/* 첨부문서 다운로드 */
+	function FileDownload(checkboxName, isAll){
+		var originalFileName = new Array();
+		var sysFileName = new Array();
+		var seq = new Array();
+		var j =0;
+		var checkObj = document.all(checkboxName);
+		
+		// 모두 체크 처리를 해준다.
+		if (isAll == 'Y') {
+			if (checkObj.length == undefined) {
+				checkObj.checked = true;
+			}
+			for (var i = 0; i < checkObj.length; i++) {
+				checkObj[i].checked = true;
+			}
+			
+		}
+
+		// 하나의 파일만 체크 되었을 경우
+		if (checkObj.length == undefined) {
+			if (checkObj.checked) {
+				seq[0] = checkObj.value;
+				j++;
+			}
+		};
+		for (var i = 0; i < checkObj.length; i++) {
+			if (checkObj[i].checked) {
+				seq[j] = checkObj[i].value;
+				j++;
+			}
+		}
+		if(j==0){
+			alert("${WM00049}");
+			return;
+		}
+		j =0;
+		var url  = "fileDownload.do?seq="+seq+"&scrnType=SR";
+		ajaxSubmitNoAdd(document.receiptSRFrm, url,"saveFrame");
+		// 모두 체크 해제
+		if (isAll == 'Y') {
+			if (checkObj.length == undefined) {
+				checkObj.checked = false;
+			}
+			for (var i = 0; i < checkObj.length; i++) {
+				checkObj[i].checked = false;
+			}
+		}
+	}
+	
+	function fileNameClick(avg1){
+		var originalFileName = new Array();
+		var sysFileName = new Array();
+		var filePath = new Array();
+		var seq = new Array();
+		seq[0] = avg1;
+		var url  = "fileDownload.do?seq="+seq+"&scrnType=SR";
+		ajaxSubmitNoAdd(document.receiptSRFrm, url,"saveFrame");
+	}
+	
+	function fnCheckValidation(){
+		var isCheck = true;
+		
+		var subCategory = $("#subCategory").val() ;
+		//var priority = $("#priority").val() ;
+		var comment = tinyMCE.get('comment').getContent();
+		var dueDate = $("#dueDate").val() ; 
+		//var classification = $("#classification").val() ;
+	
+		if(subCategory == ""){ alert("${WM00034_4}"); isCheck = false; return isCheck;}
+		//if(priority == ""){ alert("${WM00034_5}"); isCheck = false; return isCheck;}
+		if(comment == ""){ alert("${WM00034_6}"); isCheck = false; return isCheck;}
+		if(dueDate == ""){ alert("${WM00034_7}"); isCheck = false; return isCheck;}
+		//if(classification == ""){ alert("${WM00034_8}"); isCheck = false; return isCheck;}
+		
+		return isCheck;
+	}
+		
+	function fnOpenDocument(PID,url,varFilter,ActID,procSeq){
+		if(varFilter == "CSR"){
+			var url = url+"?ProjectID="+PID+"&screenMode=V";
+		}else if(varFilter == "SCR"){
+			var url = url+"?srID=${srInfoMap.SRID}&scrID="+PID+"&screenMode=V";	
+		}else if(varFilter == "WF"){
+			var url = url+"?srID=${srInfoMap.SRID}&documentID=${srInfoMap.SRID}&wfInstanceID="+PID+"&isPop=Y&isMulti=N&actionType=view&docCategory=SR";	
+		}else{
+			url = url +"?PID="+PID+"&activityID="+ActID+"&procSeq="+procSeq;
+		}
+		window.open(url,'window','width=1200, height=714, scrollbars=yes, top=100,left=100,toolbar=no,status=yes,resizable=yes');
+	}
+	
+	function fnReload(){
+		fnCallBackSR();
+	}
+	
+	function fnCallBack(){
+		fnCallBackSR();
+	}
+		
+	function fnReqITSApproval(){
+		var url = "wfDocMgt.do?actionType=create&srID=${srInfoMap.SRID}&srType=${srType}"
+				+ "&WFDocURL=${WFDocURL}&wfDocType=SR&ProjectID=${srInfoMap.ProjectID}"
+				+ "&srRequestUserID=${srInfoMap.RequestUserID}"
+				+ "&isPop=Y&blockSR=Y&speCode=SPE023";
+		window.open(url,'window','width=1000, height=700, left=300, top=300,scrollbar=yes,resizble=0');
+	}
+	
+	function fnUpdateStatus(speCode){
+		var srID = "${srInfoMap.SRID}"; 
+		var url = "updateITMStatus.do";
+		var data = "srID="+srID+"&status="+speCode;
+		var target = "saveFrame";
+		ajaxPage(url, data, target);
+	}
+	
+	function fnReject(){
+		var srID = "${srInfoMap.SRID}";
+		var url = "rejectISP.do";
+		var data = "srID="+srID+"&blockSR=Y&svcCompl=Y";
+		var target = "saveFrame";
+		ajaxPage(url, data, target);
+	}
+	
+	$("#transferItem").click(function(e){
+		var itemTypeCode = "${itemTypeCode}";
+		if(itemTypeCode == null || itemTypeCode == ""){
+			itemTypeCode = "OJ00001";	
+		}
+		var url = "orgItemTreePop.do";
+		var data = "ItemID=${srInfoMap.SRArea3}&ItemTypeCode="+itemTypeCode+"&languageID=${sessionScope.loginInfo.sessionCurrLangType}";
+		fnOpenLayerPopup(url,data,doCallBack,617,436);
+	});
+	
+	function doCallBack(itemID){
+		if(!confirm("${CM00035}")){ return;}
+		var url = "changeISPItem.do";
+		var data = "itemID="+itemID
+					+ "&itemTypeCode=${itemTypeCode}"
+					+ "&srType=${srType}"
+					+ "&languageID=${sessionScope.loginInfo.sessionCurrLangType}"
+					+ "&srID=${srInfoMap.SRID}"
+					+ "&subject=${srInfoMap.Subject}";
+		if( "${itemID}" == "" ) {
+			var target = "mainLayer";
+		} else {
+			var target = "actFrame";
+		}
+		ajaxPage(url, data, target);
+		$(".popup_div").hide();
+		$("#mask").hide();
+	}
+	
+	function thisReload(){
+		fnItemMenuReload();
+	}
+	
+	function fnCheckOut(){
+		var projectNameList = "${projectNameList}";
+		
+		if(checkOutFlag == "N") {
+			if(parseInt(projectNameList)>0){
+				dhtmlx.confirm({
+					ok: "Yes", cancel: "No",
+					text: "${CM00042}",
+					width: "310px",
+					callback: function(result){
+						if(result){
+							var url = "cngCheckOutPop.do?";
+							var data = "s_itemID=${srInfoMap.SRArea3}&checkType=OUT&srID=${srInfoMap.SRID}";
+						 	var target = self;
+						 	var option = "width=350px, height=350px, left=200, top=100,scrollbar=yes,resizble=0";
+						 	window.open(url+data, 'CheckOut', option);
+						 	checkOutFlag = "Y";
+						}
+					}		
+				});	
+			}else{
+				if(confirm("${CM00057}")){
+					//var url = "csrDetailPop.do?isNew=Y&quickCheckOut=Y&itemID=${s_itemID}";	
+					var url = "registerCSR.do?quickCheckOut=Y&itemID=${s_itemID}&srID=${srInfoMap.SRID}";
+					window.open(url,'','width=1100, height=800, left=200, top=100,scrollbar=yes,resizble=0');
+				} 
+			}			
+		}
+		else {
+			//alert(""); --> Edit Start 진행 도중 재 클릭 하였을 시 노출 시킬 경고 메시지를 추가 할 경우 해당 주석을 제거 후 메시지 추가
+		}
+	}
+	
+	function selectCheckOutItem(csrID) {
+		var url = "checkOutItem.do";		
+		var data = "projectId="+csrID+"&itemIds=${srInfoMap.SRArea3}&srID=${srInfoMap.SRID}";
+		var target="blankFrame";			
+		ajaxPage(url, data, target);
+	}
+	
+	function fnAccept(){
+		var srID = "${srInfoMap.SRID}";
+		var url = "acceptISP.do";
+		var data = "srID="+srID+"&blockSR=Y";
+		var target = "saveFrame";
+		ajaxPage(url, data, target);
+	}
+</script>
+</head>
+<body>
+<div id="processSRDIV"> 
+	<form name="receiptSRFrm" id="receiptSRFrm" enctype="multipart/form-data" action="" method="post" onsubmit="return false;">
+	<input type="hidden" id="pageNum" name="pageNum" value="${pageNum}">
+	<input type="hidden" id="scrnType" name="scrnType" value="${scrnType}">
+	<input type="hidden" id="srMode" name="srMode" value="${srMode}">
+	<input type="hidden" id="srType" name="srType" value="${srType}">
+	<input type="hidden" id="crCnt" name="crCnt" value="${crCnt}">
+	<input type="hidden" id="srID" name="srID" value="${srInfoMap.SRID}">
+	<input type="hidden" id="srCode" name="srCode" value="${srInfoMap.SRCode}">
+	<input type="hidden" id="receiptUserID" name="receiptUserID" value="${srInfoMap.ReceiptUserID}">
+	<input type="hidden" id="receiptTeamID" name="receiptTeamID" value="${srInfoMap.ReceiptTeamID}">
+	<input type="hidden" id="requestUserID" name="requestUserID" value="${srInfoMap.RequestUserID}">
+	<input type="hidden" id="requestTeamID" name="requestTeamID" value="${srInfoMap.RequestTeamID}">
+	<input type="hidden" id="subject" name="subject" value="${srInfoMap.Subject}">
+	<c:choose>
+		<c:when test="${itemID eq '' || itemID eq null }">
+			<div class="cop_hdtitle">
+				<h3 style="padding: 8px 0;"><img src="${root}${HTML_IMG_DIR}/icon_folder_upload_title.png"></img>&nbsp;${menu.LN00282}</h3>
+			</div>
+		</c:when>
+		<c:otherwise>
+			<div class="child_search01 pdL10">
+				<img src="${root}${HTML_IMG_DIR}/icon_folder_upload_title.png">&nbsp;&nbsp;<b>${menu.LN00282}</b>
+			</div>
+		</c:otherwise>
+	</c:choose>
+	
+	<table class="tbl_brd" style="table-layout:fixed;" width="100%" cellpadding="0" cellspacing="0">
+		<colgroup>
+			<col width="10%">
+		    <col width="23%">
+		 	<col width="10%">
+		    <col width="23%">
+		 	<col width="10%">
+		    <col width="24%">
+		</colgroup>		
+		
+		<!-- SR status -->		
+			<th class="alignL pdL10">${menu.LN00065}</th>
+			<td colspan="5" class="sline tit last alignL " >
+				<c:forEach var="list" items="${procStatusList}" varStatus="statusList">	
+						<c:choose>					
+								<c:when test="${list.TypeCode == srInfoMap.Status }">
+									<span style="font-weight:bold;color:blue;font-size:14px;">${list.StsName}&nbsp;</span>				
+								</c:when>
+								<c:otherwise>				
+									<span style="font-weight:;color:gray;">${list.StsName}&nbsp;</span>				
+								</c:otherwise>				  
+						</c:choose>	
+						<c:if test="${statusList.last != true}">
+							>&nbsp;
+						</c:if>
+				</c:forEach>
+			</td>	
+		</tr>
+		<c:if test="${itemID eq '' || itemID eq null }">
+		<tr>
+			<!-- 변경 항목 -->
+			<th class="alignL pdL10">${menu.LN00082}</th>
+			<td class="sline tit last" colspan=3  id="ispItem" style="cursor:pointer;"><span style="color:blue;">${srInfoMap.SRArea3Code}&nbsp;${srInfoMap.SRArea3Name}</span>&nbsp;(&nbsp;${srInfoMap.srArea3Path}&nbsp;)</td>
+			<!-- Item Type Code -->
+			<th class="alignL pdL10">${menu.LN000LN00087}</th>
+			<td class="sline tit last">${srInfoMap.ItemTypeCodeNM}</td>
+		</tr>
+		</c:if>
+		<tr>
+			<!-- 요청자 -->
+		  	<th class="alignL pdL10" >${menu.LN00025}</th>
+			<td class="sline tit" >${srInfoMap.ReqUserNM}(${srInfoMap.ReqTeamNM})</td>
+			<!-- 요청일 -->
+		  	<th class="alignL pdL10" >${menu.LN00093}</th>
+			<td class="sline tit" >${srInfoMap.RegDate}</td>
+			<!-- 담당자 -->
+			<th class="alignL pdL10">${menu.LN00004}</th>			
+			<td class="sline tit last" id="authorInfo" style="cursor:pointer;_cursor:hand ;color:blue;">${srInfoMap.ReceiptName}(${srInfoMap.ReceiptTeamName})</td>
+		</tr>
+		<tr>
+			<!-- 서브카테고리 -->
+			<th class="alignL pdL10">${menu.LN00272}</th>
+			<td class="sline tit last"><select id="subCategory" name="subCategory" class="sel"></select></td>
+			<!-- 완료요청일 -->
+			<th class="alignL pdL10">${menu.LN00222}</th>
+			<td class="sline tit last" >${srInfoMap.ReqDueDate}&nbsp;${srInfoMap.ReqDueDateTime}</td>
+			<!-- 완료예정일 -->
+			<th class="alignL pdL10">${menu.LN00221}</th>
+			<td class="sline tit last" >
+				<c:if test="${srInfoMap.DueDate !=  null}" >
+					<font><input type="text" id="dueDate" name="dueDate" value="${srInfoMap.DueDate}"	class="input_off datePicker stext" size="8"
+						style="width: 70px;text-align: center;" onchange="this.value = makeDateType(this.value);"	maxlength="10">
+					</font>
+					<input type="text" id="dueDateTime" name="dueDateTime" value="${srInfoMap.DueDateTime}" class="input_off text" size="8" style="width:40%; text-align: center;" maxlength="10">
+				</c:if>
+				<c:if test="${srInfoMap.DueDate ==  null}" >
+					<font><input type="text" id="dueDate" name="dueDate" value="${srInfoMap.ReqDueDate}"	class="input_off datePicker stext" size="8"
+						style="width: 70px;text-align: center;" onchange="this.value = makeDateType(this.value);"	maxlength="10">
+					</font>
+					<input type="text" id="dueDateTime" name="dueDateTime" value="${srInfoMap.ReqDueDateTime}" class="input_off text" size="8" style="width:40%; text-align: center;" maxlength="10">
+				</c:if>
+			</td>	
+			<tr>	
+		</tr>	
+		<tr>				
+			<th class="alignL pdL10">${menu.LN00002}</th>
+			<td class="sline tit last" colspan="3" id="subject">${srInfoMap.Subject}</td>
+			<!-- SR No.  -->
+			<th class="alignL pdL10">SR No.</th>
+			<td class="sline tit last">${srInfoMap.SRCode}</td>
+		</tr>
+		<tr>	
+			<th  colspan="6"  class="alignC" style="width:100%;height:10px;">${menu.LN00286}&nbsp;${menu.LN00003}</th>			
+		</tr>
+		<tr>
+			<td colspan="6" class="tit last"><div style="height:200px; overflow: auto;" >${srInfoMap.Description}</div></td>
+		</tr>
+	</table>
+	<table class="tbl_brd mgT5" style="table-layout:fixed;" width="100%" cellpadding="0" cellspacing="0">
+			<colgroup>
+				<col width="10%">
+				<col>
+				<col width="10%">
+				<col>
+			</colgroup>	
+			<tr>
+				<!-- 첨부문서 -->
+				<th style="height:53px;">${menu.LN00111}</th>
+				<td colspan="3" style="height:53px;" class="alignL pdL5 last">
+					<div style="height:53px;width:100%;overflow:auto;overflow-x:hidden;">
+					<div id="tmp_file_items" name="tmp_file_items"></div>
+					<div class="floatR pdR20" id="divFileImg">
+					<c:if test="${SRFiles.size() > 0}">
+						<span class="btn_pack medium icon mgB2"><span class="download"></span><input value="&nbsp;Save All&nbsp;&nbsp;" type="button" onclick="FileDownload('attachFileCheck', 'Y')"></span><br>
+						<span class="btn_pack medium icon"><span class="download"></span><input value="Download" type="button" onclick="FileDownload('attachFileCheck', 'N')"></span><br>
+					</c:if>
+					</div>
+					<c:forEach var="fileList" items="${SRFiles}" varStatus="status">
+						<div id="divDownFile${fileList.Seq}"  class="mm" name="divDownFile${fileList.Seq}">
+							<input type="checkbox" name="attachFileCheck" value="${fileList.Seq}" class="mgL2 mgR2">
+							<span style="cursor:pointer;" onclick="fileNameClick('${fileList.Seq}');">${fileList.FileRealName}</span>
+							<c:if test="${sessionScope.loginInfo.sessionUserId == srInfoMap.RegUserID}">
+							<img src="${root}${HTML_IMG_DIR}/btn_filedel.png" style="cursor:pointer;width:13;height:13;padding-left:10px" alt="파일삭제" align="absmiddle" onclick="fnDeleteSRFile('${fileList.SRID}','${fileList.Seq}','${fileList.FileName}','${srFilePath}');">
+							</c:if>
+							<br>
+						</div>
+					</c:forEach>
+					</div>
+				</td>
+			</tr>
+			<!-- 참조 -->
+			<tr>
+				<th>${menu.LN00245}</th>
+				<td colspan="3" style="height:25px;" class="tit last">${sharerNames}</td>
+			</tr>
+		</table>
+
+	<table class="tbl_brd mgT5" style="table-layout:fixed;" width="100%" cellpadding="0" cellspacing="0" border="0">
+		<colgroup>
+			<col width="10%">
+			<col>
+		</colgroup>		
+		<tr>
+		  	<th class="alignC pdL10">Comment</th>		  
+			<td style="height:150px;" class="tit last alignL pdL5 pdR5">
+				<textarea class="tinymceText"  id="comment" name="comment" style="width:100%;height:150px;">${srInfoMap.Comment}</textarea>
+			</td>
+		</tr>
+	</table>
+	
+	<div class="alignBTN">				
+		<c:if test="${(srInfoMap.Status == 'SPE018' || srInfoMap.Status == 'SPE019')}" >
+			<span class="btn_pack medium icon"><span class="upload"></span><input value="Attach" type="submit" onclick="doAttachFile()"></span>
+			<span class="btn_pack medium icon"><span class="save"></span><input value="Save" type="submit" onclick="fnSaveReceiveItspInfo()"></span>
+			<span class="btn_pack small icon"><span class="move"></span><input value="Transfer" type="submit" id="transferItem"></span>
+		</c:if>
+		<c:if test="${srInfoMap.Status eq 'SPE019' && srInfoMap.SRNextStatus eq 'SPE021' && appBtn eq 'Y'}" >
+			<span class="btn_pack medium icon"><span class="confirm"></span><input value="Accept" type="submit" onclick="fnAccept()"></span>
+			<span class="btn_pack medium icon"><span class="cancel"></span><input value="Reject" type="submit" onclick="fnReject()"></span>
+		</c:if>
+		<c:if test="${srInfoMap.SRNextStatus eq 'SPE020' && appBtn eq 'Y'}" >	<!-- 접수 다음 결재상신할 때-->
+ 			<span class="btn_pack medium icon"><span class="confirm"></span><input value="Request Approval" type="submit" onclick="fnReqITSApproval()"></span>
+		</c:if>
+		<c:if test="${srInfoMap.SRNextStatus eq srInfoMap.LastSpeCode && srInfoMap.SvcCompl eq 'N' && appBtn eq 'Y'}" >
+			<span class="btn_pack medium icon"><span class="confirm"></span><input value="Complete" type="submit" onclick="fnCompletion()"></span>
+		</c:if>
+		<c:if test="${isPopup != 'Y'}" >
+			<span id="viewList" class="btn_pack medium icon"><span class="list"></span><input value="List" type="submit"  onclick="fnGoSRList();"></span>
+		</c:if>	
+	   
+	</div>
+	* Process Log
+	<table class="tbl_brd mgT5 mgB20" style="table-layout:fixed;" width="100%" cellpadding="0" cellspacing="0">
+		<colgroup>
+			<col width="10%">
+		    <col width="20%">
+		 	<col width="10%">
+		    <col width="20%">
+		 	<col width="30%">
+		</colgroup>		
+		<tr>
+		  <th class="alignC pdL10">${menu.LN00132}</th> <!-- 진행단계 -->
+		  <th class="alignC pdL10">${menu.LN00104}</th> <!-- 담당조직 -->
+		  <th class="alignC pdL10">${menu.LN00004}</th> <!-- 담당자 -->
+		  <th class="alignC pdL10">Time</th>
+		  <th class="alignC pdL10">Comment</th>
+		</tr>
+		<c:forEach var="list" items="${prLgInfoList}" varStatus="status">
+			<c:if test="${list.Link != ''}" ><tr style="height:26px; cursor:pointer;" OnClick="fnOpenDocument('${list.ActionID}','${list.Link}','${list.VarFilter}','${list.ActivityID}','${list.SEQ}');"></c:if>  
+			<c:if test="${list.Link == ''}" ><tr style="height:26px;"></c:if>
+				<c:choose>
+				<c:when test="${status.last}">
+					<td class="sline tit last alignL " style="font-weight:bold;color:blue;"> * ${list.ActivityName}</td>
+					<td class="sline tit last alignC " style="font-weight:bold;color:blue;">${list.TeamName}</td>
+					<td class="sline tit last alignC " style="font-weight:bold;color:blue;">${list.ActorName}</td>
+					<td class="sline tit last alignC " style="font-weight:bold;color:blue;">${list.EndTime}</td>
+					<td class="sline tit last alignL " style="font-weight:bold;color:blue;" id="historyCmt${status.count}"><span title="${list.Comment}">${list.CommentFiltered}</span></td>
+				</c:when>
+				<c:otherwise>
+					<td class="sline tit last alignL " >${list.ActivityName}</td>
+					<td class="sline tit last alignC " >${list.TeamName}</td>
+					<td class="sline tit last alignC " >${list.ActorName}</td>
+					<td class="sline tit last alignC " >${list.EndTime}</td>
+					<td class="sline tit last alignL " id="historyCmt${status.count}"><span title="${list.Comment}">${list.CommentFiltered}</span></td>
+				</c:otherwise>
+				</c:choose>
+			</tr>
+		</c:forEach>
+	</table>
+	</form>
+</div>
+<iframe id="saveFrame" name="saveFrame" style="width:0px;height:0px;display:none"></iframe>
+</body>
+</html>

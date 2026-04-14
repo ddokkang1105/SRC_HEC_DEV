@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/svn/olm_dev/!svn/ver/8091/OLM3/WebContent/WEB-INF/jsp/itm/term
+END
+editTermDetail.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svn/olm_dev/!svn/ver/6128/OLM3/WebContent/WEB-INF/jsp/itm/term/editTermDetail.jsp
+END
+standardTerms.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 81
+/svn/olm_dev/!svn/ver/8091/OLM3/WebContent/WEB-INF/jsp/itm/term/standardTerms.jsp
+END
+viewTermDetail.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svn/olm_dev/!svn/ver/6128/OLM3/WebContent/WEB-INF/jsp/itm/term/viewTermDetail.jsp
+END
+termsMgt.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/svn/olm_dev/!svn/ver/3967/OLM3/WebContent/WEB-INF/jsp/itm/term/termsMgt.jsp
+END

@@ -1,0 +1,475 @@
+<%@ page language="java" contentType="text/html; charset=utf-8" pageEncoding="utf-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<c:url value="/" var="root"/>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- 1. Include JSP -->
+<%@ include file="/WEB-INF/jsp/template/tagInc.jsp"%>
+<%@ include file="/WEB-INF/jsp/template/loadingInc.jsp"%>
+
+<script type="text/javascript">
+    var noticType;var menuIndex = "1 3 4";
+    var ruleType;var csIndex = "1 5 16";
+    var i_gridArea; var itemTypeCode = "";
+	var csType="1";
+  
+    
+    $(document).ready(function(){
+        setNoticFrame("1");
+        setCSFrame("1");
+        
+        $("#icon_plant").click(function(){
+        	$("#tab1").attr("checked",true);
+        });
+        $("#icon_ma").click(function(){
+        	$("#tab2").attr("checked",true);
+        });
+        $("#icon_ms").click(function(){
+        	$("#tab3").attr("checked",true);
+        });
+    });
+    
+    function setNoticFrame(avg){
+    	$("#boardMgtID").val(avg);
+        var url = "mainBoardList.do";   
+        var target = "subBrdFrame";
+        var data = "languageID=${sessionScope.loginInfo.sessionCurrLangType}&BoardMgtID="+avg;
+        ajaxPage(url, data, target);
+    }
+    
+    function setCSFrame(avg){
+    	var url = "";
+    	var data = "";
+    	
+    	if(avg == "1") {
+			csType = "1";
+    		itemTypeCode = "OJ00001";
+    	}
+    	if(avg == "5") {
+			csType = "5";
+    		itemTypeCode = "OJ00005";
+    	}
+    	if(avg == "16") {
+			csType = "16";
+    		itemTypeCode = "OJ00016";
+    	}
+    	
+        url = "mainChangeSetList_v2.do";   
+        data = "languageID=${sessionScope.loginInfo.sessionCurrLangType}&itemTypeCode="+itemTypeCode;
+
+        ajaxPage(url, data, "subCSFrame"+avg);
+    }
+
+    
+    function fileNameClick(avg1, avg2, avg3, avg4, avg5){
+    	var originalFileName = new Array();
+    	var sysFileName = new Array();
+    	var filePath = new Array();
+    	var seq = new Array();
+    	sysFileName[0] =  avg3 + avg1;
+    	originalFileName[0] =  avg3;
+    	filePath[0] = avg3;
+    	seq[0] = avg4;
+    	var url  = "fileDownload.do?sysFileName="+sysFileName+"&originalFileName="+encodeURIComponent(originalFileName)+"&filePath="+filePath+"&seq="+seq+"&scrnType="+avg5;
+    	ajaxSubmitNoAdd(document.mainLayerFrm, url,"saveFrame");
+    }
+    
+    function fnClickMoreBoard(){
+    	var boardMgtID = $("#boardMgtID").val();
+    	if(boardMgtID ==""){boardMgtID="1";}
+    	parent.clickMainMenu('BOARD', 'BOARD','','','','','', boardMgtID);
+    }
+    
+    function fnSearch(){
+    	var radioObj = document.all("searchMode");
+		var searchMode = "";
+		for (var i = 0; i < radioObj.length; i++) {
+			if (radioObj[i].checked) {
+				searchMode = radioObj[i].value;
+				break;
+			}
+		}
+		if(searchMode == "1"){
+			fnSearchProcess("OJ00001"); 
+		}else if(searchMode == "2"){ 
+			fnSearchProcess("OJ00005"); 
+		}else if(searchMode == "3"){
+			fnSearchProcess("OJ00016");
+		}
+    }
+
+    function fnSearchProcess(avg){
+    	var searchValue = $("#searchValue").val();
+    	var url = "searchList.do";
+    	var target = "mainLayerFrm";
+    	var data = "itemTypeCode="+avg1+"&screenType=main&searchKey=AT00001&searchValue="+searchValue; 
+    	ajaxPage(url, data, target);
+    }
+    
+    function setProcessL1(arcCode,id) {
+    	parent.clickMainMenu(arcCode,'','','','csh_process','','itemMgt.do?&nodeID='+id);
+    }
+
+    function fnClickMoreChangeSet(){
+		if(csType == "1") {
+    		classCode = "CL01005";
+    	}
+    	if(csType == "5") {
+    		classCode = "CL05003";
+    	}
+    	if(csType == "16") {
+    		classCode = "CL16004";
+    	}
+
+    	parent.clickMainMenu('CHANGESET', 'CHANGESET','','','','','.do?', '','',classCode,'','');
+    }
+    
+    function fnClickMoreAuthorLogList(){
+    	parent.clickMainMenu('AUTHORLOG', 'AUTHORLOG','','','','','.do?', '');
+    }
+
+    function gridItemSearchInit(){		
+		var d = setGridItemSearchData();		
+		i_gridArea = fnNewInitGrid("subRuleFrame2", d);
+		
+		i_gridArea.setImagePath("${root}${HTML_IMG_DIR}/");
+		i_gridArea.setIconPath("${root}${HTML_IMG_DIR_ITEM}/");
+	
+		//i_gridArea.setColumnHidden(6, true);
+		
+		i_gridArea.attachEvent("onRowSelect", function(id,ind){gridOnRowSelect(id,ind);});
+	
+		fnLoadDhtmlxGridJson(i_gridArea, d.key, d.cols, d.data, "", "", "", "", "", "${WM00119}", 1000);
+	}	
+    
+    function gridOnRowSelect(id, ind) {    	
+
+		var itemID = i_gridArea.cells(id, 6).getValue();
+		var url = "popupMasterItem.do?languageID=${sessionScope.loginInfo.sessionCurrLangType}&id="+itemID+"&scrnType=pop&screenMode=pop";
+		var w = 1200;
+		var h = 900;
+		itmInfoPopup(url,w,h,itemID);	
+		
+    }
+	function setGridItemSearchData(){
+		var result = new Object();
+		result.title = "${title}"; 
+		result.key = "search_SQL.getSearchMultiList";
+		result.header = "${menu.LN00024},담당자,ID,사규/프로세스명,최종수정일,";
+		result.cols = "Name|Identifier|ItemName|LastUpdated|ItemID";
+		result.widths = "30,50,200,300,150,0"; // base 검색
+		result.sorting = "int,str,str,str,str,str,int";
+		result.aligns = "center,center,center,center,center,left,center";
+		result.data = "languageID=${sessionScope.loginInfo.sessionCurrLangType}"
+					+ "&isLastSearch=Y&idExist=Y"
+		 			+ "&pageNo=1&LIST_PAGE_SCALE=20&ItemTypeCodes='OJ00001','OJ00007'&ClassCodes='CL01004','CL07002'";
+		 
+
+		return result;
+	}
+	
+
+    function setReport() {
+    	var url = "zhwc_ProcessItemStatistics.do";
+    	var data = "languageID=${sessionScope.loginInfo.sessionCurrLangType}&isMainMenu=Y";
+    	var target = "mainLayerFrm";
+    	
+    	ajaxPage(url, data, target);
+    }
+    function setMultiItemMgt(arcCode,id) {
+    	parent.clickMainMenu(arcCode,'','','','csh_process','','multiItemTreeMgt.do?&nodeID='+id);
+    }
+    function setItemMgt(arcCode,id) {
+    	parent.clickMainMenu(arcCode,'','','','csh_process','','itemMgt.do?&nodeID='+id);
+    }
+        
+        
+    function showSubItem(avg) {
+
+    	var url = "zHecGetSubItemList.do";
+    	var data = "selectItemID="+avg;
+    	var target = "subProcDiv";
+    	
+    	ajaxPage(url, data, target);    	
+    }
+
+    function setSubItemListDiv(avg) {
+    	var subList = avg.split("@");
+    	var divText = "<ul>";
+	    
+        for(var i=0; i< subList.length;i++) {
+	        var temp = subList[i].split("_");
+	        
+	        divText += "<li class='floatL' style='padding-right:10px;'><img src='/cmm/hyundai/images//img_main_s1.png' style='width:80px;height:80px;'><br/><span onclick='setProcessL1(\"AR010712\",\""+temp[0]+"\");' style='background-image:url(\"/cmm/hyundai/images//img_main_s1.png\"); color: white;display: inline-block;width: 73px;text-align:center;'>"+temp[1]+"</span></li>";
+	        
+        }
+        divText += "</ul>"
+        
+        $("#subProcDiv").html(divText);
+        $("#subProcDiv").attr("style","");
+        $("#L0Last").attr("style","");
+    }
+	
+</script>
+
+</head>
+
+<BODY style="background:#efefef;overflow:auto;">
+
+<div class="noform" id="mainLayer" style="width:1280px;margin:0 auto;background:#efefef;overflow:auto;">
+<form name="mainLayerFrm" id="mainLayerFrm" enctype="multipart/form-data" method="post" action="#" onsubmit="return false;">
+<input id="chkSearch" type="hidden" value="false"></input>
+<input id="boardMgtID" type="hidden" value="" >
+
+<!-- image slide -->
+<script src="http://code.jquery.com/jquery-1.4.2.min.js"></script>
+<script>
+ $(function(){
+    autoplay:true;
+    autoplaySpeed:2000;
+    var btn = $(".HECmainbox figure");
+    var list = $(".HECmainbox figure");
+    var idx = 0;
+    btn.each(function(){
+        var ind = $(this).index()-1;
+        ind++;
+        $(this).click(function(){
+            list.hide().eq(ind).fadeIn();
+            btn.removeClass().eq(ind).addClass("on");
+        });
+    });
+    list.eq(0).show();
+    btn.eq(0).addClass("on");
+    setInterval(function() {
+        idx++;
+        if (idx === (btn.length - 0))
+            idx = 0;
+        btn[idx].click();
+    }, 6000);
+});
+</script>
+
+
+
+<div class="row">	
+	<div class="col2 HECmainbox">		
+		<!-- div class="main_img"><img src="${root}${HTML_IMG_DIR}/main_logo.png" alt="H-STD" style="width:100%;"/></div-->
+		<figure></figure>
+		<figure></figure>
+		<figure></figure>		
+		<input type="text" id="searchValue" name="searchValue" class="text">
+		<h3><img src="/cmm/hyundai/images//icon_search_title.png" alt="icon_search"></h3>
+		<div class="wbox_container">
+			<ul>
+				<li onclick="">
+					<img src="/cmm/hyundai/images//icon_my_w_01.png" alt="icon_mywork">
+					<p><br></p>
+					<span>My Work</span></li>
+				<li onclick="">
+					<img src="/cmm/hyundai/images//icon_team_w_03.png" alt="icon_팀 개정 필요문서">
+					<p>${teamCnt}</p>
+					<span>팀 개정 필요문서</span></li>
+				<li onclick="" style="margin-right:0;">
+					<img src="/cmm/hyundai/images//icon_rules_w_01.png" alt="icon_나의 표준문서">
+					<p>7</p>
+					<span>나의 표준문서</span></li>
+				<!-- <li onclick="" style="margin-right:0;">
+					<img src="/cmm/hyundai/images//icon_doc_w_01.png" alt="icon_통합알림">
+					<p>4</p>
+					<span>통합 알림 </span></li>
+				-->
+			</ul>
+		</div>				
+	</div>
+	<div class="col2">			
+		<div class="wbox01">
+		 	<h5>Process</h5>
+		 	<h3>업무 수행의 절차, 순서, 방법과 기준을 Process Map의 형태로 표현한 문서</h3>
+		 	<div class="new_tab" style="height:174px;">
+				<input id="tab1" type="radio" name="tabs" checked >
+				<label for="tab1"> 
+					<div class="tabContainer">
+    					<div style="margin-right: 10px;"><img src="/cmm/hyundai/images//img_Masked_plant.png" alt="icon_plant" id="icon_plant"></div>
+    					<div style="padding:10px 0;"><p>플랜트</p><span>(${plantCnt})</span></div>
+					</div>
+				</label>
+				<input id="tab2" type="radio" name="tabs">
+				<label for="tab2"> 
+					<div class="tabContainer">
+    					<div style="margin-right: 10px;"><img src="/cmm/hyundai/images//img_Masked_Arch.png" alt="icon_건축/인프라" id="icon_ma"></div>
+    					<div style="padding:10px 0;"><p>건축/인프라</p><span>(0)</span></div>
+					</div>
+				</label>
+				<input id="tab3" type="radio" name="tabs">
+				<label for="tab3">
+					<div class="tabContainer">
+    					<div style="display:inline;margin-right: 10px;"><img src="/cmm/hyundai/images//img_Masked_infra.png" alt="icon_경영지원" id="icon_ms"></div>
+    					<div style="padding:10px 0;"><p>경영지원</p><span>(${bsCnt})</span></div>
+					</div>
+				</label>				
+				
+				<section id="content1">
+					<div>
+						<ul>
+						 	<li onclick="setMultiItemMgt('ARC1100','107496')"><span>영업<p>(${p1Cnt})</p></span></li>
+						 	<li onclick="setMultiItemMgt('ARC1100','113240')"><span>프로포잘<p>(${p2Cnt})</p></span></li>
+						 	<li onclick="setMultiItemMgt('ARC1100','114426')"><span>사업관리<p>(${p3Cnt})</p></span></li>
+						 	<li onclick="setMultiItemMgt('ARC1100','108198')"><span>설계<p>(${p4Cnt})</p></span></li>
+						 	<li onclick="setMultiItemMgt('ARC1100','109426')"><span>구매조달<p>(${p5Cnt})</p></span></li>
+						 	<li onclick="setMultiItemMgt('ARC1100','110814')"><span>시공시운전<p>(${p6Cnt})</p></span></li>
+					 	</ul>
+			 		</div>
+				</section>
+				<section id="content2">					
+					<div>
+						<ul>
+						 	<li><span>영업<p>(0)</p></span></li>
+						 	<li><span>프로포잘<p>(0)</p></span></li>
+						 	<li><span>사업관리<p>(0)</p></span></li>
+						 	<li><span>설계<p>(0)</p></span></li>
+						 	<li><span>구매조달<p>(0)</p></span></li>
+						 	<li><span>시공시운전<p>(0)</p></span></li>
+					 	</ul>
+			 		</div>
+				</section>
+				<section id="content3">
+					<div>
+						<ul>
+						 	<li onclick="setItemMgt('ARC1400','118050')"><span>기획<p>(${bs1Cnt})</p></span></li>
+						 	<li onclick="setItemMgt('ARC1400','118816')"><span>재경<p>(${bs2Cnt})</p></span></li>
+						 	<li onclick="setItemMgt('ARC1400','119748')"><span>인사<p>(${bs3Cnt})</p></span></li>
+						 	<li onclick="setItemMgt('ARC1400','120956')"><span>품질<p>(${bs4Cnt})</p></span></li>
+						 	<li onclick="setItemMgt('ARC1400','121078')"><span>환경<p>(${bs5Cnt})</p></span></li>
+						 	<li onclick="setItemMgt('ARC1400','123850')"><span>기준정보<p>(${bs6Cnt})</p></span></li>
+					 	</ul>
+			 		</div>
+				</section>
+			</div>
+				
+				
+					<!--li onclick="showSubItem('101057')" style="display: inline-block;width: 73px;text-align:center;">플랜트<br/>(${plantCnt})</span></li>
+				 	<li class="floatL"><span onclick="showSubItem('101057')" style="display: inline-block;width: 73px;text-align:center;">건축</span></li>
+				 	<li id="L0Last" style="float:left;"><span onclick="showSubItem('101057')" style="display: inline-block;width: 73px;text-align:center;">인프라</span></li-->
+			<!-- div id="subProcDiv"  name="subProcDiv" style="width:100%;height:100px;"></div-->
+		</div>
+		
+		<div class="wbox02">
+		 	<div class="itemset02" style="height:131px;">
+				<h5>SOP(Standard Operating Procedure)</h5>
+				<h3>업무수행의 방법과 기준을 서술형 문서의 형태로 작성한 표준문서</h3>
+			 	<ul>
+				 	<li onclick="setProcessL1('ARC2100','123850')">
+				 		<div class="icons06"><img src="/cmm/hyundai/images//main_icon_07.png"></div>
+				 		<span>화공<p>(${sop1Cnt})</p></span></li>
+				 	<li onclick="setProcessL1('ARC2200','123850')">
+				 		<div class="icons06"><img src="/cmm/hyundai/images//main_icon_08.png"></div>
+				 		<span>전력<p>(${sop2Cnt})</p></span></li>
+				 	<li>
+				 		<div class="icons06"><img src="/cmm/hyundai/images//main_icon_09.png"></div>
+				 		<span>건축<p>(0)</p></span></li>
+				 	<li>
+				 		<div class="icons06"><img src="/cmm/hyundai/images//main_icon_10.png"></div>
+				 		<span>인프라<p>(0)</p></span></li>
+				 	<li>
+				 		<div class="icons06"><img src="/cmm/hyundai/images//main_icon_11.png"></div>
+				 		<span>자산<p>(0)</p></span></li>
+				 	<li onclick="setProcessL1('ARC2300','125106')" style="width:15%;">
+				 		<div class="icons06"><img src="/cmm/hyundai/images//main_icon_05.png"></div>
+				 		<span onclick="setProcessL1('AR010712','136383');">경영지원<p>(${sop6Cnt})</p></span></li>
+			 	</ul>
+			</div>
+			<div class="itemset02">
+			 	<h5>STP(Standard Technical Practice)</h5>
+			 	<h3>기술참고자료를  Typical 하게 표준화한 문서</h3>
+			 	<ul class="itemset02">
+				 	<li onclick="setProcessL1('ARC3100','121276')">
+				 		<div class="icons06"><img src="/cmm/hyundai/images//main_icon_07.png"></div>
+				 		<span>화공<p>(${stp1Cnt})</p></span></li>
+				 	<li onclick="setProcessL1('ARC3200','121984')">
+				 		<div class="icons06"><img src="/cmm/hyundai/images//main_icon_08.png"></div>
+				 		<span>전력<p>(${stp2Cnt})</p></span></li>
+				 	<li>
+				 		<div class="icons06"><img src="/cmm/hyundai/images//main_icon_09.png"></div>
+				 		<span>건축<p>(${stp3Cnt })</p></span></li>
+				 	<li>
+				 		<div class="icons06"><img src="/cmm/hyundai/images//main_icon_10.png"></div>
+				 		<span>인프라<p>(0)</p></span></li>
+				 	<li>
+				 		<div class="icons06"><img src="/cmm/hyundai/images//main_icon_11.png"></div>
+				 		<span>자산<p>(0)</p></span></li>
+			 	</ul>
+			</div>
+		</div>
+	</div>
+	<div class="col2 wbox01 hset">
+		<div class="noticeTab02">
+			<input id="tab_01" type="radio" name="notice02" checked>
+			<label for="tab_01" id="pli1" onclick="setCSFrame('1');"><h5>Process</h5></label>
+			<input id="tab_02" type="radio" name="notice02">
+			<label for="tab_02" id="pli5" onclick="setCSFrame('5');"><h5>SOP</h5></label>
+			<input id="tab_03" type="radio" name="notice02">
+			<label for="tab_03" id="pli16" onclick="setCSFrame('16');"><h5>STP</h5></label>
+			<div style="float:right;margin-top:20px;cursor:pointer;" onClick="javascript:fnClickMoreChangeSet();"><span>+ more</span></div>
+			
+			<div id="Con_01">
+				<div id="subCSFrame1"  name="subCSFrame1" style="width:100%;"></div>
+			</div>
+			<div id="Con_02">
+				<div id="subCSFrame5"  name="subCSFrame5" style="width:100%;"></div>
+			</div>
+			<div id="Con_03">
+				<div id="subCSFrame16"  name="subCSFrame16" style="width:100%;"></div>
+			</div>
+		</div>	
+		<!-- div class="coltop01">
+			<div class="nSubinfoTabs">
+				<ul>
+					<li class="on" id="pli1" onclick="setCSFrame('1');"><a>Process</a></li>
+					<li id="pli5" onclick="setCSFrame('5');"><a>SOP</a></li>
+					<li id="pli16" onclick="setCSFrame('16');"><a>STP</a></li>
+				</ul>
+			</div>	
+		</div>				
+		<div class="colbottom01">
+			<div class="nstylewrap">
+				<div id="subCSFrame"  name="subCSFrame" style="width:90%;height:200px;overflow:auto"></div>
+			</div>
+		</div-->
+	</div>
+	<div class="col2 wbox02 hset">	
+		<!--  공지사항/자료실 -->
+		<div class="noticeTab">
+			<input id="tab_notice01" type="radio" name="notice" checked>
+			<label for="tab_notice01"><h5>${menu.LN00001}</h5></label>
+			<div style="float:right;margin-top:20px;cursor:pointer;" onClick="javascript:fnClickMoreBoard();"><span>+ more</span></div>
+			
+			<input id="tab_notice02" type="radio" name="notice">
+			<label for="tab_notice02"><h5>자료실</h5></label>
+
+			<section id="Conno_01">
+				<div id="subBrdFrame"  name="subBrdFrame" style="width:100%"></div>
+			</section>
+			<section id="Conno_02">
+				<div id=""  name="subBrdFrame" style="width:100%">내용2</div>
+			</section>
+		</div>
+		<!-- div class="coltop01">
+			<div class="nSubinfoTabs">
+				<ul>
+					<li class="on" onclick="setNoticFrame('1');"><a>${menu.LN00001}</a></li>
+				</ul>
+			</div>	
+			<span class="floatR " style="cursor:pointer;" onClick="javascript:fnClickMoreBoard();"><img src="${root}${HTML_IMG_DIR}/more.png"></span>
+		</div>
+	    <div class="notice_area">
+      		<div id="subBrdFrame"  name="subBrdFrame" width="98%" height="100%"></div>
+        </div-->
+	</div>
+</div>
+</form>
+</div>
+
+<iframe id="saveFrame" name="saveFrame" style="width:0px;height:0px;display:none;"></iframe>
+</BODY>

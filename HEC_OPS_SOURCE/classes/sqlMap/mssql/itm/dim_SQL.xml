@@ -1,0 +1,1045 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	Item 관련 관련	-->
+<mapper namespace="dim_SQL">
+	
+	<select id="selectDim_gridList" resultType="java.util.HashMap">
+		SELECT 
+			Row_Number()OVER(ORDER BY TID.DimTypeID) as RNUM
+			, 0 AS CHK
+			, ISNULL(TIA.PlainText, '') AS DimTypeName
+			, ISNULL(TDVT.Name, '') AS DimValueName
+			, ISNULL(TID.DimValueID, '') AS DimValueID
+			, ISNULL(TID.DimTypeID, '') AS DimTypeID
+			, TID.ItemID
+			, ISNULL(TDV.ParentID, '') AS ParentID
+			, XBOLTADM.fn_GetDimSubValuePath(TID.DimTypeID,TID.DimValueID,#{languageID}) AS DimValuePath
+			<!-- ,ISNULL(TIPA.PlainText, '') AS ParentName -->
+			, TID.Description
+			, Replace(Replace(TID.Description,CHAR(13),''),CHAR(10),' ') AS DescAbrv
+			, 'btn_view.png' As ImgView
+		FROM 
+			XBOLTADM.TB_ITEM_DIM TID
+			Left Outer Join XBOLTADM.TB_DIM_VALUE_TXT TDVT
+			on TID.DimValueID = TDVT.DimValueID
+			AND TID.DimTypeID = TDVT.DimTypeID
+			AND TDVT.LanguageID = #{languageID}
+			LEFT Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+			on TID.DimTypeID = TIA.ItemID 
+			AND TIA.AttrTypeCode = 'AT00001'
+			AND TIA.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DIM_VALUE TDV
+			on TID.DimValueID = TDV.DimValueID
+			AND TID.DimTypeID = TDV.DimTypeID
+			<!-- Left Outer Join XBOLTADM.TB_ITEM_ATTR TIPA
+			on TDV.ParentID = TIPA.ItemID
+			AND TIPA.AttrTypeCode = 'AT00001'
+			AND TIPA.LanguageID = #{languageID} -->
+			
+		WHERE 
+			TID.ItemID = #{s_itemID}
+			<if test="dimTypeId != null and dimTypeId != ''">
+			AND TID.DimTypeID = #{dimTypeId}
+			</if>
+			<if test="dimValueId != null and dimValueId != ''">
+			AND TID.DimValueID = #{dimValueId}
+			</if>
+			
+		ORDER BY 
+			TID.DimTypeID	
+	</select>
+	
+	<select id="selectDimList_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY  TDV.DimValueID ASC ) as RNUM 
+			 , 0 AS CHK
+			 ,TIA.PlainText
+			 , TDV.DimValueID 
+			 , TDVT.Name
+			 , TDV.ParentID
+			 , TDV.Deleted
+			 , CASE WHEN TDV.Deleted = 1 then 'btn_dim_del.png'
+			 ELSE 'blank.png' END DeletedIMG
+			 , TIAML.PlainText AS MaxLevel
+			 , CASE TIAML.PlainText WHEN '2' THEN 'more.gif' ELSE 'blank.png' END AS MLBtn
+			 , Count(TID.ItemID) as SCount
+		FROM 
+			XBOLTADM.TB_DIM_VALUE TDV
+			Left Outer Join XBOLTADM.TB_DIM_VALUE_TXT TDVT
+				on TDV.DimTypeID = TDVT.DimTypeID
+				AND TDV.DimValueID = TDVT.DimValueID
+				AND TDVT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+				on TDV.DimTypeID = TIA.ItemID 
+				AND TIA.AttrTypeCode = 'AT00001'
+				AND TIA.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIAML
+				on TDV.DimTypeID = TIAML.ItemID 
+				AND TIAML.AttrTypeCode = 'AT00074'
+				AND TIAML.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_DIM TID
+				on TDV.DimTypeID = TID.DimTypeID
+				AND TDV.DimValueID = TID.DimValueID				
+		WHERE 
+			TDV.DimTypeID = #{s_itemID} AND TDV.Level != 2
+			
+		Group By
+			TIA.PlainText
+			 , TDV.DimValueID 
+			 , TDVT.Name
+			 , TDV.ParentID	
+			 , TIAML.PlainText
+			 , TDV.Deleted				
+	</select>
+
+	<select id="selectDimPertinentDetailList_gridList" resultType="java.util.HashMap">
+		SELECT 
+			Row_Number()OVER(ORDER BY TI.Identifier ASC, TI.ClassCode ASC) as RNUM 
+			, 0 AS CHK
+			,TI.ItemID AS ID
+			, ISNULL(TIT.Icon, 'img_job.png') ItemTypeImg
+			, TIF.ItemTypeCode
+			, TIF.ItemID
+			, TIF.CategoryCode
+			, ISNULL(TIS.SCOUNT, 0) AS SCOUNT
+			, TIFA.PlainText as ParentName
+			, TIA.PlainText as ItemName
+			, TTD.Name as TypeName
+			, TD.Name as ClassName
+			, ISNULL(TT.Name, '') as TeamName
+			, TOT.Name as OwnerTeamName
+			, TM.Name, Convert(nvarchar(20),TI.LastUpdated, 111) AS LastUpdated
+			, TI.Version
+			, TI.Identifier
+			, ISNULL(XBOLTADM.fn_GetMyAbsPathForList(TI.ItemID, #{languageID}), '') AS Path 
+			
+		FROM
+			XBOLTADM.TB_ITEM TI
+			Left outer join (
+				SELECT FromItemID, ISNULL(COUNT(DISTINCT ToItemID), 0) AS SCOUNT 
+				FROM XBOLTADM.TB_ITEM 
+				WHERE Deleted != '1'
+				GROUP BY FromItemID 
+				) TIS on TIS.FromItemID = TI.ItemID
+			Left Outer JOIN XBOLTADM.TB_ITEM_TYPE TIT ON TI.ItemTypeCode = TIT.ItemTypeCode 	
+			Left Outer Join XBOLTADM.TB_ITEM TIF on TI.ItemID = TIF.ToItemID AND TIF.CategoryCode = 'ST1'
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIFA on TIF.FromItemID = TIFA.ItemID AND TIFA.AttrTypeCode = 'AT00001' AND TIFA.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_DICTIONARY TD on TI.ClassCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_DICTIONARY TTD on TI.ItemTypeCode = TTD.TypeCode AND TTD.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_TEAM_TXT TT on TI.CompanyID = TT.TeamID AND TT.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_TEAM_TXT TOT on TI.OwnerTeamID = TOT.TeamID AND TOT.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_MEMBER TM on TI.AuthorID = TM.MemberID
+			Left outer join XBOLTADM.TB_ITEM_ATTR TIA on TI.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_ITEM_ATTR TIFA2 on TI.ItemID = TIFA2.ItemID AND TIFA2.AttrTypeCode = 'AT00003' AND TIFA2.LanguageID =  #{languageID}
+		WHERE TI.ItemID in (
+			Select Distinct TI.ItemID
+			From XBOLTADM.TB_ITEM TI
+			WHERE 
+				TI.ItemID in (
+					SELECT 
+						TID.ItemID 
+					FROM 
+						XBOLTADM.TB_DIM_VALUE TDV
+						Left Outer Join	XBOLTADM.TB_ITEM_DIM TID
+						on TDV.DimValueID = TID.DimValueID
+						AND TDV.DimTypeID = TID.DimTypeID
+					WHERE 
+						TDV.DimValueID =  #{s_itemID} 
+						<if test="dimTypeID != null and dimTypeID != ''">
+							AND TDV.DimTypeID = #{dimTypeID}
+						</if>
+						AND TDV.Deleted != 1
+						
+				)
+				
+		 )
+			<if test="ItemTypeCode != null and ItemTypeCode != ''">
+				AND TI.ItemTypeCode = #{ItemTypeCode}
+			</if>	
+			<if test="ItemClassCode != null and ItemClassCode != ''">
+				AND TI.ClassCode = #{ItemClassCode}
+			</if>	
+			<if test="mainCompanyCode != null and mainCompanyCode != ''">
+				AND TI.CompanyID = #{mainCompanyCode}
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+				AND TIA.PlainText  like '%'+#{searchValue}+'%'
+			</if>
+		 order by
+			TI.Identifier ASC, TI.ClassCode ASC
+	</select>
+
+	<select id="selectUserDimList_gridList" resultType="java.util.HashMap">
+		SELECT 
+			Top 300
+			Row_Number()OVER(ORDER BY TI.ClassCode ASC, TIA.PlainText ASC ) as RNUM 
+			, 0 AS CHK
+			,TI.ItemID AS ID
+			, ISNULL(TIT.Icon, 'img_job.png') ItemTypeImg
+			, TIF.ItemTypeCode
+			, TIF.ItemID
+			, TIF.CategoryCode
+			, ISNULL(TIS.SCOUNT, 0) AS SCOUNT
+			, TIFA.PlainText as ParentName
+			, TIA.PlainText as ItemName
+			, TTD.Name as TypeName
+			, TD.Name as ClassName
+			, ISNULL(TT.Name, '') as TeamName
+			, TOT.Name as OwnerTeamName
+			, TM.Name, Convert(nvarchar(20),TI.LastUpdated, 111) AS LastUpdated
+			, TI.Version
+			, TI.Identifier
+			, ISNULL(XBOLTADM.fn_GetMyAbsPathForList(TI.ItemID, #{languageID}), '') AS Path 
+		
+		FROM
+			XBOLTADM.TB_ITEM TI
+			Left outer join (
+				SELECT FromItemID, ISNULL(COUNT(DISTINCT ToItemID), 0) AS SCOUNT 
+				FROM XBOLTADM.TB_ITEM 
+				WHERE Deleted != '1'
+				GROUP BY FromItemID 
+				) TIS on TIS.FromItemID = TI.ItemID
+			Left Outer JOIN XBOLTADM.TB_ITEM_TYPE TIT ON TI.ItemTypeCode = TIT.ItemTypeCode 	
+			Left Outer Join XBOLTADM.TB_ITEM TIF on TI.ItemID = TIF.ToItemID AND TIF.CategoryCode = 'ST1'
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIFA on TIF.FromItemID = TIFA.ItemID AND TIFA.AttrTypeCode = 'AT00001' AND TIFA.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_DICTIONARY TD on TI.ClassCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_DICTIONARY TTD on TI.ItemTypeCode = TTD.TypeCode AND TTD.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_TEAM_TXT TT on TI.CompanyID = TT.TeamID AND TT.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_TEAM_TXT TOT on TI.OwnerTeamID = TOT.TeamID AND TOT.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_MEMBER TM on TI.AuthorID = TM.MemberID
+			Left outer join XBOLTADM.TB_ITEM_ATTR TIA on TI.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_ITEM_ATTR TIFA2 on TI.ItemID = TIFA2.ItemID AND TIFA2.AttrTypeCode = 'AT00003' AND TIFA2.LanguageID =  #{languageID}
+		WHERE TI.ItemID in (
+			Select Distinct TI.ItemID
+			From XBOLTADM.TB_ITEM TI
+			WHERE 
+				TI.ItemID in (
+					SELECT 
+						TID.ItemID 
+					FROM 
+						XBOLTADM.TB_DIM_VALUE TDV
+						Left Outer Join	XBOLTADM.TB_ITEM_DIM TID
+						on TDV.DimValueID = TID.DimValueID
+						AND TDV.DimTypeID = TID.DimTypeID
+					WHERE 
+						TDV.DimValueID =  #{s_itemID} 
+						<if test="dimTypeID != null and dimTypeID != ''">
+							AND TDV.DimTypeID = #{dimTypeID}
+						</if>
+						AND TDV.Deleted != 1
+						
+				)
+				OR
+				TI.ItemID in (
+					SELECT 
+						ItemID 
+					FROM 
+						XBOLTADM.TB_ITEM
+					WHERE 
+						AuthorID =  #{s_itemID}
+				)
+				
+		 )
+			<if test="ItemTypeCode != null and ItemTypeCode != ''">
+				AND TI.ItemTypeCode = #{ItemTypeCode}
+			</if>	
+			<if test="ItemClassCode != null and ItemClassCode != ''">
+				AND TI.ClassCode = #{ItemClassCode}
+			</if>	
+			<if test="mainCompanyCode != null and mainCompanyCode != ''">
+				AND TI.CompanyID = #{mainCompanyCode}
+			</if>
+		 order by
+			TI.ClassCode ASC, TIA.PlainText ASC
+	</select>
+
+	<select id="selectDimNewSelectList_gridList" resultType="java.util.HashMap">
+		SELECT 
+			Row_Number()OVER(ORDER BY TI.Identifier ASC, TI.ClassCode ASC) as RNUM 
+			,TI.ItemID AS ID	
+			, TIA.PlainText as ItemName
+			, TD.Name as ClassName
+			, ISNULL(TT.Name, '') as TeamName
+			, TOT.Name as OwnerTeamName
+			,TM.Name, Convert(nvarchar(20),TI.LastUpdated, 111) AS LastUpdated
+			, TI.Version
+			, TI.Identifier
+			, ISNULL(XBOLTADM.fn_GetMyAbsPathForList(TI.ItemID, #{languageID}), '') AS Path 
+		FROM
+			XBOLTADM.TB_ITEM TI
+			Left outer join XBOLTADM.TB_DICTIONARY TD on TI.ClassCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_TEAM_TXT TT on TI.CompanyID = TT.TeamID AND TT.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_TEAM_TXT TOT on TI.OwnerTeamID = TOT.TeamID AND TOT.LanguageID = #{languageID}
+			Left outer join XBOLTADM.TB_MEMBER TM on TI.AuthorID = TM.MemberID
+			Left outer join XBOLTADM.TB_ITEM_ATTR TIA on TI.ItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+
+		WHERE TI.ItemID Not in (
+					SELECT 
+						ItemID 
+					FROM 
+						XBOLTADM.TB_ITEM_DIM
+					WHERE 
+						DimTypeID = #{dimTypeID}
+						AND DimValueID =  #{s_itemID}
+				)
+			AND TI.Deleted != 1 
+			<if test="mainClassCode != null and mainClassCode != ''">
+				AND TI.ClassCode = #{mainClassCode}
+			</if>
+			<if test="mainCompanyCode != null and mainCompanyCode != ''">
+				AND TI.CompanyID = #{mainCompanyCode}
+			</if>	
+		 order by RNUM, TI.Identifier ASC, TIA.PlainText ASC
+	</select>
+	<select id="getItemTypeCodeList" resultType="java.util.HashMap">
+		SELECT 
+			DISTINCT TID.ItemTypeCode AS CODE , TD.Name AS NAME
+		FROM XBOLTADM.TB_ITEM_DIM TID 
+			LEFT JOIN XBOLTADM.TB_DICTIONARY TD ON TID.ItemTypeCode = TD.TypeCode AND TD.Category = 'OJ' AND TD.LanguageID = #{languageID}
+		ORDER BY TID.ItemTypeCode
+	</select>
+
+	<select id="getMaxDimValueID" resultType="String">
+		SELECT
+			ISNULL(MAX(DimValueID)+1, 1) as DimValueID
+		FROM
+			XBOLTADM.TB_DIM_VALUE
+	</select>
+
+	<select id="getParentDimID" resultType="String">
+		SELECT
+			DISTINCT TOP 1 ISNULL(ParentID, 0) as ParentID
+		FROM
+			XBOLTADM.TB_DIM_VALUE
+		WHERE
+			DimTypeID = #{DimTypeID}
+	</select>
+	
+	<select id="isExistDimValue" resultType="String">
+		SELECT Count(*) totalCnt 
+		FROM
+			XBOLTADM.TB_DIM_VALUE
+		WHERE
+			DimTypeID = #{DimTypeID}
+			AND DimValueID = #{DimValueID}
+	</select>
+	
+	<select id="isExistDimValueText" resultType="String">
+		SELECT Count(*) totalCnt 
+		FROM
+			XBOLTADM.TB_DIM_VALUE_TXT
+		WHERE
+			DimTypeID = #{DimTypeID}
+			AND LanguageID = #{LanguageID}
+			AND DimValueID = #{DimValueID}
+			AND Name = #{Name}
+	</select>
+	
+	<insert id="insertDimTxt" parameterType="java.util.HashMap">
+		INSERT INTO
+			XBOLTADM.TB_DIM_VALUE_TXT(
+				DimValueID
+				, LanguageID
+				, DimTypeID
+				, Name
+				, Description
+			)VALUES(
+				#{DimValueID}
+				, #{LanguageID}
+				, #{DimTypeID}
+				, #{Name}
+				, #{Description}
+		)
+	</insert>
+	
+	<insert id="insertDimValue" parameterType="java.util.HashMap">
+		INSERT INTO
+			XBOLTADM.TB_DIM_VALUE(
+				DimTypeID
+      			, DimValueID
+      			, ParentID
+      			, Level
+      			, Deleted
+      			, ClientID
+			)VALUES(
+				#{DimTypeID}
+				, #{DimValueID}
+				, #{ParentID}
+				, #{Level}
+				, 0
+				, #{ClientID}
+		)
+	</insert>
+	
+	<update id="editItemDim" parameterType="java.util.HashMap">
+		Update
+			XBOLTADM.TB_DIM_VALUE
+		Set	
+      			DimValueID = #{DimValueID}
+      			, Deleted = #{Deleted}
+		Where
+				DimTypeID = #{DimTypeID}
+				AND DimValueID = #{BeforeDimValueID}
+	
+	</update>
+	
+	<update id="deleteDimValue" parameterType="java.util.HashMap">
+		Delete From XBOLTADM.TB_DIM_VALUE
+		WHERE 
+			DimValueID = #{DimValueID}
+			AND DimTypeID = #{DimTypeID}
+	</update>
+	
+	<update id="updateDimTxt" parameterType="java.util.HashMap">
+		Update
+			XBOLTADM.TB_DIM_VALUE_TXT
+		Set
+				DimValueID = #{DimValueID}
+				, Name = #{Name}
+				, Description = #{Description}
+		Where
+				DimTypeID = #{DimTypeID}
+				AND LanguageID =  #{LanguageID}
+				AND DimValueID = #{BeforeDimValueID}
+	</update>
+	
+	
+	<update id="delDimValue" parameterType="java.util.HashMap">
+		Update
+			XBOLTADM.TB_DIM_VALUE
+		SET
+			Deleted = 1
+		WHERE 
+			DimValueID = #{DimValueID}
+			AND DimTypeID = #{DimTypeID}
+	</update>
+
+	
+	<delete id="delSubDimValue" parameterType="java.util.HashMap">
+		Delete FROM XBOLTADM.TB_ITEM_DIM
+		WHERE DimTypeID = #{DimTypeID}
+		<if test="DimValueID != null and DimValueID != ''">
+			AND DimValueID = #{DimValueID}
+		</if>
+		<if test="s_itemID != null and s_itemID != ''">
+			AND ItemID = #{s_itemID}
+		</if>
+	</delete>	
+	
+	<delete id="delMyDim" parameterType="java.util.HashMap">
+		Delete FROM XBOLTADM.TB_MY_DIM_VALUE
+		WHERE DimValueID = #{DimValueID}
+		AND DimTypeID = #{DimTypeID}
+		AND MemberID = #{memberID}
+	</delete>
+	
+	<delete id="deleteDimTxt" parameterType="java.util.HashMap">
+		Delete FROM XBOLTADM.TB_DIM_VALUE_TXT
+		WHERE DimValueID = #{DimValueID}
+		AND DimTypeID = #{DimTypeID}
+	</delete>
+	
+	<!-- TODO START ======================================================================================================  -->
+ 
+	 <insert id="insertItemDim" parameterType="java.util.HashMap">
+		INSERT INTO
+		   	XBOLTADM.TB_ITEM_DIM(
+		    	ItemTypeCode
+		        , ItemClassCode
+		        , ItemID
+		        , DimTypeID
+		        , DimValueID
+		        , RelType
+		   )VALUES(
+		    	#{ItemTypeCode}
+		    	, #{ItemClassCode}
+		    	, #{ItemID}
+		    	, #{DimTypeID}
+		    	, #{DimValueID}
+		    	, #{RelType}
+		)
+	 </insert>
+	 
+	  <insert id="insertMyDim" parameterType="java.util.HashMap">
+		INSERT INTO
+		   	XBOLTADM.TB_MY_DIM_VALUE(
+		    	MemberID
+		    	, DimTypeID
+		    	, DimValueID
+		    	, IsDefault
+		    	, Creator
+		    	, CreationTime
+		   )VALUES(
+		   		#{ItemID}
+		   		, #{DimTypeID}
+		    	, #{DimValueID}
+		    	, 0
+		    	, #{Creator}
+		    	, GETDATE()
+			)
+	 </insert>
+ 
+	 <insert id="insertItemDimTree" parameterType="java.util.HashMap">
+		INSERT INTO
+			XBOLTADM.TB_ITEM_DIM_TREE(
+		    	DimTypeID
+		        , DimValueID
+		        , ItemTypeCode
+		        , NodeID
+		        , RelType
+		   )VALUES(
+		    	#{DimTypeID}
+		        , #{DimValueID}
+		        , #{ItemTypeCode}
+		        , #{NodeID}
+		        , #{RelType}
+		)
+	 </insert>
+ 
+	 <select id="getItemTypeCodeAndClassCode" resultType="java.util.HashMap">
+	 	SELECT ItemTypeCode, ClassCode 
+	  	FROM
+	   		XBOLTADM.TB_ITEM
+	  	WHERE
+	   		ItemID = #{ItemID}
+	 </select>
+ 
+	 <select id="getConnectionIdInfo" resultType="java.util.HashMap">
+	 	SELECT T1.ItemID
+	   		, T1.FromItemID
+	        , T1.ToItemID
+	        , T3.Level AS Level
+	    FROM XBOLTADM.TB_ITEM T1,
+	    	XBOLTADM.TB_ITEM T2,
+	    	XBOLTADM.TB_ITEM_CLASS T3
+	    WHERE (T1.CategoryCode = 'ST1' OR T1.CategoryCode = 'ST2')
+	    AND T2.ItemID = T1.ToItemID
+	    AND T2.ClassCode = T3.ItemClassCode
+		<if test="ToItemID != null and ToItemID != ''">
+			AND T1.ToItemID = #{ToItemID}
+		</if>	
+		<if test="FromItemID != null and FromItemID != ''">
+			<![CDATA[
+		      	AND T1.FromItemID = #{FromItemID}
+		    ]]>
+		</if>	
+	 </select>
+ 
+	 <select id="isExistDimTreeNodeID" resultType="String">
+	 	SELECT Count(*) totalCnt 
+	  	FROM
+	   		XBOLTADM.TB_ITEM_DIM_TREE
+	  	WHERE
+	   		DimTypeID = #{DimTypeID}
+	   		AND DimValueID = #{DimValueID}
+	   		AND ItemTypeCode = #{ItemTypeCode}
+	   		AND NodeID = #{NodeID}
+	 </select>
+	 
+	 <select id="isExistDimTreeFromItemID" resultType="String">
+	 	SELECT Count(*) totalCnt 
+	  	FROM 
+	   		XBOLTADM.TB_ITEM_DIM_TREE T1,
+	     	XBOLTADM.TB_ITEM T2
+	    WHERE 
+	     	T1.NodeID = T2.ItemID 
+	     	AND T1.DimTypeID = #{DimTypeID}
+	     	AND T1.DimValueID = #{DimValueID}
+	     	AND (T2.CategoryCode = 'ST1' OR T2.CategoryCode = 'ST2')
+	     	AND T2.FromItemID = #{FromItemID}
+	     	AND T2.ToItemID != #{ToItemID} 
+	 </select>
+ 
+	 <select id="isExistItemDim" resultType="String">
+	 	SELECT T1.ItemID 
+	  	FROM 
+	   		XBOLTADM.TB_ITEM_DIM T1,
+	   		XBOLTADM.TB_ITEM T2
+	    WHERE
+	     	T2.ItemID = #{NodeID} 
+	     	AND T1.ItemID = T2.ToItemID  
+	     	AND (T2.CategoryCode = 'ST1' OR T2.CategoryCode = 'ST2')
+	     	AND T1.DimTypeID = #{DimTypeID}
+	     	AND T1.DimValueID = #{DimValueID}
+	 </select>
+ 
+	 <delete id="delSubDimTree" parameterType="java.util.HashMap">
+	 	Delete FROM XBOLTADM.TB_ITEM_DIM_TREE
+	  	WHERE DimTypeID = #{DimTypeID}
+	  	AND DimValueID = #{DimValueID}
+		<if test="NodeID != null and NodeID != ''">
+			AND NodeID = #{NodeID}
+		</if>	
+	 </delete> 
+
+<!-- TODO END ======================================================================================================  -->
+	
+	<select id="selectAllDim_gridList" resultType="java.util.HashMap">
+		SELECT Row_Number()OVER(ORDER BY A.DimTypeID) as RNUM
+			  , 0 AS CHK
+			  , A.DimTypeID
+			  , A.DimTypeName
+			  , A.DimValueID
+			  , A.DimValueName
+		      , A.ParentID  
+		      , A.DimID
+		FROM
+		(SELECT T1.DimTypeID
+			  , ISNULL(T2.PlainText, '') AS DimTypeName
+			  , T1.DimValueID
+			  , ISNULL(T3.Name, '') AS DimValueName
+		      , T1.ParentID 
+		      , (Convert(varchar(20), T1.DimTypeID) + Convert(varchar(20), T1.DimValueID)) As DimID
+		  FROM XBOLTADM.TB_DIM_VALUE T1
+		  Left Outer Join XBOLTADM.TB_ITEM_ATTR T2
+						on T1.DimTypeID = T2.ItemID 
+						AND T2.AttrTypeCode = 'AT00001'
+						AND T2.LanguageID = #{languageID}
+		  Left Outer Join XBOLTADM.TB_DIM_VALUE_TXT T3
+						on T1.DimTypeID = T3.DimTypeID
+						AND T1.DimValueID = T3.DimValueID
+						AND T3.LanguageID = #{languageID}
+		 WHERE T1.Deleted != 1) A
+		 WHERE A.DimID NOT IN (
+				SELECT (Convert(varchar(20), DimTypeID) + Convert(varchar(20), DimValueID)) 
+				FROM XBOLTADM.TB_ITEM_DIM WHERE ItemID = #{s_itemID})
+				<if test="dimTypeId2 != null and dimTypeId2 != ''">
+					AND A.DimTypeID = #{dimTypeId2}
+				</if>	
+		 ORDER BY A.DimTypeID
+	</select>
+	
+	<select id="getDimTypeList" resultType="java.util.HashMap">
+		SELECT Distinct T1.DimTypeID AS DimTypeID
+		  	, ISNULL(T2.PlainText, '') AS DimTypeName
+		  
+	  	FROM XBOLTADM.TB_DIM_VALUE T1
+	  	Inner Join XBOLTADM.TB_ITEM_ATTR T2
+					on T1.DimTypeID = T2.ItemID 
+					AND T2.AttrTypeCode = 'AT00001'
+					AND T2.LanguageID = #{sessionCurrLangType}
+	  	WHERE T1.Deleted != 1
+ 	</select>
+ 	
+ 	<select id="getSelectDimList" resultType="java.util.HashMap">
+		SELECT Distinct DimValueID AS CODE
+		  	, ISNULL(Name, '') AS NAME  
+	  	FROM  XBOLTADM.TB_DIM_VALUE_TXT
+		WHERE LanguageID = #{sessionCurrLangType}
+		<if test="dimTypeID != null and dimTypeID != ''">
+		AND DimTypeID = #{dimTypeID}
+		</if>
+ 	</select>
+ 	
+ 	<select id="getDimValueList" resultType="java.util.HashMap">
+		SELECT Distinct DimValueID AS CODE
+		  	, ISNULL(Name, '') AS NAME  
+	  	FROM  XBOLTADM.TB_DIM_VALUE_TXT
+		WHERE LanguageID = #{sessionCurrLangType}
+		AND DimTypeID = #{DimTypeID}		
+ 	</select>
+ 	
+ 	<select id="getDimListWithItemId" resultType="java.util.HashMap">
+ 		SELECT 
+      		 ItemID
+      		, DimTypeID
+      		, DimValueID
+  		FROM XBOLTADM.TB_ITEM_DIM
+  		WHERE ItemID = #{ItemID}
+ 	</select>
+ 	
+ 	<select id="getDimListWithMemberId" resultType="java.util.HashMap">
+ 		SELECT 
+      		 MemberID
+      		, DimTypeID
+      		, DimValueID
+  		FROM XBOLTADM.TB_MY_DIM_VALUE
+  		WHERE MemberID = #{memberID}
+ 	</select>
+ 	
+ 	<select id="getMaxLevelWithItemTypeCode" resultType="String">
+	 	SELECT 
+	  		MAX(Level) As MaxLevel
+  		FROM XBOLTADM.TB_ITEM_CLASS
+  		WHERE ItemTypeCode = #{ItemTypeCode}
+	 </select>
+	 
+	 <select id="getHasDimension" resultType="String">
+		SELECT 
+      		ISNULL(HasDimension, '') As HasDim
+      	FROM XBOLTADM.TB_ITEM_CLASS
+  		WHERE ItemClassCode = (select ClassCode FROM XBOLTADM.TB_ITEM WHERE ItemID = #{itemId})
+	 </select>	 
+	 
+	 <select id="getDimValuePath" resultType="String">
+		SELECT TOP 1
+			   TIA.PlainText + ' >> ' + TDLT.Name + ' >> ' + TDVT.Name AS DimValuePath
+		FROM 
+			XBOLTADM.TB_DIM_VALUE TDV
+			Left Outer Join XBOLTADM.TB_DIM_VALUE_TXT TDVT
+				on TDV.DimTypeID = TDVT.DimTypeID
+				AND TDV.DimValueID = TDVT.DimValueID
+				AND TDVT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DIM_LEVEL_TXT TDLT
+				on TDV.DimTypeID = TDLT.DimTypeID
+				AND TDV.Level = TDLT.Level
+				AND TDLT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+				on TDV.DimTypeID = TIA.ItemID 
+				AND TIA.AttrTypeCode = 'AT00001'
+				AND TIA.LanguageID = #{languageID}		
+		WHERE 
+			TDV.DimTypeID = #{dimTypeID} AND TDV.DimValueID = #{dimValueID}
+			
+	 </select>	 
+	
+	
+ 	<select id="getDimValueNameList" resultType="java.util.HashMap">
+ 		SELECT 
+      		 DimValueID
+      		, SortNum
+  		FROM XBOLTADM.TB_DIM_VALUE
+  		WHERE DimTypeID = #{dimTypeID}
+  		ORDER BY SortNum
+ 	</select>
+ 		
+	<select id="selectDimSubLevelList_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY  TDV.DimValueID ASC ) as RNUM 
+			 , 0 AS CHK
+			 , TDV.DimValueID 
+			 , TDVT.Name
+			 , TDV.DimTypeID
+			 , TDV.ParentID
+			 , Count(TID.ItemID) as SCount
+			 , 'more.png' as ConItemImg
+		FROM 
+			XBOLTADM.TB_DIM_VALUE TDV
+			Left Outer Join XBOLTADM.TB_DIM_VALUE_TXT TDVT
+				on TDV.DimTypeID = TDVT.DimTypeID
+				AND TDV.DimValueID = TDVT.DimValueID
+				AND TDVT.LanguageID = #{languageID}	
+			Left Outer Join XBOLTADM.TB_ITEM_DIM TID
+				on TDV.DimTypeID = TID.DimTypeID
+				AND TDV.DimValueID = TID.DimValueID		
+		WHERE 
+			TDV.DimTypeID = #{dimTypeID} AND TDV.ParentID = #{dimValueID} AND TDV.Deleted = 0
+		
+		Group By
+			   TDV.DimValueID 
+			 , TDVT.Name
+			 , TDV.DimTypeID
+			 , TDV.ParentID
+					
+	</select>
+ 	 	
+ 	<select id="getItemDimNameList" resultType="java.util.HashMap">
+		SELECT 
+			Distinct TID.DimTypeID AS DimTypeID 
+			,ISNULL(TIA.PlainText, '') AS DimTypeName 
+			,TDLT.Level
+			,(Select Max(Level) From XBOLTADM.TB_DIM_LEVEL_TXT Where DimTypeID = TID.DimTypeID) AS MaxLevel
+		FROM XBOLTADM.TB_Item_Dim TID 
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA on TID.DimTypeID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND TIA.LanguageID = #{languageID}
+		LEft OUter Join XBOLTADM.TB_DIM_VALUE TDLT ON TDLT.DimValueID = TID.DimValueID 
+		Where TID.ItemTypeCode IN (${itemTypeCodes})
+	</select>
+	
+	<select id="getDimTypeNameList" resultType="java.util.HashMap">
+	 	Select 
+	 		Distinct TDV.DimValueID AS DimValueID 
+			, replace(TDV.DimValueID,' ','_') AS DimValueSelect 
+	 		, ISNULL(TDVT.Name, '') AS DimValueName
+			, TDV.DimTypeID 
+			, TDV.Level
+			, TDV.ParentID
+			, CASE WHEN (SELECT COUNT(DimTypeID) FROM XBOLTADM.TB_DIM_VALUE WHERE ParentID = TDV.DimValueID) > 0 THEN 'Y' ELSE 'N' END AS subDimYN
+			From XBOLTADM.TB_DIM_VALUE TDV
+		 Left OUter Join XBOLTADM.TB_DIM_VALUE_TXT TDVT ON TDVT.DimValueID = TDV.DimValueID AND TDVT.DimTypeID = TDV.DimTypeID And TDVT.LanguageID =  #{languageID}
+		 Where TDV.DimTypeID IN(Select DimTypeID 
+		 				  		From XBOLTADM.TB_ITEM_DIM 
+		 				  		Where ItemTypeCode IN(${itemTypeCodes}))
+		 ORDER BY TDV.DimTypeID
+	</select>
+		
+	<select id="getDimSearchList_gridList" resultType="java.util.HashMap">
+		Select 
+			Row_Number()OVER(ORDER BY T.ItemName ASC ) as RNUM
+			, T.ItemID
+			, T.ItemName 
+			, T.ItemPath
+			, T.Icon AS ItemTypeImg
+			
+			, T.Identifier
+			, T.classCodeName
+			, T.authorName
+			, T.teamName
+			, T.Status
+			, T.statusName
+			, T.fileIcon
+			, T.LastUpdated
+			
+		From (	
+			 Select 
+				Distinct TID.ItemID
+				, TIA.PlainText AS ItemName
+				, ISNULL(XBOLTADM.fn_GetMyAbsPathForList(TID.ItemID, #{languageID}), '') AS ItemPath
+				
+				 , (SELECT Icon FROM XBOLTADM.TB_ITEM_TYPE WHERE ItemTypeCode = TID.ItemTypeCode) As Icon
+				, TI.Identifier				
+				, TD.Name AS classCodeName
+				, TM.Name AS authorName
+				, TTT.Name AS teamName
+				, TI.Status
+
+<![CDATA[
+				, Case TI.Status When 'NEW1' Then '<span style=color:blue;font-weight:bold>' + TD2.Name + '</span>'
+							When 'MOD1' Then '<span style=color:orange;font-weight:bold>' + TD2.Name + '</span>'
+							When 'MOD2' Then '<span style=color:orange;font-weight:bold>' + TD2.Name + '</span>'
+			ELSE '<span style=color:#000000>' + TD2.Name + '</span>' END 		
+]]>  AS statusName
+
+				, CASE 
+					WHEN ISNULL(TIFF.DocumentID , '') != '' 
+					THEN 'icon_attach.png'
+					ELSE 'blank.gif'
+				  END fileIcon
+				, Convert(nvarchar(20),TI.LastUpdated, 111) AS LastUpdated
+			From XBOLTADM.TB_ITEM_DIM TID, XBOLTADM.TB_ITEM TI
+			Left Outer Join XBOLTADM.TB_Item_Attr TIA ON TIA.ItemID = TI.ItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_Item_Attr TIA2 ON TIA2.ItemID = TI.ItemID And TIA2.AttrTypeCode = 'AT00003' And TIA2.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TI.ClassCode AND TD.Category = 'CLS' AND TD.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = TI.Status AND TD2.Category = 'ITMSTS' AND TD2.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TI.AuthorID
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TTT ON TTT.TeamID = TM.TeamID AND TTT.LanguageID = #{languageID}
+			LEFT OUTER JOIN (SELECT DISTINCT DocumentID FROM XBOLTADM.TB_FILE Where DocCategory = 'ITM' AND Blocked != 1) TIFF ON TI.ItemID = TIFF.DocumentID
+			Where TID.ItemID = TI.ItemID 
+			And TID.ItemTypeCode IN(${itemTypeCodes})
+			<if test="dimData != null">
+				<foreach collection="dimData" index="index" item="item1">
+					AND TID.ItemID IN (
+						SELECT ItemID FROM XBOLTADM.TB_ITEM_DIM WHERE DimTypeID = #{item1.dimTypeID} 
+						AND DimValueID IN
+						<foreach collection="item1.dimValueID" index="index" item="item2" open="(" close=")"  separator=",">
+							#{item2}
+						</foreach>
+					)
+				</foreach>
+			</if>
+<!-- 			
+			<if test="dimTypeIDs != null ">
+				<foreach item="item1" index="index" collection="dimTypeIDs" >
+				        And TID.DimTypeID = #{item1}
+				</foreach>
+			</if>
+			<if test="dimValueIDs != null ">
+					<foreach item="item2" index="index" collection="dimValueIDs" >
+				        And TID.DimValueID = #{item2}
+				</foreach>
+			</if>
+			
+ -->
+<!-- 
+			<if test="searchValue != null and searchValue != ''">
+				<choose>
+					<when test="searchKey.equals('Name')">
+						AND TIA.PlainText like N'%' + #{searchValue} + '%'
+					</when>
+					<when test="searchKey.equals('Info')">
+						AND TIA2.PlainText like N'%' + #{searchValue} + '%'
+					</when>
+				</choose>
+			</if>
+-->
+			<if test="AttrCode != null"> 
+						AND (1=1
+						<foreach collection="AttrCode" index="index" item="item">
+							<choose>
+								<when test="!'identifier'.equals(item.attrCode)">
+									<if test="item.searchValue != null and !''.equals(item.searchValue)">
+										${item.selectOption} TI.ItemID IN (
+												SELECT 
+													ItemID
+												FROM 
+													XBOLTADM.TB_ITEM_ATTR
+												WHERE
+													AttrTypeCode = #{item.attrCode}
+													<choose>
+														<when test='!"Y".equalsIgnoreCase(AttrCodeEscape)'>
+															AND REPLACE(PlainText,' ','')
+															<if test='"3".equals(item.constraint)'>
+																NOT 
+															</if> like replace('%'+#{item.searchValue}+'%', ' ','')
+														</when>
+														<otherwise>
+															AND REPLACE(PlainText,' ','') 
+															<if test='"3".equals(item.constraint)'>
+																not 
+															</if>  like replace('%'+#{item.searchValue}+'%'ESCAPE'!', ' ','')
+														</otherwise>
+													</choose>
+													<choose>
+														<when test='!"Y".equals(isComLang)'>
+															AND LanguageID = #{languageID}
+														</when>
+														<otherwise>
+															AND LanguageID = #{defaultLang}
+														</otherwise>
+													</choose>
+													
+											) 
+									</if>
+									<if test="item.lovCode != null and item.lovCode.length > 0">
+										${item.selectOption} TI.ItemID IN (
+											SELECT 
+												ItemID
+											FROM 
+												XBOLTADM.TB_ITEM_ATTR
+											WHERE
+												LovCode IN (
+													<foreach collection="item.lovCode" index="index2" item="item2" separator=",">
+														#{item2}
+													</foreach>
+												)
+												AND AttrTypeCode = #{item.attrCode}
+													<choose>
+														<when test='!"Y".equals(isComLang)'>
+															AND LanguageID = #{languageID}
+														</when>
+														<otherwise>
+															AND LanguageID = #{defaultLang}
+														</otherwise>
+													</choose>
+													
+											) 
+									</if>
+								</when>
+								<otherwise>
+									<if test="item.searchValue != null and item.searchValue != ''">
+										${item.selectOption} TI.ItemID IN (
+												SELECT 
+													ItemID 
+												FROM 
+													XBOLTADM.TB_ITEM
+												WHERE
+													Identifier 
+													<if test='"3".equals(item.constraint)'>
+														not 
+													</if>
+													like '%'+#{item.searchValue}+'%'
+											)
+									</if>
+								</otherwise>
+							</choose>
+							
+							<if test="item.constraint != null and item.constraint != ''">
+								<choose>
+									<when test='"1".equals(item.constraint)'>
+										AND TI.ItemID IN (
+											SELECT ItemID
+											FROM XBOLTADM.TB_ITEM_ATTR
+											WHERE AttrTypeCode = #{item.attrCode} AND LanguageID = #{languageID}
+											<if test="ClassCode != null and ClassCode != ''">
+												AND ClassCode  = #{ClassCode}
+											</if>	
+											<choose>
+												<when test="childItems != null and childItems != ''">
+													AND ItemID IN(${childItems})
+												</when>
+												<otherwise>
+													<if test='"Y".equals(isNothingLowLank)'>
+														AND ItemID IN ('')
+													</if>
+												</otherwise>
+											</choose>
+										)
+									</when>
+									<when test='"2".equals(item.constraint)'>
+										AND TI.ItemID NOT IN (
+											SELECT ItemID
+											FROM XBOLTADM.TB_ITEM_ATTR
+											WHERE AttrTypeCode = #{item.attrCode} AND LanguageID = #{languageID}
+											<if test="ClassCode != null and ClassCode != ''">
+												AND ClassCode  = #{ClassCode}
+											</if>	
+											<choose>
+												<when test="childItems != null and childItems != ''">
+													AND ItemID IN (${childItems})
+												</when>
+												<otherwise>
+													<if test='"Y".equals(isNothingLowLank)'>
+														AND ItemID IN ('')
+													</if>
+												</otherwise>
+											</choose>
+										)
+									</when>
+								</choose>
+							</if>
+						</foreach>
+						)		
+					</if>
+			) T
+	</select>
+	
+	
+	 <select id="getDimensionLevel" resultType="String">
+	 	SELECT Level 
+	  	FROM 
+	   		XBOLTADM.TB_DIM_VALUE 
+	    WHERE
+	     	DimTypeID = #{dimTypeID}
+	     	AND DimValueID = #{dimValueID}
+	 </select>
+	 
+ 	<select id="getCNTItemDim" resultType="String">
+		SELECT Count(*) totalCnt 
+		FROM
+			XBOLTADM.TB_ITEM_DIM
+		WHERE
+			DimTypeID = #{DimTypeID}
+			AND DimValueID = #{DimValueID}
+			AND ItemID = #{itemID}
+	</select>
+  	
+  	<select id="getItemDimList" resultType="String">
+		SELECT
+			ISNULL(MAX(DimValueID)+1, 1) as DimValueID
+		FROM
+			XBOLTADM.TB_DIM_VALUE
+	</select>
+	
+	<insert id="copyItemDim" parameterType="java.util.HashMap">
+		Insert XBOLTADM.TB_ITEM_DIM (
+			ItemTypeCode, ItemClassCode, ItemID, DimTypeID, DimValueID, RelType 
+		)
+			Select ItemTypeCode, ItemClassCode, #{newItemID}, DimTypeID, DimValueID, RelType 
+			From XBOLTADM.TB_ITEM_DIM 
+			Where ItemID = #{cpItemID}
+	</insert>
+	
+	<update id="updateMyDimDefault" parameterType="java.util.HashMap">
+	  UPDATE
+	  	XBOLTADM.TB_MY_DIM_VALUE
+	  SET
+	  	IsDefault = #{isDeault}
+	 WHERE
+ 		MemberID = #{memberID}
+		AND DimTypeID = #{dimTypeID}
+		AND DimValueID = #{dimValueID}
+	</update>
+	
+	<update id="updateItemDim" parameterType="java.util.HashMap">
+	  UPDATE
+	  	XBOLTADM.TB_ITEM_DIM
+	  SET
+	  	Description = #{description}
+	 WHERE
+ 		ItemID = #{itemID}
+		AND DimTypeID = #{dimTypeID}
+		AND DimValueID = #{dimValueID}
+	</update>
+	
+</mapper>

@@ -1,0 +1,41 @@
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/olm_dev/!svn/ver/8699/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/ctr
+END
+searchCTRList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 89
+/svn/olm_dev/!svn/ver/8699/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/ctr/searchCTRList.jsp
+END
+updateCTR.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/olm_dev/!svn/ver/8240/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/ctr/updateCTR.jsp
+END
+viewCTRDetail.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 89
+/svn/olm_dev/!svn/ver/8245/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/ctr/viewCTRDetail.jsp
+END
+registerCTR.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/svn/olm_dev/!svn/ver/8240/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/ctr/registerCTR.jsp
+END
+ctrList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svn/olm_dev/!svn/ver/8009/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/ctr/ctrList.jsp
+END
+mainCTRList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/svn/olm_dev/!svn/ver/8699/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/ctr/mainCTRList.jsp
+END

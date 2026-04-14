@@ -1,0 +1,125 @@
+K 25
+svn:wc:ra_dav:version-url
+V 77
+/svn/olm_dev/!svn/ver/9140/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu
+END
+arcFilter.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 91
+/svn/olm_dev/!svn/ver/6831/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/arcFilter.jsp
+END
+addReportMgtPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/svn/olm_dev/!svn/ver/4234/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/addReportMgtPop.jsp
+END
+menuTypeDetailView.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 100
+/svn/olm_dev/!svn/ver/6635/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/menuTypeDetailView.jsp
+END
+allocateArchitecture.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 102
+/svn/olm_dev/!svn/ver/4232/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/allocateArchitecture.jsp
+END
+arcMenu.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 89
+/svn/olm_dev/!svn/ver/9140/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/arcMenu.jsp
+END
+subArchitectureMenu.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 101
+/svn/olm_dev/!svn/ver/7966/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/subArchitectureMenu.jsp
+END
+arcDimension.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 94
+/svn/olm_dev/!svn/ver/6831/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/arcDimension.jsp
+END
+DefineArchitectureGrid.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 104
+/svn/olm_dev/!svn/ver/6567/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/DefineArchitectureGrid.jsp
+END
+searchRootItemTreePop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 103
+/svn/olm_dev/!svn/ver/8820/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/searchRootItemTreePop.jsp
+END
+ArchitectureView.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 98
+/svn/olm_dev/!svn/ver/7148/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/ArchitectureView.jsp
+END
+addTemplArcListPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 100
+/svn/olm_dev/!svn/ver/4234/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/addTemplArcListPop.jsp
+END
+defineTemplateView.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 100
+/svn/olm_dev/!svn/ver/7079/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/defineTemplateView.jsp
+END
+DefineMenuTypeGrid.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 100
+/svn/olm_dev/!svn/ver/9067/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/DefineMenuTypeGrid.jsp
+END
+defineTemplateGrid.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 100
+/svn/olm_dev/!svn/ver/6567/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/defineTemplateGrid.jsp
+END
+addBoardMgtPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 96
+/svn/olm_dev/!svn/ver/4234/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/addBoardMgtPop.jsp
+END
+reportAllocTmplt.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 98
+/svn/olm_dev/!svn/ver/7966/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/reportAllocTmplt.jsp
+END
+subBoardMgtAlloc.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 98
+/svn/olm_dev/!svn/ver/7966/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/subBoardMgtAlloc.jsp
+END
+arcMenuListPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 96
+/svn/olm_dev/!svn/ver/6717/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/arcMenuListPop.jsp
+END
+addArcListPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 95
+/svn/olm_dev/!svn/ver/4232/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/addArcListPop.jsp
+END
+arcClass.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 90
+/svn/olm_dev/!svn/ver/6831/OLM3/WebContent/WEB-INF/jsp/adm/configuration/menu/arcClass.jsp
+END

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="eval_SQL">
+ 	<select id="getEvalTypeCode" resultType="String">
+ 		Select 
+			EvalTypeCode
+		From XBOLTAPP.ESM_SR_TYPE
+		where SRTypeCode = #{srType}
+ 	</select>
+ 	
+	<select id="getEvalItem" resultType="java.util.HashMap">
+		Select 
+			TEI.EvalItemID,
+			TEI.AttrTypeCode, 
+			TAT.DataType,
+			TD.Name
+		From XBOLTAPP.ESM_EVAL_ITEM TEI
+		Left outer join XBOLTADM.TB_ATTR_TYPE TAT ON TEI.AttrTypeCode = TAT.AttrTypeCode
+		Left outer join XBOLTADM.TB_DICTIONARY TD ON TEI.AttrTypeCode = TD.TypeCode
+		Where TEI.EvalTypeCode = #{evalTypeCode}
+ 	</select>
+ 	
+ 	<select id="getMaxEvSheetID" resultType="String">
+		Select	ISNULL(MAX(EvalSheetID)+1, 1) as EvalSheetID From XBOLTAPP.ESM_EVAL_SHEET
+	</select> 
+	
+	<select id="getEvTypeCode" resultType="java.util.HashMap">
+		Select 
+			EET.EvalTypeCode, EST.DocCategory
+	 	 From XBOLTAPP.ESM_EVAL_TYPE EET
+	 	 Left Outer Join XBOLTAPP.ESM_SR_TYPE EST ON EET.DocCategory = EST.DocCategory
+	 	 Where EST.SRTypeCode = (
+			Select SRType
+			From XBOLTAPP.ESM_SR_MST
+			Where SRID = #{documentID}
+		  )
+	</select> 
+ 	
+ 	<insert id="insertEvalSheet" parameterType="java.util.HashMap">
+	 	Insert Into 
+			XBOLTAPP.ESM_EVAL_SHEET(
+				EvalSheetID,
+				EvalTypeCode,
+				DocCategory,
+				DocumentID,
+				EvaluatorID,
+				EvalTeamID,
+<!-- 				DueDate, -->
+<!-- 				Status, -->
+				CreationTime
+			)Values(
+				#{evalSheetID},
+				#{evalTypeCode},
+				#{docCategory},
+				#{documentID},
+				#{evaluatorID},
+				#{evalTeamID},
+<!-- 				#{dueDate}, -->
+<!-- 				#{status}, -->
+				GETDATE()
+			)
+ 	</insert>
+ 	
+ 	<select id="getEvSheetInfo" resultType="java.util.HashMap">
+		Select	
+			EvalSheetID,
+			EvalTypeCode,
+			ISNULL(CONVERT(VARCHAR, CreationTime, 120),'-') AS CreationTime
+		From XBOLTAPP.ESM_EVAL_SHEET
+		Where DocumentID = #{documentID}
+	</select> 
+ 	
+	<insert id="insertEvalItemValue" parameterType="java.util.HashMap">
+	 	Insert Into 
+			XBOLTAPP.ESM_EVAL_ITEM_VALUE(
+				EvalTypeCode,
+				EvalSheetID,
+				EvalItemID,
+				AttrTypeCode,
+				Value,
+				CreationTime
+			)Values(
+				#{evalTypeCode},
+				#{evalSheetID},
+				#{evalItemID},
+				#{attrTypeCode},
+				 #{value},
+				 GETDATE()
+			)
+ 	</insert>
+ 	
+ 	<select id="getEvalItemValue" resultType="java.util.HashMap">
+ 		Select	
+			EIV.AttrTypeCode, EIV.Value, TAT.DataType
+		From XBOLTAPP.ESM_EVAL_ITEM_VALUE EIV
+		Left outer join XBOLTADM.TB_ATTR_TYPE TAT ON EIV.AttrTypeCode = TAT.AttrTypeCode
+		Where EIV.EvalTypeCode = #{evalTypeCode}
+		And EvalSheetID = #{evalSheetID}
+ 	</select>
+ 	
+ 	<update id="updateSRstatus" parameterType="java.util.HashMap">
+ 		Update
+ 			XBOLTAPP.ESM_SR_MST
+ 		Set Status = #{status}
+ 			, EvalSheetID = #{evalSheetID}
+ 		Where SRID = #{documentID}
+ 	</update>
+</mapper>

@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	로그인 관련	-->
+<mapper namespace="sk_cmm_SQL">
+	<select id="empNo_SSO_select" resultType="java.util.HashMap">
+	<![CDATA[
+		SELECT emp_num		/*사용자ID*/
+		FROM XBOLTADM.IDM_USR_TBL
+		WHERE 1=1
+		AND emp_num = #{EMP_NUM}
+	]]>
+	</select>
+	<select id="empNo_MPM_select" resultType="java.util.HashMap">
+	<![CDATA[
+		SELECT A.LoginId LOGIN_ID		/*사용자ID*/
+		FROM XBOLTADM.TB_MEMBER A
+		WHERE 1=1
+		AND EmployeeNum = #{EMP_NUM}
+	]]>
+	</select>	
+	<select id="login_id_select" resultType="java.util.HashMap">
+	<![CDATA[
+		SELECT A.LoginId		/*사용자ID*/
+		FROM XBOLTADM.TB_MEMBER A
+		WHERE 1=1
+		AND LoginId = #{LOGIN_ID}
+	]]>
+	</select>
+
+ 
+	<select id="login_select" resultType="xbolt.cmm.framework.util.LoginMap">
+		SELECT 
+			A.MemberID as USER_ID		/*사용자ID*/
+			,A.Name as USER_NM		/*사용자명*/
+			,A.PASSWORD		/*사용자 비밀번호*/
+			,A.LoginId as LOGIN_ID		/*로그인ID*/
+			,A.MemberID as AUTH_ID		/* 권한 */
+			,A.CompanyID as COMPANY_ID	/*업체ID*/
+			,B.Name as COMPANY_NM	/*업체명*/
+			,ISNULL(A.TeamID, 0) as TEAM_ID	/*상위업체ID*/
+			,A.Authority as AUTH_LEV		/*권한레벨*/
+			,D.Name as TEAM_NAME
+		    , #{LANGUAGE} AS CURR_LANG_TYPE 
+		    , ISNULL((SELECT Name FROM XBOLTADM.TB_LANGUAGE WHERE LanguageID = #{LANGUAGE}), #{LANGUAGE}) AS CURR_LANG_NM
+		    , ISNULL((SELECT LanguageCode FROM XBOLTADM.TB_LANGUAGE WHERE LanguageID = #{LANGUAGE}), #{LANGUAGE}) AS CURR_LANG_CODE /*LanguageCode*/
+		    , A.ClientID AS CLIENT_ID
+		    , A.MLVL
+		FROM XBOLTADM.TB_MEMBER A
+			Left Outer Join XBOLTADM.TB_TEAM_TXT B on A.CompanyID = B.TeamID AND B.LanguageID = #{LANGUAGE}
+			Left Outer Join XBOLTADM.TB_TEAM_TXT D on A.TeamID = D.TeamID AND D.LanguageID = #{LANGUAGE}
+		WHERE LoginId = #{LOGIN_ID}
+		<if test="IS_CHECK != null and IS_CHECK.equalsIgnoreCase('Y')">
+			AND Password = #{PASSWORD}
+		</if>
+	</select>
+	
+	<select id="searchNamePopFromMDM" resultType="java.util.HashMap">
+		SELECT /* searchNamePopFromMDM */
+		       B.EMP_NAM AS UserName
+		      ,A.loginID AS LoginID
+		      ,B.ORG_NAM AS TeamName
+		  FROM XBOLTADM.TB_MEMBER A
+		       LEFT OUTER JOIN XBOLTADM.MDM_IF_PA B ON A.loginID = B.EMP_NUM
+		 WHERE B.EMP_NAM Like N'%'+#{Name}+'%'
+	</select>
+	
+	<select id="selectConfigurationList" resultType="java.util.HashMap">
+		SELECT /* selectConfigurationList */
+		       A.ToItemID                       AS TREE_ID
+		      ,C.Identifier + ' ' + B.PlainText AS TREE_NM
+		  FROM XBOLTADM.TB_ITEM      A
+		      ,XBOLTADM.TB_ITEM_ATTR B
+		      ,XBOLTADM.TB_ITEM      C
+		 WHERE A.FromItemID IN (SELECT ItemID FROM XBOLTADM.TB_ITEM WHERE Identifier IN (${confID}) AND ClassCode = 'CL07001')
+		   AND A.ToItemID     = B.ItemID
+		   AND B.AttrTypeCode = 'AT00001'
+		   AND B.LanguageID   =  #{LanguageID}
+		   AND A.ToItemID     = C.ItemID
+		   AND C.Deleted     != '1'
+		ORDER BY TREE_NM
+	</select>
+	
+	<select id="selectSubSystemList" resultType="java.util.HashMap">
+		SELECT /* selectSubSystemList */
+		       A.ItemID AS TREE_ID
+		      ,A.Identifier + ' ' + B.PlainText AS TREE_NM
+		  FROM XBOLTADM.TB_ITEM      A
+		     , XBOLTADM.TB_ITEM_ATTR B
+		 WHERE A.ItemID = B.ItemID
+		   AND B.AttrTypeCode = 'AT00001'
+		   AND B.LanguageID   =  '1042'
+		   AND A.ItemID IN (SELECT ToItemID FROM xboltadm.tb_item WHERE FromItemID IN (${ifMasterID}))
+		ORDER By TREE_NM
+	</select>
+	
+	<select id="selectIFMasterList" resultType="java.util.HashMap">
+		SELECT /* selectIFMasterList */
+		       A.ItemID AS TREE_ID
+		      ,A.Identifier + ' ' + B.PlainText AS TREE_NM
+		  FROM XBOLTADM.TB_ITEM      A
+		     , XBOLTADM.TB_ITEM_ATTR B
+		     , XBOLTADM.TB_ITEM      C
+		     , XBOLTADM.TB_ITEM      D
+		 WHERE A.ItemID = B.ItemID
+		   AND B.AttrTypeCode = 'AT00001'
+		   AND B.LanguageID   =  '1042'
+		   AND C.FromItemID = #{ItemIDIF}
+		   AND C.ToItemID   = A.ItemID
+		   AND A.Deleted   != '1'
+		   AND A.ClassCode  = 'CL04006'
+		   AND C.FromItemID = D.ItemID
+		ORDER By D.Identifier, TREE_NM
+	</select>
+	
+	<select id="selectCBOMasterList" resultType="java.util.HashMap">
+		SELECT /* selectCBOMasterList */
+		       A.ItemID AS TREE_ID
+		      ,A.Identifier + ' ' + B.PlainText AS TREE_NM
+		  FROM XBOLTADM.TB_ITEM      A
+		     , XBOLTADM.TB_ITEM_ATTR B
+		     , XBOLTADM.TB_ITEM      C
+		     , XBOLTADM.TB_ITEM      D
+		 WHERE A.ItemID = B.ItemID
+		   AND B.AttrTypeCode = 'AT00001'
+		   AND B.LanguageID   =  '1042'
+		   AND C.FromItemID = #{ItemIDIF}
+		   AND C.ToItemID   = A.ItemID
+		   AND A.Deleted   != '1'
+		   AND A.ClassCode  = 'CL04005'
+		   AND C.FromItemID = D.ItemID
+		ORDER By D.Identifier, TREE_NM
+	</select>
+	
+	<select id="selectProcessTotalList" resultType="java.util.HashMap">
+		SELECT /* selectProcessTotalList */
+		       A.ItemID AS TREE_ID
+		      ,A.Identifier + ' ' + B.PlainText AS TREE_NM 
+		      ,A.Identifier
+		      ,CASE WHEN A.ClassCode = 'CL01005' THEN 3 
+		            WHEN A.ClassCode = 'CL01004' THEN 2 
+		            WHEN A.ClassCode = 'CL01002' THEN 1
+		       END AS P_LEVEL 
+		      ,C.FromItemID AS PARENT_ID 
+		  FROM XBOLTADM.TB_ITEM      A
+		      ,XBOLTADM.TB_ITEM_ATTR B
+		      ,XBOLTADM.TB_ITEM      C
+		 WHERE A.Identifier   LIKE #{Identifier}+'%'
+		   AND A.ClassCode    =  #{ClassCode}
+		   AND A.ItemID       = B.ItemID
+		   AND A.Deleted     != 1
+		   AND B.AttrTypeCode = 'AT00001'
+		   AND B.LanguageID   =  #{LanguageID}
+		   AND A.ItemID       = C.ToItemID
+		   AND C.ItemTypeCode = 'CN00001'
+		ORDER BY Identifier
+	</select>
+	
+	<select id="selectProcessTotalListTR" resultType="java.util.HashMap">
+		SELECT /* selectProcessTotalListTR */
+		       A.ItemID AS TREE_ID
+		      ,A.Identifier + ' ' + B.PlainText AS TREE_NM 
+		      ,A.Identifier
+		      ,CASE WHEN A.ClassCode = 'CL01005' THEN 3 
+		            WHEN A.ClassCode = 'CL01004' THEN 2 
+		            WHEN A.ClassCode = 'CL01002' THEN 1
+		       END AS P_LEVEL 
+		      ,C.FromItemID AS PARENT_ID 
+		  FROM XBOLTADM.TB_ITEM      A
+		      ,XBOLTADM.TB_ITEM_ATTR B
+		      ,XBOLTADM.TB_ITEM      C
+		 WHERE (A.Identifier Like 'CO%' OR A.Identifier Like 'FI%' OR A.Identifier Like 'IM%' OR A.Identifier Like 'TR%')
+		   AND A.ClassCode    =  #{ClassCode}
+		   AND A.ItemID       = B.ItemID
+		   AND A.Deleted     != 1
+		   AND B.AttrTypeCode = 'AT00001'
+		   AND B.LanguageID   =  #{LanguageID}
+		   AND A.ItemID       = C.ToItemID
+		   AND C.ItemTypeCode = 'CN00001'
+		ORDER BY Identifier
+	</select>
+	
+	<select id="selectUpMoudle" resultType="String">
+		SELECT /* selectUpMoudle */
+		       CASE WHEN SUBSTRING(Identifier,1,2) = 'MM' THEN 'AR010101' 
+		            WHEN SUBSTRING(Identifier,1,2) = 'SD' THEN 'AR010102' 
+		            WHEN SUBSTRING(Identifier,1,2) = 'PM' THEN 'AR010103' 
+		            WHEN SUBSTRING(Identifier,1,2) = 'HR' THEN 'AR010106' 
+		            ELSE 'AR010104'
+		       END AS ArcCode2
+		  FROM XBOLTADM.TB_ITEM A
+		 WHERE A.ItemID = #{ItemId}
+	</select>
+	
+	<select id="selectNoticeList" resultType="java.util.HashMap">
+		SELECT /* selectNoticeList */
+		       A.BoardID
+		      ,A.BoardMgtID
+		      ,A.Subject
+		  FROM XBOLTADM.TB_BOARD A
+		 WHERE BoardMgtID = 1 
+		   --AND CONVERT(VARCHAR, RegDT, 112) BETWEEN CONVERT(VARCHAR,DATEADD(DD,-180,GETDATE()),112) AND CONVERT(VARCHAR,GETDATE(),112)
+		   AND BoardID != 1
+		ORDER BY BoardID DESC
+	</select>
+	
+</mapper>

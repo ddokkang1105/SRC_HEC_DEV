@@ -1,0 +1,35 @@
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/olm_dev/!svn/ver/8106/OLM3/WebContent/WEB-INF/jsp/app/pim/issue
+END
+issueInfoDetail.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/pim/issue/issueInfoDetail.jsp
+END
+addNewIssue.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svn/olm_dev/!svn/ver/8106/OLM3/WebContent/WEB-INF/jsp/app/pim/issue/addNewIssue.jsp
+END
+issueSearchList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/svn/olm_dev/!svn/ver/5716/OLM3/WebContent/WEB-INF/jsp/app/pim/issue/issueSearchList.jsp
+END
+actionIssue.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svn/olm_dev/!svn/ver/8106/OLM3/WebContent/WEB-INF/jsp/app/pim/issue/actionIssue.jsp
+END
+receiveIssue.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/olm_dev/!svn/ver/8106/OLM3/WebContent/WEB-INF/jsp/app/pim/issue/receiveIssue.jsp
+END

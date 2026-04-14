@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="schedule_SQL">
+ 	
+ 	<select id="getSchdlList_gridList" resultType="java.util.HashMap">
+ 	
+		 SELECT 
+			<choose>
+		 		<when test="listSize != null and listSize != ''">	Top (#{listSize})</when>
+		 		<otherwise>Top 100</otherwise>
+		 	</choose>
+			Row_Number()OVER(ORDER BY schdl.StartDT) as RNUM
+		    ,CONVERT(CHAR(16),schdl.StartDT,120) as start_date
+			,CONVERT(CHAR(16),schdl.EndDT, 120) as end_date		
+			,schdl.Content
+			,schdl.Location 
+			,CASE 
+				WHEN mbr.Name is not null THEN mbr.Name + '('+ TTT.Name +')'
+				ELSE ISNULL(TTT.Name, '')
+				END AS WriteUserNM
+			,schdl.ScheduleID
+			,schdl.Subject
+			,mbr.MLVL
+			,schdl.UsergroupId
+			,mbr.Authority
+			,(SELECT Name FROM XBOLTADM.TB_MEMBER where MemberID = schdl.UsergroupId) AS groupName 
+			, TPT2.Name AS ProjectName 
+		 	, CASE WHEN DATEDIFF(day, schdl.RegDT, getDate()) > 7 THEN 'blank.png' ELSE 'icon_new.png' END AS IsNew
+		 	, CASE WHEN DATEDIFF(day, schdl.RegDT, getDate()) > 7 THEN 0 ELSE 1 END AS chkNew
+		 	, CONVERT(CHAR(10),schdl.StartDT,121) as startDateM
+		 	, TPT.Name AS ProjectGroupName 
+		 	, CASE WHEN schdl.DocCategory = 'CMM' THEN 'General' ELSE TD.Name END AS docCategoryName
+		 FROM XBOLTADM.TB_SCHEDULER schdl		 
+			<if test='"Y".equals(mySchdl)'>
+			Inner Join XBOLTADM.TB_MY_SCHEDULE TMS ON schdl.ScheduleID = TMS.ScheduleID and TMS.MemberID = #{userID}
+			</if>
+		 	Left Join XBOLTADM.TB_Dictionary TD on TD.TypeCode = schdl.DocCategory and TD.Category = 'DOCCAT' and TD.LanguageID = #{languageID}
+		 	LEFT OUTER JOIN XBOLTADM.TB_MEMBER mbr ON schdl.RegUserID=mbr.MemberID
+		 	Left Outer Join XBOLTADM.TB_PROJECT TP ON TP.ProjectID = schdl.ProjectID
+		 	Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT ON TPT.ProjectID = TP.RefPGID And TPT.LanguageID = #{languageID}
+		 	LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TTT ON TTT.TeamID = mbr.teamID AND TTT.LanguageID = #{languageID}
+		 	Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT2 ON TPT2.ProjectID = schdl.ProjectID And TPT2.LanguageID = #{languageID}
+		  <where> 
+		  	1 = 1
+				<if test="scStartDtFrom != null and scStartDtFrom != ''">
+				<![CDATA[ AND	CONVERT(date, StartDT, 121) >= #{scStartDtFrom} ]]>
+				</if>  
+				<if test="scStartDtTo != null and scStartDtTo != ''">
+				<![CDATA[ AND	CONVERT(date, StartDT, 121) <= #{scStartDtTo} ]]>
+				</if>  
+				<if test="scEndDtFrom != null and scEndDtFrom != ''">
+				<![CDATA[ AND	CONVERT(date, EndDT, 121) >= #{scEndDtFrom} ]]>
+				</if>  
+				<if test="scEndDtTo != null and scEndDtTo != ''">
+				<![CDATA[ AND	CONVERT(date, EndDT, 121) <= #{scEndDtTo} ]]>
+				</if>  
+				<if test="start_date != null and start_date != ''">
+				AND	CONVERT(char(10), CONVERT(datetime, schdl.StartDT), 21) =  #{start_date}
+				</if>  
+				<if test="searchValue != null and searchValue != ''">
+					<choose>
+						<when test="searchKey.equals('Name')">
+							AND Subject like N'%'+#{searchValue}+'%'
+						</when>
+						<when test="searchKey.equals('Info')">
+							AND Content like N'%'+#{searchValue}+'%'
+						</when>
+					</choose>
+				</if>
+				<if test="docCategory != null and docCategory != ''">
+					AND schdl.DocCategory = #{docCategory}
+				</if>
+				<if test="documentID != null and documentID != ''">
+					AND schdl.DocumentID = #{documentID}
+				</if>
+				<if test="location != null and location != ''">
+					AND schdl.Location = #{location}
+				</if>
+				<if test="projectID != null and projectID != ''">
+					AND schdl.ProjectID = #{projectID}
+				</if>
+				<if test="refPGID != null and refPGID != ''">
+					AND schdl.ProjectID IN (Select ProjectID From XBOLTADM.TB_PROJECT Where RefPGID = #{refPGID})
+				</if>
+				<if test='"Y".equals(endDTCheck)'>
+					And schdl.EndDT >= getDate()					
+				</if>				
+		  </where>
+		  ORDER BY schdl.StartDT DESC
+	</select>
+	
+	<select id="selectSchdlList" resultType="java.util.HashMap">
+		 SELECT
+			schdl.scheduleID as id
+			,CONVERT(CHAR(20), schdl.EndDT, 120) as end_date
+			,CONVERT(CHAR(20),schdl.StartDT,120) as start_date			
+			,schdl.Content as content
+			,schdl.Location as location
+			,schdl.Subject as text
+		 FROM XBOLTADM.TB_SCHEDULER schdl
+		 Where 
+		 1 = 1
+		 <!-- schdl.RegUserID = #{userID} -->
+		<if test="projectID != null and projectID != ''">
+			AND schdl.ProjectID = #{projectID}
+		</if>
+	</select>
+	
+	<select id="schedulNextVal" resultType="String">
+		SELECT
+			ISNULL(MAX(scheduleID)+1,'1') as scheduleID
+		FROM
+			XBOLTADM.TB_SCHEDULER
+	</select>
+	
+	<insert id="schdlInsert" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_SCHEDULER
+			(ScheduleID
+			, StartDT
+			, EndDT
+			, Content
+			, Location
+			, RegUserID
+			, TemplCode
+			, UsergroupId
+			, RegDT
+			, ModDT
+			, ModUserID
+			, PublicYN
+			<if test="srID != null and srID != ''">
+			, SRID
+			</if>
+			) VALUES (
+			      #{scheduleID}
+			  	, #{start_date}
+				, #{end_date}
+				, #{text}
+				, #{location}
+				, #{userId}
+				, #{templetCode}
+				, #{userGrpId}
+				, getDate()
+				, getDate()
+				, #{userId}
+				, 'Y'
+				<if test="srID != null and srID != ''">
+					,#{srID}
+				</if>
+			)
+	</insert>
+	
+	<insert id="mySchdlInsert" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_MY_SCHEDULE
+			(
+				[ScheduleID]
+				,[MemberID]
+				,[Creator]
+				,[CreationTime]
+				,[LastUpdated]
+			) VALUES (
+				#{scheduleId}
+				, #{sharerId}
+				, #{userId}
+				, (select RegDT from XBOLTADM.TB_SCHEDULER where ScheduleID = #{scheduleId} )
+				, (select ModDT from XBOLTADM.TB_SCHEDULER where ScheduleID = #{scheduleId} )
+			)
+	</insert>
+	
+	<select id="getMySchdlCnt" resultType="int">
+		SELECT
+			count(MemberID) AS CNT
+		FROM XBOLTADM.TB_MY_SCHEDULE 
+		WHERE ScheduleID = #{scheduleId}
+		AND MemberID = #{sharerId} 
+	</select>
+	
+	<update id="schedlUpdate" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_SCHEDULER SET
+			StartDT = #{start_date}
+		   ,EndDt = #{end_date}
+		   ,Content = #{text}
+		   ,Location = #{location}
+		   ,ModDT =  getDate()
+		WHERE ScheduleID = #{scheduleID}
+	</update>
+		
+	<update id="mySchedlUpdate" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_MY_SCHEDULE SET
+			LastUpdated =  getDate()
+		WHERE ScheduleID = #{scheduleId}
+		AND MemberID = #{sharerId}
+	</update>	
+	<delete id="schedlDelete" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_SCHEDULER WHERE ScheduleID = #{scheduleID}
+	</delete>
+	
+	<select id="schedulDetail" resultType="java.util.HashMap">
+	<![CDATA[
+		  SELECT
+			Row_Number()OVER(ORDER BY schdl.StartDT DESC ) as RNUM
+				, schdl.DocCategory AS docCategory
+				, CASE WHEN schdl.DocCategory = 'CMM' THEN 'General' ELSE TD.Name END AS docCategoryName
+				,convert(char(10), convert(datetime, StartDT), 21) as start_date
+				,convert(char(10), convert(datetime, EndDT), 21) as end_date
+				,CONVERT(CHAR(5),schdl.StartDT,108) as startTime
+				,CONVERT(CHAR(5),schdl.EndDT, 108) as endTime
+				,schdl.Content
+				,schdl.Location 
+				,CASE 
+					WHEN mbr.Name is not null THEN mbr.Name + '('+ TTT.Name +')'
+					ELSE ISNULL(TTT.Name, '')
+				END AS WriteUserNM
+				,schdl.ScheduleID
+				,schdl.Subject
+				,convert(char(10), convert(datetime, schdl.RegDT), 21) as RegDT
+				,convert(char(10), convert(datetime, schdl.ModDT), 21) as ModDT
+				,schdl.usergroupId
+				,mbr.MLVL
+				,schdl.TemplCode
+				,schdl.ProjectID
+				,schdl.RegUserID
+				,TPT.Name AS ProjectName
+				,convert(char(16), convert(datetime, StartDT), 120) as startDateM
+				,convert(char(16), convert(datetime, EndDT), 120) as endDateM
+				, STUFF((	SELECT ','+ CAST(TM.MemberID as varchar(max))
+							FROM XBOLTADM.TB_MY_SCHEDULE TMS 
+							left join XBOLTADM.TB_MEMBER TM on TMS.MemberID = TM.MemberID
+							left join XBOLTADM.TB_TEAM_TXT TTT on TM.TeamID = TTT.TeamID and TTT.LanguageID = #{languageID}
+							where TMS.ScheduleID = schdl.ScheduleID
+							AND TMS.MemberID != schdl.RegUserID
+							FOR XML PATH('') ), 1, 1, '') 
+				AS sharers
+				, STUFF((	SELECT ','+ TM.Name+'('+TTT.Name+')'
+							FROM XBOLTADM.TB_MY_SCHEDULE TMS 
+							left join XBOLTADM.TB_MEMBER TM on TMS.MemberID = TM.MemberID
+							left join XBOLTADM.TB_TEAM_TXT TTT on TM.TeamID = TTT.TeamID and TTT.LanguageID = #{languageID}
+							where TMS.ScheduleID = schdl.ScheduleID
+							AND TMS.MemberID != schdl.RegUserID 
+							FOR XML PATH('') ), 1, 1, '') 
+				AS sharerNames
+				, schdl.StartAlarm AS startAlarm
+				, schdl.AlarmOption AS alarmOption
+				, CASE WHEN EndDT < GETDATE() THEN 'Y' ELSE 'N' END AS editYN
+				, schdl.DocNO AS docNO
+				, schdl.DocumentID AS documentID
+				, schdl.DisclScope AS disclScope
+				]]>
+		 FROM XBOLTADM.TB_SCHEDULER schdl
+		 	Left Join XBOLTADM.TB_Dictionary TD on TD.TypeCode = schdl.DocCategory and TD.Category = 'DOCCAT' and TD.LanguageID = #{languageID}
+		 	LEFT OUTER JOIN XBOLTADM.TB_MEMBER mbr ON schdl.RegUserID=mbr.MemberID
+		 	LEFT OUTER JOIN XBOLTADM.TB_TEAM_TXT TTT ON TTT.TeamID = mbr.teamID AND TTT.LanguageID = #{languageID}
+		 	LEFT OUTER JOIN XBOLTADM.TB_PROJECT_TXT TPT ON TPT.ProjectID = schdl.ProjectID And TPT.LanguageID = #{languageID}
+		  WHERE schdl.ScheduleID = #{scheduleId}
+	</select>
+	
+	<insert id="schdlDetailInsert" parameterType="java.util.HashMap">
+		<selectKey keyProperty="RegDT" resultType="String" order="AFTER">
+		select convert(char(10), convert(datetime, RegDT), 21) as RegDT FROM XBOLTADM.TB_SCHEDULER WHERE ScheduleID = #{scheduleId}
+		</selectKey>
+		INSERT INTO XBOLTADM.TB_SCHEDULER
+			( ScheduleID
+			, DocCategory
+			, StartDT
+			, EndDT
+			, Subject
+			, Content
+			, RegUserID
+			, TemplCode
+			, RegDT
+			, ModUserID
+			, PublicYN
+			, Location
+			, ProjectID
+			, StartAlarm
+			, AlarmOption
+			<if test="documentID != null and documentID != ''">
+			, DocumentID
+			</if>
+			<if test="docNO != null and docNO != ''">
+			, DocNO
+			</if>
+			, DisclScope
+			) VALUES (
+			      #{scheduleId}
+			  	, #{DocCategory}
+			  	, #{StartDT}			  	
+				, #{EndDT}
+				, #{Subject}
+				, #{Content}
+				, #{userId}
+				, #{templCode}
+				, getDate()
+				, #{userId}
+				, 'Y'				
+				, #{location}
+				, #{projectID}
+				, #{startAlarm}
+				, #{alarmOption}
+				<if test="documentID != null and documentID != ''">
+				,#{documentID}
+				</if>
+			  	<if test="docNO != null and docNO != ''">
+				,#{docNO}
+				</if>
+				, #{disclScope}
+			)
+	</insert>
+	
+	<update id="schedlDetailUpdate" parameterType="java.util.HashMap">
+		<selectKey keyProperty="ModDT" resultType="String" order="AFTER">
+		select convert(char(10), convert(datetime, ModDT), 21) as ModDT FROM XBOLTADM.TB_SCHEDULER WHERE ScheduleID = #{scheduleId}
+		</selectKey>
+		UPDATE XBOLTADM.TB_SCHEDULER SET
+			Subject = #{Subject}
+			, Location = #{location}
+			, StartDT = #{StartDT}
+			, EndDt = #{EndDT}
+			, StartAlarm = #{startAlarm}
+			, AlarmOption = #{alarmOption}
+			, Content = #{Content}
+			, ModDT =  getDate()
+			, DisclScope = #{disclScope}
+			, ProjectID = #{projectID} 
+		WHERE ScheduleID = #{scheduleId}
+	</update>
+	
+	<delete id="schedlDetailDelete" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_SCHEDULER
+		WHERE ScheduleID = #{scheduleId}
+	</delete>
+	
+	<delete id="mySchedlDelete" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_MY_SCHEDULE
+		WHERE ScheduleID = #{scheduleId}	
+		<if test="Sharers != null and Sharers != ''">
+			AND MemberID NOT IN (${Sharers})
+		</if>	
+		<if test="sharerId != null and sharerId != ''">
+		AND MemberID != #{sharerId}
+		</if>	
+	</delete>
+	
+	<select id="getPjtMember" resultType="String">
+		Select MemberID From XBOLTADM.TB_PJT_MEMBER_REL 
+		Where MemberID = #{userID}
+		And ProjectID = #{parentID}
+	</select>
+	
+	<select id="getImpendingSchdlList" resultType="java.util.HashMap">
+		SELECT 
+			DISTINCT TMS.ScheduleID AS scheduleId
+		FROM XBOLTADM.TB_MY_SCHEDULE TMS 
+		Left Join XBOLTADM.TB_SCHEDULER TS ON TMS.ScheduleID = TS.ScheduleID
+		WHERE
+			StartAlarm = CONVERT(CHAR(16), getdate(),120)
+	</select>
+	<select id="getSCHDLFileList" resultType="java.util.HashMap">
+		SELECT
+		   Seq
+		  ,DocumentID AS ScheduleID
+		  ,FileName
+		  ,FileFormat
+		  ,FileRealName
+		  ,FileSize
+		  ,FileMgt
+		  ,RegMemberID
+		  ,CONVERT(CHAR(10),CONVERT(datetime,CreationTime),21) as CreationTime
+		  ,CONVERT(CHAR(10),CONVERT(datetime,LastUpdated),21) as LastUpdated
+		  ,LastUser
+		  ,Version
+		  ,DownCNT
+		FROM XBOLTADM.TB_FILE 
+		WHERE DocCategory = 'SCHDL'
+		<if test="scheduleId != null and scheduleId != ''">
+			AND DocumentID = #{scheduleId}
+		</if>
+ 	</select>
+ 	
+ 	<delete id="deleteSCHDLFile" parameterType="java.util.HashMap">
+	  	Delete FROM XBOLTADM.TB_FILE
+	  	WHERE DocumentID = #{scheduleId} AND Seq = #{Seq}
+	</delete>
+</mapper>

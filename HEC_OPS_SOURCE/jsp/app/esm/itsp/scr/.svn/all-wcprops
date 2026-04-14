@@ -1,0 +1,107 @@
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/olm_dev/!svn/ver/8851/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/scr
+END
+viewScrImpAnal.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 90
+/svn/olm_dev/!svn/ver/7790/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/scr/viewScrImpAnal.jsp
+END
+editScrTestResult.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 93
+/svn/olm_dev/!svn/ver/7701/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/scr/editScrTestResult.jsp
+END
+approveSCRComment.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 93
+/svn/olm_dev/!svn/ver/8232/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/scr/approveSCRComment.jsp
+END
+editScrProcResult.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 93
+/svn/olm_dev/!svn/ver/7881/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/scr/editScrProcResult.jsp
+END
+viewScrTestResult.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 93
+/svn/olm_dev/!svn/ver/7881/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/scr/viewScrTestResult.jsp
+END
+editScrImpAnal.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 90
+/svn/olm_dev/!svn/ver/7397/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/scr/editScrImpAnal.jsp
+END
+viewScrDetail.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 89
+/svn/olm_dev/!svn/ver/8851/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/scr/viewScrDetail.jsp
+END
+searchSCRMbrPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 91
+/svn/olm_dev/!svn/ver/8010/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/scr/searchSCRMbrPop.jsp
+END
+scrMbrRoleList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 90
+/svn/olm_dev/!svn/ver/8128/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/scr/scrMbrRoleList.jsp
+END
+viewScrProcResult.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 93
+/svn/olm_dev/!svn/ver/8033/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/scr/viewScrProcResult.jsp
+END
+addScrFilePop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 89
+/svn/olm_dev/!svn/ver/8259/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/scr/addScrFilePop.jsp
+END
+scrMainList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/svn/olm_dev/!svn/ver/8699/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/scr/scrMainList.jsp
+END
+addSCRFileAllocPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 94
+/svn/olm_dev/!svn/ver/8010/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/scr/addSCRFileAllocPop.jsp
+END
+scrFileList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/svn/olm_dev/!svn/ver/7850/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/scr/scrFileList.jsp
+END
+registerSCR.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/svn/olm_dev/!svn/ver/8211/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/scr/registerSCR.jsp
+END
+scrList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svn/olm_dev/!svn/ver/8699/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/scr/scrList.jsp
+END
+scrFltpList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/svn/olm_dev/!svn/ver/7441/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/scr/scrFltpList.jsp
+END

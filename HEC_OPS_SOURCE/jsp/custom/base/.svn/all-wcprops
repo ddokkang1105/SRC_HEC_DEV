@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/olm_dev/!svn/ver/8910/OLM3/WebContent/WEB-INF/jsp/custom/base
+END
+login.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/svn/olm_dev/!svn/ver/4628/OLM3/WebContent/WEB-INF/jsp/custom/base/login.jsp
+END
+TMPL002.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svn/olm_dev/!svn/ver/8910/OLM3/WebContent/WEB-INF/jsp/custom/base/TMPL002.jsp
+END
+master.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 77
+/svn/olm_dev/!svn/ver/8910/OLM3/WebContent/WEB-INF/jsp/custom/base/master.jsp
+END
+processReport_kepco.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 90
+/svn/olm_dev/!svn/ver/8787/OLM3/WebContent/WEB-INF/jsp/custom/base/processReport_kepco.jsp
+END

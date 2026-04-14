@@ -1,0 +1,53 @@
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/olm_dev/!svn/ver/8820/OLM3/WebContent/WEB-INF/jsp/adm/organization
+END
+organizationMgt.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 91
+/svn/olm_dev/!svn/ver/4886/OLM3/WebContent/WEB-INF/jsp/adm/organization/organizationMgt.jsp
+END
+processTeamChangeLog.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 96
+/svn/olm_dev/!svn/ver/6175/OLM3/WebContent/WEB-INF/jsp/adm/organization/processTeamChangeLog.jsp
+END
+orgMainInfo.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/svn/olm_dev/!svn/ver/7033/OLM3/WebContent/WEB-INF/jsp/adm/organization/orgMainInfo.jsp
+END
+orgMemberMgt.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/svn/olm_dev/!svn/ver/8293/OLM3/WebContent/WEB-INF/jsp/adm/organization/orgMemberMgt.jsp
+END
+organizationInfo.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svn/olm_dev/!svn/ver/4918/OLM3/WebContent/WEB-INF/jsp/adm/organization/organizationInfo.jsp
+END
+orgTeamTreePop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 90
+/svn/olm_dev/!svn/ver/9320/OLM3/WebContent/WEB-INF/jsp/adm/organization/orgTeamTreePop.jsp
+END
+childOrgMgt.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/svn/olm_dev/!svn/ver/6780/OLM3/WebContent/WEB-INF/jsp/adm/organization/childOrgMgt.jsp
+END
+teamChangeLogMgt.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svn/olm_dev/!svn/ver/7607/OLM3/WebContent/WEB-INF/jsp/adm/organization/teamChangeLogMgt.jsp
+END

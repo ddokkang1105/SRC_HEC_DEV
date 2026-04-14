@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	File 처리 -->
+<mapper namespace="boardFile_SQL">
+	<insert id="boardFile_insert" parameterType="java.util.HashMap">
+			INSERT INTO XBOLTADM.TB_BOARD_ATTCH (	/* boardFile_insert */
+				BoardID		/* 첨부파일번호 */
+				,Seq		    /* Seq */
+				,FileNm		/* 파일명 */
+				,FileRealNm	/* 시스템파일명 */
+				<if test="FileSize != null and FileSize">
+				,FileSize		/* 파일크기 */
+				</if>				
+				,FilePath		/* 파일 저장위치 */
+			)
+			VALUES (
+				#{BoardID}
+				<choose>
+					<when test='!"0".equals(Seq)'>,#{Seq}</when>
+					<otherwise>,(SELECT ISNULL(MAX(Seq)+1,'1') FROM XBOLTADM.TB_BOARD_ATTCH)</otherwise>
+				</choose>				
+				,#{FileRealNm}
+				,#{FileNm}
+				<if test="FileSize != null and FileSize">
+				,#{FileSize}
+				</if>					
+				,#{FilePath}
+			)
+	</insert>
+
+	<insert id="changeSetFile_insert" parameterType="java.util.HashMap">
+			INSERT INTO XBOLTADM.TB_FILE (	/* boardFile_insert */
+				FileMgt
+				,DocumentID		/* 첨부파일번호 */
+				,Seq		    /* Seq */
+				,FileName		/* 파일명 */
+				,FileRealName	/* 시스템파일명 */
+				,FileSize		/* 파일크기 */
+				,LinkType
+			)
+			VALUES (
+				#{BoardMgtID}
+				,#{BoardID}
+				,#{Seq}
+				,#{FileRealNm}
+				,#{FileNm}
+				,#{FileSize}
+				,1
+			)
+	</insert>
+
+	<select id="boardFile_nextVal" resultType="String">
+		SELECT ISNULL(MAX(Seq)+1,'1') AS BoardID_NEXTVAL FROM XBOLTADM.TB_BOARD_ATTCH
+	</select>
+
+	<select id="changeSetFile_nextVal" resultType="String">
+		SELECT ISNULL(MAX(Seq)+1,'1') AS BoardID_NEXTVAL FROM XBOLTADM.TB_FILE
+	</select>
+
+
+	<delete id="boardFile_delete" parameterType="java.util.HashMap">
+		DELETE XBOLTADM.TB_BOARD_ATTCH	/* boardFile_delete */
+		 WHERE BoardID = #{BoardID}
+		   AND Seq = #{Seq}
+	</delete>
+
+	
+	<delete id="boardFile_all_delete" parameterType="java.util.HashMap">
+		DELETE XBOLTADM.TB_BOARD_ATTCH	/* boardFile_all_delete */
+		 WHERE BoardID = #{BoardID}
+	</delete>
+
+	<select id="boardFile_selectList" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+		SELECT BoardID
+			  , FilePath + '/' + FileNm fullFileName	/* boardFile_selectList */
+			  ,Seq
+			  ,FilePath
+			  ,FileNm FileName
+   			  ,FileRealNM FileRealName
+		  FROM XBOLTADM.TB_BOARD_ATTCH
+	     WHERE BoardID = #{BoardID}
+	</select>
+
+	<select id="boardFile_select" resultType="java.util.HashMap">
+		SELECT BoardID		/* boardFile_select */
+				,FilePath + FileNm fullFileName
+				,Seq
+				,FilePath
+				,FileNm FileName
+				,FileRealNm FileRealName
+		 FROM XBOLTADM.TB_BOARD_ATTCH
+		WHERE BoardID = #{BoardID}
+		  AND Seq = #{Seq}
+	</select>
+	
+	<select id="changeSetFile_select" resultType="java.util.HashMap">
+		SELECT ItemID AS BoardID		/* changeSetFile_select */
+				,#{FilePath} + FileName fullFileName
+				,Seq
+				,#{FilePath}
+				,FileName FileName
+				,FileRealName FileRealName
+		 FROM XBOLTADM.TB_FILE
+		WHERE ItemID = #{BoardID}
+		  AND Seq = #{Seq}
+	</select>
+	
+	<select id="selectDownFile" resultType="java.util.HashMap">
+		SELECT FileNM as filename, FilePath+FileNM as downFile, FileRealNM  as original
+		FROM XBOLTADM.TB_BOARD_ATTCH
+		WHERE Seq = #{Seq}
+	</select>
+	
+	<select id="getFileName" resultType="String">
+		SELECT FileRealNM FROM XBOLTADM.TB_BOARD_ATTCH 
+		WHERE Seq = #{seq}
+	</select>		
+	
+	<select id="getFileSysName" resultType="String">
+		SELECT FileNM FROM XBOLTADM.TB_BOARD_ATTCH 
+		WHERE Seq = #{seq}
+	</select>		
+	
+	<select id="getFilePath" resultType="String">
+		SELECT FilePath FROM XBOLTADM.TB_BOARD_ATTCH 
+		WHERE Seq = #{seq}
+	</select>		
+</mapper>

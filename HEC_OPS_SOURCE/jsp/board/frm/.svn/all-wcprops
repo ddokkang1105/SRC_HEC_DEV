@@ -1,0 +1,41 @@
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svn/olm_dev/!svn/ver/9265/OLM3/WebContent/WEB-INF/jsp/board/frm
+END
+boardNewForum.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svn/olm_dev/!svn/ver/8623/OLM3/WebContent/WEB-INF/jsp/board/frm/boardNewForum.jsp
+END
+boardForumList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svn/olm_dev/!svn/ver/9265/OLM3/WebContent/WEB-INF/jsp/board/frm/boardForumList.jsp
+END
+boardForumDetail.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/olm_dev/!svn/ver/8946/OLM3/WebContent/WEB-INF/jsp/board/frm/boardForumDetail.jsp
+END
+boardForumMgt.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svn/olm_dev/!svn/ver/9216/OLM3/WebContent/WEB-INF/jsp/board/frm/boardForumMgt.jsp
+END
+boardEditForum.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svn/olm_dev/!svn/ver/8832/OLM3/WebContent/WEB-INF/jsp/board/frm/boardEditForum.jsp
+END
+boardNewComment.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svn/olm_dev/!svn/ver/8946/OLM3/WebContent/WEB-INF/jsp/board/frm/boardNewComment.jsp
+END

@@ -1,0 +1,954 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+       
+<mapper namespace="instance_SQL">
+
+	<select id="menuTreeListTopItemFilter" resultType="java.util.HashMap">
+		SELECT
+			Distinct 0 AS PRE_TREE_ID , C.ItemID AS TREE_ID , C.Level
+			, CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE C.Identifier + ' ' + ATR.PlainText END AS TREE_NM 
+		FROM 
+			XBOLTADM.TB_ITEM C, XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ARC ARC
+		WHERE 
+			C.ItemID in (Select RootItemID FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+			AND C.ItemID = ATR.ItemID
+			AND ATR.AttrTypeCode = 'AT00001'
+			AND ATR.LanguageID =  #{sessionCurrLangType}
+			AND C.Deleted != '1'
+			AND ARC.ArcCode = #{SelectMenuId} 			
+	</select>
+	
+	<select id="menuChildTreeListItemInstanceFilter" resultType="java.util.HashMap">		
+		SELECT
+			Distinct C.FromItemID AS PRE_TREE_ID , C.ToItemID AS TREE_ID , Obj.Level
+			, CASE ARC.WID WHEN '0' THEN ATR.PlainText ELSE ISNULL(Obj.Identifier,'') + ' ' + ATR.PlainText END AS TREE_NM 
+		FROM 
+			XBOLTADM.TB_ITEM C, XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ARC ARC
+		WHERE
+			C.FromItemID != 0 
+			AND ARCF.ArcCode = #{SelectMenuId} 
+			AND C.ItemTypeCode in (Select ConTypeCode FROM XBOLTADM.TB_ARC_FILTER where ArcCode = #{SelectMenuId}  )
+			AND C.ToItemID = Obj.ItemID
+			AND C.ToItemID = ATR.ItemID
+			AND C.Deleted != '1'
+			AND Obj.ClassCode Not in (Select FClass FROM XBOLTADM.TB_ARC_FILTER_CLS where ArcCode = #{SelectMenuId}  )
+			AND ATR.AttrTypeCode = 'AT00001'
+			AND ATR.LanguageID =  #{sessionCurrLangType}
+			AND ARC.ArcCode = #{SelectMenuId}
+			AND C.FromItemID = #{preTreeID}	
+		ORDER BY
+			TREE_NM ASC
+		
+	</select>   
+	
+	<select id="menuPIMTreeListItemInstanceFilter" resultType="java.util.HashMap">
+		SELECT
+			Distinct C.ToItemID AS PRE_TREE_ID , I.InstanceID AS TREE_ID , 3 As Level
+			, P.ProjectCode + '-'  + I.InstanceNo TREE_NM 
+		FROM 
+			XBOLTADM.TB_ITEM C, XBOLTADM.TB_ITEM_ATTR ATR, XBOLTADM.TB_ITEM Obj, XBOLTADM.TB_ARC_FILTER ARCF, XBOLTADM.TB_ARC ARC
+			,XBOLTADM.TX_OBJ_INSTANCE I , XBOLTADM.TB_PROJECT P
+		WHERE
+			C.FromItemID != 0 
+			AND ARCF.ArcCode = #{SelectMenuId}
+			AND C.ToItemID = Obj.ItemID					
+			AND Obj.ClassCode in (Select SClass FROM XBOLTADM.TB_ARC_FILTER_CLS where ArcCode = #{SelectMenuId} )
+			AND I.ItemID = Obj.ItemID
+			AND I.ProjectID = P.ProjectID	
+			AND Obj.ItemID = #{preTreeID}						
+		ORDER BY
+			TREE_NM ASC		
+	</select> 
+	
+	<select id="getProcInstanceList" resultType="java.util.HashMap">
+		Select TXPI.ProcessID AS PRE_TREE_ID, 
+			TXPI.ProcInstNo+'_'+TXOA.InstanceClass AS TREE_ID,
+		    TXOA.Value  AS TREE_NM,
+			TXPI.ProcInstNo AS Identifier	
+		From XBOLTAPP.PIM_PROC_INST TXPI		
+			Left Outer Join XBOLTAPP.PIM_INSTANCE_ATTR TXOA ON TXOA.InstanceNo = TXPI.ProcInstNo And TXOA.AttrTypeCode = 'AT01001' And TXOA.InstanceClass = 'PROC'
+			Where TXPI.ProcessID = #{processID}				
+	
+	</select>  
+	
+	<select id="getElmInstList" resultType="java.util.HashMap">
+		Select ISNULL(TXSI.ParentElmInstNo, ProcInstNo) AS PRE_TREE_ID, 
+			TXSI.ElmInstNo+'_ELM' AS TREE_ID,
+			TIA.PlainText  AS TREE_NM,
+			TXSI.ElmInstNo AS Identifier,
+			TXSI.ElmInstNo As ElmInstNo
+		From XBOLTAPP.PIM_ELM_INST TXSI		
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TXSI.ElmItemID And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID}
+		Where TXSI.ProcInstNo = #{ProcInstNo}					
+	</select>  
+	
+	<select id="getProcInstanceInfo" resultType="java.util.HashMap">
+	    SELECT TPI.ProcInstNo
+	    	, TPI.ProcessID
+	    	, TIA.PlainText AS ItemName
+			, ISTNM.Value AS ProcInstanceNM			
+			, ISNULL(TM.Name,'') + Case When ISNULL(TM.NameEN,'') != '' Then '(' + ISNULL(TM.NameEN,'') + ')' Else '' End AS Name
+			, CONVERT(VARCHAR, TPI.CreationTime, 23) AS CreateDT
+			, Convert(nvarchar(20),TPI.LastUpdated, 23) AS LastUpdated			
+			, TPI.DocumentNo
+			, TP.ProjectID
+			, ISTDESC.Value AS PrcInstanceDesc
+			, TPI.Status				
+			, TD.Name AS StatusName	
+			, CONVERT(VARCHAR, TPI.StartTime, 23) AS StartTime
+			, CONVERT(VARCHAR, TPI.DueDate, 23) AS DueDate	
+			, CONVERT(VARCHAR, TPI.EndTime, 23) AS EndTime	
+			, TPI.RegUserID
+			, TM.Name AS RegUserName
+		    , 'img_process.png' AS ProcessTypeImg			
+			, TM2.Name AS OwnerName
+			, TPI.OwnerID
+			, TPI.OwnerTeamID
+			, OTMT.Name AS OwnerTeamName
+			, ISTNM.InstanceClass
+			, TPI.DocCategory AS docCategory
+			, Case When TPI.DocCategory = '0' THEN 'Proposal' 
+				When TPI.DocCategory = '1' THEN 'Project' Else 'FEED' END AS docCategoryName
+			, TPI.AlarmOption AS alarmOption 
+			, TPI.AlarmInterval AS alarmInterval 
+			, TPI.ProcModelID
+		FROM
+			XBOLTAPP.PIM_PROC_INST TPI
+			Left Outer join XBOLTADM.TB_MEMBER TM ON TPI.ReguserID = TM.MemberID
+			Left Outer join XBOLTADM.TB_MEMBER TM2 ON TPI.OwnerID = TM2.MemberID
+			Left Outer Join XBOLTADM.TB_TEAM_TXT OTMT ON OTMT.TeamID = TPI.OwnerTeamID And OTMT.LanguageID = #{languageID} 
+			Left Outer Join XBOLTAPP.PIM_INSTANCE_ATTR ISTNM ON ISTNM.InstanceNo = TPI.ProcInstNo AND ISTNM.AttrTypeCode = 'AT01001' And ISTNM.InstanceClass = 'PROC'
+			Left Outer Join XBOLTAPP.PIM_INSTANCE_ATTR ISTDESC ON ISTDESC.InstanceNo = TPI.ProcInstNo AND ISTDESC.AttrTypeCode = 'AT01003' And ISTDESC.InstanceClass = 'PROC'		
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD ON  TPI.Status = TD.TypeCode AND TD.Category = 'INSTSTS' AND TD.LanguageID = #{languageID}
+			Left Join XBOLTADM.TB_PROJECT TP ON TP.ProjectCode = TPI.DocumentNo
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TPI.ProcessID AND TIA.AttrTypeCode = 'AT00001' and TIA.LanguageID = #{languageID}
+		WHERE 1=1
+		<if test="instanceNo != null and instanceNo != ''">
+			And TPI.ProcInstNo = #{instanceNo}
+		</if>
+		<if test="status != null and status != ''">
+			And TPI.Status = #{status}
+		</if>
+	</select>	
+	
+	<select id="getProcInstanceAttr" resultType="java.util.HashMap">
+		SELECT
+			DISTINCT TIAT1.SortNum , TIAT1.AttrTypeCode AS AttrTypeCode , ISNULL(TD1.Name, '') AS Name 
+			, CASE TAT1.DataType WHEN 'LOV' THEN TATL1.Value WHEN 'MLOV' THEN '' WHEN 'Text' THEN ISNULL(TOA1.Value, '') ELSE ISNULL(TOA1.Value, '') END PlainText 
+			, CASE TAT1.DataType WHEN 'MLOV' Then '' ELSE ISNULL(TOA1.Value, '') END AS LovCode , ISNULL(TATL1.AttrTypeCode, '') AS BaseLovCode 
+			, TAT1.DataType , TAT1.Domain , TAT1.IsComLang , TAT1.HTML , ISNULL(TIAT1.Mandatory, '') AS Mandatory , ISNULL(TAT1.Editable, '') AS Editable 
+			, TIAT1.Link , TM1.URL , TAT1.Editable AS editYN , TAT1.SubAttrTypeCode 
+			, TIAT1.RowNum AS RowNum, TIAT1.ColumnNum AS ColumnNum
+		FROM XBOLTAPP.PIM_ITEM_ATTR_TYPE TIAT1 
+			Left Outer Join XBOLTAPP.PIM_INSTANCE_ATTR TOA1 ON TOA1.AttrTypeCode = TIAT1.AttrTypeCode And TOA1.InstanceNo = #{instanceNo} And TOA1.InstanceClass = 'PROC'
+			Left Outer join XBOLTADM.TB_ATTR_TYPE_LOV TATL1 ON TATL1.AttrTypeCode = TIAT1.AttrTypeCode AND TATL1.LovCode = TOA1.Value AND TATL1.LanguageID =#{defaultLang}
+			Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT1 ON TIAT1.AttrTypeCode = TAT1.AttrTypeCode 
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD1 ON TIAT1.AttrTypeCode = TD1.TypeCode And TD1.LanguageID =#{languageID}
+			Left Outer Join XBOLTADM.TB_MENU TM1 ON TIAT1.Link = TM1.MenuID 	
+			WHERE TIAT1.ItemID = #{processID} 
+		 	ORDER BY TIAT1.SortNum ASC 									
+	</select>
+	
+	<select id="getInstanceAttrView" resultType="java.util.HashMap">
+		SELECT
+			DISTINCT TIAT1.SortNum , TIAT1.AttrTypeCode AS AttrTypeCode , ISNULL(TD1.Name, '') AS Name 
+			, CASE TAT1.DataType WHEN 'LOV' THEN TATL1.Value WHEN 'MLOV' THEN '' WHEN 'Text' THEN ISNULL(TOA1.Value, '') ELSE ISNULL(TOA1.Value, '') END PlainText 
+			, CASE TAT1.DataType WHEN 'MLOV' Then '' ELSE ISNULL(TOA1.Value, '') END AS LovCode , ISNULL(TATL1.AttrTypeCode, '') AS BaseLovCode 
+			, TAT1.DataType , TAT1.Domain , TAT1.IsComLang , TAT1.HTML , ISNULL(TIAT1.Mandatory, '') AS Mandatory , ISNULL(TAT1.Editable, '') AS Editable 
+			, TIAT1.Link , TM1.URL , TAT1.Editable AS editYN , TAT1.SubAttrTypeCode 
+			, TIAT1.RowNum AS RowNum, TIAT1.ColumnNum AS ColumnNum, ISNULL(TIAT1.RowHeight, '20') AS RowHeight
+			
+			,TIAT2.SortNum AS SortNum2 , TIAT2.AttrTypeCode AS AttrTypeCode2 , ISNULL(TD2.Name, '') AS Name2 
+			, CASE TAT2.DataType WHEN 'LOV' THEN TATL2.Value WHEN 'MLOV' THEN '' WHEN 'Text' THEN ISNULL(TOA2.Value, '') ELSE ISNULL(TOA2.Value, '') END PlainText2 
+			, CASE TAT2.DataType WHEN 'MLOV' Then '' ELSE ISNULL(TOA2.Value, '') END AS LovCode2 , ISNULL(TATL2.AttrTypeCode, '') AS BaseLovCode2 
+			, TAT2.DataType AS DataType2 , TAT2.Domain AS Domain2 , TAT2.IsComLang AS IsComLang2 , TAT2.HTML AS HTML2, ISNULL(TIAT2.Mandatory, '') AS Mandatory2 
+			, ISNULL(TAT2.Editable, '') AS Editable2 
+			, TIAT2.Link AS Link2 , TM2.URL AS URL2 , TAT2.Editable AS editYN2 , TAT2.SubAttrTypeCode AS  SubAttrTypeCode2
+			, TIAT2.RowNum AS RowNum2, TIAT2.ColumnNum AS ColumnNum2, ISNULL(TIAT2.RowHeight, '20') AS RowHeight2				
+		FROM XBOLTAPP.PIM_ITEM_ATTR_TYPE TIAT1 
+			Left Outer Join XBOLTAPP.PIM_INSTANCE_ATTR TOA1 ON TOA1.AttrTypeCode = TIAT1.AttrTypeCode And TOA1.InstanceNo = #{instanceNo} And TOA1.InstanceClass = #{instanceClass}
+			Left Outer join XBOLTADM.TB_ATTR_TYPE_LOV TATL1 ON TATL1.AttrTypeCode = TIAT1.AttrTypeCode AND TATL1.LovCode = TOA1.Value AND TATL1.LanguageID =#{defaultLang}
+			Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT1 ON TIAT1.AttrTypeCode = TAT1.AttrTypeCode 
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD1 ON TIAT1.AttrTypeCode = TD1.TypeCode And TD1.LanguageID =#{languageID}
+			Left Outer Join XBOLTADM.TB_MENU TM1 ON TIAT1.Link = TM1.MenuID 
+			
+			Left Outer Join XBOLTAPP.PIM_ITEM_ATTR_TYPE TIAT2 ON TIAT2.ItemID = #{processID} And TIAT1.RowNum = TIAT2.RowNum And TIAT2.ColumnNum = 2
+			Left Outer Join XBOLTAPP.PIM_INSTANCE_ATTR TOA2 ON TOA2.AttrTypeCode = TIAT2.AttrTypeCode And TOA2.InstanceNo = #{instanceNo} And TOA2.InstanceClass = #{instanceClass} 	
+			Left Outer join XBOLTADM.TB_ATTR_TYPE_LOV TATL2 ON TATL2.AttrTypeCode = TIAT2.AttrTypeCode AND TATL2.LovCode = TOA2.Value AND TATL2.LanguageID =#{defaultLang}
+			Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT2 ON TIAT2.AttrTypeCode = TAT2.AttrTypeCode 
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD2 ON TIAT2.AttrTypeCode = TD2.TypeCode And TD2.LanguageID =#{languageID}
+			Left Outer Join XBOLTADM.TB_MENU TM2 ON TIAT2.Link = TM2.MenuID 	
+			WHERE TIAT1.ItemID = #{processID} AND ISNULL(TIAT1.ColumnNum,'') != 2
+		 	ORDER BY TIAT1.SortNum ASC 									
+	</select>
+	
+	<select id="getInstanceAttrText" resultType="java.util.HashMap">
+	 	SELECT     
+	 		TOA.Value AS PlainText, TOA.AttrTypeCode, TD.Name AS AttrTypeName, TAT.HTML
+		FROM       
+			XBOLTAPP.PIM_INSTANCE_ATTR TOA
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TOA.AttrTypeCode And TD.LanguageID = #{languageID} And TD.Category = 'AT'
+			Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT ON TAT.AttrTypeCode = TOA.AttrTypeCode 
+		WHERE
+		    InstanceClass = #{instanceClass}
+		     AND InstanceNo = #{instanceNo}
+ 	</select>
+ 	
+ 	<delete id="delInstanceAttr" parameterType="java.util.HashMap">
+		DELETE
+			XBOLTAPP.PIM_INSTANCE_ATTR
+		<where> 
+		<if test="instanceNo != null and instanceNo != ''">
+			AND InstanceNo = #{instanceNo}
+		</if>
+		<if test="instanceClass != null and instanceClass != ''">
+			AND InstanceClass = #{instanceClass}
+		</if>
+		<if test="AttrTypeCode != null and AttrTypeCode != ''">
+			AND AttrTypeCode = #{AttrTypeCode}
+		</if>
+		</where>
+	</delete>
+	
+	<select id="getInstanceAttrCNT" resultType="String">
+		Select Count(*)  
+ 		From XBOLTAPP.PIM_INSTANCE_ATTR 
+ 		Where InstanceNo = #{instanceNo}
+ 		And InstanceClass = #{instanceClass}
+ 		And AttrTypeCode = #{AttrTypeCode}
+ 	</select>
+ 	
+ 	<insert id="insertInstanceAttr" parameterType="java.util.HashMap">
+	 	Insert Into 
+		 XBOLTAPP.PIM_INSTANCE_ATTR (
+			InstanceNo
+			, InstanceClass
+			, AttrTypeCode
+			, PlannedValue
+			, Value
+			, ItemID
+			, RegTeamID
+			, RegUserID
+			, LastUser
+			, LastUserTeamID
+			, LastUpdated 
+		) Values(
+			#{instanceNo}
+			, #{instanceClass}
+			, #{attrTypeCode}
+			, #{plannedValue}
+			, #{value}
+			, #{itemID}
+			, #{regTeamID}
+			, #{regUserID}
+			, #{lastUser}
+			, #{lastUserteamID}
+			, GetDate()
+		 )
+ 	</insert>
+ 	
+ 	<update id="updateInstanceAttr" parameterType="java.util.HashMap">
+	 	Update XBOLTAPP.PIM_INSTANCE_ATTR Set
+	 		<if test="value != null">
+			Value = #{value},
+			</if>
+			<if test="itemID != null and itemID != ''">
+			ItemID = #{itemID},
+			</if>
+			Lastuser = #{lastUser},
+			LastuserTeamID = #{lastUserTeamID},
+			LastUpdated = GetDate()
+		Where InstanceNo = #{instanceNo}
+		And InstanceClass = #{instanceClass}
+		<if test="attrTypeCode != null and attrTypeCode != ''">
+			And AttrTypeCode = #{attrTypeCode}
+		</if>
+	</update>
+ 	
+ 	<update id="updateProcInstance" parameterType="java.util.HashMap">
+	 	Update XBOLTAPP.PIM_PROC_INST Set
+			ProcInstNo = #{ProcInstNo}
+			,LastUser = #{lastUser}
+			,LastUpdated = GetDate()
+		Where ProcInstNo = #{ProcInstNo}
+	</update>
+	
+	<select id="getElmItemID" resultType="String">
+		 Select ElmItemID From XBOLTAPP.PIM_ELM_INST Where ElmInstNo = #{ElmInstNo}
+	</select>
+	
+	<select id="getProcessID" resultType="String">
+		 Select ProcessID From XBOLTAPP.PIM_PROC_INST Where ProcInstNo = #{ProcInstNo}
+	</select>
+	
+	<select id="getInstacneURL" resultType="String">
+		Select TM.URL  
+		From XBOLTAPP.PIM_ITEM_MENU TIMA
+		Left Outer Join XBOLTADM.TB_Menu TM ON TM.MenuID = TIMA.MenuID 
+		 WHERE TIMA.ItemID = #{itemID} 
+		 AND TIMA.MenuType = 'M'
+ 	</select>
+ 	
+ 	<select id="getProcInstList_gridList" resultType="java.util.HashMap">
+ 	 SELECT
+ 	 	Row_Number() OVER (Order By TPI.CreationTime) AS RNUM
+ 	 	, 0 as CHK
+ 	  	, TPI.ProcInstNo
+		, TPI.ProcessID
+		, TOA.Value AS ProcInstanceName			
+		, ISNULL(TM.Name,'') AS OwnerName
+		, ISNULL(TEAM.Name,'') AS OwnerTeamName
+		, CONVERT(VARCHAR, TPI.CreationTime, 111) AS CreationTime
+		, CONVERT(VARCHAR, TPI.StartTime, 111) AS StartDate
+		, CONVERT(VARCHAR, TPI.EndTime, 111) AS EndDate
+		, CONVERT(VARCHAR, TPI.DueDate, 111) AS DueDate
+		, ISNULL(TD.Name,'') AS StatusNM
+		, TOA.InstanceClass
+		, TPI.Status
+		, TPI.OwnerID
+		, TPI.OwnerTeamID
+		, TPI.DocumentNo
+		, TPI.ProcType
+	FROM XBOLTAPP.PIM_PROC_INST TPI
+		Left Outer join XBOLTADM.TB_MEMBER TM ON TPI.OwnerID = TM.MemberID
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TEAM ON TEAM.TeamID = TPI.OwnerTeamID And TEAM.LanguageID = #{languageID}
+		Left Outer Join XBOLTAPP.PIM_INSTANCE_ATTR TOA ON  TPI.ProcInstNo = TOA.InstanceNo AND TOA.AttrTypeCode = 'AT01001' And TOA.InstanceClass = 'PROC'		
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON  TPI.Status = TD.TypeCode AND TD.Category = 'INSTSTS' AND TD.LanguageID = #{languageID}
+	WHERE 1=1
+		<if test="procInstNo != null and procInstNo != ''">
+			And TPI.ProcInstNo = #{procInstNo}
+		</if>
+		 <if test="instanceName != null and instanceName != ''">
+			And TOA.Value like '%'+#{instanceName}+'%'
+		</if>
+		<if test="processID != null and processID != ''">
+			And TPI.ProcessID = #{processID}
+		</if>
+		<if test="status != null and status != ''">
+			<choose>
+				<when test='"T".equals(status)'>
+					AND TPI.Status NOT IN ('WTR')
+				</when>
+				<otherwise>
+					AND TPI.Status = #{status}
+				</otherwise>
+			</choose>
+		</if>
+		Order by TPI.CreationTime Desc
+	</select>
+	
+	<select id="getInstanceDimPath" resultType="java.util.HashMap" >
+ 		Select 
+ 			TIA.PlainText AS DimTypeName
+			, TDV.ParentID
+			, TDVT2.Name ParentName
+			, TDVT.Name AS DimValueName
+			, TDV.DimTypeID
+			, TDV.DimValueID
+			, ISNULL(TDVT.Name,'') AS DimValueName
+			, ISNULL(TID.BOValueID,'')+' '+XBOLTADM.fn_GetDimValuePath(TDV.DimTypeID,TDV.ParentID, #{languageID},ISNULL(TDVT.Name,'')) As DimPath
+		FROM XBOLTAPP.PIM_INSTANCE_DIM TID
+		Left Outer Join XBOLTADM.TB_DIM_VALUE_TXT TDVT ON TDVT.DimValueID = TID.BOValueID And TDVT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ITEMID = TID.BOTypeID And TIA.LanguageID =  #{languageID} And TIA.AttrTypeCode = 'AT00001'
+		Left Outer Join XBOLTADM.TB_DIM_VALUE TDV ON TDV.DimTypeID = TID.BOTypeID  And TDV.DimValueID = TID.BOValueID 
+		Left Outer Join XBOLTADM.TB_DIM_VALUE_TXT TDVT2 ON TDVT2.DimValueID = TDV.ParentID And TDVT2.LanguageID = #{languageID}
+		Where TID.InstanceNo = #{instanceNo}
+ 	</select>
+ 	
+ 	<select id="getElmInstInfo" resultType="java.util.HashMap" >
+		Select 
+			TIS.ElmInstNo, TIS.ProcInstNo, TIS.ElmItemID,
+			TM.Name AS ActorName, TTXT.Name AS ActorTeamName,
+			Convert(nvarchar(20),TIS.LastUpdated, 111) AS LastUpdated,
+			ISNULL(TIA.Value, TITA.PlainText) AS ElmInstName		
+		From XBOLTAPP.PIM_ELM_INST  TIS
+		Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TIS.ActorID 
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TTXT ON TM.TeamID = TTXT.TeamID And TTXT.LanguageID =#{languageID}
+		Left Outer join XBOLTAPP.PIM_INSTANCE_ATTR TIA ON TIA.AttrTypeCode = 'AT01001' And TIS.ElmInstNo = TIA.InstanceNo And TIA.InstanceClass = 'ELM'
+		Left Outer join XBOLTADM.TB_ITEM_ATTR TITA ON TITA.AttrTypeCode = 'AT00001' And TIS.ElmItemID = TITA.ItemID And TITA.LanguageID = #{languageID}
+		Where TIS.ElmInstNo = #{ElmInstNo}
+ 	</select>
+ 	
+ 	<select id="getInstanceMenuList" resultType="java.util.HashMap" >
+ 		Select TIM.MenuID, TM.URL, TIM.ItemID
+			, ISNULL(TD.Name,'') AS Name
+			, ISNULL(TIM.VarFilter,'')  AS VarFilter
+			, ISNULL(TIM.Sort, '') AS Sort
+		From XBOLTAPP.PIM_ITEM_MENU TIM
+		Left Outer Join XBOLTADM.TB_MENU TM ON TM.MenuID = TIM.MenuID
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TIM.MenuNMCode And TD.LanguageID = #{languageID}
+		Where TIM.ItemID = #{itemID} And TIM.MenuType = 'S'
+		Order By TIM.Sort
+	</select>
+	 	
+ 	<update id="updateInstanceGridData" parameterType="java.util.HashMap">
+ 		Update XBOLTAPP.PIM_PROC_INST Set 
+			<if test="status != null and status != ''">Status = #{status},</if>
+			<if test="startTime != null and startTime != ''">StartTime = #{startTime},</if>
+			<if test="endTime != null and endTime != ''">EndTime = #{endTime},</if>
+			<if test="ownerID != null and ownerID != ''">OwnerID = #{ownerID},</if>
+			<if test="ownerTeamID != null and ownerTeamID != ''">OwnerTeamID = #{ownerTeamID},</if>
+			<if test="processID != null and processID != ''">ProcessID = #{processID},</if>
+			<if test="alarmOption != null and alarmOption != ''">AlarmOption = #{alarmOption},</if>
+			<if test="alarmInterval != null and alarmInterval != ''">AlarmInterval = #{alarmInterval},</if>
+			LastUpdated = Getdate(),
+			LastUser = #{lastUser}
+		Where ProcInstNo = #{ProcInstNo}
+ 	</update>
+ 	
+ 	<select id="getElmInstList_gridList" resultType="java.util.HashMap">
+ 	<![CDATA[
+			SELECT 
+				Row_Number() OVER (Order By PEI.CreationTime) AS RNUM,
+				convert(varchar, PEI.ReqStartDate, 23) AS reqStartDate,
+				convert(varchar, PEI.ReqDueDate, 23) AS reqDueDate,
+				PEI.ElmInstNo AS ElmInstNo,
+				PEI.ProcInstNo AS ProcInstNo,
+				PEI.PreElmInstNo ,
+				PEI.GRInstNo ,
+				PEI.ParentElmInstNo ,
+				PEI.SortNum ,
+				PEI.Status ,
+				TSTS.Name As StatusNM,
+				PEI.ElmItemID ,
+				TI.Identifier,
+				TIA2.PlainText AS elmItemName,
+				PEI.ItemClass ,
+				PEI.RoleID ,
+				ROLECODE.PlainText AS roleCode,
+				PROLECODE.Identifier AS parentRoleCode,
+				STUFF((	
+					SELECT ','+ CAST(PW.MemberID AS VARCHAR(MAX))
+							FROM XBOLTAPP.PIM_WORKER PW
+							where PEI.ProcInstNo = PW.ProcInstNo AND PEI.ElmInstNo = PW.ElmInstNo AND PEI.RoleID = PW.RoleID
+					FOR XML PATH('') ), 1, 1, '') 
+				AS actorID,
+				STUFF((	
+					SELECT ', '+ TM.Name+'('+TTT.Name+')'
+							FROM XBOLTAPP.PIM_WORKER PW
+							left join XBOLTADM.TB_MEMBER TM on PW.MemberID = TM.MemberID
+							left join XBOLTADM.TB_TEAM_TXT TTT on TM.TeamID = TTT.TeamID and TTT.LanguageID = #{languageID}
+							where PEI.ProcInstNo = PW.ProcInstNo AND PEI.ElmInstNo = PW.ElmInstNo AND PEI.RoleID = PW.RoleID
+					FOR XML PATH('') ), 1, 1, '') 
+				AS actorName,
+				ISNULL(TIA3.PlainText+'/','')+TIA.PlainText AS roleName,
+				PEI.Weight ,
+				PEI.Mandatory ,
+				convert(varchar, PEI.SchStartDate, 23) AS SchStartDate ,
+				convert(varchar, PEI.AlarmDate, 23) AS AlarmDate,
+				convert(varchar, PEI.DueDate, 23) AS DueDate,
+				convert(varchar, PEI.StartTime, 23) AS startTime,
+				convert(varchar, PEI.EndTime, 23) AS endTime,
+				PEI.DocDomain ,
+				PEI.DocCategory ,
+				CASE WHEN PEI.DocCategory = 0 THEN 'Proposal' WHEN PEI.DocCategory = 1 THEN 'Project' ELSE 'FEED' END AS docCategoryName,				
+				PEI.DocumentNo ,
+				PEI.DocItemNo ,
+				PEI.ProcOrgCode ,
+				PEI.WorkerCode ,
+				PEI.ActorTeamID AS actorTeamID,
+				PEI.SymTypeCode ,
+				convert(varchar,PEI.CreationTime, 23) AS CreationTime,
+				convert(varchar,PEI.LastUpdated, 23) AS LastUpdated,
+				PEI.ClientID,
+				TTT.Name AS actorTeamName,
+				PPI.DocumentNo AS projectCode,
+						  
+				'<button type=button class=gridBtn onclick=fnPimElementInfo('''+PEI.ProcInstNo+''','''+PEI.ElmInstNo+''');>Info</button>' AS infoBtn
+				
+			]]>
+				
+			From XBOLTAPP.PIM_ELM_INST PEI
+			Left Join XBOLTAPP.PIM_INSTANCE_ATTR PIA ON PEI.ElmInstNo = PIA.InstanceNo AND PEI.ElmItemID = PIA.ItemID
+			Left Join XBOLTADM.TB_MEMBER ACTNM ON PEI.ActorID = ACTNM.MemberID AND PEI.ActorTeamID = ACTNM.TeamID
+			Left Join XBOLTADM.TB_TEAM_TXT TTT ON PEI.ActorTeamID = TTT.TeamID AND TTT.LanguageID = #{languageID}
+			Left Join XBOLTADM.TB_ITEM_ATTR TIA ON PEI.RoleID = TIA.ItemID AND TIA.AttrTypeCode = 'AT00001' AND  TIA.LanguageID  = #{languageID}
+			Left Join XBOLTADM.TB_ITEM_ATTR TIA2 ON PEI.ElmItemID = TIA2.ItemID AND TIA2.AttrTypeCode = 'AT00001' AND  TIA2.LanguageID  =  #{languageID}
+			Left Join XBOLTAPP.PIM_PROC_INST PPI ON PPI.ProcInstNo = PEI.ProcInstNo
+			Left Join XBOLTADM.TB_ITEM TI ON PEI.ElmItemID = TI.ItemID
+			Left Join XBOLTADM.TB_ITEM_ATTR ROLECODE ON ROLECODE.ItemID = PEI.RoleID and ROLECODE.AttrTypeCode ='AT00000' and ROLECODE.LanguageID = #{languageID}
+			Left Join XBOLTADM.TB_ITEM PROLECODE ON PROLECODE.ItemID = (select FromItemID FROM XBOLTADM.TB_ITEM where ToItemID = PEI.RoleID)
+			Left Outer Join XBOLTADM.TB_DICTIONARY TSTS ON  PEI.Status = TSTS.TypeCode AND TSTS.Category = 'INSTSTS' AND TSTS.LanguageID = #{languageID}
+			Left Join XBOLTADM.TB_ITEM TI2 ON PEI.RoleID = TI2.ToItemID AND TI2.CategoryCode = 'ST1'
+			Left Join XBOLTADM.TB_ITEM_ATTR TIA3 ON TIA3.ItemID = TI2.FromItemID AND TIA3.AttrTypeCode = 'AT00001' AND  TIA3.LanguageID  =  #{languageID}
+			<where>
+				<if test="instanceNo != null">
+					AND PEI.ProcInstNo = #{instanceNo}	
+				</if>
+				<if test="elmInstNo != null and elmInstNo != ''">
+					And PEI.ElmInstNo = #{elmInstNo}
+				</if>
+			</where>
+	</select>
+	
+	<update id="updateElmInst" parameterType="java.util.HashMap">
+	 	Update XBOLTAPP.PIM_ELM_INST 
+	 	Set
+			<if test="roleID != null">RoleID = #{roleID},</if>
+			<if test="useCaseID != null">UseCaseID = #{useCaseID},</if>
+			<if test="actorID != null">ActorID = #{actorID},</if>
+			<if test="actorTeamID != null">ActorTeamID = #{actorTeamID},</if>
+			<if test="schStartDate != null">SchStartDate = #{schStartDate},</if>
+			<if test="startTime != null">StartTime = #{startTime},</if>
+			<if test="endTime != null">EndTime = #{endTime},</if>
+			<if test="status != null">Status = #{status},</if>
+			LastUpdated = getdate()
+		Where ProcInstNo = #{procInstNo}
+		<if test="elmItemID != null and elmItemID != ''">
+			AND	ElmItemID = #{elmItemID}
+		</if>
+		<if test="elmInstNo != null and elmInstNo != ''">
+			AND	ElmInstNo = #{elmInstNo}
+		</if>
+	</update>
+	
+	<update id="updateElmInstStartTimeByProcInstStartTime" parameterType="java.util.HashMap">
+	 	UPDATE PEI
+		SET 
+			PEI.SchStartDate = CONVERT(varchar, dateadd(day,CONVERT(INT,TIA.PlainText), #{startTime}),23)	
+		FROM XBOLTAPP.PIM_ELM_INST PEI
+			Left Join XBOLTADM.TB_ITEM_ATTR TIA ON PEI.ElmItemID = TIA.ItemID AND TIA.AttrTypeCode = 'AT01006' AND TIA.LanguageID = #{languageID}
+		WHERE	PEI.ProcInstNo = #{procInstNo}
+	</update>
+	
+	
+	<update id="pimElementNameUpdate" parameterType="java.util.HashMap">
+	 	Update XBOLTAPP.PIM_INSTANCE_ATTR
+	 	Set
+			Value = #{elmItemName},
+			LastUser = #{lastUser},
+			LastUserTeamID = #{lastUserTeamID},
+			LastUpdated = getdate()
+		Where InstanceNo = #{elmInstNo}
+		AND	ItemID = #{elmItemID}
+	</update>
+	
+	<select id="getRoleListByElm" resultType="java.util.HashMap">
+		Select * From XBOLTADM.TB_ITEM
+		Where  ItemTypeCode = #{itemTypeCode}
+		And ItemID IN (
+			select FromItemID from XBOLTADM.TB_ITEM Where ToItemID = #{itemID}  and CategoryCode = #{categoryCode}
+		)
+	</select>
+	
+	<select id="getProcInstanceInfoByDocument" resultType="java.util.HashMap">
+		SELECT 
+			TPI.ProcInstNo
+	    	, TPI.ProcessID
+	    	, TOA.InstanceClass
+			, TPI.ProcInstNo As Identifier
+		FROM
+			XBOLTAPP.PIM_PROC_INST TPI
+			Left Outer Join XBOLTAPP.PIM_INSTANCE_ATTR TOA ON  TPI.ProcInstNo = TOA.InstanceNo AND TOA.AttrTypeCode = 'AT01001' And TOA.InstanceClass = 'PROC'
+		WHERE TPI.DocumentNo = #{documentNo} 
+		AND	TPI.DocCategory = #{docCategory}
+	</select>
+	
+	<select id="selectInstanceDim_gridList" resultType="java.util.HashMap">
+		SELECT 
+			Row_Number()OVER(ORDER BY PID.DimTypeID) as RNUM
+			, 0 AS CHK
+			, ISNULL(TIA.PlainText, '') AS DimTypeName
+			, ISNULL(TDVT.Name, '') AS DimValueName
+			, ISNULL(PID.DimValueID, '') AS DimValueID
+			, ISNULL(PID.DimTypeID, '') AS DimTypeID
+			, PID.InstanceNo
+			, ISNULL(TDV.ParentID, '') AS ParentID
+			, XBOLTADM.fn_GetDimSubValuePath(PID.DimTypeID,PID.DimValueID,#{languageID}) AS DimValuePath
+			, PID.Description
+			, Replace(Replace(PID.Description,CHAR(13),''),CHAR(10),' ') AS DescAbrv
+			, 'btn_view.png' As ImgView
+		FROM 
+			XBOLTAPP.PIM_INSTANCE_DIM PID
+			Left Outer Join XBOLTADM.TB_DIM_VALUE_TXT TDVT
+			on PID.DimValueID = TDVT.DimValueID
+			AND PID.DimTypeID = TDVT.DimTypeID
+			AND TDVT.LanguageID = #{languageID}
+			LEFT Outer Join XBOLTADM.TB_ITEM_ATTR TIA
+			on PID.DimTypeID = TIA.ItemID 
+			AND TIA.AttrTypeCode = 'AT00001'
+			AND TIA.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DIM_VALUE TDV
+			on PID.DimValueID = TDV.DimValueID
+			AND PID.DimTypeID = TDV.DimTypeID
+		WHERE 
+			PID.InstanceNo = #{instanceNo}
+		ORDER BY 
+			PID.DimTypeID
+	</select>
+	
+	<select id="getDimListWithInstance" resultType="java.util.HashMap">
+ 		SELECT 
+      		 InstanceNo
+      		, DimTypeID
+      		, DimValueID
+  		FROM XBOLTAPP.PIM_INSTANCE_DIM
+  		WHERE InstanceNo = #{instanceNo}
+ 	</select>
+ 	
+ 	<insert id="insertInstanceDim" parameterType="java.util.HashMap">
+		INSERT INTO
+		   	XBOLTAPP.PIM_INSTANCE_DIM(
+		    	InstanceNo
+		        , InstanceClass
+		        , DimTypeID
+		        , DimValueID
+		        , Creator
+		        , CreationTime
+		        , LastUser
+		        , LastUpdated
+		   )VALUES(
+		    	#{instanceNo}
+		    	, #{instanceClass}
+		    	, #{DimTypeID}
+		    	, #{DimValueID}
+		    	, #{Creator}
+		    	, getDate()
+		    	, #{Creator}
+		    	, getDate()
+		)
+	 </insert>
+	 <update id="updateInstanceDim" parameterType="java.util.HashMap">
+	  UPDATE
+	  	XBOLTAPP.PIM_INSTANCE_DIM
+	  SET
+	  	Description = #{description}
+	 WHERE
+ 		InstanceNo = #{instanceNo}
+		AND DimTypeID = #{dimTypeID}
+		AND DimValueID = #{dimValueID}
+	</update>
+	
+	<select id="getElmInstBatchMailList" resultType="java.util.HashMap">
+		SELECT
+			PROCTIA.PlainText AS procProcessName,
+			PEI.ProcInstNo AS procInstNo,
+			PROCPIA.Value AS procInstName,
+			
+			PEI.ElmInstNo AS elmInstNo,
+			ELMPIA.Value AS elmInstName,
+			ELMTIA.PlainText AS elmProcessName,
+			
+			PEI.RoleID AS roleItemID,
+			TIAROLE.PlainText AS roleItemName,
+			convert(varchar, PEI.SchStartDate, 23) AS schStartDate ,
+			ROLE.Identifier AS roleCode,
+			PROLE.Identifier AS parentRoleCode,			
+			PPI.DocCategory AS docCategory,
+			CASE WHEN PEI.DocCategory = 0 THEN 'Proposal' WHEN PEI.DocCategory = 1 THEN 'Project' ELSE 'FEED' END AS docCategoryName,
+			PPI.DocumentNo AS documentNo,
+			AuthorIDTI.AuthorID,
+			PPI.OwnerID,
+			PEI.Status AS elmStatus
+			
+		FROM XBOLTAPP.PIM_ELM_INST PEI
+			Left Join XBOLTAPP.PIM_PROC_INST PPI ON PPI.ProcInstNo = PEI.ProcInstNo
+			Left Join XBOLTAPP.PIM_INSTANCE_ATTR PROCPIA ON PPI.ProcInstNo = PROCPIA.InstanceNo AND PROCPIA.AttrTypeCode = 'AT01001'
+			Left Join XBOLTAPP.PIM_INSTANCE_ATTR ELMPIA ON PEI.ElmInstNo = ELMPIA.InstanceNo AND ELMPIA.AttrTypeCode = 'AT01001'
+			Left Join XBOLTADM.TB_ITEM_ATTR PROCTIA ON PROCTIA.ItemID = PPI.ProcessID AND PROCTIA.AttrTypeCode = 'AT00001' AND PROCTIA.LanguageID = #{languageID}
+			Left Join XBOLTADM.TB_ITEM_ATTR ELMTIA ON ELMTIA.ItemID = PEI.ElmItemID AND ELMTIA.AttrTypeCode = 'AT00001' AND ELMTIA.LanguageID = #{languageID}
+			Left Join XBOLTADM.TB_ITEM ROLE ON ROLE.ItemID = PEI.RoleID
+			Left Join XBOLTADM.TB_ITEM PROLE ON PROLE.ItemID = XBOLTADM.fn_GetSuperiorItemByClass(PEI.RoleID, 'CL02002A')
+			Left Join XBOLTADM.TB_ITEM_ATTR TIAROLE ON PEI.RoleID = TIAROLE.ItemID AND TIAROLE.LanguageID = #{languageID} AND TIAROLE.AttrTypeCode = 'AT00001'
+			Left Join XBOLTADM.TB_ITEM AuthorIDTI ON AuthorIDTI.ItemID = PPI.ProcessID
+			WHERE CONVERT(varchar, dateadd(day,(- PPI.AlarmInterval), PEI.SchStartDate),23) =  CONVERT(varchar, GETDATE(),23)
+			AND PEI.AlarmDate IS NULL
+			AND PPI.AlarmOption != 0
+			AND PEI.Status != 'CLS'
+	</select>
+	
+	<update id="updatePimElmAlarmDate" parameterType="java.util.HashMap">
+	 	Update XBOLTAPP.PIM_ELM_INST
+	 	Set
+				AlarmDate = getdate()
+			,	Status = 'CLS'
+		Where ProcInstNo = #{procInstNo}
+		AND	ElmInstNo = #{elmInstNo}
+	</update>
+	
+	<select id="getProcInstModelElements" resultType="java.util.HashMap">
+	 	SELECT  
+			 C.ModelID AS ModelID,
+			 C.ElementID AS ElementID,
+			 CASE When ISNULL(PEI.ElmItemID,'') != '' Then ISNULL(PEI.ElmItemID,'')
+				  Else C.ObjectID End AS ObjectID,
+			 ISNULL(PEI.ElmItemID,'') AS ElmItemID,
+			 C.CategoryCode AS CategoryCode,
+			 C.ItemTypeCode AS ItemTypeCode,
+			
+			 C.PositionX/CONVERT(float, 10) AS PositionX,
+			 C.PositionY/CONVERT(float, 10) AS PositionY,
+			 C.Width/CONVERT(float, 10) AS Width,
+			 C.Height/CONVERT(float, 10) AS Height,
+			
+			 ISNULL(C.FromID, -1) AS FromID,
+			 ISNULL(C.ToID,-1) AS ToID,
+			 CASE C.SymTypeCode WHEN 'SB00000' THEN C.Style ELSE ISNULL(E.ImagePath, C.Style) END AS Style, 
+			 
+			 CASE When C.SymTypeCode = 'SB00007' And ISNULL(PEI.ElmItemID,'') = '' Then 'white' 
+				  Else  ISNULL(C.fillColor,'') END AS fillColor,
+			 CASE When C.SymTypeCode = 'SB00007' And ISNULL(PEI.ElmItemID,'') = '' Then  'white' 
+				  Else ISNULL(ISNULL(C.fontColor,D.fontColor), #{DefFontColor}) END AS fontColor,				  
+			 CASE When C.SymTypeCode = 'SB00007' And ISNULL(PEI.ElmItemID,'') = '' Then 'white' 
+				  Else  C.strokeColor END AS strokeColor,	  
+			 ISNULL(C.startArrow,'') AS startArrow,
+			 C.endArrow AS endArrow,
+			 C.edgeStyle AS edgeStyle,
+			 C.ExitX AS ExitX,
+			 C.ExitY AS ExitY,
+			 C.ExitPerimeter AS ExitPerimeter,
+			 C.EntryX AS EntryX,
+			 C.EntryY AS EntryY,
+			 C.EntryPerimeter AS EntryPerimeter,
+			 ISNULL(D.FontFamily,#{DefFontFamily}) AS FontFamily,
+			 ISNULL(C.FontStyle,D.FontStyle) AS FontStyle,							
+			 C.strokeWidth  AS strokeWidth , 
+			 ISNULL(D.fontSize,#{DefFontSize}) AS fontSize,
+			 ISNULL(PEI.ElmInstNo,'') AS link,
+			 ISNULL(Replace(D.PlainText, '"','/quo'),'') AS PlainText,
+			 C.Parent AS Parent,
+			 ISNULL(C.Path,'') AS Path,	
+			 C.Rotation AS Rotation,	 
+			 ISNULL(C.GradientDirection,'') AS GradientDirection,
+			 ISNULL(C.LabelBackgroundColor, E.DefLabelBGColor) AS LabelBackgroundColor, 	
+			 C.Opacity AS Opacity, 
+			 C.Shadow AS Shadow,
+			 C.Dashed AS Dashed,
+			 C.Relative AS Relative,
+			 C.Rounded AS Rounded,
+			 C.LabelBorderColor AS LabelBorderColor,
+			 C.SpacingTop AS SpacingTop,
+			 ISNULL(C.StartFill,'-1') AS StartFill,
+			 ISNULL(C.EndFill,'-1') AS EndFill,
+			 C.StartSize AS StartSize,
+			 C.EndSize AS EndSize,
+			 G.LovCode AS WarningType,
+			 C.SymTypeCode AS SymTypeCode,
+			 (Select Max(ElementID) From XBOLTADM.TB_ELEMENT Where ModelID = #{ModelID} ) AS MaxElementID,
+			 <![CDATA[	
+			 Case When ISNULL(TIA.PlainText,'') != '' 
+			 	Then '- ' + TD.Name + '<br><br>' + ISNULL(Replace(Replace(Replace(Replace(Replace(TIA.PlainText, '"','/quo'), CHAR(13),'  '),CHAR(10),'<br>'),CHAR(9),'<br>'),'',''),'') 
+			 	ELSE ''
+			 	END AS Tooltip
+			  ]]>	
+		FROM XBOLTADM.TB_ELEMENT C
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR D ON C.ObjectID = D.ItemID and D.AttrTypeCode = 'AT00001'	AND D.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_SYMBOL_TYPE E ON C.SymTypeCode = E.SymTypeCode		
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR G ON C.ObjectID = G.ItemID and G.AttrTypeCode = 'AT00026'	AND G.LanguageID = (Select LanguageID From XBOLTADM.TB_LANGUAGE Where IsDefault=1)
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM ITM ON C.link = ITM.ItemID
+		
+		Left Outer Join XBOLTADM.TB_MODEL TM ON TM.ModelID = C.ModelID 		
+		Left Outer Join XBOLTADM.TB_MODEL_DISPLAY TMD ON TMD.TypeCode = C.SymTypeCode And TMD.Category = 'ELM' AND DisplayType = 'MOT'
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = C.ObjectID And TIA.AttrTypeCode = TMD.AttrTypeCode And TIA.LanguageID = #{languageID}	
+		Left Outer Join XBOLTADM.TB_Dictionary TD ON TD.TypeCode = TMD.AttrTypeCode And TD.Category	= 'AT' And TD.LanguageID = #{languageID}
+		Left OUter Join XBOLTAPP.PIM_ELM_INST PEI ON PEI.ProcInstNo = #{procInstNo} And PEI.ElementID = C.ElementID 
+		WHERE C.ModelID = #{ModelID}			   
+		Order By C.DisplaySeq, C.ElementID 	     
+	</select>
+	
+	<select id="getProcInstElementsByAttrDP" resultType="java.util.HashMap">
+	<!-- TEXT on Symbol -->
+		Select Distinct TE.ModelID, 
+			TE.ElementID, 
+			TE.ObjectID, 
+			TE.Link,
+			TE.CategoryCode, 
+			TI.ItemTypeCode, 
+			TMD.X AS PositionX, 
+			TMD.Y AS PositionY, 
+			TMD.Width, 
+			TMD.Height,
+			ISNULL(TST.ImagePath, '') AS Style,
+			ISNULL(TMD.FontFamily, #{DefFontFamily}) AS FontFamily, 
+			ISNULL(TMD.FontStyle, #{DefFontStyle}) AS FontStyle,
+			TMD.FontColor As fontColor, 
+			ISNULL(TMD.FontSize, #{DefFontSize}) AS fontSize,
+			TMD.FillColor As fillColor,
+			CASE TMD.AttrTypeCode  
+				WHEN 'ID' THEN ISNULL(TI.Identifier,'') 
+				ELSE TMD.AttrTypeCode  
+				END AS PlainText,
+			TE.ElementID AS Parent, 
+			ISNULL(TE.SpacingTop, -5) AS SpacingTop, 
+			TE.SymTypeCode,
+			TMD.AttrTypeCode,
+			ISNULL(ATP.DataType,'') As DataType,
+			TMD.DisplayType, TMD.Category, '' AS Status,
+			TMD.ScrnMode,
+			'' AS IncludeTLinkIdentifier
+		 From 
+		XBOLTADM.TB_MODEL_DISPLAY TMD Left Outer join XBOLTADM.TB_ATTR_TYPE ATP ON ATP.AttrTypeCode = TMD.AttrTypeCode , XBOLTADM.TB_ELEMENT TE
+		Left Outer join XBOLTADM.TB_ITEM TI ON TI.ItemID = TE.Link 
+		Left Outer join XBOLTADM.TB_SYMBOL_TYPE TST ON TST.SymTypeCode = 'SB00013'		
+		
+		<choose>
+			<when test='RevYN != null and FromID != "" and RevYN=="Y"'>	Left Outer Join XBOLTADM.TB_ITEM_ATTR_REV TIA ON TIA.ItemID = TI.ItemID </when>
+			<otherwise>	Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TI.ItemID </otherwise>
+		</choose>		
+		Where TE.SymTypeCode = TMD.TypeCode  		
+		And TIA.AttrTypeCode = TMD.AttrTypeCode 
+		And TE.ModelID = #{ModelID}
+		<!-- And ATP.DataType != 'LOV' -->
+		AND TMD.DisplayType = 'Text'
+		<choose>
+		<when test='scrnMode != "" and scrnMode != null'>
+			<if test='scrnMode == "V"'>And TMD.ScrnMode IN ('C','V')</if>	
+			<if test='scrnMode == "E"'>And TMD.ScrnMode IN ('C','E')</if>	
+		</when>
+		<otherwise>And TMD.ScrnMode = 'C'</otherwise>
+		</choose>
+		
+		UNION 
+	    <!-- ID On Symbol -->	
+		Select 
+			TE.ModelID, 
+			TE.ElementID, 
+			TE.ObjectID, 
+			TE.Link,
+			TE.CategoryCode, 
+			TI.ItemTypeCode, 
+			TMD.X AS PositionX, 
+			TMD.Y AS PositionY, 
+			TMD.Width, 
+			TMD.Height, 
+			ISNULL(TST.ImagePath, '') AS Style, 
+			ISNULL(TMD.FontFamily, #{DefFontFamily}) AS FontFamily, 
+			ISNULL(TMD.FontStyle, #{DefFontStyle}) AS FontStyle,
+			TMD.FontColor As fontColor, 
+			ISNULL(TMD.FontSize, #{DefFontSize}) AS fontSize,
+			TMD.FillColor As fillColor,
+			CASE TMD.AttrTypeCode  
+				WHEN 'ID' THEN ISNULL(TI.Identifier,'') 
+				WHEN 'SortNum' THEN ISNULL(TE.SortNum,'') 
+				WHEN 'SBICON' THEN 'ICON_'+ ISNULL(TMD.TypeCode,'') 
+				WHEN 'TLINK' THEN 'ICON_TLINK' 
+				ELSE TMD.AttrTypeCode  
+				END AS PlainText,
+			TE.ElementID AS Parent, 
+			ISNULL(TE.SpacingTop, -5) AS SpacingTop, 
+			TE.SymTypeCode,  
+			TMD.AttrTypeCode,
+			'' AS DataType,
+			TMD.DisplayType, TMD.Category, '' AS Status,
+			TMD.ScrnMode,
+			Case When TMD.AttrTypeCode = 'TLINK' and ISNULL(TI.Identifier,'')  !='' Then 'Y' 
+				When TMD.AttrTypeCode != 'TLINK' Then  'Y' Else 'N' END AS IncludeTLinkIdentifier
+		From 
+		XBOLTADM.TB_MODEL_DISPLAY TMD 
+		, XBOLTADM.TB_ELEMENT TE
+		Left Outer join XBOLTADM.Tb_ITEM TI ON TI.ItemID = TE.Link 
+		Left OUter join XBOLTADM.TB_SYMBOL_TYPE TST ON TST.SymTypeCode = 'SB00013'
+		Where TE.SymTypeCode = TMD.TypeCode  
+		And TMD.AttrTypeCode IN('ID','SortNum','SBICON',#{TLink})
+		And TE.ModelID = #{ModelID}
+		<choose>
+		<when test='scrnMode != "" and scrnMode != null'>
+			<if test='scrnMode == "V"'>And TMD.ScrnMode IN ('C','V')</if>	
+			<if test='scrnMode == "E"'>And TMD.ScrnMode IN ('C','E')</if>	
+		</when>
+		<otherwise>And TMD.ScrnMode = 'C'</otherwise>
+		</choose>
+		And (Case When TMD.AttrTypeCode = 'TLINK' and ISNULL(TI.Identifier,'')  !='' Then 'Y' 
+				When TMD.AttrTypeCode != 'TLINK' Then  'Y' Else 'N' END) = 'Y'
+		
+		UNION
+		<!-- IMAGE On Symbol -->
+		Select 
+			TE.ModelID, TE.ElementID, TE.ObjectID ,TE.Link, TE.CategoryCode
+			, TI.ItemTypeCode, TMD.X AS PositionX, TMD.Y AS PositionY
+			, TMD.Width, TMD.Height, ISNULL(TST.ImagePath, '') AS Style
+			, ISNULL(TMD.FontFamily, #{DefFontFamily}) AS FontFamily
+			, ISNULL(TMD.FontStyle, #{DefFontStyle}) AS FontStyle
+			, TMD.FontColor As fontColor, 
+			, ISNULL(TMD.FontSize, #{DefFontSize}) AS fontSize
+			, TMD.FillColor As fillColor			
+			, Case TMD.AttrTypeCode 
+					When 'SBICON' Then 'ICON_'+TMD.TypeCode 
+					When 'TLINK' Then 'ICON_TLINK'
+				    Else TMD.AttrTypeCode END AS PlainText
+			
+			, TE.ElementID AS Parent
+			, ISNULL(TE.SpacingTop, -5) AS SpacingTop, TE.SymTypeCode, TMD.AttrTypeCode
+			, ISNULL((Select DataType From XBOLTADM.TB_ATTR_TYPE Where AttrTypeCode = TMD.AttrTypeCode),'') As DataType
+			, TMD.DisplayType, TMD.Category, '' AS Status, TMD.ScrnMode
+			, '' AS IncludeTLinkIdentifier
+		From XBOLTADM.TB_MODEL_DISPLAY TMD , XBOLTADM.TB_ELEMENT TE 
+		Left Outer join XBOLTADM.Tb_ITEM TI ON TI.ItemID = TE.Link 
+		Left OUter join XBOLTADM.TB_SYMBOL_TYPE TST ON TST.SymTypeCode = 'SB00013' 
+		<choose>
+		<when test='RevYN != null and FromID != "" and RevYN=="Y"'>
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR_REV TIA ON TIA.ItemID = TI.ItemID 
+		</when>
+		<otherwise>Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TI.ItemID </otherwise>
+		</choose>		
+		Where TE.SymTypeCode = TMD.TypeCode And TIA.AttrTypeCode = TMD.AttrTypeCode And TE.ModelID =  #{ModelID}
+		And (Select DataType From XBOLTADM.TB_ATTR_TYPE Where AttrTypeCode = TMD.AttrTypeCode) = 'LOV' 
+		 And TMD.DisplayType IN ('Image','Animation')
+		<choose>
+		<when test='scrnMode != "" and scrnMode != null'>
+			<if test='scrnMode == "V"'>And TMD.ScrnMode IN ('C','V')</if>	
+			<if test='scrnMode == "E"'>And TMD.ScrnMode IN ('C','E')</if>	
+		</when>
+		<otherwise>And TMD.ScrnMode = 'C'</otherwise>
+		</choose>
+		
+		UNION 
+		<!-- STS On Symbol -->
+		Select 
+			TE.ModelID, TE.ElementID, TE.ObjectID, TE.Link, TE.CategoryCode 
+			, TI.ItemTypeCode, TMD.X AS PositionX, TMD.Y AS PositionY 
+			, TMD.Width, TMD.Height, ISNULL(TST.ImagePath, '') AS Style
+			, ISNULL(TMD.FontFamily, #{DefFontFamily}) AS FontFamily 
+			, ISNULL(TMD.FontStyle, #{DefFontStyle}) AS FontStyle
+			, TMD.FontColor As fontColor
+			, ISNULL(TMD.FontSize, #{DefFontSize}) AS fontSize,
+			, TMD.FillColor As fillColor
+			, Case TMD.DisplayType When 'Text' THEN ISNULL(TD.Name,'') ELSE TI.Status END AS PlainText
+			, TE.ElementID AS Parent 
+			, ISNULL(TE.SpacingTop, -5) AS SpacingTop, TE.SymTypeCode, TMD.AttrTypeCode 
+			, 'STS' As DataType
+			, TMD.DisplayType , TMD.Category, '' AS Status, TMD.ScrnMode
+			, '' AS IncludeTLinkIdentifier
+		From XBOLTADM.TB_MODEL_DISPLAY TMD , XBOLTADM.TB_ELEMENT TE 
+		Left Outer join XBOLTADM.Tb_ITEM TI ON TI.ItemID = TE.ObjectID 
+		Left OUter join XBOLTADM.TB_SYMBOL_TYPE TST ON TST.SymTypeCode = 'SB00013' 
+		Left OUter Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TI.Status And TD.LanguageID = #{languageID} And TD.Category ='ITMSTS'
+		Where TE.SymTypeCode = TMD.TypeCode And TE.ModelID = #{ModelID}
+		And TMD.AttrTypeCode = 'STS' 
+		<choose>
+		<when test='scrnMode != "" and scrnMode != null'>
+			<if test='scrnMode == "V"'>And TMD.ScrnMode IN ('C','V')</if>	
+			<if test='scrnMode == "E"'>And TMD.ScrnMode IN ('C','E')</if>	
+		</when>
+		<otherwise>And TMD.ScrnMode = 'C'</otherwise>
+		</choose>
+	</select>
+	
+	<select id="getProcModelID" resultType="String">
+		Select ProcModelID From XBOLTAPP.PIM_PROC_INST Where ProcInstNo = #{procInstNo}
+	</select>
+	
+	<delete id="delElmInst" parameterType="java.util.HashMap">
+		DELETE
+			XBOLTAPP.PIM_ELM_INST
+		<where> 
+		<if test="procInstNo != null and procInstNo != ''">
+			AND procInstNo = #{procInstNo}
+		</if>
+		<if test="elmInstNo != null and elmInstNo != ''">
+			AND ElmInstNo = #{elmInstNo}
+		</if>
+		</where>
+	</delete>
+	
+	<select id="getInstAttrValue" resultType="String">
+		Select ISNULL(Value, '') AS Value
+		From XBOLTAPP.PIM_INSTANCE_ATTR
+		Where InstanceNo = #{instanceNo}
+		And AttrTypeCode = #{attrTypeCode}
+	</select>	
+	
+	
+</mapper>

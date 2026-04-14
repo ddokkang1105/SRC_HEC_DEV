@@ -1,0 +1,35 @@
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/olm_dev/!svn/ver/8787/OLM3/WebContent/WEB-INF/jsp/custom/sf/report
+END
+kpiReport.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/olm_dev/!svn/ver/6334/OLM3/WebContent/WEB-INF/jsp/custom/sf/report/kpiReport.jsp
+END
+wordExport_base.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 91
+/svn/olm_dev/!svn/ver/8787/OLM3/WebContent/WEB-INF/jsp/custom/sf/report/wordExport_base.jsp
+END
+processReport.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 89
+/svn/olm_dev/!svn/ver/8787/OLM3/WebContent/WEB-INF/jsp/custom/sf/report/processReport.jsp
+END
+downloadAllProcessList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 98
+/svn/olm_dev/!svn/ver/6334/OLM3/WebContent/WEB-INF/jsp/custom/sf/report/downloadAllProcessList.jsp
+END
+subItemInfoReport.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 93
+/svn/olm_dev/!svn/ver/8074/OLM3/WebContent/WEB-INF/jsp/custom/sf/report/subItemInfoReport.jsp
+END

@@ -1,0 +1,467 @@
+2018/01/04
+
+TB_REVISION 추가  
+Item >> 개요 >> Attribute >> Save, Model >> 릴리즈, File >> 상세  >> Attach 시 변경이력을 남길 것인가 확인 팝업 후  Comment 기록
+
+2018/01/08
+TB_ITEM_CLASS.EvlautionClass --> RefClass로  수정
+
+2018/01/16
+TB_ATTR_TYPE_ALLOCATION.LinkName Varchar(10) 추가 --> 개요에서  Link 힘수 호출 시   이 값의 Dictionary 로 출력함, Null 일 경우 MenuID의 Label 값으로 처리
+TB_Arc.FilterType varchar(5) --> varchar(10)으로 수정
+
+2018/01/18
+
+TB_ARC_FILTER_CLASS ItemClassCode Varchar(10), Included char(1), InSecondary char(1) 추가
+======= 테이블 Update ========================================================================
+UPDATE [XBOLTADM].[TB_ARC_FILTER_CLS] SET [ItemClassCode] = SCLASS ,[Included] = 'Y'  
+WHERE SCLASS is not Null 
+UPDATE [XBOLTADM].[TB_ARC_FILTER_CLS] SET [ItemClassCode] = FCLASS,[Included] = 'N'  
+WHERE FCLASS is not Null and (ItemClassCode = '' or ItemClassCode is Null)
+DELETE FROM [XBOLTADM].[TB_ARC_FILTER_CLS] WHERE FLEVEL is Not Null and ItemClassCode is Null
+
+TB_MDL_XML_FILTER 테이블 생성,  
+TB_MODEL_TYPE.XMLFilterCode varchar(10) , MenuID Varchar(10) 추가
+============================================================================================
+CREATE TABLE [XBOLTADM].[TB_MDL_XML_FILTER](
+	[XMLFilterCode] [varchar](10) NOT NULL,	[SqlName] [varchar](100) NULL,	[Deactivated] [char](1) NULL,
+	[CreationTime] [datetime] NULL,	[Creator] [bigint] NULL,[LastUser] [bigint] NULL,[LastUpdated] [datetime] NULL,
+ CONSTRAINT [PK_TB_MDL_XML_FILTER] PRIMARY KEY CLUSTERED 
+([XMLFilterCode] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]) ON [PRIMARY]
+
+2018/01/19
+TB_TFILTER 레코드 추가  : VARMDL/VariantProjectModel_treeList/0 
+TB_TFILTER.TreeDataFiltered char(1) Default = 'Y' 필드 추가
+
+2018/01/25
+TI_ITEM_CXN_IF 테이블 신규 생성
+
+2018/01/31
+TB_ARC.RefPGID bigint 추가
+MN00159 mainDefArc.do
+
+2018/02/01
+TB_PJT_MEMBER_REL.Status Varchar(10), RoleType Varchar(10)으롯 수정
+TB_TFILTER : ITMVAR/itemWithVariant_treeList/N 레코드 추가
+
+2018/02/02
+OLM_DEMO DB 데이타 정렬 KOREAN_WANSUNG_CI_AI --->  KOREAN_WANSUNG_CI_AS로 변경함
+--> 향후 고객 사 메인 업그레이드 시 반영
+
+2018/02/12 
+TB_SYMBOL_TYPE 업데이트
+SB00004  Style ,  shape=process;whiteSpace=wrap;size=0.025 , Width=150, Height=60
+UPDATE [XBOLTADM].[TB_ELEMENT]
+SET [Rounded] = 0  WHERE SymTypeCode = 'SB00004'
+
+2018/02/13
+TB_ARC.Style  Value update
+ArcCode  | Style
+Process 관련 트리  | csh_process
+Organization 트리 | csh_organization
+
+TB_MODEL.Zoom float Default = 1  칼럼 추가 및 아래 쿼리 실행
+UPDATE [XBOLTADM].[TB_MODEL] SET [Zoom] = 0.8
+UPDATE [XBOLTADM].[TB_MODEL] SET [Zoom] = 0.6  WHERE modelTypeCode != 'MT001'
+
+TB_DICTIONARY.VarFilter Varchar(200) 추가
+TB_MODEL_TXT.LastUser bigint , LastUpdated datetime 칼럼추가
+
+2018/02/24
+TB_MENU.MN121 refItemListInfo --> varItemList로 변경
+UPDATE [XBOLTADM].[TB_ITEM]  SET [RefItemID] = ItemID  WHERE ClassCode = 'CL01008'
+
+2018/02/28
+TB_SYMBOL_TYPE.DefLovCode Varchar(10) 추가, Model Release DefLovCode != Null 인 경우  Item 생성 후  ATTR Table에 해당 ItemID와 LovCode로 레코드 생성
+
+Revision 3798 Error Commit 함 3799 ~ 3808 기존 소스 복구함
+Revision 3809 정상 수정 Commit 함
+
+2018/03/09
+TB_BOARD.ItemMgtUserID bigint 추가 , Forum 글 생성 시 ItemID 있으면  ITEM.AuthorID 없으면 BOARD_MGT.MgtUserID 값으로 처리
+EmailOption = Y일 경우  ITEM.AuthorID가 아닌 ItemMgtUserID로 email 주소 변수 처리함
+
+TB_MEMBER.DefLanguageID Int, TimeZone Varchar(10) 추가
+TB_MODEL_TYPE.ZoomOption Varchar(10)   조회 시 Zoom option , If Null Model.Zoom, FTP = Fit to Page, FTW = Fit To Window 처리함
+UPDATE [XBOLTADM].[TB_MODEL_TYPE]   SET [ZoomOption] = 'FTW'
+
+2018/03/12
+TB_ITEM_ATTR 레코드 중  DataType != 'Text' 인 경우  LanguageID = 1042로  모두 업데이트 후 중복된 레코드 제거해줌
+
+2018/03/14
+-- Mando DB에만 적용함
+Update Set UntitledOption = 'N' From XBOLTADM.TB_ARC
+
+2018/03/16
+TB_ITEM_CLASS.CheckInOption Varchar(10) 추가 :  Null = No check in, 
+
+2018/03/19
+변수 명 정리함 : getID, getId --> s_itemID, treeID --> nodeID
+TB_ARC.VarFilter 에 treeID --> nodeID로 수정해야 함
+
+2018/03/23
+TB_LANGUAGE.DateFormat Varchar(20), NumberFormat Varchar(20) 추가
+TB_ATTR_TYPE UOM Varchar(10) 추가
+
+=============  DB & Configuration Change history =======================================================================================================
+
+DBCFG.20180402.001 : TB_SR_MST Classification Varchar(10) 필드추가, TB_DIC_MASTER  SRCLS SR Classification 레코드 추가
+
+DBCFG.20180402.002 : TB_DICTIONARY  Category = MN 레코드 추가 , 메뉴 ID 설정 시 Menu 명으로 리스트 조회
+
+DBCFG.20180403.003 : TB_REPORT MessageCode Varchar(10), ActionType Varchar(10), PWidth Int, PHeight Int 필드 추가, OutputType 컬럼 값 변경, MessageCode 값 설정
+                     OLM_DEMO DB 테이블 설정을 표준으로 설정
+
+DBCFG.20180409.004: olmWebContent.properties  수정 : IMG_DIR_MODEL_SYMBOL = model , CSR_APPROVAL_PATH = custom/base/setWfStepInfo_OLM 추가
+
+DBCFG.20180409.005 : TB_MENU   MN071 URL = boardManagement로 업데이트
+
+DBCFG.20180412.006 : TB_MENU MN123/MN124 MenuCat = 'BRD'로 수정
+
+DBCFG.20180416.007 : TB_WF_INST_TXT Table 신규 추가, TB_WF_INST.Seq bigint Not Null, ID 사양 = Yes, GWSyncDate datetime GWSyncStatus varchar(10) 추가 , 
+                       TB_CHANGE_SET.WFInstanceID Varchar(100) 수정  , TB_DICTIONARY Category = 'CNGSTS' TypeCode = 'HOLD', Name = 승인보류/Holding 레코드 추가
+                    >> CSR 결재 아닌   ChangeSet 리스트를  WF Instance로 결재 진행 시 사용
+                    
+DBCFG.20180416.008 : TB_MODEL.ChangeSetID, ProjectID 업데이트 ( Mando, CJ, SEMES, HWC, Daelim) 값이 Null인 경우, 해당 Item의 ChangeSetID 중 가장 작은 값으로 없데이트            
+
+DBCFG.20180417.009 : TB_MENU MN123 VarFilter : &boardUrl=/hom/brd/boardList  , MN007,MN124 VarFilter : &boardUrl=/hom/frm/boardForumList 값 업데이트
+
+DBCFG.20180417.010 : TB_ITEM_ATTR_TRAN  Rev_1042, Rev_1041 칼럼 추가 , TB_TEMPL.DefLanguageID Int 추가
+
+DBCFG.20180423.011 : ST1으로 생성된 Item 중에 FromItemID = Null인 오류 데이타를 삭제처리 필요(기존 엑셀 업로드 시 ParentID 오류인 경우에 생성됨, Fixed)  --> HTC, LF, CJ, HWC, SEMES, Daelim 적용 필요
+					DELETE FROM XBOLTADM.TB_ITEM_ATTR WHERE itemid in (Select toitemid from XBOLTADM.TB_ITEM where categorycode = 'ST1' and FromItemID is Null)
+					DELETE FROM XBOLTADM.TB_ITEM WHERE itemid in (Select toitemid from XBOLTADM.TB_ITEM where categorycode = 'ST1' and FromItemID is Null)
+					DELETE FROM XBOLTADM.TB_ITEM where categorycode = 'ST1' and FromItemID is Null
+
+DBCFG.20180424.012 : MN007, MN123 MN124 VarFilter 값 수정 : &boardUrl=/board/frm/boardForumList, &boardUrl=/board/brd/boardList , &boardUrl=/board/frm/boardForumList	
+
+DBCFG.20180426.013 : TB_CLIENT Table 신규 생성 , MN008  ATR/runSysLink 메뉴 등록
+
+DBCFG.20180504.014 : TB_ITEM_ATTR.FontStyle nvarchar --> int로 수정  
+                     UPDATE XBOLTADM.TB_LANGUAGE SET FontStyle = 1  WHERE fontstyle = 'bold'
+                     
+DBCFG.20180511.015 : TB_REVISION.LastUpdated datetime Null 추가     , TB_PROJECT.PJCategory = 'MST'로 업데이트 (Daelim 제외) , TW_PROCESS_SUM.L6ItemID bigint Null 추가 
+                     Global Variable ,   EMP_PHOTO_ITEM_DISPLAY = N 추가      
+                     
+DBCFG.20180521.016 : TB_MY_ITEM.ProjectID bigint , TB_ATTR_TYPE AT00073 Text Abbreviation 추가                
+
+DBCFG.20180524.017 : UPDATE [XBOLTADM].[TB_ITEM]   SET [CurChangeSet] = Null  WHERE [CurChangeSet] = 0 -->기존 잘못된 입력 값 정정     
+                    (대림 Only) TB_ITEM_TYPE VAR0001 Category = 'VAR'로 업데이트  , Update TB_ITEM Set CategoryCode = 'VAR' where ItemTypeCode = 'VAR0001'
+
+DBCFG.20180528.018 : TB_CONFIG CFG3150  Role Type / olmRoleConfigMgt  레코드 추가 ,  
+                     TB_MASTER ROLECAT/Role Category , TB_DICTIONARY CFG/CFG3150/Role Type , Category = 'ROLECAT' 레코드 추가            
+                      
+DBCFG.20180601.019 : TB_ELEMENT.SortNum Int --> varchar(3)으로 수정 , 
+                     TB_MODEL_DISPLAY StrokeWidth (int) StrokeColor(varchar(7)), FillColor(varchar(7)) 필드 추가
+                     
+DBCFG.20180607.020 : TB_ATTR_TYPE.DataTypeOption --> Domain으로 수정, DecimalPlace Int Default =2, B 추가, TB_BOARD.InstanceKey varchar(20) 추가
+                     TB_MENU.MN162(OLM Role Type) , MN163(ElementList), PIM006(Process Instance Management),   PIM005(Allocate Attribute Types to Item) 추가                  
+                     
+DBCFG.20180607.021 : Change Set WF Instance 용   Post Processing 프로시저 추가(명칭 : XBOLTADM.TI_POSTPROCESSING_CS)
+
+DBCFG.20180622.022 : TB_DICTIONARY LN00199 자료실 --> 산출물/Deliverable로 수정 , TB_ARC.MstObjectID bigint 추가 , TB_TIME_ZONE 테이블 추가
+                     UPDATE [XBOLTADM].[TB_MENU]   SET [URL] = 'subItemList'  WHERE MenuID = 'MN003'
+					 UPDATE [XBOLTADM].[TB_MENU]   SET [URL] = 'itemCompositionMgt' , Deactivated = '0'  WHERE MenuID = 'MN002'
+
+DBCFG.20180626.023 : TB_TIME_ZONE 신규 생성	--> TB_MEMBER.TimeZone (FK) , TB_MENU.ItemID bigint 추가  
+
+DBCFG.20180703.024 : TB_ITEM.CurConfigID bigint 추가, TB_WF.WFURL Varchar(255) , TB_WF_ALLOCATION.PostProcessing Varchar(255) 추가
+                     TB_DIM_LEVEL_TXT 테이블 추가 , TB_BOARD.InstanceKey varchar(20) 추가
+                     
+DBCFG.20180709.025 : TB_MENU  MN009 레코드 추가, TB_MENU_ALLOC  ArcCode = 'AR000004 레코드 리스트 추가(OLM_DEMO 기준) , 
+                     TB_DIC_MASTER.SysDomain Varchar(10) 'OLM' Default 추가
+                     TB_DICTIONARY  Cat=CNGSTS , WTR/변경취소(KO)/Withdraw(EN), APRV/승인 중(KO)/Approving(EN) ,   Cat = MC , WTR/Invalid(EN) 레코드 추가
+                     TB_DIC_MASTER 레코드 추가, TB_DICTIONARY Cat=MSG , MSG0001 레코드 추가함 
+                     
+DBCFG.20180725.026 : TB_PROJECT_CurWFInstanceID Varchar(20) 추가      , TB_DICITIONARY LN00196 기결함 --> 결재문서 상세/Approval Document로 수정        
+
+DBCFG.20180806.027 : TB_SYMBOL_TYPE.DefLabelBGColor varchar(7), DefSpacingTop Int, Dashed Int 추가 
+                     TB_MODEL_DISPLAY.LableBackgroudColor varchar(7), HTML Int 추가, FontStyle Varchar(50) --> Int로 수정 
+                     TB_ELEMENT.FontStyle Varchar(50) --> Int로 수정
+
+DBCFG.20180807.028 : TB_CHANGE_SET_REV 테이블 신규 생성
+                     TB_ITEM_TYPE.RefItemType Varchar(10) 추가 ,  
+                     TB_CHANGE_SET.CheckInOtpion Varchar(5) 추가  --> OLM_DEMO DB  레코드 '02' 로 업데이트       , TB_ITEM_CLASS.CheckInOption = '02'로 업데이트 ChangeMgt = 1인 경우      
+                     Mando = 03으로 업데이트, 나머지 고객 사이트 = 01로 업데이트 함, 
+
+DBCFG.20180810.029 : TB_ITEM_CLASS  : CNL0000/MCN0001, TNL0000/TXT0001 Record 추가, Dictionary 추가 , TypeCode = MCN0001/TXT0001/CNL0000/TNL0000 Dictionary 추가
+                     TB_SYMBOL_TYPE  --> SB00000/SB090017/SB00018   MCN/MCN0001/CNL0000 으로 설정 변경  
+                                     --> SB00013                    TXT/TXT0001/TNL0000으로 설정 변경        
+                                     
+                     * 기존 Record Update                
+                     UPDATE [XBOLTADM].[TB_ITEM]   SET [ClassCode] = 'CNL0000' WHERE classCode = 'NL00000' and ItemTypeCode = 'MCN0001'
+					 UPDATE [XBOLTADM].[TB_ITEM_ATTR]   SET [ClassCode] = 'CNL0000' WHERE classCode = 'NL00000' and ItemTypeCode = 'MCN0001'
+					 UPDATE [XBOLTADM].[TB_ELEMENT]   SET [ClassCode] = 'CNL0000' WHERE classCode = 'NL00000' and ItemTypeCode = 'MCN0001'
+					
+					 UPDATE [XBOLTADM].[TB_ITEM]   SET [ClassCode] = 'TNL0000' WHERE classCode = 'NL00000' and ItemTypeCode = 'TXT0001'
+					 UPDATE [XBOLTADM].[TB_ITEM_ATTR]   SET [ClassCode] = 'TNL0000' WHERE classCode = 'NL00000' and ItemTypeCode = 'TXT0001'
+					 UPDATE [XBOLTADM].[TB_ELEMENT]   SET [ClassCode] = 'TNL0000' WHERE classCode = 'NL00000' and ItemTypeCode = 'TXT0001'   
+					 
+DBCFG.20180813.030 : TB_PROJECT.ClosingOption Varchar(5), Not Null, Default = '01' : CSR 담당자 종결 처리, 02 : CSR 결재 후 종결 처리	, 기존 레코드 전부 '01'로 업데이트
+                     DIC Cat 추가 : WFSTEPSTS / WF Step status, Dictionary 레코드 추가
+                     TB_REVISION.RevisionType Default = "MOD" Null 추가 , TB_ITEM_CLASS.CheckOutOption Varchar(5) Null 추가
+                     fn_GetChangeStatus 업데이트 됨(CS Status = 'WTR' 인 경우 포함)
+                     
+DBCFG.20180829.031 : TB_TEAM_ROLE  테이블 추가  , TB_OLM_ROLE_TYPE ActorType Varchar(10) Default = 'USER' 추가 , TEAMROLETP EXE/REL 레코드 추가 (기존 레코드 ActorType = USER로 업데이트)
+                     TB_DIC_MASTER: TEAMROLETP 추가, Dictionary : DICCAT/TEAMROLETP/Team Role type 추가  , TEAMROLETP/EXE/실행부서(Execution) , TEAMROLETP/REL/유관부서(Related) 추가
+                     TW_ITEM_AUTHOR_LOG 테이블 추가  ,  MN166 Team Role Management 추가 , RP00036 : Item Author log management 추가, LN00089 변경관리단위 --> 변경관리로 수정          
+                     
+DBCFG.20180830.032 :  TB_BOARD_MGT.DocCategory Varchar(10) 추가    , TB_MY_ITEM.DocCategory Varchar(10) Default = 'ITM' 
+                     fn_GetMyAbsPathForOrg 수정	                   		                          
+                     LN00107 승인조직 --> 승인/Approve(EN), LN00116 합의/승인 전 --> 합의/Agree(EN), LN00117 합의/승인 완료 --> 수신/Receiver(EN) 로 수정
+                     LN00119 합의/승인 --> 역할/Role(EN)으로 수정
+                     TB_TEAM.RoleManagerID bigint 추가
+                     
+ DBCFG.20180907.033 : TB_ARC AR000004A 레코드 추가, TB_MENU_ALLOC  AR000004 VarFilter  Null/PRE로 수정, AR000004A 메뉴 할당 레코드 추가        
+                      TB_MENU_ALLOC NL00000, CNL0201,CNL0104,CNL0105,CNL0106,CNL0107,CNL0108,CNL0109,CNL0110,CNL0111.CNL0112, CNL0000  레코드 추가
+                      TB_ITEM_TYPE CN00112, TB_ITEM_CLASS CNL0112 레코드 추가 , 
+                      TB_DICTIONARNY CN00112, CNL0112, LN00313, LN00314 레코드 추가
+                      
+ DBCFG.20180911.034 : TB_DICTIONARNY LN00315 병합/parallel(EN), WFSTEP/PAGR 병합/parallel(EN) 레코드 추가  
+                      TW_INSERT_ITEM_AUTHOR_LOG 프로시져 추가
+                      
+ DBCFG.20180911.035 : ChangeSet의 이전/다음 버전을 구하는 테이블 반환 함수 fn_GetChangeSetRNUM(itemID, parentItemID, changeSetID) 추가(만도, OLM_DEMO에 함수 추가 함)
+ 
+ DBCFG.20181030.036 : TB_TEMPL.Type Def = 'STD'로 수정, STD일 경우 기존  master.jsp, CST일 경우  TemplCode  + '.jsp' 로 URL Forwarding                    
+                      TB_PROJECT.CheckInOption Varchar(10)  필드 추가. 
+                      -->> 기존   CS 생성 시 ITEM_CLASS.CheckInOption 사용하는 대신 PROJECT.CheckInOption 사용으로 로직 변경 필요   Null일 경우
+                       ITEM.CLASS 값 사용함
+ 
+ DBCFG.20181114.037 : TB_SR_MST.CustomerID --> CustGRNo Varchar(10)으로 수정  ,                  
+                      TB_MENU MN147 URL = srListByCompany 업데이트, 
+                      TB_DICTIONARY  MN147 Name = SR List by company 로 업데이트
+                      TB_ARC ARC000004A 레코드 추가, TB_MENU_ALLOC ArcCode = 'AR000004', 'AR000004A' 레코드 추가(DEMO DB 기준)
+  
+ DBCFG.20181129.038 : TB_ITEM_CLASS.DefVersionIncr char(3) Default Value = 0.1 필드 추가 (Version No. 자동 증가 설정용)
+ 
+ DBCFG.20181213.039 : TB_BOARD_MGT.ReplyOption Char(1) Def = 0 필드 추가
+                      TB_FLTP   CSDOC , C://OLMFILE//document/cs// 레코드 추가 (Change Set 파일 첨부용)
+               
+ DBCFG.20181219.040 : TB_FILE.ChangeSetID , RefDocumentID bigint , TB_FLTP.RevisionYN char(1) 추가,
+                      Item에 파일 신규 업로드 또는 수정 업로드 시  ITEM.CurChangeSet 값을  Insert함      
+                                                          신규 업로드 시 RefDocumentID = DocumentID 로  Insert
+                      FLTP.RevisionYN = Y일 경우 파일 상세에서 Revision 파일 업로드 버튼 출력 >> 업로드 시 Item에  파일 첨부함
+                      UPDATE [XBOLTADM].[TB_FILE]
+   					  SET [ChangeSetID] = ITM.CurChangeSet , Blocked = 0 From XBOLTADM.TB_ITEM ITM, XBOLTADM.TB_FILE F
+ 					  WHERE F.DocumentID = ITM.ItemID and F.DocCategory = 'ITM'        
+ 					  
+DBCFG.20181220.041	 : UPDATE [XBOLTADM].[TB_CHANGE_SET] SET [Version] = '1.0' Where Version IS NULL
+ 					  (CJ, LF,  HTC, HWC, MANDO, SEMES)
+ 					  TI_INSERT_BATCH 관련 프로시져 업데이트(OLM_DEMO 기준)
+ 					  TB_TEMPL.VarFilter  'myPageA' 값 업데이트 (HTC 제외)
+ 					  
+ 					  TB_MODEL.ChangeSetID 업데이트 >> Item에 모델이 복수개 일 경우 TB_CHANGE_SET.ItemID 최신 순으로 업데이트
+ 					  DEMO DB 프로시저  UPDATE_CHANGSETID_TBMODEL 사용 (HTC, LF, HWC only)
+
+==============  Year 2019 ===========================================================================================================
+ 					  
+DBCFG.20190104.001  : RP00031 updateElementPosition.do, RP00031/CL01000 Report Allocation , Dic. RP00031/Reset Element Postion 추가 
+                      TB_MODEL_DISPLAY Category = MDL인 레코드 추가 필요
+                     (CJ, MANDO, HWC, HTC, KAIST, LF , SEMES 업데이트 리포트 실행 필요, 실행 후 RP00031 Deactivated 처리,  DAELIM은  Model Display만 설정)
+DBCFG.20190220.002  : MN015/exWebServiceMgt.do/Call External Web Service ;
+                      MN150 mainDefArc MenuCat = TMPL로 업데이트
+                      TB_MENU_ALLOC.SCRURL Varchar(200) 추가(Class menu jsp urㅣ 경로 설정용)    
+                      
+DBCFG.20190315.003 : TB_REPORT_ALLOC , RP0004 VarFilter 값 변경 : report/WordExport_Base --> custom/base/report/WordExport_Base
+                     TB_DICTIONARY Category = LN, LN00316 ~ LN00322 레코드 추가            
+                     TB_ATTR_TYPE AT10000 / 항목 유형 레코드 추가, TB_ATTR_TYPE_LOV에 레코드 추가     
+                     fn_GetDimLevelPath,fn_GetDimSubValuePath, fn_GetDimValuePath 추가      
+                     TB_TFILTER   TMCN/menuTreeListByTeamJob_Cxn_treeList 레코드 추가         		  		  
+ 
+DBCFG.20190329.004 : TB_MENU.MN018  ARC/prmMgt.do 메뉴추가	
+                     TB_SR_TYPE , TB_SR_AREA ,TB_ITEM_PROPOSAL
+                     TB_SR_MST.ProcPathID(FK.TB_MODEL.ModelID, bigint),  TB_SR_CAT.ProcPathID(FK.TB_MODEL.ModelID, bigint) 필드 추가
+                     TB_SR_MST.Status Varchar(5) --> Varchar(10)으로 수정
+                     TB_ITEM_CLASS.AutoID char(1) Default Value = N 
+                      
+DBCFG.20190403.005 : TB_ATTR_TYPE_GR : ATG0000, ATG0001 레코드 추가 , TB_ATTR_TYPE.ItemClassCode Varchar(10), LastUser bigint 필드 추가
+                     TB_ATTR_TYPE_ALLOCATION.AttrTypeGRCode Varchar(10), Default Value = 'ATG00000' 추가
+                     UPDATE [XBOLTADM].[TB_ATTR_TYPE_ALLOCATION]   SET  [AttrTypeGRCode] = 'ATG0000'
+                     TB_DIC_MASTER : ATG/Attribute Type Group 레코드 추가, TB_DICTIONARY : ATG0000, ATG0001 레코드 추가
+                      
+DBCFG.20190411.006 : CSR Role Type 기능 추가 
+                     UPDATE [XBOLTADM].[TB_PJT_MEMBER_REL]   SET authority = 2 , RoleType = 'R'
+                     TB_DIC_MASTER : CSRROLETP/CSR member role type 레코드 추가
+                     TB_DICTIONARY : R/CSRROLETP/변경담당(Responsible:1033), I/CSRROLETP/검토자(Informative;1033) 레코드 추가
+                      
+DBCFG.20190423.007 : RP00037 /PJT /  itemTreeListBydDim.do (Item Tree List by Dimension) 리포트 추가         
+                     RP00038 /ITM /  subItemInfoReport.do (Sub Item detail Information Report) 리포트 추가      
+                     TB_MY_DIM_VALUE , TW_TEAM_LOG 테이블 추가
+                             
+DBCFG.20190509.008 : TB_CONFIGURATION CFT3160 / CFG3170 레코드 추가
+                     MN099 defineSRType / Define SR Type, MN100 defineSRArea / Define SR Area 로 URL 수정      
+                     
+DBCFG.20190531.009 : TB_ITEM.AccessOption Char(1), TB_ITEM_ACS_CTRL 테이블 추가
+                     TB_OLM_DOC_CATEGORY.WFDocURL  Varchar(200) 추가
+                     TB_ITEM_CLASS.DefWFID Varchar(10) 추가
+                     TB_DICTIONARY LN00099/LN/OLM 범주(OLM Category)
+                     TB_MENU.MN020 URL = olmDocList 업데이트 , TB_DICTIONARY MN020 Name = Document List(ALL)로 업데이트
+                     TB_REPORT_ALLOCATION.SortNum Int 필드 추가
+
+DBCFG.20190605.010 : TB_SR_AREA.SRType --> SRTypeCode로 필드 명 변경 
+                      TB_WF_STEP.WFStepURL Varchar(10), TB_WF_STEP_REL.VarFilter Varchar(100) 필드 추가   
+
+DBCFG.20190612.011 : TB_REPORT_ALLOCATION.ReportNMCode Varchar(10) 추가(Report Name Default 값 사용안할 경우) 
+                     TW_CON_LOG 테이블 추가, TW_INSERT_CON_LOG 프로시저 추가       
+                     TB_TFILTER에 PRM과 DIM tFilterCode추가                      
+					 INSERT INTO [XBOLTADM].[TB_TFILTER] ([TfilterCode] ,[SqlName] ,[TreeDataFiltered] ,[Deactivated]) VALUES ('PRM' ,'menuTreeListItsp_treeList' ,'Y' ,0);
+					 INSERT INTO [XBOLTADM].[TB_TFILTER] ([TfilterCode] ,[SqlName] ,[TreeDataFiltered] ,[Deactivated]) VALUES ('DIM' ,'assignDimension_treeList' ,'Y' ,0);
+                     RP00039(itemRevisionStatisticsByYear.do),RP00040(teamItemMappingList.do) 추가        
+
+DBCFG.20190613.012 : 01 TB_OLM_DOC_CATEGORY.InboundLinkURL Varchar(200) 추가     
+                     02 TB_ARC.OwnerID bigint, OwnerGRId bigint, SortOption char(1) 추가
+                     03 TB_SR_CAT.WFID varchar(10) 추가       
+                     04 RP00040 부서역할 리스트/Team Role List,  teamItemMappingList.do 추가  
+                     05 TW_INSERT_TEAM_CHANGE_LOG 프로스져 추가              
+                     06 fn_GetPrePostFromElement DB 함수 수정  
+
+DBCFG.20190619.013 : 01 TB_ITEM_CLASS.SubscrOption char(1) 필드 추가            
+					 02 UPDATE [XBOLTADM].[TB_DICTIONARY]   SET [TypeCode] = 'APREQ_CS' WHERE typeCode = 'APPRCS'  
+					 03 UPDATE [XBOLTADM].[TB_DICTIONARY]   SET [TypeCode] = 'APREQ_CSR' WHERE typeCode = 'APPRREQ'
+					 04 TB_DICTIONARY  EMAILCODE/BRDMAIL / [OLM 메일 알림] / [OLM Mail Notice] 추가
+					 
+DBCFG.20190704.043 : 01 fn_GetL1ItemID	함수추가 , TW_INSERT_VISIT_LOG 프로시저 수정	 
+						UPDATE [XBOLTADM].[TB_ITEM_CLASS]   SET [Level] = 1
+						WHERE ItemClassCode in ('CL02001', 'CL03001', 'CL06001' , 'CL11001', 'CL12001', 'CL14001' , 'CL15001')
+                                              
+DBCFG.20190708.044 : 01 INITIALIZE_VISIT_LOG 프로시저 추가	
+
+DBCFG.20190712.045 : 01 TB_RERORT.Icon Varchar(10) 추가, 
+                        UPDATE [XBOLTADM].[TB_REPORT]   SET [Icon] = OutputType 
+						UPDATE [XBOLTADM].[TB_REPORT]   SET OutputType = 'scrn' where OutputType = 'XLS'
+						UPDATE [XBOLTADM].[TB_REPORT]   SET ActionType = 'POP' , PWidth = 420, PHeight = 250 Where ReportURL = 'wordReportPop.do'						
+					 02	TB_TFILTER 'MYJCN' 레코드 추가
+					 03 TB_CHANGE_SET.Version Defalut = '1.0' 변경
+					 04 TB_WF_ALLOCATION.Precheck varchar(255) 추가
+					 
+DBCFG.20190722.046 : 01 TB_MY_DIM_VALUE.Seq ID 사양 Yes로 수정		
+                     02 TB_ITEM_CLASS.Subscription char(1) Add 
+                     
+DBCFG.20190801.047 : 01 TB_SCHEDULER.SchedulID --> ScheduleID로 변경        
+                     02 fn_GetObjectFromElement(리턴 변수 변경 Link --> LinkCount) , fn_GetExistObjectFromElement (리턴 변수 변경 및 선택된 모델에 Element가 존재하는지로 수정)
+                     03 fn_GetChangeSetRNUM 수정         
+                     
+DBCFG.20190822.048 : 01 TB_ELEMENT.EAT001 nvarchar(Max),EAT002, EAT003, EAT004, EAT005 필드 추가
+                     02 TB_ATTR_TYPE  EAT001(LOV), EAT002(TEXT), EAT003(TEXT), EAT004(TEXT), EAT005(TEXT) 레코드 추가
+                     03 TB_DICTIONARY TypeCode/Category/Name  EAT001/AT/EAT001 각각 추가        
+                     
+DBCFG.20190823.049 : 01 Procedure UPDATE_DEFSYMCODE_TOITEM  업데이트  : SB00009, SB00010 심볼 추가
+                     02 Procedure CREATE_BASEMODEL Multilane  생성기능 추가 
+                     03 Procedure TI_ITEM_BATCH(Sub procedure, fn 함수 포함) 업데이트
+
+DBCFG.20190917.050 : 01 MENU MN012 Search sub Item List, MN014 Multi Item tree mgt, MN023 My Page 레코드 추가
+                     02 Dic master  MENUCAT / Menu Category , Dictionary value 추가     
+                     03 TB_MODEL_DISPLAY.ScrnMode char(1) Def = 'C' 필드 추가 
+                     04 TB_DICTIONARY EMAILCODE/SCHDL/[Email Alarm] 추가             
+ 
+DBCFG.20190930.051 : 01 TB_MY_SCHEDULE 테이블 추가, TB_SCHEDULER.SchdlType Varchar(10) 추가            
+                     02 UPDATE XBOLTADM.TB_ARC SET [Level] = 1 UPDATE [XBOLTADM].[TB_ARC]  SET [Level] = 2 Where ParentID is Not Null  
+                     03 TB_EMAIL_FORM 테이블 추가    (레코드 업데이트 예정)
+                     04 TB_DICTIONAY LN00323(검토),LN00324(시작), LN00325(종료) 레코드 추가
+
+DBCFG.20191014.052 : 01 TB_EMAIL_FORM 레코드(7) 추가, OLM_DEMO 기준
+                     02 RP00045/itemMstListWLang.do 리포트 추가  , CL01001에 할당
+                     03 FILE_UPLOAD_BOARD_DIR = C://OLMFILE//board//  properties 수정, C://OLMFILE//base// 폴더 추가
+                     04 TB_ARC.IDFilter Int 추가 ( Not Null일 경우 Tree Identifer  Right IDFilter Value 출력)
+                     05 TB_ITEM_CLASS.VarFilter Varchar(255)  필드 추가
+                     06 TB_TEMPL.DefLanguageID Int 필드추가
+                     
+DBCFG.20191025.053 : 01 RP00046 exportMOJWLang.do 추가 ( Category MOJ Item 번역용 출력 리포트)
+                     02 ITEM_TYPE, ITEM_CLASS.ICON 이미지 수정
+						UPDATE [XBOLTADM].[TB_ITEM_TYPE]   SET  [Icon] = 'img_rule.png'  WHERE itemtypeCode = 'OJ00007'
+						UPDATE [XBOLTADM].[TB_ITEM_TYPE]   SET  [Icon] = 'img_doc_standard.png'  WHERE itemtypeCode = 'OJ00011'
+						UPDATE [XBOLTADM].[TB_ITEM_TYPE]   SET  [Icon] = 'img_book.png'  WHERE itemtypeCode = 'OJ00012'
+						UPDATE [XBOLTADM].[TB_ITEM_TYPE]   SET  [Icon] = 'img_product.png'  WHERE itemtypeCode = 'OJ00015'
+						UPDATE [XBOLTADM].[TB_ITEM_TYPE]   SET  [Icon] = 'img_doc_tech.png'  WHERE itemtypeCode = 'OJ00016'
+						
+						UPDATE [XBOLTADM].[TB_ITEM_CLASS]   SET  [Icon] = 'img_rule.png'  WHERE itemtypeCode = 'OJ00007'
+						UPDATE [XBOLTADM].[TB_ITEM_CLASS]   SET  [Icon] = 'img_doc_standard.png'  WHERE itemtypeCode = 'OJ00011'
+						UPDATE [XBOLTADM].[TB_ITEM_CLASS]   SET  [Icon] = 'img_book.png'  WHERE itemtypeCode = 'OJ00012'
+						UPDATE [XBOLTADM].[TB_ITEM_CLASS]   SET  [Icon] = 'img_product.png'  WHERE itemtypeCode = 'OJ00015'
+						UPDATE [XBOLTADM].[TB_ITEM_CLASS]   SET  [Icon] = 'img_doc_tech.png'  WHERE itemtypeCode = 'OJ00016'
+      		
+      				 03 TB_ITEM_HIER Table 추가, fn_GetMyParentName 함수 추가 (OLM_DEMO 참조)
+      				 04 TB_TEAM.SortNum Varchar(10) 추가 , 조직도 정렬 용
+      				 
+DBCFG.20191106.054 : 01 MN030 viewArcDefPage.do  / View architectue default page update	
+                     02 TB_PJT_MEMBER_REL.RoleDescription nvarchar(1000),PlanManDay Int , ActualManDay 추가 
+                     
+DBCFG.20191120.055 : 01 ESM_SR_MST.CurWFInstanceID varchar(20) 추가 
+                     02 DICAT CTSROLETP / CTS Role Type 추가,  TB_OLM_ROLE_TP CTSROLETP 레코드 추가, TB_DICTIONARY CTSROLETP 레코드 추가 , LN00306~LN00328 레코드 추가
+                     03 DB Batch 추가 쿼리
+                        DELETE FROM [XBOLTADM].[TB_ITEM]  where fromitemid = toitemid  and CategoryCode = 'ST1'  or (toitemID = 0 and CategoryCode = 'ST1')
+                     04 TB_BOARD.SRID Bigint 추가   
+                     05 TB_MEMBER_AGENT 추가
+                     06 LN00331(Check Out)/LN00332(Check In) 추가                     
+                     
+DBCFG.20191230.056 : 01 TB_WF_INST.CreatorTeamID bigint
+                  		UPDATE [XBOLTADM].[TB_WF_INST]   SET [CreatorTeamID] = WSI.ActorTeamID
+   						From XBOLTADM.TB_WF_STEP_INST WSI, XBOLTADM.TB_WF_INST WI WHERE WSI.WFInstanceID = WI.WFInstanceID and WSI.WFStepID = 'AREQ'
+                     02 TB_MEMBER.DefAccMode Varchar(10) 추가
+                     03 TB_OLM_DOC_CATEGORY.WFAprURL Varchar(200) 추가 : 결재 상세 화면 변수 처리용              
+                     04 TB_ELEMENT.DisplaySeq Int Default Value = 0 추가       
+
+==============  Year 2020 ===========================================================================================================
+                     
+DBCFG.20200120.001 : 01  TB_DIC_MASTER: SCRCLSCD 추가 / TB_DICTIONARY Category = SCRCLSCD 레코드 추가
+
+DBCFG.20200130.002 : 01  XBOLTAPP.ESM_* 테이블  추가
+                     02  fn_GetWfSubject, fn_GetLastEventCode , fn_GetNextEventCode , fn_GetSCRStatus DB 함수 추가
+                     03 TB_CONFIGURATION : 테이블 코드 재 정의, 기존 레코드 전체 삭제 후 DEMO DB 기준  신규  Insert 후  DICTiONARY DicCat = 'CFG' 인 레코드 전체 삭제 후 DEMO DB 값으로 신규 Insert
+                     04 TB_MENU.MN036 configEmail ,  MN037 configEvalType  기존 레코드 업데이트
+                     
+DBCFG.20200214.003 : 01 Proc Log Config Update 
+						UPDATE [XBOLTADM].[TB_PROC_LOG_CONFIG]   SET [FunctionNM] = 'createESRMst.do'  WHERE [FunctionNM] = 'saveNewItsp.do'
+						UPDATE [XBOLTADM].[TB_PROC_LOG_CONFIG]   SET [FunctionNM] = 'transferESR.do'  WHERE [FunctionNM] = 'transferReceiptUserItsp.do'  
+						UPDATE [XBOLTADM].[TB_PROC_LOG_CONFIG]   SET [FunctionNM] = 'completeESR.do'  WHERE [FunctionNM] = 'completionItsp.do'  
+						
+						UPDATE [XBOLTADM].[TB_PROC_LOG_CONFIG]   SET [FunctionNM] = 'createSCRMst.do'    WHERE [FunctionNM] = 'saveNewSCRInfo.do' 
+						UPDATE [XBOLTADM].[TB_PROC_LOG_CONFIG]   SET [FunctionNM] = 'completeSCR.do'     WHERE [FunctionNM] = 'completionSCR.do' 
+						UPDATE [XBOLTADM].[TB_PROC_LOG_CONFIG]   SET [FunctionNM] = 'reqSCRApproval.do'  WHERE [FunctionNM] = 'requestApproveSCR.do'                     
+                     02 TB_MEMBER.SuperiorID bigint 필드추가
+                     03 TB_VISIT_LOG.Comment nvarchar(255) 추가
+                     04 DICTIONARY 'LN00049', 'LN00050' 레코드 추가
+                     05 TB_SYMBOL_TYPE, SB00014, SB00016 레코드 업데이트(전체 레코드 OLM_DEMO 기준 업데이트 필요함
+                     
+DBCFG.20200227.004 : 01 TB_SYMBOL_TYPE.SB00020(Use Case), SB00021(Milestone) 심볼 추가            
+                     02 TB_ITEM_CLASS.CL14004 Milestone 레코드 추가    
+                     
+DBCFG.20200304.005 : 01 ESM_SR_MST.Blocked char(1) Not Null defValue = 0 필드 추가 
+                        UPDATE [XBOLTAPP].[ESM_SR_MST] SET  blocked = 1 WHERE status Not In ('SPE001', 'SPE002')
+                     02 fn_GetStartEventCode DB 함수 생성
+                     03 Dictionary  EMAILCODE/CSRNTC 레코드 추가
+                     04 XBOLTAPP.ESM_PROC_CONFIG 테이블 추가
+                     05 XBOLTAPP.PIM_PROC_INST , XBOLTAPP.PIM_ELM_INST 테이블 추가
+                     06 ESM.SR_MST.ProcInstanceKey >> ProcInstNo  , TB_PROJECT.ProcInstanceKey >> ProcInstNo 필드명 변경
+                     
+DBCFG.20200323.006 : 01 TB_ITEM.ReleaseNo Bigint Def. = 0 Not Null 필드추가          
+                     02 TI_UPDATE_ITEM_RELEASENO 프로시져  실행 (Mando, KDNVN, Hanwha, CJ, Daesang, KAIST)
+                     03 TV_ITEM_ATTR_REL DefAccMode(DEV,OPS) 로직 추가시 필요한 VIEW 추가 
+                     04 TI_CXN_CONSOLIDATION Model 중복된 CXN ITEM 제거 및 Element Object update 추가
+                     05 TB_SYMTYPE_ALLOCATION.SortNum Int, Creator Bignint, CreationTime Datetime 필드 추가
+                     06 ESM_SR_CAT.ItemTypeCode Varchar(10) 추가
+                     
+DBCFG.20200409.007 : 01 ESM_SR_AREA.ItemTypeCode Varchar(10) 추가              
+                     02 ESM_SR_MST.ItemTypeCode Varcahr(10) 추가
+                     03 TB_SYMTYPE_ALLOCATION 레코드 업데이트 OLM_DEMO 기준
+                     04 TB_SCHEDULER.StartAlarm Varchar(50), EndAlarm Varchar(50),AlarmOption Varchar(3) 추가
+                     05 fn_CheckItemUpdated	함수추가
+                     06 MN055 URL 수정 : cxnItemTreeMgt
+                     07 ESM_SR_TYPE.BoardMgtID Varchar(10) 추가
+                     
+DBCFG.20200501.008 : 01 TB_SCHEULER.DisclScope Varchar (10) , Default value = 'PUB' 추가              
+                     02 MN040(olmMainHomeV34) ,MN041(icpMgt) ,MN042(myITS), MN043(mySpaceV34) 추가                
+
+DBCFG.20200601.009 : 01 TB_ITEM_TYPE.DefColor Varchar(7) 추가          
+                     02 fn_GetSuperiorItemByClass : Item의 SR Area에 정의 상위 클래스 코드 구하는 함수 추가   
+                     03 XBOLTADM.OLM_SRSUMMARY_VIEW 수정
+
+DBCFG.20200707.010 : 01 TB_ITEM_TYPE.DefSRType Varchar(10) 추가                  
+                     02 TB_MODEL_TYPE.InfoTabURL Varchar(100) 추가   
+                     03 TB_ITEM_CLASS.DefCSRID bigint, MgtTeamID bigint 추가
+                     04 TB_ITEM_TYPE  OJ0000X, TB_ITEM_CLASS CLX0001 레코드 추가, TB_ITEM ItemID = 201 레코드 추가
+                     
+DBCFG.20200804.011 : 01 TB_ITEM_DIM.Description nvarchar(Max) 추가 
+                     02 LN000352 관리법인, Mgt. Company 추가
+                     03 TB_CHANGE_SET.Reason  varchar(10) --> nvarchar(1000) 수정

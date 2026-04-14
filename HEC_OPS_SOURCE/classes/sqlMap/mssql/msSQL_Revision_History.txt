@@ -1,0 +1,14 @@
+====Year 2019===========================================================================================================
+ 					  
+- MSSQL.20190228.5475 : item_SQL.getSubItemList_gridList           
+- MSSQL.20190306.5480 : item_SQL.getItemRevDetailInfo  
+- MSSQL.20190306.5517 : dim_SQL.selectDim_gridList,selectDimList_gridList,getDimensionLevel,selectDimSubLevelList_gridList
+- MSSQL.20190306.5517 : menu_SQL.assignDimension_treeList
+- MSSQL.20190320.5538 : dim_SQL.getDimSearchList_gridList, getDimTypeNameList 
+- MSSQL.20190328.5552 : sr_SQL.getSRItemTypeInfo
+- MSSQL.20190403.5599 : item_SQL.getClassOption, getMaxPreFixIdentifier
+- MSSQL.20190403.5599 : model_SQL.insertItemNew
+- MSSQL.20190402.5585 : NEW prm_SQL.xml 
+- MSSQL.20190618.6040 : fileMgt_SQL.xml updateFileBlockPreVersionWithCS
+
+                  

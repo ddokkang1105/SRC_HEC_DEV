@@ -1,0 +1,103 @@
+<%@ page contentType="text/html; charset=utf-8" pageEncoding="utf-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib uri="http://www.springframework.org/tags" prefix="spring" %>
+<c:url value="/" var="root"/> 
+<jsp:include page="/WEB-INF/jsp/template/tagInc.jsp" flush="true"/>
+<%@ include file="/WEB-INF/jsp/template/loadingInc.jsp"%>
+<link rel="stylesheet" type="text/css" href="<c:url value='/cmm/<%=GlobalVal.BASE_ATCH_URL%>/css/dhtmlx/dhtmlxgrid_treegrid.css'/>">
+<script src="<c:url value='/cmm/js/dhtmlx/dhtmlxTreeGrid/codebase/dhtmlxtreegrid.js'/>" type="text/javascript" charset="utf-8"></script> 
+
+<!-- 화면 표시 메세지 취득  -->
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.CM00001" var="CM00001"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.CM00012" var="CM00012"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00023" var="WM00023"/>
+ 
+<script type="text/javascript">
+	var gridArea;
+
+	$(document).ready(function(){
+		$("#grdElmArea").attr("style","height:"+(setWindowHeight() - 100)+"px;");
+		window.onresize = function() {
+			$("#grdElmArea").attr("style","height:"+(setWindowHeight() - 100)+"px;");
+		};
+		
+		setElmGridList();
+	});
+
+	function setWindowHeight(){var size = window.innerHeight;var height = 0;if( size == null || size == undefined){height = document.body.clientHeight;}else{height=window.innerHeight;}return height;}
+	
+	function setElmGridList(){
+		var treePData="${elmTreeXml}";
+	    gridArea = new dhtmlXGridObject('grdElmArea');
+	    gridArea.selMultiRows = true;
+	    gridArea.imgURL = "${root}${HTML_IMG_DIR_ITEM}/";
+		gridArea.setHeader("#master_checkbox,${menu.LN00028},roleID,objectID");
+		gridArea.setInitWidths("50,*,100,100");
+		gridArea.setColAlign("center,left,left,left");
+		gridArea.setColTypes("ch,tree,ro,ro");
+		gridArea.setColSorting("int,str,str,str");
+   	  	gridArea.init();
+		gridArea.setSkin("dhx_web");
+		gridArea.attachEvent("onCheck", function(rId,cInd,state){gridOnCheck(rId,cInd,state);});
+// 		gridArea.attachEvent("onRowSelect", function(id,ind){gridOnRowSelect(id,ind);});
+		gridArea.loadXMLString(treePData);
+		gridArea.setColumnHidden(2, true);
+		gridArea.setColumnHidden(3, true);
+		gridArea.enableTreeCellEdit(false);
+	}
+	
+	function gridOnCheck(rId,cInd,state){
+		var hasChild = gridArea.hasChildren(rId);
+		if (hasChild != 0){
+			var value = gridArea.cellById(rId,0).getValue();
+			var items = [];
+			items = gridArea.getSubItems(rId);
+			items = items.split(',');
+			if(value == '1'){
+				for(var i=0; i<items.length; i++){ gridArea.cells(items[i],0).setValue(1); }
+			} else {
+				for(var i=0; i<items.length; i++){ gridArea.cells(items[i],0).setValue(0); }
+			}
+		}
+	}
+	
+	function fnAddElements(){
+		if(gridArea.getCheckedRows(0).length == 0){
+			alert("${WM00023}");
+		} else {
+			if(confirm("${CM00012}")){
+				var checkedRows = gridArea.getCheckedRows(0).split(",");	
+				var elementID = new Array();
+				
+				for(var i = 0 ; i < checkedRows.length; i++ ){
+					var roleID =  gridArea.cells(checkedRows[i], 2).getValue();
+					var itemID =  gridArea.cells(checkedRows[i], 3).getValue();
+					if(itemID){
+						elementID.push(roleID+"_"+itemID);
+					}
+				}
+
+				opener.$("#checkElmts").val(elementID);
+				self.close();
+			}
+		} 
+	}
+</script>
+</head><body>
+<form name="procInstFrm" id="procInstFrm" action="#" method="post" onsubmit="return false;">
+	<input type="hidden" id="p_itemID" name="p_itemID"  value="${p_itemID}" />
+	<div class="child_search_head">
+		<p><img src="${root}${HTML_IMG_DIR}/icon_csr.png">&nbsp;&nbsp;Create Process Instance</p>
+	</div>
+	<div id="gridPtgDiv" class="mgB10 mgT10">
+		<div id="grdElmArea" style="width:100%;"></div>
+	</div>
+	<div id="objectInfoDiv" style="margin:0px 10px;" >
+
+	<div class="alignBTN mgB5 mgR10">
+		<span class="btn_pack medium icon"><span class="save"></span><input value="Save" onclick="fnAddElements()" type="button"></span>
+	</div>
+	</div>
+</form>
+<iframe id="saveFrame" name="saveFrame" style="display:none;width:0px;height:0px;"></iframe>
+</body></html>

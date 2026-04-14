@@ -1,0 +1,610 @@
+﻿<%@page import="java.util.ArrayList"%>
+<%@page contentType="application/msword; charset=utf-8"%>
+<%@page trimDirectiveWhitespaces="true" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<c:url value="/" var="root"/>
+
+<%@page import="java.io.*" %>
+<%@page import="java.util.Map" %>
+<%@page import="java.util.HashMap" %>
+<%@page import="java.util.List" %>
+<%@page import="xbolt.cmm.framework.util.StringUtil" %>
+<%@page import="xbolt.cmm.framework.val.GlobalVal" %>
+
+<%@page import="com.aspose.words.*" %>
+<%@page import="java.awt.Color" %>
+<%@page import="java.text.SimpleDateFormat" %>
+
+<%
+
+try{
+	
+	String LogoImgUrl = "";
+	String modelImgPath = GlobalVal.MODELING_DIGM_DIR;
+	String logoPath = GlobalVal.FILE_UPLOAD_TINY_DIR;
+	String defaultFont = String.valueOf(request.getAttribute("defaultFont"));
+ 	
+	License license = new License();
+	license.setLicense(logoPath + "Aspose.Words.lic");
+	
+	Document doc = new Document();
+	DocumentBuilder builder = new DocumentBuilder(doc);	
+	
+	Map menu = (Map)request.getAttribute("menu");
+ 	Map setMap = (HashMap)request.getAttribute("setMap");
+ 	List allSubItemList = (List)request.getAttribute("allSubItemList");
+	
+ 	Map attrRsNameMap = (Map)request.getAttribute("attrRsNameMap");
+ 	Map attrRsHtmlMap = (Map)request.getAttribute("attrRsHtmlMap");
+ 	
+ 	String selectedItemPath = String.valueOf(request.getAttribute("selectedItemPath"));
+ 	String selectedItemName = String.valueOf(request.getAttribute("selectedItemName"));
+ 	String includeClassCode = String.valueOf(request.getAttribute("includeClassCode"));
+ 	
+ 	double titleCellWidth = 60.0;
+ 	double contentCellWidth3 = 90.0;
+	double contentCellWidth = 165.0;
+	double mergeCellWidth = 390.0;
+	double totalCellWidth = 560.0;
+	String value = "";
+	String name = "";
+	String fontFamilyHtml = "<span style=\"font-family:"+defaultFont+"; font-size: 10pt;\">";
+//==================================================================================================
+	Section currentSection = builder.getCurrentSection();
+    PageSetup pageSetup = currentSection.getPageSetup();
+    
+    // page 여백 설정
+	builder.getPageSetup().setRightMargin(30);
+	builder.getPageSetup().setLeftMargin(30);
+	builder.getPageSetup().setBottomMargin(30);
+	builder.getPageSetup().setTopMargin(30);
+	
+	//builder.getPageSetup().setOrientation(Orientation.LANDSCAPE);
+	
+//==================================================================================================
+
+//=========================================================================
+// TODO : FOOTER
+	currentSection = builder.getCurrentSection();
+    pageSetup = currentSection.getPageSetup();
+    
+    pageSetup.setDifferentFirstPageHeaderFooter(false);
+    pageSetup.setFooterDistance(20);
+    builder.moveToHeaderFooter(HeaderFooterType.FOOTER_PRIMARY);
+    
+    builder.startTable();
+    builder.getCellFormat().getBorders().setLineWidth(0.0);
+    builder.getFont().setName(defaultFont);
+    builder.getFont().setColor(Color.BLACK);
+    builder.getFont().setSize(10);
+    
+ 	// 1.footer : Line
+ 	//builder.getParagraphFormat().setSpaceBefore(7);
+    builder.insertHtml("<hr size=2 color='silver'/>");
+ 	// 2.footer : logo
+    //builder.insertCell();
+    //builder.getCellFormat().setWidth(150.0);
+    //builder.getParagraphFormat().setAlignment(ParagraphAlignment.LEFT);
+    //String imageFileName = logoPath + "logo.png";
+    //builder.insertImage(imageFileName, 125, 25);
+ 	// 3.footer : current page / total page 
+    builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+    builder.insertCell();
+    builder.getCellFormat().setWidth(560.0);
+    // Set first cell to 1/3 of the page width.
+    builder.getCellFormat().setPreferredWidth(PreferredWidth.fromPercent(100 / 3));
+    // Insert page numbering text here.
+    // It uses PAGE and NUMPAGES fields to auto calculate current page number and total number of pages.
+    builder.insertField("PAGE", "");
+    builder.write(" / ");
+    builder.insertField("NUMPAGES", "");
+    
+ 	// 4.footer : current page / total page 
+    //builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+    //builder.insertCell();
+    //builder.getCellFormat().setWidth(150.0);
+    //builder.write("PI/ERP TFT");
+    
+    builder.endTable().setAllowAutoFit(false);
+        
+    builder.moveToDocumentEnd();
+//=========================================================================
+
+//==================================================================================================
+	// 머릿말 : START
+	currentSection = builder.getCurrentSection();
+    pageSetup = currentSection.getPageSetup();
+    pageSetup.setDifferentFirstPageHeaderFooter(false);
+    pageSetup.setHeaderDistance(20);
+    builder.moveToHeaderFooter(HeaderFooterType.HEADER_PRIMARY);
+    
+	builder.startTable();
+	builder.getRowFormat().clearFormatting();
+	builder.getCellFormat().clearFormatting();
+	builder.getRowFormat().setHeight(20.0);
+	builder.getRowFormat().setHeightRule(HeightRule.AT_LEAST);
+	
+	builder.insertCell();
+	builder.getCellFormat().getBorders().setColor(Color.WHITE);
+	builder.getCellFormat().getShading().setBackgroundPatternColor(Color.WHITE);
+	builder.getFont().setName(defaultFont);
+    builder.getFont().setBold(true);
+    builder.getFont().setColor(Color.BLUE);
+    builder.getFont().setSize(14);
+    builder.getParagraphFormat().setAlignment(ParagraphAlignment.RIGHT);
+    builder.write(selectedItemPath);
+   
+    builder.endRow();	
+    builder.endTable().setAllowAutoFit(false);	
+    
+    // 타이틀과 내용 사이 간격
+    builder.insertHtml("<hr size=2 color='silver'/>");
+    
+ 	// 머릿말 : END
+ 	builder.moveToDocumentEnd();
+  	//==================================================================================================
+	
+	builder = new DocumentBuilder(doc);
+	
+	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	
+	if (allSubItemList.size() > 0) {	
+		
+		for(int i=0; i < allSubItemList.size(); i++){
+			
+			Map itemInfo = (HashMap) allSubItemList.get(i);
+			Map prcList = (Map) itemInfo.get("prcList");
+			List relItemList = (List) itemInfo.get("relItemList");
+			List fileList = (List) itemInfo.get("fileList");
+			
+			builder.getFont().setSize(10);
+			builder.getFont().setColor(Color.BLACK);
+			builder.getFont().setName(defaultFont);
+			
+			builder.startTable();
+			builder.getRowFormat().clearFormatting();
+			builder.getCellFormat().clearFormatting();
+			
+			// Set features for the other rows and cells.
+			builder.getCellFormat().getShading().setBackgroundPatternColor(Color.WHITE);
+			builder.getCellFormat().setWidth(100.0);
+			builder.getCellFormat().setVerticalAlignment(CellVerticalAlignment.CENTER);
+			
+			// Reset height and define a different height rule for table body
+			builder.getRowFormat().setHeight(30.0);
+			builder.getRowFormat().setHeightRule(HeightRule.AUTO);
+ 			
+	    	builder.insertCell();
+		    builder.getCellFormat().getShading().setBackgroundPatternColor(new Color(249, 249, 249));
+			builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+			builder.getCellFormat().setVerticalAlignment(CellVerticalAlignment.CENTER);
+			builder.getFont().setSize(10);
+			builder.getFont().setBold (true);
+			builder.getFont().setColor(Color.BLACK);
+			builder.getFont().setName(defaultFont);
+			
+			builder.getCellFormat().setWidth(80.0);
+			builder.write(String.valueOf("프로세스 No."));
+			
+			builder.insertCell();
+			builder.getCellFormat().getShading().setBackgroundPatternColor(Color.WHITE);	
+			builder.getParagraphFormat().setAlignment(ParagraphAlignment.LEFT);
+			builder.getFont().setBold (false);
+		   	builder.getCellFormat().setWidth(120.0);
+		   	builder.write(StringUtil.checkNullToBlank(prcList.get("Identifier")));
+		   	
+		   	builder.insertCell();
+		    builder.getCellFormat().getShading().setBackgroundPatternColor(new Color(249, 249, 249));
+		    builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+		    builder.getFont().setBold (true);
+			builder.getCellFormat().setWidth(80.0);
+			builder.write(String.valueOf("Rev. No."));
+			
+			builder.insertCell();
+			builder.getCellFormat().getShading().setBackgroundPatternColor(Color.WHITE);	
+			builder.getParagraphFormat().setAlignment(ParagraphAlignment.LEFT);
+			builder.getFont().setBold (false);
+			builder.getCellFormat().setWidth(120.0);
+			builder.write(StringUtil.checkNullToBlank(prcList.get("Version")));
+			
+			builder.insertCell();		
+			builder.getCellFormat().getShading().setBackgroundPatternColor(new Color(249, 249, 249));
+			builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+		    builder.getFont().setBold (true);
+			builder.getCellFormat().setWidth(80.0);
+			builder.write(String.valueOf("Rev. Date"));
+			
+			builder.insertCell();
+			builder.getCellFormat().getShading().setBackgroundPatternColor(Color.WHITE);	
+			builder.getParagraphFormat().setAlignment(ParagraphAlignment.LEFT);
+			builder.getFont().setBold (false);
+			builder.getCellFormat().setWidth(120.0);
+			builder.write(StringUtil.checkNullToBlank(prcList.get("LastUpdated")));
+			
+			builder.insertCell();		
+			builder.getCellFormat().getShading().setBackgroundPatternColor(new Color(249, 249, 249));
+			builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+		    builder.getFont().setBold (true);
+			builder.getCellFormat().setWidth(80.0);
+			builder.write(String.valueOf("작성자")); // 작성자
+			
+			builder.insertCell();
+			builder.getCellFormat().getShading().setBackgroundPatternColor(Color.WHITE);	
+			builder.getParagraphFormat().setAlignment(ParagraphAlignment.LEFT);
+			builder.getFont().setBold (false);
+			builder.getCellFormat().setWidth(120.0);
+			builder.write(StringUtil.checkNullToBlank(prcList.get("Name")));
+			
+			builder.endRow();
+			//===========================================================================================================
+			
+		    builder.getCellFormat().getShading().setBackgroundPatternColor(new Color(249, 249, 249));
+			builder.getCellFormat().setVerticalAlignment(CellVerticalAlignment.CENTER);
+			builder.getFont().setSize(10);
+			builder.getFont().setBold (true);
+			builder.getFont().setColor(Color.BLACK);
+			builder.getFont().setName(defaultFont);
+			builder.insertCell();
+			builder.getCellFormat().setWidth(80.0);
+			builder.write(String.valueOf("조직구분")); // 조직구분
+			
+			builder.insertCell();
+			builder.getCellFormat().getShading().setBackgroundPatternColor(Color.WHITE);	
+			builder.getParagraphFormat().setAlignment(ParagraphAlignment.LEFT);
+			builder.getFont().setBold (false);
+		   	builder.getCellFormat().setWidth(120.0);		   
+			builder.write(StringUtil.checkNullToBlank(prcList.get("")));
+		   	
+		   	builder.insertCell();
+		    builder.getCellFormat().getShading().setBackgroundPatternColor(new Color(249, 249, 249));
+		    builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+		    builder.getFont().setBold (true);
+			builder.getCellFormat().setWidth(80.0);
+			builder.write(String.valueOf("분류체계")); // 분류체계
+			
+			builder.insertCell();
+			builder.getCellFormat().getShading().setBackgroundPatternColor(Color.WHITE);	
+			builder.getParagraphFormat().setAlignment(ParagraphAlignment.LEFT);
+			builder.getFont().setBold (false);
+			builder.getCellFormat().setWidth(120.0);
+			builder.write(StringUtil.checkNullToBlank(prcList.get("Path")));
+			
+			builder.endRow();
+			
+			//===========================================================================================================
+			
+			builder.getCellFormat().getShading().setBackgroundPatternColor(new Color(249, 249, 249));
+			builder.getCellFormat().setVerticalAlignment(CellVerticalAlignment.CENTER);
+			builder.getFont().setSize(10);
+			builder.getFont().setBold (true);
+			builder.getFont().setColor(Color.BLACK);
+			builder.getFont().setName(defaultFont);
+			builder.insertCell();
+			builder.getCellFormat().setWidth(80.0);
+			builder.write(String.valueOf("주관조직")); // 주관조직
+			
+			builder.insertCell();
+			builder.getCellFormat().getShading().setBackgroundPatternColor(Color.WHITE);	
+			builder.getParagraphFormat().setAlignment(ParagraphAlignment.LEFT);
+			builder.getFont().setBold (false);
+			builder.getCellFormat().setWidth(120.0);
+			builder.write(StringUtil.checkNullToBlank(prcList.get("OwnerTeamName")));
+			
+			builder.insertCell();		
+			builder.getCellFormat().getShading().setBackgroundPatternColor(new Color(249, 249, 249));
+			builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+		    builder.getFont().setBold (true);
+			builder.getCellFormat().setWidth(80.0);
+			builder.write(String.valueOf("유관조직")); // 유관조직
+			
+			builder.insertCell();
+			builder.getCellFormat().getShading().setBackgroundPatternColor(Color.WHITE);	
+			builder.getParagraphFormat().setAlignment(ParagraphAlignment.LEFT);
+			builder.getFont().setBold (false);
+			builder.getCellFormat().setWidth(120.0);
+			
+			String relRoleList =  "";
+			List roleList = (List) itemInfo.get("roleList");
+			for(int j=0; j<roleList.size(); j++){
+				Map temp = (Map) roleList.get(j);
+				String teamRoletype = StringUtil.checkNull(temp.get("TeamRoletype"));
+				if(teamRoletype.equals("REL")){
+					if(relRoleList.equals("")) {relRoleList += temp.get("TeamNM");}
+					else {relRoleList += ","+temp.get("TeamNM");}
+					
+				}
+			}
+			
+			builder.write(StringUtil.checkNullToBlank(relRoleList));
+			builder.endRow();
+			builder.endTable().setAllowAutoFit(false);	
+			
+			// AttrList ====================================================================================
+			builder.insertHtml("<br>");
+			List attrList = (List) itemInfo.get("attrList");
+			if(attrList.size()>0){
+				for(int j=0; j < attrList.size(); j++){
+					Map attrInfoMap = (Map)attrList.get(j);
+					String attrTypeCode = StringUtil.checkNullToBlank(attrInfoMap.get("AttrTypeCode"));
+					
+					if(attrTypeCode.equals("AT00501")){
+						builder.getFont().setBold (true);
+						builder.writeln( StringUtil.checkNullToBlank(attrInfoMap.get("Name")));
+						builder.startTable();
+						builder.getCellFormat().getShading().setBackgroundPatternColor(new Color(249, 249, 249));
+						builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+						builder.getCellFormat().setVerticalAlignment(CellVerticalAlignment.CENTER);
+						builder.getFont().setSize(10);
+						builder.getFont().setBold (false);
+						builder.getFont().setColor(Color.BLACK);
+						builder.getFont().setName(defaultFont);
+						
+						builder.insertCell();
+						builder.getCellFormat().getShading().setBackgroundPatternColor(Color.WHITE);	
+						builder.getCellFormat().setWidth(500.0);
+						builder.getParagraphFormat().setAlignment(ParagraphAlignment.LEFT);
+						
+						String plainText = StringUtil.checkNullToBlank(attrInfoMap.get("PlainText")).replaceAll("&lt;","<").replaceAll("&gt;", ">").replaceAll("&quot;","\"").replace("/upload", logoPath);
+						String html = StringUtil.checkNull(attrInfoMap.get("HTML"));
+						if ("1".equals(html)) { // type이 HTML인 경우
+			 	 			if(plainText.contains("font-family")){
+			 	 				builder.insertHtml(plainText);
+			 	 			}else{
+			 	 				builder.insertHtml(fontFamilyHtml+plainText+"</span>");
+			 	 			}
+			 	 		} else {
+			 	 			builder.getFont().setBold(false);
+			 	 			builder.write(plainText); // 개요 : 내용
+			 	 		}
+						
+						builder.endRow();
+						builder.endTable().setAllowAutoFit(false);	
+					}
+				}
+			}
+			
+			// 관련 Process===========================================================================================================
+			builder.insertHtml("<br>");
+			builder.getParagraphFormat().setAlignment(ParagraphAlignment.LEFT);
+			builder.getFont().setBold(true);
+			builder.writeln("관련 Process");
+			
+			builder.startTable();
+			builder.getCellFormat().getShading().setBackgroundPatternColor(new Color(249, 249, 249));
+			builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+			builder.getCellFormat().setVerticalAlignment(CellVerticalAlignment.CENTER);
+			builder.getFont().setSize(10);
+			builder.getFont().setBold(true);
+			builder.getFont().setColor(Color.BLACK);
+			builder.getFont().setName(defaultFont);
+			builder.insertCell();
+			
+			builder.getCellFormat().setWidth(50);
+			builder.write(String.valueOf(menu.get("LN00042"))); // 구분
+
+			builder.insertCell();
+			builder.getCellFormat().setWidth(80);
+			builder.write("Process ID"); // Process ID
+
+			builder.insertCell();
+			builder.getCellFormat().setWidth(150);
+			builder.write("프로세스명 ID"); // 프로세스명
+
+			builder.insertCell();
+			builder.getCellFormat().setWidth(80);
+			builder.write("관련 Activity No."); // 관련 Activity No.
+			builder.endRow();
+			
+			builder.getCellFormat().getShading().setBackgroundPatternColor(Color.WHITE);
+			builder.getFont().setBold (false);
+			Map cxnMap1 = new HashMap();
+			for(int j=0; j<relItemList.size(); j++){
+				cxnMap1 = (HashMap) relItemList.get(j);
+				String itemTypeCode = StringUtil.checkNull(cxnMap1.get("ItemTypeCode"));
+			    if(itemTypeCode.equals("OJ00001")){
+					builder.insertCell();
+				   	builder.getCellFormat().setWidth(50);
+					builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+					builder.write(StringUtil.checkNullToBlank(cxnMap1.get("TypeName")));
+					
+					builder.insertCell();
+				   	builder.getCellFormat().setWidth(80);
+					builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+					builder.write(StringUtil.checkNullToBlank(cxnMap1.get("Identifier")));
+					
+					builder.insertCell();
+				   	builder.getCellFormat().setWidth(150);
+					builder.getParagraphFormat().setAlignment(ParagraphAlignment.LEFT);
+					builder.write(StringUtil.checkNullToBlank(cxnMap1.get("ItemName")));
+					
+					builder.insertCell();
+				   	builder.getCellFormat().setWidth(80);
+					builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+					builder.write("-");
+					
+					builder.endRow();
+			    }
+			}
+			
+			builder.endTable().setAllowAutoFit(false);	
+			
+			// 관련 VELL===========================================================================================================
+			builder.insertHtml("<br>");
+			builder.getParagraphFormat().setAlignment(ParagraphAlignment.LEFT);
+			builder.writeln("관련 VELL");
+			
+			builder.startTable();
+			builder.getCellFormat().getShading().setBackgroundPatternColor(new Color(249, 249, 249));
+			builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+			builder.getCellFormat().setVerticalAlignment(CellVerticalAlignment.CENTER);
+			builder.getFont().setSize(10);
+			builder.getFont().setBold(true);
+			builder.getFont().setColor(Color.BLACK);
+			builder.getFont().setName(defaultFont);
+			builder.insertCell();
+			
+			builder.getCellFormat().setWidth(30);
+			builder.write(String.valueOf(menu.get("LN00042"))); // 구분
+
+			builder.insertCell();
+			builder.getCellFormat().setWidth(70);
+			builder.write("Doc. No."); // Doc. No.
+
+			builder.insertCell();
+			builder.getCellFormat().setWidth(100);
+			builder.write("사업명"); // 사업명
+
+			builder.insertCell();
+			builder.getCellFormat().setWidth(100);
+			builder.write("Phase"); // Phase
+			
+			builder.insertCell();
+			builder.getCellFormat().setWidth(100);
+			builder.write("Doc. Title"); // Doc. Title
+			
+			builder.insertCell();
+			builder.getCellFormat().setWidth(80);
+			builder.write("관련 Activity No."); // 관련 Activity No.
+			builder.endRow();
+			
+			builder.getCellFormat().getShading().setBackgroundPatternColor(Color.WHITE);
+			builder.getFont().setBold (false);
+			Map cxnMap2 = new HashMap();
+			for(int j=0; j<relItemList.size(); j++){
+				cxnMap2 = (HashMap) relItemList.get(j);
+				String itemTypeCode = StringUtil.checkNull(cxnMap2.get("ItemTypeCode"));
+			    if(itemTypeCode.equals("OJ00012")){
+					builder.insertCell();
+				   	builder.getCellFormat().setWidth(30);
+					builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+					builder.write(StringUtil.checkNullToBlank(cxnMap2.get("ClassName")));
+					
+					builder.insertCell();
+				   	builder.getCellFormat().setWidth(70);
+					builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+					builder.write(StringUtil.checkNullToBlank(cxnMap2.get("Identifier")));
+					
+					builder.insertCell();
+				   	builder.getCellFormat().setWidth(100);
+					builder.getParagraphFormat().setAlignment(ParagraphAlignment.LEFT);
+					builder.write(StringUtil.checkNullToBlank(cxnMap2.get("ParentName")));
+					
+					builder.insertCell();
+				   	builder.getCellFormat().setWidth(100);
+					builder.getParagraphFormat().setAlignment(ParagraphAlignment.LEFT);
+					builder.write(StringUtil.checkNullToBlank(cxnMap2.get("getPath")));
+					
+					builder.insertCell();
+				   	builder.getCellFormat().setWidth(100);
+					builder.getParagraphFormat().setAlignment(ParagraphAlignment.LEFT);
+					builder.write(StringUtil.checkNullToBlank(cxnMap2.get("ItemName")));
+					
+					builder.insertCell();
+				   	builder.getCellFormat().setWidth(80);
+					builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+// 					cxnMap2.get("cxnList");
+					builder.write("-");
+					
+					builder.endRow();
+			    }
+			}
+			
+			builder.endTable().setAllowAutoFit(false);	
+			
+			// 관련 VELL===========================================================================================================
+			builder.insertHtml("<br>");
+			builder.getParagraphFormat().setAlignment(ParagraphAlignment.LEFT);
+			builder.writeln("첨부파일");
+			
+			builder.startTable();
+			builder.getCellFormat().getShading().setBackgroundPatternColor(new Color(249, 249, 249));
+			builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+			builder.getCellFormat().setVerticalAlignment(CellVerticalAlignment.CENTER);
+			builder.getFont().setSize(10);
+			builder.getFont().setBold(true);
+			builder.getFont().setColor(Color.BLACK);
+			builder.getFont().setName(defaultFont);
+			
+			builder.insertCell();
+			builder.getCellFormat().setWidth(30);
+			builder.write("No"); // No
+
+			builder.insertCell();
+			builder.getCellFormat().setWidth(70);
+			builder.write("문서유형"); // 문서유형
+
+			builder.insertCell();
+			builder.getCellFormat().setWidth(120);
+			builder.write("문서명"); // 문서명
+			
+			builder.insertCell();
+			builder.getCellFormat().setWidth(70);
+			builder.write("작성자"); // 작성자
+			
+			builder.insertCell();
+			builder.getCellFormat().setWidth(70);
+			builder.write("등록일"); // 등록일
+			builder.endRow();
+			
+			builder.getCellFormat().getShading().setBackgroundPatternColor(Color.WHITE);
+			builder.getFont().setBold (false);
+			Map fileMap = new HashMap();
+			for(int j=1; j<fileList.size(); j++){
+				fileMap = (HashMap) fileList.get(j);
+				builder.insertCell();
+			   	builder.getCellFormat().setWidth(50);
+				builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+				builder.write(String.valueOf(j));
+				
+				builder.insertCell();
+			   	builder.getCellFormat().setWidth(70);
+				builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+				builder.write(StringUtil.checkNullToBlank(fileMap.get("FltpName")));
+				
+				builder.insertCell();
+			   	builder.getCellFormat().setWidth(120);
+				builder.getParagraphFormat().setAlignment(ParagraphAlignment.LEFT);
+				builder.write(StringUtil.checkNullToBlank(fileMap.get("FileRealName")));
+				
+				builder.insertCell();
+			   	builder.getCellFormat().setWidth(70);
+				builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+				builder.write(StringUtil.checkNullToBlank(fileMap.get("WriteUserNM")));
+				
+				builder.insertCell();
+			   	builder.getCellFormat().setWidth(70);
+				builder.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
+				builder.write(StringUtil.checkNullToBlank(fileMap.get("LastUpdated")));
+								
+				builder.endRow();
+			}
+			
+			builder.endTable().setAllowAutoFit(false);	
+			
+		}	
+		builder.insertHtml("<br>");
+		
+		
+	}
+	
+	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	
+	SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddHHmmss");
+	long date = System.currentTimeMillis();
+    String fileName = "SOP_Report_" + selectedItemName + "_" + formatter.format(date) + ".docx";
+    response.setContentType("application/msword");
+    response.setCharacterEncoding("UTF-8");
+    response.setHeader("content-disposition","attachment; filename=" + fileName);
+    
+    doc.save(response.getOutputStream(), SaveFormat.DOCX);
+
+} catch(Exception e){
+	e.printStackTrace();
+	
+} finally{
+	response.getOutputStream().flush();
+	response.getOutputStream().close();
+}
+
+%>
+

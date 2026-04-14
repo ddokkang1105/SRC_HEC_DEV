@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+        
+<mapper namespace="procLog_SQL">
+
+	<select id="procLogConfigList_select" resultType="java.util.HashMap">
+		SELECT	/* getProcLogConfig */
+			FunctionNM,PIDParameter,ActionParameter, EventParameter, EventValue,ActivityCD , CommentParameter
+		FROM XBOLTADM.TB_PROC_LOG_CONFIG
+		<where>
+			<if test="FunctionNM != null and FunctionNM != ''">
+				FunctionNM = #{FunctionNM}
+			</if>
+		</where>	
+	</select>
+	
+	<select id="procLog_nextVal" resultType="String">
+		SELECT ISNULL(MAX(SEQ)+1,'1') AS ID_NEXTVAL FROM XBOLTADM.TB_PROC_LOG
+	</select>	
+	
+	<insert id="insertProcLog" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_PROC_LOG
+			(
+				 PType
+				,ActivityID 
+				,PID 
+				,ActionID 
+				,TeamID 
+				,ActorID 
+				,Comment 
+				,StartTime 
+				,EndTime 
+
+			) VALUES (
+				  'ITSP'
+				, #{ActivityCD}
+				, #{PID}
+				, #{ActionID}
+				, #{TeamID}
+				, #{ActorID}
+				, #{Comment}
+				, #{StartTime}
+				, getDate()
+			)
+	</insert>	
+	
+	<select id="getESMProcConfig" resultType="java.util.HashMap">
+		Select SRType, FunctionNM, PIDParameter, PIDParameter1, ActionParameter, EventParameter, EventValue, SpeCode, ProcPathID, CommentParameter
+		From XBOLTAPP.ESM_PROC_CONFIG
+		<where>
+			<if test="FunctionNM != null and FunctionNM != ''">
+		    FunctionNM = #{FunctionNM}
+		    </if>
+		    <if test="srType != null and srType != ''">
+		    And SRType = #{srType}
+		    </if>
+		</where>
+	</select>
+
+</mapper>

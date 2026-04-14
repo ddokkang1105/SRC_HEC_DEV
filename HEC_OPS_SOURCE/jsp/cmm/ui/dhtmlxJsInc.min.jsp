@@ -1,0 +1,23 @@
+<%@ page import="xbolt.cmm.framework.val.GlobalVal"%>
+<%@ page language="java" contentType="text/html; charset=utf-8" pageEncoding="utf-8" session="true"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<c:url value="/" var="root"/>
+
+<!-- dhtmlx grid -->
+<link rel="stylesheet" type="text/css" href="${root}cmm/<%=GlobalVal.BASE_ATCH_URL%>/css/dhtmlx/dhtmlxgrid_base.css">
+
+<!-- dhtmlx  layout -->
+<link rel="stylesheet" type="text/css" href="${root}cmm/js/dhtmlx/dhtmlxLayout/codebase/skins/dhtmlxlayout_dhx_skyblue.css" media="screen" title="no title"/> 
+<script src="${root}cmm/js/dhtmlx/dhtmlxLayout/codebase/dhtmlxcommon.js" type="text/javascript" charset="utf-8"></script> 
+<script src="${root}cmm/js/dhtmlx/dhtmlxLayout/codebase/dhtmlxlayout.js" type="text/javascript" charset="utf-8"></script> 
+<script src="${root}cmm/js/dhtmlx/dhtmlxLayout/codebase/dhtmlxcontainer.js"></script> 
+
+<!-- TREE LAYOUT STYLE -->
+<style>
+table.dhtmlxLayoutPolyContainer_dhx_skyblue td.dhtmlxLayoutSinglePoly div.dhtmlxPolyInfoBar{height:43px;}
+/* table.dhtmlxLayoutPolyContainer_dhx_skyblue td.dhtmlxLayoutSinglePoly div.dhtmlxPolyInfoBar div.dhtmlxInfoBarLabel{top:10px;} */
+/* table.dhtmlxLayoutPolyContainer_dhx_skyblue td.dhtmlxLayoutSinglePoly div.dhtmlxPolyInfoBar div.dhtmlxInfoButtonShowHide_hor{top:10px;} */
+table.dhtmlxLayoutPolyContainer_dhx_skyblue td.dhtmlxLayoutSinglePoly div.dhtmlxPolyInfoBar div.dhtmlxInfoButtonShowHide_ver{top:10px;}
+table.dhtmlxLayoutPolyContainer_dhx_skyblue div.dhtmlxPolyInfoBar div.dhtmlxLineL{border-left-width:0px;}
+table.dhtmlxLayoutPolyContainer_dhx_skyblue div.dhtmlxPolyInfoBar div.dhtmlxLineR{border-right-width:0px;}
+</style>

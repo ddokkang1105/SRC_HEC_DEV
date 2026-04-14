@@ -1,0 +1,71 @@
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/olm_dev/!svn/ver/9260/OLM3/WebContent/WEB-INF/jsp/itm/itemInfo
+END
+itemPageView.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svn/olm_dev/!svn/ver/8787/OLM3/WebContent/WEB-INF/jsp/itm/itemInfo/itemPageView.jsp
+END
+compareAttribute.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/svn/olm_dev/!svn/ver/8959/OLM3/WebContent/WEB-INF/jsp/itm/itemInfo/compareAttribute.jsp
+END
+NewItemInfoMain.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/svn/olm_dev/!svn/ver/9243/OLM3/WebContent/WEB-INF/jsp/itm/itemInfo/NewItemInfoMain.jsp
+END
+compareAttributePop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 91
+/svn/olm_dev/!svn/ver/8959/OLM3/WebContent/WEB-INF/jsp/itm/itemInfo/compareAttributePop.jsp
+END
+editItemInfo.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svn/olm_dev/!svn/ver/7109/OLM3/WebContent/WEB-INF/jsp/itm/itemInfo/editItemInfo.jsp
+END
+viewItemProperty.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/svn/olm_dev/!svn/ver/9174/OLM3/WebContent/WEB-INF/jsp/itm/itemInfo/viewItemProperty.jsp
+END
+NewItemInfoMainForPrint.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 95
+/svn/olm_dev/!svn/ver/9089/OLM3/WebContent/WEB-INF/jsp/itm/itemInfo/NewItemInfoMainForPrint.jsp
+END
+viewProcProperty.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/svn/olm_dev/!svn/ver/8787/OLM3/WebContent/WEB-INF/jsp/itm/itemInfo/viewProcProperty.jsp
+END
+itemClassMenu.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/olm_dev/!svn/ver/9260/OLM3/WebContent/WEB-INF/jsp/itm/itemInfo/itemClassMenu.jsp
+END
+editChildItemAttrList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 93
+/svn/olm_dev/!svn/ver/9121/OLM3/WebContent/WEB-INF/jsp/itm/itemInfo/editChildItemAttrList.jsp
+END
+viewVersionItemInfo.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 91
+/svn/olm_dev/!svn/ver/9089/OLM3/WebContent/WEB-INF/jsp/itm/itemInfo/viewVersionItemInfo.jsp
+END

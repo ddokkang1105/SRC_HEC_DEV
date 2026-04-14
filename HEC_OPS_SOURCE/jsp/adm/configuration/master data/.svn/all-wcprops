@@ -1,0 +1,101 @@
+K 25
+svn:wc:ra_dav:version-url
+V 86
+/svn/olm_dev/!svn/ver/9230/OLM3/WebContent/WEB-INF/jsp/adm/configuration/master%20data
+END
+addReportCodeAlloc.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 109
+/svn/olm_dev/!svn/ver/4234/OLM3/WebContent/WEB-INF/jsp/adm/configuration/master%20data/addReportCodeAlloc.jsp
+END
+SubReportAllocation.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 110
+/svn/olm_dev/!svn/ver/6338/OLM3/WebContent/WEB-INF/jsp/adm/configuration/master%20data/SubReportAllocation.jsp
+END
+AllocateClassType.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 108
+/svn/olm_dev/!svn/ver/6684/OLM3/WebContent/WEB-INF/jsp/adm/configuration/master%20data/AllocateClassType.jsp
+END
+SubAttributeTypeAllocation.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 117
+/svn/olm_dev/!svn/ver/5427/OLM3/WebContent/WEB-INF/jsp/adm/configuration/master%20data/SubAttributeTypeAllocation.jsp
+END
+ClassTypeView.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 104
+/svn/olm_dev/!svn/ver/9230/OLM3/WebContent/WEB-INF/jsp/adm/configuration/master%20data/ClassTypeView.jsp
+END
+DefineConnectionTypeGrid.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 115
+/svn/olm_dev/!svn/ver/9214/OLM3/WebContent/WEB-INF/jsp/adm/configuration/master%20data/DefineConnectionTypeGrid.jsp
+END
+addAttrTypeCode.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 106
+/svn/olm_dev/!svn/ver/4234/OLM3/WebContent/WEB-INF/jsp/adm/configuration/master%20data/addAttrTypeCode.jsp
+END
+addFileAllocPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 106
+/svn/olm_dev/!svn/ver/4234/OLM3/WebContent/WEB-INF/jsp/adm/configuration/master%20data/addFileAllocPop.jsp
+END
+DefineObjectTypeGrid.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 111
+/svn/olm_dev/!svn/ver/6567/OLM3/WebContent/WEB-INF/jsp/adm/configuration/master%20data/DefineObjectTypeGrid.jsp
+END
+AttributeTypeView.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 108
+/svn/olm_dev/!svn/ver/4232/OLM3/WebContent/WEB-INF/jsp/adm/configuration/master%20data/AttributeTypeView.jsp
+END
+SubFile.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 98
+/svn/olm_dev/!svn/ver/4447/OLM3/WebContent/WEB-INF/jsp/adm/configuration/master%20data/SubFile.jsp
+END
+SubListOfValue.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 105
+/svn/olm_dev/!svn/ver/4286/OLM3/WebContent/WEB-INF/jsp/adm/configuration/master%20data/SubListOfValue.jsp
+END
+connectionTypeView.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 109
+/svn/olm_dev/!svn/ver/5021/OLM3/WebContent/WEB-INF/jsp/adm/configuration/master%20data/connectionTypeView.jsp
+END
+objectTypeView.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 105
+/svn/olm_dev/!svn/ver/5021/OLM3/WebContent/WEB-INF/jsp/adm/configuration/master%20data/objectTypeView.jsp
+END
+SubAttributeType_SortNum.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 115
+/svn/olm_dev/!svn/ver/5427/OLM3/WebContent/WEB-INF/jsp/adm/configuration/master%20data/SubAttributeType_SortNum.jsp
+END
+DefineAttributeTypeGrid.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 114
+/svn/olm_dev/!svn/ver/9067/OLM3/WebContent/WEB-INF/jsp/adm/configuration/master%20data/DefineAttributeTypeGrid.jsp
+END

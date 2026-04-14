@@ -1,0 +1,111 @@
+<%@ page contentType="text/html; charset=utf-8" pageEncoding="utf-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="tiles" uri="http://tiles.apache.org/tags-tiles" %>
+<%@ taglib uri="http://www.springframework.org/tags" prefix="spring" %>
+<c:url value="/" var="root"/>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"></meta>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge; charset=utf-8"></meta>
+<!-- 1. Include JSP -->
+<%@ include file="/WEB-INF/jsp/template/tagInc.jsp"%>
+	
+<script type="text/javascript">
+
+$(document).ready(function(){
+	setorgFrame('ownerItemList','1', 'team');
+});
+
+function setorgFrame(avg, avg2, avg3){
+	
+	var url = avg+".do";
+	var data="languageID=${sessionScope.loginInfo.sessionCurrLangType}"
+			+"&s_itemID=${id}"
+			+"&option=${option}"
+			+"&getAuth=${sessionScope.loginInfo.sessionLogintype}"
+			+"&ownerType="+avg3		
+			+"&teamID=${getMap.TeamID}"
+			+"&teamManagerID=${getMap.TeamManagerID}";
+		
+	var target="orgFrame";
+	
+	ajaxPage(url,data,target);
+	
+	for(var i = 0 ; i < 5; i++){
+		if(i == avg2){
+			$("#pliOM"+i).addClass("on");
+		}else{
+			$("#pliOM"+i).removeClass("on");
+		}
+	}
+}
+	
+</script>
+</head>
+<body>
+<div class=" pdT10 pdB10 pdR10 pdL10">
+	<form name="orgInfo" id="orgInfo" action="#" method="post" onsubmit="return false;">
+		
+		<div class="msg">
+			<img src="${root}${HTML_IMG_DIR}/icon_folder_upload_title.png" style="width:20px;" class="mgR5">&nbsp;Organization Info.		
+		</div>
+		
+		<table class="tbl_blue01 mgT10 mgB40" width="100%" border="0" cellpadding="0"	cellspacing="0">
+			<colgroup>
+				<col width="10%">
+				<col width="27%">
+				<col width="10%">
+				<col width="27%">
+				<col width="14%">
+				<col width="12%">
+			</colgroup>
+			
+			<tr>
+				<th class="alignL pdL10">${menu.LN00028}</th>
+				<td class="alignL pdL10">${getMap.OrgName}</td>
+				<th class="alignL pdL10">${menu.LN00164}</th>
+				<td class="alignL pdL10">${getMap.TeamCode}</td>
+				<th class="alignL pdL10">Manager</th>
+				<td class="alignL pdL10 last">${getMap.TeamManagerNM}</td>
+			</tr>
+			
+			<tr>
+				<th class="alignL pdL10">${menu.LN00014}</th>
+				<td class="alignL pdL10">${getMap.CompanyName}</td>
+				<th class="alignL pdL10">${menu.LN00162}</th>
+				<td class="alignL pdL10">${getMap.ParentOrgPath}</td>
+				<th class="alignL pdL10">Team Type</th>
+				<td class="alignL pdL10 last">${getMap.TeamTypeNM}</td>
+			</tr>
+			
+			<tr>
+				<th class="alignL pdL10">${menu.LN00288}</th>
+				<td class="alignL pdL10">${authorNM}</td>
+				<th class="alignL pdL10">Role Manager</th>
+				<td class="alignL pdL10">${getMap.RoleManagerNM}</td>
+				<th class="alignL pdL10">No. of Change(1 Year)</th>
+				<td class="alignL pdL10 last">${CSCNT}</td>
+			</tr>
+			
+		</table>
+	
+	</form>
+	
+	
+	<div class="cmm_subTab mgB10">
+		<ul>
+			<li id="pliOM1"><a href="javascript:setorgFrame('ownerItemList','1','team');"><span>${menu.LN00190}</span></a></li>			
+			<li id="pliOM2"><a href="javascript:setorgFrame('teamRoleMgt','2');"><span>${menu.LN00119}</span></a></li>	
+			<c:if test="${loginInfo.sessionMlvl == 'SYS'}">	
+			<li id="pliOM3"><a href="javascript:setorgFrame('childOrgMgt','3');"><span>${menu.LN00048}</span> </a></li>
+			</c:if>
+			<li id="pliOM4"><a href="javascript:setorgFrame('orgMemberMgt','4');"><span>${menu.LN00037}</span></a></li>	
+		</ul>
+	</div>
+	
+	<div id="orgFrame"></div>
+</div>
+</body>
+</html>

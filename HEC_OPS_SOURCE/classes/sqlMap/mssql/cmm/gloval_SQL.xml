@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="gloval_SQL">
+	
+	<insert id="insertVisitLog">
+		INSERT INTO XBOLTADM.TB_VISIT_LOG /*insertVisitLog*/ (
+			SEQ, MemberID, TeamID, Time, ItemID, MenuID, ClientID , ActionType 					
+	 		<if test="IpAddress != null and IpAddress != ''">
+				,IpAddress
+			</if>
+	 		<if test="source != null and source != ''">
+				,source
+			</if>
+			<if test="comment != null and comment != ''">
+				,Comment
+			</if>
+			<if test="instanceNo != null and instanceNo != ''">
+				,InstanceNo
+			</if>
+		)
+		VALUES(
+			ISNULL(( SELECT (MAX(SEQ)+1) FROM  XBOLTADM.TB_VISIT_LOG ),1)
+			, #{sessionUserId}, #{sessionTeamId}, getDate(), #{ItemId}, #{MenuID}, #{sessionClientId} , #{ActionType}			
+	 		<if test="IpAddress != null and IpAddress != ''">
+				,#{IpAddress}
+			</if>
+	 		<if test="source != null and source != ''">
+				,#{source}
+			</if>
+			<if test="comment != null and comment != ''">
+				,#{comment}
+			</if>
+			<if test="instanceNo != null and instanceNo != ''">
+				,#{instanceNo}
+			</if>
+		)
+	</insert>
+
+</mapper>

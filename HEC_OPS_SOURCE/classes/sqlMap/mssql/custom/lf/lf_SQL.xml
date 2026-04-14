@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	LF 관련 관련	-->
+<mapper namespace="lf_SQL">	
+	<select id="login_id_selectFromEmpNo" resultType="java.util.HashMap">
+	<![CDATA[
+		SELECT A.LoginId, A.EmployeeNum		/*사용자ID*/
+		FROM XBOLTADM.TB_MEMBER A
+		WHERE 1=1
+		AND EmployeeNum = #{LOGIN_ID}
+	]]>
+	</select>
+	
+	<select id="getAttrTypeInfoList_gridList" resultType="java.util.HashMap">
+		Select
+			Row_Number()OVER(ORDER BY TI.Identifier DESC ) as RNUM,
+			TI.Identifier, TI.ItemID,
+			TIA1.AttrTypeCode, TIA1.PlainText,
+			TI.Identifier +' '+ TIA1.PlainText AS ItemName,
+			TIA2.AttrTypeCode AS AT14Code, TIA2.PlainText As TCode,
+			TIA3.AttrTypeCode AS AT37Code, TIA3.PlainText As SystemType,
+			TATA.Link,
+			TIA4.AttrTypeCode AS AT40Code, TIA4.PlainText AS Parameter,
+			CASE TAT.DataType WHEN 'LOV' THEN TATL.Value ELSE ISNULL(TIA3.PlainText, '') END SystemTypeText		
+		From XBOLTADM.TB_ITEM TI
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA1 ON TIA1.AttrTypeCode = 'AT00001' And TIA1.LanguageID  = #{languageID} And TIA1.ItemID = TI.ItemID
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 ON TIA2.AttrTypeCode = 'AT00014' And TIA2.LanguageID  = #{languageID} And TIA2.ItemID = TI.ItemID
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA3 ON TIA3.AttrTypeCode = 'AT00037' And TIA3.LanguageID  = #{languageID} And TIA3.ItemID = TI.ItemID
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA4 ON TIA4.AttrTypeCode = 'AT00040' And TIA4.LanguageID  = #{languageID} And TIA4.ItemID = TI.ItemID
+		Left Outer Join XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA ON TATA.AttrTypeCode = TIA1.AttrTypeCode And TATA.ItemClassCode = (Select ClassCode From XBOLTADM.TB_ITEM Where ItemID = TI.ItemID)
+		Left Outer join	XBOLTADM.TB_ATTR_TYPE_LOV TATL	on TATL.AttrTypeCode  = TIA3.AttrTypeCode AND TATL.LovCode = TIA3.LovCode AND TATL.LanguageID = '1042' 
+		Left Outer Join XBOLTADM.TB_ATTR_TYPE TAT on TIA3.AttrTypeCode = TAT.AttrTypeCode 
+		Where TI.ItemID = #{itemID}
+	</select>
+	
+</mapper>

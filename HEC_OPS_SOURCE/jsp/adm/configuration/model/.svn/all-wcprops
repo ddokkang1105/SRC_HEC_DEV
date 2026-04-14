@@ -1,0 +1,47 @@
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svn/olm_dev/!svn/ver/8469/OLM3/WebContent/WEB-INF/jsp/adm/configuration/model
+END
+modelTypeView.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 96
+/svn/olm_dev/!svn/ver/6571/OLM3/WebContent/WEB-INF/jsp/adm/configuration/model/modelTypeView.jsp
+END
+editSymAllocSortNum.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 102
+/svn/olm_dev/!svn/ver/8469/OLM3/WebContent/WEB-INF/jsp/adm/configuration/model/editSymAllocSortNum.jsp
+END
+symbolTypeList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/svn/olm_dev/!svn/ver/6567/OLM3/WebContent/WEB-INF/jsp/adm/configuration/model/symbolTypeList.jsp
+END
+modelTypeTab.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 95
+/svn/olm_dev/!svn/ver/8469/OLM3/WebContent/WEB-INF/jsp/adm/configuration/model/modelTypeTab.jsp
+END
+allocateSymbolAttrDp.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 103
+/svn/olm_dev/!svn/ver/6718/OLM3/WebContent/WEB-INF/jsp/adm/configuration/model/allocateSymbolAttrDp.jsp
+END
+symbolTypeDetail.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 99
+/svn/olm_dev/!svn/ver/6571/OLM3/WebContent/WEB-INF/jsp/adm/configuration/model/symbolTypeDetail.jsp
+END
+modelType.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svn/olm_dev/!svn/ver/6567/OLM3/WebContent/WEB-INF/jsp/adm/configuration/model/modelType.jsp
+END

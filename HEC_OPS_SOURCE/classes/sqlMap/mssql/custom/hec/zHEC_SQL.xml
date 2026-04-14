@@ -1,0 +1,129 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="zHEC_SQL">	
+
+	<select id="getSearchItemList_gridList" resultType="java.util.HashMap">
+		Select Top 3000
+			Row_Number()OVER(ORDER BY TI.Identifier, TIA.PlainText) as RNUM 
+			, TI.ItemID, ISNULL(TI.Identifier,'') AS Identifier
+			, ISNULL(TIA.PlainText,'') AS PlainText
+			, ISNULL(TD2.Name,'') AS ItemTypeName
+			, TI.ItemTypeCode
+			, TI.Status, TI.Blocked
+		From XBOLTADM.TB_ITEM TI
+		INNER JOIN XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = TI.ItemID And TIA.LanguageID = #{languageID} And TIA.AttrTypeCode = 'AT00001'
+		INNER JOIN XBOLTADM.TB_ITEM_CLASS TIC ON TIC.ItemClassCode = TI.ClassCode
+		INNER JOIN XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = TI.ItemTypeCode And TD2.LanguageID = #{languageID} And TD2.Category ='OJ'
+		Where TI.Deleted != 1
+		And TI.Identifier != '[최종 승인 후 채번예정]'
+		<if test="!'OJ00012'.equals(itemTypeCode)">
+			And TIC.Level > 2
+		</if>
+		<if test="itemTypeCode != null and itemTypeCode != ''">
+			And TI.ItemTypeCode = #{itemTypeCode}
+		</if>
+		<if test="identifier != null and identifier != ''">
+			And TI.Identifier like '%'+#{identifier}+'%'
+		</if>
+		<if test="itemName != null and itemName != ''">
+			And TIA.PlainText like '%'+#{itemName}+'%'
+		</if>
+		<if test="items != null and items != ''">
+			AND TI.ItemID NOT IN (${items})
+		</if>	
+	</select>
+	
+	<select id="getItemIDs" resultType="java.util.HashMap">
+		Select Distinct TI.ItemID
+		From XBOLTADM.TB_ITEM TI
+		WHERE 
+			TI.ItemID in (
+				Select FromItemID
+				From XBOLTADM.TB_ITEM
+				WHERE ToItemID = #{s_itemID}
+					AND CategoryCode = 'CN'
+					AND Deleted != '1'
+			)
+			OR
+			TI.ItemID in (
+				Select ToItemID
+				From XBOLTADM.TB_ITEM 
+				WHERE FromItemID = #{s_itemID}
+					AND CategoryCode = 'CN'
+					AND Deleted != '1'
+			)
+	</select>	
+	
+	<select id="getVellIfInfo" resultType="java.util.HashMap">
+		Select master_seq, MASTER_NO, TITLE, SUGGESTER 
+		From XBOLTADM.TW_HEC_VELL_IF
+		Where MASTER_NO = (Select top 1 Identifier From XBOLTADM.TB_ITEM WHERE ItemID = #{itemID} And Deleted != 1)
+	</select>
+	
+	<select id="getVellMapInfo" resultType="java.util.HashMap">
+		Select MASTER_SEQ, MASTER_NO, DOC_KEY, DOC_REVERSION, DOC_TYPE, TYPE, STATUS, REV_STATUS, REV_NEED_YN 
+		From XBOLTADM.TW_HEC_VELL_MAPPINGINFO 
+		Where DOC_KEY = #{s_itemID}
+		And MASTER_NO = (select top 1 identifier From XBOLTADM.TB_ITEM WHERE ItemID = #{t_itemID} And Deleted != 1)
+	</select>
+	
+	<insert id="insertHecVellMapping" parameterType="java.util.HashMap">
+		Insert Into XBOLTADM.TW_HEC_VELL_MAPPINGINFO 
+			(MASTER_SEQ, MASTER_NO, DOC_KEY, DOC_REVERSION, DOC_TYPE, TYPE, STATUS, INS_DT, INS_USER)
+			values(
+				#{master_seq}, #{master_no}, #{s_itemID}, #{doc_reversion}, #{className}, #{type}, #{status}, GetDate(), #{userID} 
+			)
+	</insert>
+	
+	<update id="updateHecVellMapping" parameterType="java.util.HashMap">
+		Update XBOLTADM.TW_HEC_VELL_MAPPINGINFO SET 
+			STATUS =#{status}, Type=#{type}, DOC_REVERSION=#{doc_reversion}
+			, UPD_DT = GetDate(), UPD_USER = #{userID}
+		Where MASTER_NO = (select top 1 identifier From XBOLTADM.TB_ITEM WHERE ITEMID = #{t_itemID} And Deleted != 1)
+		And DOC_KEY = #{s_itemID}
+	</update>
+	
+	<update id="updateHecVellMappingCS" parameterType="java.util.HashMap">
+		Update XBOLTADM.TW_HEC_VELL_MAPPINGINFO SET 
+			STATUS =#{status}, Type=#{type}
+			, UPD_DT = GetDate(), UPD_USER = #{userID}
+		Where DOC_REVERSION = #{doc_reversion}
+		And DOC_KEY = #{itemID}
+	</update>
+	
+	<delete id="deleteHecVellMapping" parameterType="java.util.HashMap">
+		Delete From XBOLTADM.TW_HEC_VELL_MAPPINGINFO 
+		Where MASTER_NO = (select top 1 Identifier from XBOLTADM.TB_ITEM WHERE ItemID = #{t_itemID} And Deleted != 1) 
+		And DOC_KEY = #{s_itemID}
+	</delete>
+	
+	<update id="updateHecVellMappingAprv" parameterType="java.util.HashMap">
+        UPDATE A
+            SET
+                A.STATUS = CASE ISNULL(#{Status},'')
+                        WHEN '1' THEN 'APRV'
+                        WHEN '2' THEN 'CLS'
+                        WHEN '4' THEN 'MOD'
+                        WHEN '3' THEN 'MOD'
+                        ELSE STATUS
+                        END,       
+                A.REV_STATUS = CASE ISNULL(#{Status},'')
+                            WHEN '2' THEN 'Y'
+                            ELSE REV_STATUS
+                            END,
+                A.REV_NEED_YN = CASE ISNULL(#{Status},'')
+                            WHEN '2' THEN 'N'
+                            ELSE REV_NEED_YN
+                            END,
+                A.UPD_DT = GetDate(),
+                A.UPD_USER = #{LastUser}       
+        From XBOLTADM.TW_HEC_VELL_MAPPINGINFO A,
+        ( select TCS.ItemID AS ItemID, TCS.ChangeSetID AS ChangeSetID, TCS.Version AS Version
+                        From XBOLTADM.TB_WF_INST TWI, XBOLTADM.TB_CHANGE_SET TCS
+                          Where TWI.WFInstanceID = #{WFInstanceID} And TWI.DocumentID = TCS.ChangeSetID) B
+           WHERE A.Doc_Key = B.ItemID and A.DOC_REVERSION = B.Version
+    </update>
+
+</mapper>

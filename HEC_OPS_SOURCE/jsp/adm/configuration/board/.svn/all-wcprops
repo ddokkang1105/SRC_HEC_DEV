@@ -1,0 +1,53 @@
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svn/olm_dev/!svn/ver/8131/OLM3/WebContent/WEB-INF/jsp/adm/configuration/board
+END
+boardAdminList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/svn/olm_dev/!svn/ver/4234/OLM3/WebContent/WEB-INF/jsp/adm/configuration/board/boardAdminList.jsp
+END
+boardManagement.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 98
+/svn/olm_dev/!svn/ver/6567/OLM3/WebContent/WEB-INF/jsp/adm/configuration/board/boardManagement.jsp
+END
+boardAdminDetail.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 99
+/svn/olm_dev/!svn/ver/4234/OLM3/WebContent/WEB-INF/jsp/adm/configuration/board/boardAdminDetail.jsp
+END
+pointType.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svn/olm_dev/!svn/ver/4234/OLM3/WebContent/WEB-INF/jsp/adm/configuration/board/pointType.jsp
+END
+addBrdCatListPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 99
+/svn/olm_dev/!svn/ver/4234/OLM3/WebContent/WEB-INF/jsp/adm/configuration/board/addBrdCatListPop.jsp
+END
+boardAdminMgt.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 96
+/svn/olm_dev/!svn/ver/8131/OLM3/WebContent/WEB-INF/jsp/adm/configuration/board/boardAdminMgt.jsp
+END
+allocateBoardMgt.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 99
+/svn/olm_dev/!svn/ver/4232/OLM3/WebContent/WEB-INF/jsp/adm/configuration/board/allocateBoardMgt.jsp
+END
+boardMgtDetail.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/svn/olm_dev/!svn/ver/8025/OLM3/WebContent/WEB-INF/jsp/adm/configuration/board/boardMgtDetail.jsp
+END

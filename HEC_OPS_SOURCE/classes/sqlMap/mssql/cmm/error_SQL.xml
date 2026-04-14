@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+        
+<mapper namespace="error_SQL">
+
+	<select id="error_message" resultType="java.util.HashMap">
+		SELECT	/* error_message */
+			Name ERROR_NM, Description DESCRIPTION
+		FROM XBOLTADM.TB_DICTIONARY dic
+		WHERE dic.Category = 'WM'
+		<choose>
+	 		<when test="sessionCurrLangType != null and sessionCurrLangType != ''">
+				AND dic.LanguageID = #{sessionCurrLangType}
+			</when>
+			<otherwise>
+				AND dic.LanguageID = '1042'
+			</otherwise>
+		</choose>
+			AND dic.TypeCode = #{ERROR_CD}
+	</select>
+
+</mapper>

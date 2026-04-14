@@ -1,0 +1,65 @@
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/svn/olm_dev/!svn/ver/9137/OLM3/WebContent/WEB-INF/jsp/adm/user
+END
+userGroupListGrid.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/olm_dev/!svn/ver/3915/OLM3/WebContent/WEB-INF/jsp/adm/user/userGroupListGrid.jsp
+END
+mbrAgentCfg.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/svn/olm_dev/!svn/ver/8792/OLM3/WebContent/WEB-INF/jsp/adm/user/mbrAgentCfg.jsp
+END
+userInfoView.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/svn/olm_dev/!svn/ver/9137/OLM3/WebContent/WEB-INF/jsp/adm/user/userInfoView.jsp
+END
+viewMyInfo.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svn/olm_dev/!svn/ver/9137/OLM3/WebContent/WEB-INF/jsp/adm/user/viewMyInfo.jsp
+END
+userListGrid.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/svn/olm_dev/!svn/ver/9137/OLM3/WebContent/WEB-INF/jsp/adm/user/userListGrid.jsp
+END
+editProcessLogPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/olm_dev/!svn/ver/5301/OLM3/WebContent/WEB-INF/jsp/adm/user/editProcessLogPop.jsp
+END
+groupInfoView.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 81
+/svn/olm_dev/!svn/ver/3915/OLM3/WebContent/WEB-INF/jsp/adm/user/groupInfoView.jsp
+END
+groupInfoNew.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/svn/olm_dev/!svn/ver/3915/OLM3/WebContent/WEB-INF/jsp/adm/user/groupInfoNew.jsp
+END
+changePwdPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/svn/olm_dev/!svn/ver/8061/OLM3/WebContent/WEB-INF/jsp/adm/user/changePwdPop.jsp
+END
+itemAuthorLogMgt.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svn/olm_dev/!svn/ver/7607/OLM3/WebContent/WEB-INF/jsp/adm/user/itemAuthorLogMgt.jsp
+END

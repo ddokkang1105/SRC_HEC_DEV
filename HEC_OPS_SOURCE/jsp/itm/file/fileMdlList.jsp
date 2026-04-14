@@ -1,0 +1,213 @@
+<%@ page contentType="text/html; charset=utf-8" pageEncoding="utf-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="tiles" uri="http://tiles.apache.org/tags-tiles" %>
+<%@ taglib uri="http://www.springframework.org/tags" prefix="spring" %>
+<c:url value="/" var="root"/>
+ 
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+<!-- 1. Include JSP -->
+<%@ include file="/WEB-INF/jsp/template/tagInc.jsp"%>
+<%@ include file="/WEB-INF/jsp/template/loadingInc.jsp"%>
+<%@ include file="/WEB-INF/jsp/cmm/ui/dhtmlxJsInc.jsp" %>
+<!-- 화면 표시 메세지 취득  -->
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00040" var="WM00040"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00049" var="WM00049"/>
+
+<script type="text/javascript">
+
+	var gridArea;				//그리드 전역변수
+	var skin = "dhx_skyblue";
+	var now;
+	var itemFileOption = "${itemFileOption}";
+	
+	$(document).ready(function(){ 
+		gridInit();		
+		doSearchList();
+	});
+	
+	function doSearchList(){
+		var d = setGridData(); 
+		fnLoadDhtmlxGridJson(gridArea, d.key, d.cols, d.data);
+	}
+	
+	function gridInit(){	
+		var d = setGridData();
+		gridArea = fnNewInitGrid("gridArea", d);
+		gridArea.setImagePath("${root}${HTML_IMG_DIR}/");
+		gridArea.setIconPath("${root}${HTML_IMG_DIR}/btn_gedit.png");
+
+		fnSetColType(gridArea, 1, "ch");
+		gridArea.setColumnHidden(2, true);
+		gridArea.setColumnHidden(4, true);
+		gridArea.setColumnHidden(5, true);
+		gridArea.setColumnHidden(6, true);
+		gridArea.setColumnHidden(7, true);
+		gridArea.setColumnHidden(8, true);
+		gridArea.setColumnHidden(9, true);
+		gridArea.setColumnHidden(10, true);
+		gridArea.setColumnHidden(11, true);
+		gridArea.setColumnHidden(12, true);
+		gridArea.setColumnHidden(13, true); 
+		gridArea.setColumnHidden(14, true); 
+		fnSetColType(gridArea, 11, "img");
+		gridArea.attachEvent("onRowSelect", function(id,ind){gridOnRowSelect(id,ind);});
+		
+		gridArea.enablePaging(true,10,10,"pagingArea",true,"recInfoArea");
+		gridArea.setPagingSkin("bricks");
+		gridArea.attachEvent("onPageChanged", function(ind,fInd,lInd){$("#currPage").val(ind);});
+	}
+	
+	function setGridData(){ 
+		var result = new Object();
+		result.title = "${title}";
+		result.key = "fileMgt_SQL.getFile";
+		result.header = "${menu.LN00024},#master_checkbox,${menu.LN00091},${menu.LN00101},${menu.LN00102},${menu.LN00013},${menu.LN00070},${menu.LN00060},${menu.LN00104},${menu.LN00030},Seq,${menu.LN00103},FileRealName,FltpCode,ExtFileURL";
+		result.cols = "CHK|FltpName|FileRealName|FilePath|CreationTime|LastUpdated|WriteUserNM|TeamName|DownCNT|Seq|수정|FileName|FltpCode|ExtFileURL";
+		result.widths = "30,30,120,*,270,120,140,80,80,60,50,60,100,100,0";
+		result.sorting = "int,int,str,str,str,str,str,str,str,int,int,str,str,str,str";
+		result.aligns = "center,center,left,left,center,center,center,center,center,center,left,left,center,left";
+		result.data = "languageID=${sessionScope.loginInfo.sessionCurrLangType}"
+					+"&rltdItemId=${rltdItemId}"
+					+"&itmIfMain=Y"
+					+"&DocCategory=${DocCategory}"
+					+"&s_itemID=${s_itemID}"
+					+"&DocumentID=${s_itemID}";
+		return result;
+	}
+	
+	// 상세 화면 
+	function gridOnRowSelect(id, ind){
+		if("${sessionScope.loginInfo.sessionMlvl}" != "SYS" && "${myItem}" != 'Y' && itemFileOption == "VIEWER" ) {
+			var extFileURL = gridArea.cells(id,14).getValue();
+			var sysFileName = gridArea.cells(id, 12).getValue();
+			var seq = gridArea.cells(id, 10).getValue();
+			
+			var url = "openViewerPop.do?seq="+seq;
+			var w = 1200;
+			var h = 900;
+			if(extFileURL != "") { 
+				w = screen.availWidth-38;
+				h = screen.avilHeight;
+				url = url + "&isNew=N";	
+			}
+			else {
+				url = url + "&isNew=Y";
+			}
+			
+			itmInfoPopup(url,w,h); 
+		}else{
+			var originalFileName = gridArea.cells(id, 3).getValue();
+			var sysFileName = gridArea.cells(id, 12).getValue();
+			var seq = gridArea.cells(id, 10).getValue();
+			var url  = "fileDownload.do?seq="+seq;
+
+			ajaxSubmitNoAdd(document.fileMgtFrm, url,"subFrame");
+		}
+	}
+	
+	function fnFileDownload(){
+		var cnt  = gridArea.getRowsNum();
+
+		var originalFileName = new Array();
+		var sysFileName = new Array();
+		var seq = new Array();
+		var chkVal;
+		var j =0;
+	
+		for(var i=0; i<cnt; i++){
+
+			chkVal = gridArea.cells2(i,1).getValue();
+			 
+			if(chkVal == 1){
+				
+				j++;
+			}
+		}
+	
+		if(j==0){
+			alert("${WM00049}");
+			return;
+		}
+		j =0;
+		for(var i=0; i<cnt; i++){
+			chkVal = gridArea.cells2(i,1).getValue();
+			if(chkVal == 1){
+				
+				sysFileName[j] =  gridArea.cells2(i,4).getValue() + gridArea.cells2(i,12).getValue(); //sysfile
+				originalFileName[j] =  gridArea.cells2(i,4).getValue() + gridArea.cells2(i,3).getValue(); // orignalfile
+				seq[j] = gridArea.cells2(i,10).getValue(); 
+				j++;
+			}
+		}
+		
+		var url  = "fileDownload.do?seq="+seq;
+		ajaxSubmitNoAdd(document.fileMgtFrm, url,"subFrame");
+	}
+	
+	function fnFileUpload(){
+		
+	    var fileCount = document.getElementById("files_upload").files.length;
+
+	    var fileSize = new Array();
+	    var fileName = new Array();
+	
+	 	for(var i=0; i<fileCount; i++){
+	 		fileSize[i] = document.getElementById("files_upload").files[i].size;
+	 		fileName[i] = document.getElementById("files_upload").files[i].name;
+	 	}
+		  
+		var files =  $("#files-upload").val();
+		var url  = "fileUpload.do?files="+files+"&fileSize="+fileSize+"&fileName="+fileName;
+		ajaxSubmit(document.fileMgtFrm, url);
+	}
+	
+	function fnMultiUpload(){
+		goMultiUpload();
+	}
+	
+	function goNewItemInfo() {
+		var url = "NewItemInfoMain.do";
+		var target = "actFrame";
+		var data = "s_itemID=${s_itemID}&languageID=${sessionScope.loginInfo.sessionCurrLangType}&userID=${sessionScope.loginInfo.sessionUserId}"; 
+	 	ajaxPage(url, data, target);
+	}
+	
+</script>
+</head>
+<body>
+<form name="fileMgtFrm" id="fileMgtFrm" action="fileDownloadDev.do" method="post" onsubmit="return false">
+	<input type="hidden" id="itemId" name="itemId" value="${s_itemID}">
+	<input type="hidden" id="itemAthId" name="itemAthId" value="${itemAthId}">
+	
+	<input type="hidden" id="languageID" name="languageID" value="${sessionScope.loginInfo.sessionCurrLangType}" />
+	<div class="child_search" style="padding:10px 10px 0 0;">
+	   <li class="floatR pdR20">
+	   <!-- 
+			<c:if test="${myItem == 'Y'}">
+				<c:if test="${Blocked==0}">
+				&nbsp;<span class="btn_pack medium icon"><span class="upload"></span><input value="Upload" type="button" onclick="goFileDetail('Y')"></span>&nbsp;&nbsp;
+				</c:if>
+			</c:if>
+		 -->
+			 <c:if test="${sessionScope.loginInfo.sessionMlvl == 'SYS'  or myItem == 'Y'}">
+				<span class="btn_pack medium icon"><span class="download"></span><input value="Download" type="button" onclick="fnFileDownload()"></span>
+			</c:if>
+		</li>	
+	</div>
+	<div class="countList" style="padding:0 0 0 10px;" >
+              <li class="count">Total  <span id="TOT_CNT"></span></li>
+              <li class="floatR">&nbsp;</li>
+    </div>
+	<div id="gridDiv" style="width:100%;" class="mgB10 clear">
+		<div id="gridArea" style="height: 300px; width: 100%;"></div>
+	</div>	
+	<!-- START :: PAGING -->
+	<div style="width:100%;" class="paginate_regular"><div id="pagingArea" style="display:inline-block;"></div><div id="recinfoArea" class="floatL pdL10"></div></div>
+	<!-- END :: PAGING -->		
+</form>
+<iframe name="subFrame" id="subFrame" src="about:blank" style="display:none" frameborder="0"></iframe>
+</body></html>

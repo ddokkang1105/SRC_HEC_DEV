@@ -1,0 +1,95 @@
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/olm_dev/!svn/ver/9228/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp
+END
+reqSRDueDateChangeEmail.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 95
+/svn/olm_dev/!svn/ver/7905/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/reqSRDueDateChangeEmail.jsp
+END
+myITSEditor.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svn/olm_dev/!svn/ver/9228/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/myITSEditor.jsp
+END
+mainESRList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svn/olm_dev/!svn/ver/7670/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/mainESRList.jsp
+END
+registerItsp.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svn/olm_dev/!svn/ver/8985/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/registerItsp.jsp
+END
+itspListByComp.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 86
+/svn/olm_dev/!svn/ver/8852/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/itspListByComp.jsp
+END
+itspReqMain.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svn/olm_dev/!svn/ver/8840/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/itspReqMain.jsp
+END
+itspMgt.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/svn/olm_dev/!svn/ver/8777/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/itspMgt.jsp
+END
+reqSRDueDateChange.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 90
+/svn/olm_dev/!svn/ver/7905/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/reqSRDueDateChange.jsp
+END
+processItsp.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svn/olm_dev/!svn/ver/8985/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/processItsp.jsp
+END
+editSRDueDuatePop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 89
+/svn/olm_dev/!svn/ver/8010/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/editSRDueDuatePop.jsp
+END
+viewItspDetail.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 86
+/svn/olm_dev/!svn/ver/9029/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/viewItspDetail.jsp
+END
+transferItspPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/svn/olm_dev/!svn/ver/8945/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/transferItspPop.jsp
+END
+itspMain.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/svn/olm_dev/!svn/ver/8851/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/itspMain.jsp
+END
+itspList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/svn/olm_dev/!svn/ver/9016/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/itspList.jsp
+END
+requestEvaluationPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svn/olm_dev/!svn/ver/8985/OLM3/WebContent/WEB-INF/jsp/app/esm/itsp/requestEvaluationPop.jsp
+END

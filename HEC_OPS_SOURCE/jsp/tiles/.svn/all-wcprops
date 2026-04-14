@@ -1,0 +1,23 @@
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/svn/olm_dev/!svn/ver/8585/OLM3/WebContent/WEB-INF/jsp/tiles
+END
+footer.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/olm_dev/!svn/ver/8585/OLM3/WebContent/WEB-INF/jsp/tiles/footer.jsp
+END
+header.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/olm_dev/!svn/ver/2017/OLM3/WebContent/WEB-INF/jsp/tiles/header.jsp
+END
+layer.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/olm_dev/!svn/ver/2017/OLM3/WebContent/WEB-INF/jsp/tiles/layer.jsp
+END

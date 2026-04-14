@@ -1,0 +1,104 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration
+    PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-config.dtd">
+
+   <configuration>
+  	  <settings>
+      <setting name="callSettersOnNulls" value="true"/>
+      <setting name="useActualParamName" value="true"/>
+  	  <setting name="logImpl" value="log4j"/>
+	  </settings>     	
+      <mappers>
+      <mapper resource="sqlMap/mssql/cmm/common_SQL.xml" />
+      <mapper resource="sqlMap/mssql/cmm/commonFile_SQL.xml" />
+      <mapper resource="sqlMap/mssql/cmm/login_SQL.xml" />
+      <mapper resource="sqlMap/mssql/cmm/menu_SQL.xml" />
+	  <mapper resource="sqlMap/mssql/cmm/gloval_SQL.xml" />
+	  <mapper resource="sqlMap/mssql/cmm/error_SQL.xml" />	
+	  <mapper resource="sqlMap/mssql/cmm/email_SQL.xml" />	
+	    
+	  <mapper resource="sqlMap/mssql/adm/dictionary_SQL.xml" />      
+	  <mapper resource="sqlMap/mssql/adm/config_SQL.xml" />
+	  <mapper resource="sqlMap/mssql/adm/reportType_SQL.xml" />
+	  <mapper resource="sqlMap/mssql/adm/AttributeType_SQL.xml" />
+	  <mapper resource="sqlMap/mssql/adm/organization_SQL.xml" />
+	  <mapper resource="sqlMap/mssql/adm/user_SQL.xml" />
+	  <mapper resource="sqlMap/mssql/adm/role_SQL.xml" />	
+	   
+      <mapper resource="sqlMap/mssql/itm/item_SQL.xml" />
+      <mapper resource="sqlMap/mssql/itm/attr_SQL.xml" />   
+      <mapper resource="sqlMap/mssql/itm/dim_SQL.xml" />
+	  <mapper resource="sqlMap/mssql/itm/fileMgt_SQL.xml" /> 
+	  <mapper resource="sqlMap/mssql/itm/e2e_SQL.xml" />	
+	  <mapper resource="sqlMap/mssql/itm/standardTerms_SQL.xml" /> 
+      <mapper resource="sqlMap/mssql/itm/model_SQL.xml" />   
+
+	  <!-- 게시판관리 -->
+	  <mapper resource="sqlMap/mssql/board/brd/board_SQL.xml" />
+	  <mapper resource="sqlMap/mssql/board/brd/boardFile_SQL.xml" />
+	  <mapper resource="sqlMap/mssql/board/brd/boardProject_SQL.xml" />
+	  <!-- 포럼관리 -->
+	  <mapper resource="sqlMap/mssql/board/frm/forum_SQL.xml" />
+	  <mapper resource="sqlMap/mssql/board/frm/forumFile_SQL.xml" />
+	  <mapper resource="sqlMap/mssql/board/frm/forumComment_SQL.xml" />
+	  <mapper resource="sqlMap/mssql/board/frm/forumSearch_SQL.xml" />
+	  <mapper resource="sqlMap/mssql/board/frm/forumScore_SQL.xml" />
+	 
+	   <!--Home/Main -->
+	   
+      <mapper resource="sqlMap/mssql/hom/main/main_SQL.xml" />  
+      <mapper resource="sqlMap/mssql/hom/schdl/schedule_SQL.xml" />
+	  <mapper resource="sqlMap/mssql/hom/sch/search_SQL.xml" />
+	  
+	  <!-- report관리 -->
+	  <mapper resource="sqlMap/mssql/aly/report_SQL.xml" />	  
+	  <mapper resource="sqlMap/mssql/aly/analysis_SQL.xml" />	
+		
+	 <mapper resource="sqlMap/mssql/project/project_SQL.xml" /> 
+	 <mapper resource="sqlMap/mssql/project/task_SQL.xml" />	
+	 <mapper resource="sqlMap/mssql/project/cr_SQL.xml" />
+	 <mapper resource="sqlMap/mssql/project/cs_SQL.xml" />
+	 <mapper resource="sqlMap/mssql/project/revision_SQL.xml" />	
+	 <mapper resource="sqlMap/mssql/link/link_SQL.xml" />	 
+	 
+	 <!-- WF 분리  -->
+	 <mapper resource="sqlMap/mssql/wf/wf_SQL.xml" />	 
+	 
+   
+     <!-- app  -->
+     <mapper resource="sqlMap/mssql/app/esm/esm_SQL.xml" />  
+	 <mapper resource="sqlMap/mssql/app/esm/sr_SQL.xml" />	
+	 <mapper resource="sqlMap/mssql/app/esm/scr_SQL.xml" />	
+	 <mapper resource="sqlMap/mssql/app/esm/ctr_SQL.xml" />
+	 <mapper resource="sqlMap/mssql/app/esm/eval_SQL.xml" />  
+	 <mapper resource="sqlMap/mssql/app/esm/procLog_SQL.xml" />  	 
+	 <mapper resource="sqlMap/mssql/app/crm/crm_SQL.xml" />
+
+	 
+	 <mapper resource="sqlMap/mssql/app/pim/variant_SQL.xml" />
+	 <mapper resource="sqlMap/mssql/app/pim/instance_SQL.xml" />
+	 <mapper resource="sqlMap/mssql/app/pim/procConfig_SQL.xml" />
+	 <mapper resource="sqlMap/mssql/app/pim/instanceFile_SQL.xml" /> 
+	 <mapper resource="sqlMap/mssql/app/pim/worker_SQL.xml" /> 
+	 <mapper resource="sqlMap/mssql/app/pim/issue_SQL.xml" />
+	 
+	 <mapper resource="sqlMap/mssql/app/plm/plm_SQL.xml" />
+	 <mapper resource="sqlMap/mssql/app/brm/brm_SQL.xml" />
+	 
+ 
+ 	 <!-- Custom -->
+ 	 <mapper resource="sqlMap/mssql/custom/custom_SQL.xml" />	
+ 	 
+    <!-- SKH -->
+     <mapper resource="sqlMap/mssql/custom/sk/sk_cmm_SQL.xml" /> 
+     <mapper resource="sqlMap/mssql/custom/sk/sk_cts_SQL.xml" />        
+    <!-- LF -->
+     <mapper resource="sqlMap/mssql/custom/lf/lf_SQL.xml" />
+    <!-- CJ -->
+     <mapper resource="sqlMap/mssql/custom/cj/cj_SQL.xml" />	
+
+	 <mapper resource="sqlMap/mssql/custom/hec/zHEC_SQL.xml" />
+	 </mappers>
+	 
+ </configuration>

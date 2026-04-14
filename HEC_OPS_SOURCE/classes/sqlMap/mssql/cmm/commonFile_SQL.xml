@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--	File 처리 -->
+<mapper namespace="CommonFile">
+	<insert id="cmmFile_insert">
+			INSERT INTO XBOLTADM.TB_ATTFILE (	/* cmmFile_insert */
+				 AttFileID		/* 첨부파일번호 */
+				,Seq		    /* Seq */
+				,FileNm		/* 파일명 */
+				,SysFileNm	/* 시스템파일명 */
+				,FileSize		/* 파일크기 */
+				,FilePath		/* 파일 저장위치 */
+			)
+			VALUES (
+				 #{AttFileID}
+				,(SELECT ISNULL(MAX(Seq), 0) Seq FROM XBOLTADM.TB_ATTFILE WHERE AttFileID = #{AttFileID})+1 /*순번*/
+				,#{FileNm}
+				,#{SysFileNm}
+				,#{FileSize}
+				,#{FilePath}
+			)
+	</insert>
+
+	<select id="TB_ATTFILE_NEXTVAL" resultType="String">
+		SELECT ISNULL(MAX(AttFileID)+1,'1') AS AttFileID_NEXTVAL FROM XBOLTADM.TB_ATTFILE	/* TB_ATTFILE_NEXTVAL */
+	</select>
+
+	<delete id="cmmFile_delete">
+		DELETE XBOLTADM.TB_ATTFILE	/* cmmFile_delete */
+		 WHERE AttFileID = #{AttFileID}
+		   AND Seq = #{Seq}
+	</delete>
+	<delete id="cmmFile_all_delete">
+		DELETE XBOLTADM.TB_ATTFILE	/* cmmFile_all_delete */
+		 WHERE AttFileID = #{AttFileID}
+	</delete>
+
+	<select id="cmmFile_selectList" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+		SELECT FilePath + '/' + SysFileNm fullFileName	/* cmmFile_selectList */
+			  ,FileNm
+			  ,FileNm FileRealName
+   			  ,SysFileNm
+			  ,AttFileID
+			  ,Seq
+		  FROM XBOLTADM.TB_ATTFILE
+	     WHERE AttFileID = #{AttFileID}
+	</select>
+
+	<select id="cmmFile_select" resultType="java.util.HashMap">
+		SELECT AttFileID		/* cmmFile_select */
+				,FilePath + '/' + SysFileNm fullFileName
+				,Seq
+				,FilePath
+				,SysFileNm
+		 FROM XBOLTADM.TB_ATTFILE
+		WHERE AttFileID = #{AttFileID}
+		  AND Seq = #{Seq}
+	</select>
+</mapper>

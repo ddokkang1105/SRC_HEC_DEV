@@ -1,0 +1,47 @@
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/olm_dev/!svn/ver/9257/OLM3/WebContent/WEB-INF/jsp/itm/dimension
+END
+selectDimensionPop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 91
+/svn/olm_dev/!svn/ver/8820/OLM3/WebContent/WEB-INF/jsp/itm/dimension/selectDimensionPop.jsp
+END
+dimensionItemList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 90
+/svn/olm_dev/!svn/ver/8787/OLM3/WebContent/WEB-INF/jsp/itm/dimension/dimensionItemList.jsp
+END
+dimSubLevelList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/svn/olm_dev/!svn/ver/8787/OLM3/WebContent/WEB-INF/jsp/itm/dimension/dimSubLevelList.jsp
+END
+viewItemDimDesc.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/svn/olm_dev/!svn/ver/9229/OLM3/WebContent/WEB-INF/jsp/itm/dimension/viewItemDimDesc.jsp
+END
+dimListForItemInfo.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 91
+/svn/olm_dev/!svn/ver/9257/OLM3/WebContent/WEB-INF/jsp/itm/dimension/dimListForItemInfo.jsp
+END
+dimensionList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 86
+/svn/olm_dev/!svn/ver/4393/OLM3/WebContent/WEB-INF/jsp/itm/dimension/dimensionList.jsp
+END
+mDimItemSearch.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/svn/olm_dev/!svn/ver/5542/OLM3/WebContent/WEB-INF/jsp/itm/dimension/mDimItemSearch.jsp
+END

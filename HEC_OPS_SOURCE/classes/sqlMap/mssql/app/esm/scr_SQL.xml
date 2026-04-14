@@ -1,0 +1,518 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="scr_SQL">
+	<select id="getSCR_gridList" resultType="java.util.HashMap">	
+		Select 
+			Row_Number()OVER(ORDER BY SCR.SCRID DESC ) as RNUM
+			, SCR.SCRCode
+			, SCR.SCRID
+			, SCR.CSRID
+			, SCR.SRID
+			, SCR.Subject
+			, SCR.Status
+			, TD1.Name AS StatusName
+			, SCR.ReceiptUserID
+			, TM1.Name AS ReceiptName	
+			, XBOLTAPP.fn_GetSCRStatus(SCR.SCRID) AS ScrCtsCls
+			, TPT.Name As ProjectName
+			, ISNULL(CONVERT(char(10),SCR.RegDT, 120),'') AS RegDT
+			, ISNULL(CONVERT(char(10),SCR.DueDate, 120),'') AS DueDate
+			, TD2.Name AS Priority
+			, TM2.Name + '(' + RGTEAM.Name + ')' AS RegTeamUserName
+			, RGTEAM.Name AS RegTeamName
+			, TM2.Name AS RegUserName
+			, SCR.RegUserID
+			, TM3.Name + '(' + APRTEAM.Name + ')' AS ApproverName			
+			, CONVERT(char(10),SCR.AprvDT, 120) AS AprvDT
+			, CONVERT(char(10),SCR.PlanStartDT, 120) AS PlanStartDT
+			, CONVERT(char(10),SCR.PlanEndDT, 120) AS PlanEndDT
+			, CONVERT(char(10),SCR.ReceiptDT, 120) AS ReceiptDT	
+			, SCR.ApproverID
+			, SCR.Description 
+			, SCR.PlanManDay
+			, SCR.UrgencyYN
+			, SCR.ImpAnalYN
+			, SCR.ChangeScope
+			, SCR.JobDescription
+			, SCR.SCRIssue
+			, TD3.Name AS AprvStatusName
+			, SCR.ApproveYN		
+			, SCR.CMYN	
+			, SCR.CTRYN
+			, SCR.FinTestYN
+			, ESR.SRCode		
+			, SCR.ARCAnalInfo
+			, SCR.ImpRewResult
+			, SCR.CMRewResult
+			, SCR.ImpIssue
+			, SCR.TestSvrYN
+			, SCR.CoworkerTestYN
+			, SCR.CoworkerTestPass
+			, SCR.CoworkerTestResult
+			, SCR.IntegTestResult
+		    , SCR.FinTestYN
+		    , SCR.FinTestResult
+		    , SCR.ClosingCode
+		    , TD4.Name ClosingCodeName
+		    , SCR.ActualManDay
+		    , SCR.ChangeNotice
+		    , ISNULL(SCR.AprvStatus,'') AS AprvStatus
+		    , ISNULL(CONVERT(char(10),ESR.DueDate, 120),'') AS SRDueDate	
+		    , TIA.PlainText As SCRArea1Name
+		    , TIA2.PlainText As SCRArea2Name
+		    , SCR.FinTestor		 
+		    , SCR.SCRArea1, SCR.SCRArea2
+		    , ISNULL(CONVERT(char(10),SCR.ActualEndDT, 120),'') AS ActualEndDT	
+		From XBOLTAPP.ESM_SCR_MST SCR	
+		Left Outer Join XBOLTADM.TB_MEMBER TM1 On TM1.MemberID = SCR.ReceiptUserID
+		Left Outer Join XBOLTADM.TB_MEMBER TM2 On TM2.MemberID = SCR.RegUserID
+		Left Outer Join XBOLTADM.TB_MEMBER TM3 On TM3.MemberID = SCR.ApproverID 
+		Left Outer Join XBOLTADM.TB_PROJECT CSR ON CSR.ProjectID = SCR.CSRID 
+		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT ON TPT.ProjectID = CSR.RefPjtID And TPT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_TEAM_TXT RGTEAM ON RGTEAM.TeamID = SCR.RegTeamID And RGTEAM.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_TEAM_TXT APRTEAM ON APRTEAM.TeamID = SCR.AprvTeamID And APRTEAM.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD1 On TD1.TypeCode = SCR.Status And TD1.Category = 'SCRSTS' And TD1.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD2 ON SCR.Priority = TD2.TypeCode AND TD2.Category = 'PRT' AND TD2.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD3 ON SCR.AprvStatus = TD3.TypeCode AND TD3.Category = 'APRVSTS' AND TD3.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTAPP.ESM_SR_MST ESR ON ESR.SRID = SCR.SRID 
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA ON TIA.ItemID = SCR.SCRArea1 And TIA.AttrTypeCode = 'AT00001' And TIA.LanguageID = #{languageID} 
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA2 ON TIA2.ItemID = SCR.SCRArea2 And TIA2.AttrTypeCode = 'AT00001' And TIA2.LanguageID = #{languageID} 
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD4 ON SCR.ClosingCode = TD4.TypeCode AND TD4.Category = 'SCRClSCD' AND TD4.LanguageID = #{languageID}
+		<where> 1=1
+			<if test="scrID != '' and scrID != null" >
+			   AND SCR.SCRID = #{scrID}
+			</if>
+			<if test="subject != null and subject != ''">
+				AND SCR.Subject like N'%'+#{subject}+'%'
+			</if>
+			<if test="scrCode != null and scrCode != ''">
+				AND SCR.SCRCode like N'%'+#{scrCode}+'%'
+			</if>
+			<if test="status != null and status != ''">
+				AND SCR.Status = #{status}
+			</if>
+			<if test="scrStatus != null and scrStatus != ''">
+				AND SCR.Status = #{status}
+			</if>
+			<if test="regUserName != null and regUserName != ''">
+				AND TM2.Name like N'%'+#{regUserName}+'%'
+			</if>
+			<if test="st_planStartDT != null and st_planStartDT != ''">
+				AND <![CDATA[ CONVERT(varchar(10), SCR.PlanStartDT, 120) BETWEEN #{st_planStartDT} AND #{end_planStartDT}  ]]>
+			</if>
+			<if test="st_planEndDT != null and st_planEndDT != ''">
+				AND <![CDATA[ CONVERT(varchar(10), SCR.PlanEndDT, 120) BETWEEN #{st_planEndDT} AND #{end_planEndDT}  ]]>
+			</if>
+			<if test="st_regDT != null and st_regDT != ''">
+				AND <![CDATA[ CONVERT(varchar(10), SCR.RegDT, 120) BETWEEN #{st_regDT} AND #{end_regDT}  ]]>
+			</if>
+			<if test="regUser != null and regUser != ''">
+				AND SCR.RegTeamID = #{regTeamID}
+			</if>
+			<if test="scrMode != null and scrMode.equals('ING')">
+				AND  SCR.Status not in ('CLS','APRJT')
+			</if>	
+			<if test="scrMode != null and scrMode.equals('CLS')">
+				AND  SCR.Status in ('CLS','APRJT')
+			</if>			
+			<if test='"Y".equals(mySCR)'>	
+				AND (SCR.RegUserID = #{loginUserId} OR SCR.ApproverID = #{loginUserId} OR SCR.FinTestor = #{loginUserId} )
+			</if>
+			<if test="finTestor != null and finTestor != ''">
+				AND SCR.FinTestor = #{finTestor}
+			</if>			
+		</where>
+	</select>
+		
+	<insert id="insertSCR" parameterType="java.util.HashMap">
+		Insert Into XBOLTAPP.ESM_SCR_MST
+		(
+			SCRID, SCRCode, CSRID, SRID,
+			SCRArea1, SCRArea2, ReceiptTeamID, ReceiptUserID,
+			Subject, ChangeScope, Status, 
+			UrgencyYN,			
+			<choose><when test="planStartDT != null and planStartDT != ''">PlanStartDT, </when><otherwise>PlanStartDT, </otherwise></choose>
+			PlanEndDT, PlanManDay,
+			RegUserID, RegTeamID, RegDT,  
+			ApproverID, AprvTeamID, AprvStatus, ApproveYN,
+			JobDescription,	SCRIssue, 
+			ImpAnalYN, CMYN, FinTestYN, CTRYN,
+			CreationTime, Creator, LastUpdated, LastUser
+		) Values(
+			#{scrID}, #{scrCode}, #{csrID}, #{srID},
+			#{scrArea1}, #{scrArea2}, #{receiptTeamID}, #{receiptUserID},
+			#{subject}, #{changeScope}, #{status},
+			#{urgencyYN}, 
+			<choose><when test="planStartDT != null and planStartDT != ''">#{planStartDT},</when><otherwise>NULL,</otherwise></choose>	
+			#{planEndDT},	#{planManDay}, 
+			#{regUserID}, #{regTeamID}, GetDate(),  
+			#{approverID}, #{aprvTeamID}, #{aprvStatus}, #{approveYN},
+			#{jobDescription}, #{scrIssue}, 
+			#{impAnalYN}, #{cmYN}, #{finTestYN}, #{CTRYN},			
+			GetDate(), #{userID}, GetDate(), #{userID}
+		)
+	</insert>
+	
+	<update id="updateSCR" parameterType="java.util.HashMap">
+		Update XBOLTAPP.ESM_SCR_MST SET		
+			<if test="planStartDT != null and planStartDT != ''">planStartDT = #{planStartDT},</if>			
+			<if test="planEndDT != null and planEndDT != ''">PlanEndDT = #{planEndDT},</if>			
+			<if test="planManDay != null and planManDay != ''">PlanManDay = #{planManDay},</if>
+			<if test="impAnalYN != null and impAnalYN != ''">ImpAnalYN = #{impAnalYN},</if>
+			<if test="cmYN != null and cmYN != ''">CMYN = #{cmYN},</if>
+			<if test="urgencyYN != null and urgencyYN != ''">UrgencyYN = #{urgencyYN},</if>
+			<if test="finTestYN != null and finTestYN != ''">FinTestYN = #{finTestYN},</if>
+			<if test="subject != null and subject != ''">Subject = #{subject},</if>
+			<if test="changeScope != null and changeScope != ''">ChangeScope = #{changeScope},</if>
+			<if test="jobDescription != null and jobDescription != ''">JobDescription = #{jobDescription},</if>
+			<if test="scrIssue != null and scrIssue != ''">SCRIssue = #{scrIssue},</if>
+			<if test="priority != null and priority != ''">Priority = #{priority},</if>
+			<if test="status != null and status != ''">Status = #{status},</if>
+			<if test="CTRYN != null and CTRYN != ''">CTRYN = #{CTRYN},</if>
+			<if test="arcAnalInfo != null and arcAnalInfo != ''">ArcAnalInfo = #{arcAnalInfo},</if>
+			<if test="impRewResult != null and impRewResult != ''">ImpRewResult = #{impRewResult},</if>
+			<if test="impIssue != null and impIssue != ''">ImpIssue = #{impIssue},</if>
+			<if test="testSvrYN != null and testSvrYN != ''">TestSvrYN = #{testSvrYN},</if>
+			<if test="cmRewResult != null and cmRewResult != ''">CMRewResult = #{cmRewResult},</if>
+			<if test="cwTestYN != null and cwTestYN != ''">CoworkerTestYN = #{cwTestYN},</if>
+			<if test="cwTestPass != null and cwTestPass != ''">CoworkerTestPass = #{cwTestPass},</if>
+			<if test="cwTestResult != null and cwTestResult != ''">CoworkerTestResult = #{cwTestResult},</if>
+			<if test="integTestResult != null and integTestResult != ''">IntegTestResult = #{integTestResult},</if>
+			<if test="finTestResult != null and finTestResult != ''">FinTestResult = #{finTestResult},</if>
+			<if test="aprvStatus != null and aprvStatus != ''">AprvStatus = #{aprvStatus},</if>	
+			<if test="aprvComment != null and aprvComment != ''">AprvComment = #{aprvComment},</if>
+			<if test='aprvStatus == "2"'>AprvDT = GETDATE(),</if>
+			<if test="closingCode != null and closingCode != ''">ClosingCode = #{closingCode},</if>
+			<if test="actualManDay != null and actualManDay != ''">ActualManDay = #{actualManDay},</if>
+			<if test="changeNotice != null and changeNotice != ''">ChangeNotice = #{changeNotice},</if>
+			<if test='"CLS".equals(status)'>ActualEndDT = GETDATE(),</if>
+			<if test="finTestor != null and finTestor != ''">FinTestor = #{finTestor},</if>		
+			<if test="status == 'APRV'">ApReqDT = GETDATE(),</if>		
+			<if test="scrArea1 != null and scrArea1 != ''">SCRArea1 = #{scrArea1},</if>		
+			<if test="scrArea2 != null and scrArea2 != ''">SCRArea2 = #{scrArea2},</if>		
+			<if test="receiptTeamID != null and receiptTeamID != ''">ReceiptTeamID = #{receiptTeamID},</if>		
+			<if test="receiptUserID != null and receiptUserID != ''">ReceiptUserID = #{receiptUserID},</if>				
+			LastUpdated = GETDATE(),
+			LastUser = #{lastUser}			
+		Where SCRID = #{scrID}
+	</update>
+	
+	<select id="getSCRMbrRoleList_gridList" resultType="java.util.HashMap">
+	Select 
+			Row_Number()OVER(ORDER BY TM.Name) as RNUM
+			,TM.MemberID
+			, 0 as CHK
+			, TM.Name AS UserName
+			, TTT.Name AS TeamName
+			, TM.LoginID
+			, TM.Email
+			, XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{languageID}) + '/' + TTT.Name AS TeamPath
+			, ISNULL(TM.Position, '') As Position
+			, ISNULL(TM.MTelNum, '') As MTelNum
+			, ISNULL(CONVERT(varchar(20),ESMR.AssignedDate, 120),'') As RegDate
+			, TM.Authority
+			, TM.MLVL
+			, TM.Name
+				+Case When ISNULL(TM.EMAIL,'') != '' Then '/' +ISNULL(TM.EMAIL,'') Else '' End
+				+Case When ISNULL(TTT.NAME,'') != '' Then '/' +ISNULL(TTT.NAME,'') Else '' End
+				AS MemberName
+			, ESMR.PlanManDay
+			, ESMR.ActualManDay
+			, ESMR.RoleDescription
+	From XBOLTAPP.ESM_SCR_MBR_ROLE ESMR,  XBOLTADM.TB_MEMBER TM
+	Left Outer Join XBOLTADM.TB_TEAM_TXT TTT On TM.TeamID = TTT.TeamID  AND TTT.LanguageID = #{languageID}
+	Left Outer Join XBOLTADM.TB_TEAM_TXT TTT2 On TM.CompanyID = TTT2.TeamID  AND TTT2.LanguageID = #{languageID}
+		WHERE ESMR.MemberID = TM.MemberID	AND TM.Active = 1	AND ESMR.Involved = 1
+		AND ESMR.SCRID = #{scrId}
+		<if test='"P".equals(scrnType)'>	
+			AND ESMR.PlanManDay IS NOT NULL
+		</if>
+	</select>
+	
+	<select id="getSCRWorkerList_gridList" resultType="java.util.HashMap">
+		SELECT 
+				Row_Number()OVER(ORDER BY UserName) as RNUM
+				, MemberID
+				, 0 as CHK
+				, UserName
+				, TeamName
+				, LoginID
+				, Email
+				, TeamPath
+				, Position
+				, MTelNum
+				, Authority
+				, MLVL
+				, MemberName
+				, EmployeeNums	
+				, MemberInfo
+				, MAX(RegDate) AS RegDate
+				<if test='"Y".equals(assignmentYN )'>
+				, Photo
+				</if>			
+	  	FROM (
+				SELECT  Top 500			      
+					  TM.MemberID
+					, TM.Name AS UserName
+					, TTT.Name AS TeamName
+					, TM.LoginID
+					, TM.Email
+					, XBOLTADM.fn_GetMyAbsPathForOrg(TM.TeamID , #{languageID}) + '/' + TTT.Name AS TeamPath
+					, ISNULL(TM.Position, '') As Position
+					, ISNULL(TM.MTelNum, '') As MTelNum
+					, ISNULL(CONVERT(varchar(20),PMR.AssignedDate, 120),'') As RegDate
+					, TM.Authority
+					, TM.MLVL
+					, TM.Name
+						+Case When ISNULL(TM.EMAIL,'') != '' Then '/' +ISNULL(TM.EMAIL,'') Else '' End
+						+Case When ISNULL(TTT.NAME,'') != '' Then '/' +ISNULL(TTT.NAME,'') Else '' End
+						AS MemberName
+					, <![CDATA[
+					TM.EmployeeNum+'.jpg' As EmployeeNums,	
+					ISNULL(TM.Name,'') +'/'+ISNULL(TTT2.Name,'') +'/'+ISNULL(TTT.NAME,'N/A') + '<BR>' + ISNULL(TM.Email,'') +'<BR>'
+					+ ISNULL(TM.MTelNum,'') + Case When ISNULL(TM.TelNum,'') != '' Then  ', '  Else '' End + ISNULL(TM.TelNum,'') AS MemberInfo
+					]]> 
+					<if test='"Y".equals(assignmentYN )'>
+					,Case When ISNULL(TM.Photo,'blank_photo.png') = 'blank_photo.png' Then #{blankPhotoUrlPath}
+					Else CAST(#{photoUrlPath} AS varchar(50)) + ISNULL(TM.Photo,'blank_photo.png') END AS Photo
+					</if>			
+				FROM XBOLTADM.TB_PJT_MEMBER_REL PMR,	 XBOLTADM.TB_MEMBER TM
+		  		     Left Outer Join XBOLTADM.TB_TEAM_TXT TTT On TM.TeamID = TTT.TeamID  AND TTT.LanguageID = #{languageID}	 
+		  		     Left Outer Join XBOLTADM.TB_TEAM_TXT TTT2 On TM.CompanyID = TTT2.TeamID  AND TTT2.LanguageID = #{languageID}	  		
+			  	WHERE PMR.MemberID = TM.MemberID	AND TM.Active = 1	AND PMR.Involved = 1 
+						
+						<if test="projectId != null and projectId != ''">
+						AND PMR.ProjectID = #{projectId}
+						</if>
+						<if test="!'ALL'.equals(UserLevel)">
+						AND TM.Authority != 4
+						</if>
+						<if test="scrId != null and scrId != ''">
+						AND TM.MemberID NOT IN (SELECT MemberID FROM XBOLTAPP.ESM_SCR_MBR_ROLE WHERE SCRID = #{scrId})
+						</if>
+						<if test="userType != null and userType != ''">
+						AND TM.UserType = #{userType}
+						</if>
+						<if test="teamId != null and teamId != ''">
+						AND TM.TeamID = #{teamId}
+						</if>
+						<if test="searchValue != null and searchValue != ''">
+							<choose>
+								<when test="searchKey.equals('Name')">
+									AND TM.Name Like N'%'+#{searchValue}+'%'
+								</when>
+								<when test="searchKey.equals('ID')">
+									AND TM.LoginID Like N'%'+#{searchValue}+'%'
+								</when>
+							</choose>
+						</if>
+						<if test="Name != null and Name != ''">
+						AND TM.Name Like N'%'+#{Name}+'%'
+						</if>
+				)A
+		GROUP BY  MemberID, UserName, TeamName, LoginID	, Email, TeamPath, Position, MTelNum, Authority	, MLVL,  MemberName, EmployeeNums, MemberInfo		
+				<if test='"Y".equals(assignmentYN )'>
+				, Photo
+				</if>			
+		ORDER BY UserName
+	</select>
+	
+	<insert id="insertSCRMemberRel" parameterType="java.util.HashMap">
+ 		INSERT INTO
+ 			XBOLTAPP.ESM_SCR_MBR_ROLE(SCRID, MemberID, Authority, AssignedDate)
+		VALUES(
+			#{scrId}
+			,#{MemberID}
+			,(SELECT Authority FROM XBOLTADM.TB_MEMBER WHERE MemberID = #{MemberID})
+			,getDate()
+		)
+ 	</insert>
+ 	
+ 	<update id="updateSCRMemberRel" parameterType="java.util.HashMap">
+ 		UPDATE XBOLTAPP.ESM_SCR_MBR_ROLE
+ 		SET
+ 		MemberID = #{memberID}
+ 		<if test="planManDay != '' and planManDay != null">,PlanManDay = #{planManDay}</if>
+ 		<if test="actualManDay != '' and actualManDay != null">,ActualManDay = #{actualManDay}</if>
+ 		<if test="roleDescription != '' and roleDescription != ''">,RoleDescription = #{roleDescription}</if> 		
+ 		<where>
+			<if test="srcId != null and srcId != ''">
+				SCRID = #{scrId}
+			</if>
+			<if test="memberID != null and memberID != ''">
+			 	 AND MemberID = #{memberID}
+			</if>
+		</where>
+ 	</update>
+
+	<delete id="delSCRMemberRel" parameterType="java.util.HashMap">
+ 		DELETE FROM	XBOLTAPP.ESM_SCR_MBR_ROLE
+		WHERE
+			SCRID = #{scrId}
+			<if test="MemberID != null and MemberID != ''">
+			AND MemberID = #{MemberID}
+			</if>
+ 	</delete>
+ 	
+ 	<select id="getSCRfileType_gridList" resultType="java.util.HashMap">
+	 	SELECT
+			Row_Number()OVER(ORDER BY FT.FltpCode ASC) as RNUM
+			,0 AS CHK
+			, ESF.FltpCode
+			, FT.FilePath
+			, TD.Name
+			, ESF.LinkType
+			, ESF.MandatoryYN
+			, ESF.Remark
+		FROM XBOLTAPP.ESM_SCR_FLTP AS ESF
+			LEFT OUTER JOIN XBOLTADM.TB_FLTP AS FT ON FT.FltpCode = ESF.FltpCode
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD ON FT.FltpCode = TD.TypeCode AND LanguageID = #{languageID}
+		WHERE ESF.SCRID = #{scrId}
+ 	</select>
+ 	
+ 	<select id="AllocateFileType_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY FT.FltpCode ASC) as RNUM
+			,0 AS CHK
+			, FT.FltpCode
+			, FT.FilePath
+			, TD.Name
+		FROM XBOLTADM.TB_FLTP AS FT
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD ON FT.FltpCode = TD.TypeCode AND LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTAPP.ESM_SCR_FLTP AS TFA ON FT.FltpCode = TFA.FltpCode AND TFA.SCRID = #{scrId}
+		WHERE FT.FltpCode NOT IN(
+									Select TF.FltpCode From XBOLTADM.TB_FLTP TF
+									Inner Join XBOLTAPP.ESM_SCR_FLTP TFA ON TF.FltpCode = TFA.FltpCode
+									AND TFA.SCRID = #{scrId}
+								)
+		AND FT.DocCategory = 'SCR'
+	</select>
+	
+	<insert id="InsertScrFileType" parameterType="java.util.HashMap">
+		INSERT INTO
+		XBOLTAPP.ESM_SCR_FLTP(SCRID, FltpCode, DocCategory, CreationTime, Creator)
+		values(
+			 #{scrId}
+			,#{fltpCode}
+			,(SELECT DocCategory FROM XBOLTADM.TB_FLTP WHERE FltpCode = #{fltpCode})
+			,GETDATE()
+			,#{creator}
+		)
+	</insert>
+	
+	<update id="updateScrFileType" parameterType="java.util.HashMap" >
+		Update XBOLTAPP.ESM_SCR_FLTP
+		SET
+			<if test="remark != '' and remark != null">Remark = #{remark},</if>
+			<if test="mandatoryYN != '' and mandatoryYN != null">MandatoryYN = #{mandatoryYN},</if>
+			LastUpdated = GETDATE(),
+			LastUser = #{lastUser}
+		Where SCRID = #{scrId} And FltpCode = #{fltpCode}
+	</update>
+	
+	<delete id="delScrFileType" parameterType="java.util.HashMap">
+ 		DELETE FROM	XBOLTAPP.ESM_SCR_FLTP
+		WHERE
+			SCRID = #{scrId}
+			<if test="fltpCode != null and fltpCode != ''">
+			AND FltpCode = #{fltpCode}
+			</if>
+ 	</delete>
+ 	
+ 	<select id="getFltpBySCR" resultType="java.util.HashMap">
+	 	Select distinct ESF.FltpCode AS CODE, TD.Name AS NAME
+	 	From XBOLTAPP.ESM_SCR_FLTP ESF
+	 	Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = ESF.FltpCode And TD.LanguageID = #{languageID}
+	 	Where ESF.SCRID = #{scrId}
+ 	</select>
+ 	
+ 	<select id="getSCRFileList" resultType="java.util.HashMap">
+ 		Select
+		<choose>
+		<when test="fltpCode != null and fltpCode != ''">
+		TF.Seq AS FileID
+		, TF.FileRealName AS FileRealName2
+		, TF.FileName AS FileName2
+		, TF.Description
+		, (Select FinTestResult From XBOLTAPP.ESM_SCR_MST Where SCRID = #{scrID}) AS FinTestResult
+		, Convert(varchar(10),TF.LastUpdated, 120) AS LastUpdated
+		, TM.Name AS LastUser
+		</when>
+		<otherwise>
+		Row_Number()OVER(ORDER BY TF.FltpCode) as RNUM
+		, TF.Seq
+		, TF.FltpCode
+		, TD.Name AS FltpName
+		, TF.FileRealName AS FileRealName1
+		, TF.FileName AS FileRealName1
+		, EFA.RoleType
+		</otherwise>
+	</choose>
+	From XBOLTADM.TB_FILE TF
+	Left Outer Join XBOLTAPP.ESM_FLTP_ALLOC EFA ON EFA.FltpCode = TF.FltpCode
+	Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TF.FltpCode AND TD.LanguageID = #{languageID}
+	Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TF.LastUser
+	Where EFA.DocCategory = 'SCR'
+	<choose>
+		<when test="fltpCode != null and fltpCode != ''">
+			AND TF.FltpCode = #{fltpCode}
+			AND TF.DocumentID = #{scrID}
+		</when>
+		<otherwise>
+			AND TF.DocumentID IS NULL
+			AND TF.FltpCode = #{fltp}
+		</otherwise>
+	</choose>
+ 	</select>
+ 	
+ 	<select id="getMaxSCRID" resultType="String">
+		SELECT ISNULL(MAX(SCRID)+1, 1) AS SRID FROM XBOLTAPP.ESM_SCR_MST
+	</select>
+	
+	<select id="getMaxSCRCode" resultType="String">
+  		SELECT
+      		TOP 1 SCRCode
+  		FROM XBOLTAPP.ESM_SCR_MST
+  		Where subString(SCRCode, 4,6) = #{thisYmd}  Order by SCRID DESC
+
+	</select>
+ 	
+ 	<select id="getSCRApproverID" resultType="String">
+		Select 
+			 ApproverID
+		From XBOLTAPP.ESM_SCR_MST
+		Where SCRID = #{scrID}
+	</select>
+	
+	<select id="getSCRRegTeam" resultType="java.util.HashMap">
+		SELECT 
+			Distinct ESM.RegTeamID AS CODE
+			, TMT.Name AS NAME
+		FROM 
+			XBOLTAPP.ESM_SCR_MST  ESM, XBOLTADM.TB_TEAM TM 
+			Left Outer Join XBOLTADM.TB_TEAM_TXT TMT ON TM.TeamID = TMT.TeamID AND TMT.LanguageID = #{languageID}
+			Where TM.TeamID = ESM.RegTeamID
+			<if test="parentIDs != null and parentIDs != ''">
+				And TM.ParentID IN (${parentIDs})
+			</if>
+		ORDER BY NAME			
+	</select>
+	
+	<select id="getScrCNT" resultType="String">	
+		Select COUNT(*) From XBOLTAPP.ESM_SCR_MST
+		Where SRID = #{srID}
+		<if test="status != null and status != ''">
+			And Status != #{status}
+		</if>
+	</select>
+	
+	<select id="countOpenSCRofSR" resultType="String">
+		Select
+			Count(Case When Status Not In ('CLS') Then 1 End) OpenSCRCNT
+		From XBOLTAPP.ESM_SCR_MST
+		Where SRID = #{srID}
+	</select>
+</mapper>

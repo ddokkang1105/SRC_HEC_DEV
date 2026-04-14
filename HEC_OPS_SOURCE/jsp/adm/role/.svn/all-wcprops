@@ -1,0 +1,35 @@
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/svn/olm_dev/!svn/ver/7274/OLM3/WebContent/WEB-INF/jsp/adm/role
+END
+teamRoleMgt.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/svn/olm_dev/!svn/ver/6780/OLM3/WebContent/WEB-INF/jsp/adm/role/teamRoleMgt.jsp
+END
+teamItemMappingList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/svn/olm_dev/!svn/ver/6000/OLM3/WebContent/WEB-INF/jsp/adm/role/teamItemMappingList.jsp
+END
+roleAssignment.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svn/olm_dev/!svn/ver/7274/OLM3/WebContent/WEB-INF/jsp/adm/role/roleAssignment.jsp
+END
+teamRoleTypePop.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svn/olm_dev/!svn/ver/6743/OLM3/WebContent/WEB-INF/jsp/adm/role/teamRoleTypePop.jsp
+END
+itemTeamRoleList.jsp
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svn/olm_dev/!svn/ver/6354/OLM3/WebContent/WEB-INF/jsp/adm/role/itemTeamRoleList.jsp
+END

@@ -1,0 +1,3985 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="config_SQL">
+	<select id="getObjectTypeInfo" resultType="java.util.HashMap">
+		SELECT
+		DISTINCT
+		TIT.ItemTypeCode AS ItemTypeCode
+		, TDIT.Name
+		, TDIT.Description
+		, TIT.FilePath
+		, TIT.DefArc
+		, TDA.Name AS achName
+		, ISNULL(TIT.Deactivated, '0') AS Active
+		FROM
+		XBOLTADM.TB_ITEM_TYPE TIT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDIT
+		on TIT.ItemTypeCode = TDIT.TypeCode
+		AND TDIT.LanguageID = #{sessionCurrLangType}
+		Left Outer join XBOLTADM.TB_DICTIONARY TDA
+		on TIT.DefArc = TDA.TypeCode
+		AND TDA.LanguageID = #{sessionCurrLangType}
+		WHERE
+		1 =1
+		AND TIT.Category IN ('OJ', 'REF')
+	</select>
+
+	<select id="getObjectTypeInfo_gridList" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY IT.ItemTypeCode ASC) as RNUM
+		,0 AS CHK
+		, IT.ItemTypeCode
+		, TD.Name
+		, TD.Description
+		, IT.Category
+		, IT.Icon
+		, IT.FilePath
+		, IT.RootItemID
+		, IT.FromItemTypeCode
+		, IT.ToItemTypeCode
+		, IT.DefArc
+		, IT.Deactivated
+		, IT.Creator
+		, IT.CreationTime
+		, TD.LanguageID
+		, (SELECT Count(ItemID) FROM XBOLTADM.TB_ITEM WHERE ItemTypeCode =	IT.ItemTypeCode) AS ItemCNT
+		FROM XBOLTADM.TB_ITEM_TYPE AS IT
+
+		LEFT Outer Join XBOLTADM.TB_DICTIONARY AS TD	On IT.ItemTypeCode = TD.TypeCode	and LanguageID = #{languageID}
+		where	1=1
+			<if test="Category != null and Category != ''">
+				AND IT.Category = #{Category}
+			</if>			
+		Order By  IT.ItemTypeCode	
+	</select>
+
+	<select id="getConnectTypeList" resultType="java.util.HashMap">
+		SELECT
+		TIT.ItemTypeCode
+		, TD.Name
+		, TDF.Name AS FromItemNam
+		, TDT.Name AS ToItemName
+		, TD.Description
+		, TIT.FromItemTypeCode
+		, TIT.ToItemTypeCode
+		, TIT.Deactivated
+		, ISNULL(TIT.Icon, 'btn_dim_del.png') AS IconImg
+		, ISNULL(TIT.Icon, '') AS Icon
+		, TIT.FilePath
+		, TIT.DefArc
+		, TIT.RootItemID
+		, TIT.DMS
+		, CONVERT(varchar(20), TIT.CreationTime, 111) AS CreationTime
+		, TM.Name AS Creator
+		, (SELECT Count(ItemID) FROM XBOLTADM.TB_ITEM WHERE ItemTypeCode =	TIT.ItemTypeCode) AS ItemCNT
+		FROM	XBOLTADM.TB_ITEM_TYPE TIT
+				Left Outer Join XBOLTADM.TB_DICTIONARY TD		on TIT.ItemTypeCode = TD.TypeCode		AND TD.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_DICTIONARY TDF		on TIT.FromItemTypeCode = TDF.TypeCode		AND TDF.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_DICTIONARY TDT		on TIT.ToItemTypeCode = TDT.TypeCode		AND TDT.LanguageID = #{languageID}
+				Left Outer Join XBOLTADM.TB_MEMBER TM		on TIT.Creator = TM.MemberID
+		WHERE	TIT.Category = 'CN'		AND TIT.ItemTypeCode = #{ItemTypeCode}
+		Order By ItemTypeCode
+	</select>
+
+	<select id="getConnectTypeList_gridList" resultType="java.util.HashMap">
+		SELECT	Row_Number()OVER(ORDER BY TIT.ItemTypeCode ASC) as RNUM
+		, 0 AS CHK
+		, TIT.ItemTypeCode
+		, TD.Name
+		, TDF.Name AS FromItemNam
+		, TDT.Name AS ToItemName
+		, TD.Description
+		, TIT.FromItemTypeCode
+		, TIT.ToItemTypeCode
+		, TIT.Deactivated
+		, (SELECT Count(ItemID) FROM XBOLTADM.TB_ITEM WHERE ItemTypeCode =	TIT.ItemTypeCode) AS ItemCNT
+		FROM	XBOLTADM.TB_ITEM_TYPE TIT		
+				Left Outer Join XBOLTADM.TB_DICTIONARY TD		on TIT.ItemTypeCode = TD.TypeCode		AND TD.LanguageID = #{sessionCurrLangType} AND TD.Category = 'CN'
+				Left Outer Join XBOLTADM.TB_DICTIONARY TDF		on TIT.FromItemTypeCode = TDF.TypeCode	AND TDF.LanguageID = #{sessionCurrLangType}
+				Left Outer Join XBOLTADM.TB_DICTIONARY TDT		on TIT.ToItemTypeCode = TDT.TypeCode	AND TDT.LanguageID = #{sessionCurrLangType}
+		WHERE	TIT.Category = 'CN'
+		ORDER BY TIT.ItemTypeCode
+	</select>
+
+	<select id="getObjectClassList" resultType="java.util.HashMap">
+		SELECT
+		TC.ItemClassCode
+		, TD.Name
+		, TD.Description
+		, TC.DefSymCode
+		, ISNULL(TC.Deactivated,'0') AS Active
+		FROM
+		XBOLTADM.TB_ITEM_CLASS TC
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD
+		on TC.ItemClassCode = TD.TypeCode
+		AND TD.LanguageID = #{sessionCurrLangType}
+		WHERE
+		TC.ItemTypeCode = #{TypeCode}
+	</select>
+
+	<select id="getDefineAttrList" resultType="java.util.HashMap">
+		SELECT
+		TD.TypeCode
+		, TD.Name
+		, TAT.DataType
+		, TD.Description
+		FROM
+		XBOLTADM.TB_ATTR_TYPE TAT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD
+		on TAT.AttrTypeCode = TD.TypeCode
+		AND TD.LanguageID = #{sessionCurrLangType}
+
+		WHERE
+		TD.TypeCode IS NOT NULL
+	</select>
+
+	<select id="getDefineAttrList_gridList" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY TD.TypeCode ASC) as RNUM
+		, 0 AS CHK
+		, TD.TypeCode
+		, TD.Name
+		, TAT.DataType
+		, TD.Description
+		FROM
+		XBOLTADM.TB_ATTR_TYPE TAT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD
+		on TAT.AttrTypeCode = TD.TypeCode
+		AND TD.LanguageID = #{sessionCurrLangType}
+		WHERE
+		TD.TypeCode IS NOT NULL
+		ORDER BY
+		TD.TypeCode ASC
+	</select>
+
+	<select id="getAllocateClassList" resultType="java.util.HashMap">
+
+		SELECT
+		TC.ItemClassCode
+		, TDO.Name
+		, TD.Name AS ClassName
+		, TC.DefSymCode
+		, ISNULL(TC.Icon, 'btn_dim_del.png') AS Icon
+		, TC.ChangeMgt
+		, TC.HasCoP
+		, TC.HasDimension
+		, TC.HasFile
+		, TC.ExtFunc
+		, TC.Prefix
+		, TC.Deactivated
+		, TD.Description
+		, TD.LanguageID
+		, TC.Creator
+		, TC.CreationTime
+		, TM.Name as CreatorName
+		, TC.LastUser
+		, TM2.Name AS LastUserName
+		, CONVERT(varchar(20),TC.LastUpdated, 111) AS LastUpdated
+		FROM
+		XBOLTADM.TB_ITEM_CLASS TC
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD
+		on TC.ItemClassCode = TD.TypeCode
+		AND TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDO
+		on TC.ItemTypeCode = TDO.TypeCode
+		AND TDO.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_MEMBER TM
+		on TC.Creator = TM.MemberID
+		Left Outer Join XBOLTADM.TB_MEMBER TM2
+		on TC.LastUser = TM2.MemberID
+
+		WHERE
+		1 = 1
+			<if test="ItemTypeCode != null and ItemTypeCode != ''">
+				AND TC.ItemClassCode = #{ItemClassCode}
+			</if>
+	</select>
+
+	<select id="getAllocateClassList_gridList" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY TC.ItemClassCode ASC) as RNUM
+		, 0 AS CHK
+		, TC.ItemClassCode
+		, ISNULL(TDO.Name, '') As Name
+		, ISNULL(TD.Name, '') AS ClassName
+		, ISNULL(TD2.Name, '') AS SymbolName
+		, ISNULL(TC.DefSymCode, '') AS DefSymCode
+		, ISNULL(TC.Icon, 'btn_dim_del.png') AS Icon
+		, ISNULL(TC.ChangeMgt, '') AS ChangeMgt
+		, ISNULL(TC.HasCoP, '') AS HasCoP
+		, ISNULL(TC.HasDimension, '') AS HasDimension
+		, ISNULL(TC.Level, '') AS Level
+		, ISNULL(TC.HasFile, '') AS HasFile
+		, ISNULL(TC.ExtFunc, '') AS ExtFunc
+		, ISNULL(TC.Prefix, '') AS Prefix
+		, ISNULL(TC.Deactivated, '') AS Deactivated
+		, ISNULL(TD.Description, '') AS Description
+		, ISNULL(TD.LanguageID, '') AS LanguageID
+		, ISNULL(TC.Creator, '') AS Creator
+		, ISNULL(TC.CreationTime, '') AS CreationTime
+		, ISNULL(CONVERT(varchar(20),TC.LastUpdated, 111),'') AS LastUpdated
+		, ISNULL(TM.Name, '') AS CreatorName
+		, ISNULL(TIT.Category, '') AS Category
+		, (SELECT Count(ItemID) FROM XBOLTADM.TB_ITEM WHERE ClassCode =
+		TC.ItemClassCode) AS CNT
+		, TC.FileOption
+		, TC.LastUpdated
+		, TC.DefWFID
+		, TD1.Name AS WorkFlow
+		FROM
+		XBOLTADM.TB_ITEM_CLASS TC
+		Inner Join XBOLTADM.TB_ITEM_TYPE TIT
+		on TIT.ItemTypeCode = TC.ItemTypeCode
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD
+		on TC.ItemClassCode = TD.TypeCode
+		AND TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDO
+		on TC.ItemTypeCode = TDO.TypeCode
+		AND TDO.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_MEMBER TM
+		on TC.Creator = TM.MemberID
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2
+		on TC.DefSymCode = TD2.TypeCode
+		and TD2.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD1
+		on TC.DefWFID = TD1.TypeCode
+		and TD1.LanguageID = #{languageID}
+		WHERE
+		1 = 1
+			<if test="Category != null and Category != ''">
+				AND TIT.Category = #{Category}
+			</if>
+			<if test="ItemTypeCode != null and ItemTypeCode != ''">
+				AND TC.ItemTypeCode = #{ItemTypeCode}
+			</if>
+	</select>
+
+	<select id="getCategoryCode" resultType="java.util.HashMap">
+		SELECT DISTINCT
+		T2.Category
+		FROM XBOLTADM.TB_ITEM_CLASS T1,
+		XBOLTADM.TB_ITEM_TYPE T2
+		WHERE T1.ItemTypeCode = T2.ItemTypeCode
+	</select>
+
+	<select id="getObjectCodeFromClass" resultType="java.util.HashMap">
+		SELECT
+		DISTINCT
+		IT.ItemTypeCode AS CODE
+		, ISNULL(TD.Name, IT.ItemTypeCode) As NAME
+		, IT.Icon AS ICON
+		FROM
+		XBOLTADM.TB_ITEM_TYPE IT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD
+		on IT.ItemTypeCode = TD.TypeCode
+		AND TD.LanguageID = #{languageID}
+		WHERE
+			1 = 1
+			<if test="option != null and option != ''">
+				AND IT.Category = #{option}
+			</if>
+	</select>
+
+	<select id="getObjectFromClassTopCode" resultType="String">
+		SELECT
+		TOP 1
+		TC.ItemTypeCode
+		FROM
+		XBOLTADM.TB_ITEM_CLASS TC
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD
+		on TC.ItemClassCode = TD.TypeCode
+		AND TD.LanguageID = #{sessionCurrLangType}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDO
+		on TC.ItemTypeCode = TDO.TypeCode
+		AND TDO.LanguageID = #{sessionCurrLangType}
+		WHERE
+		TC.ItemTypeCode IS NOT NULL
+		ORDER BY
+		TC.ItemTypeCode ASC
+	</select>
+
+	<select id="getItemTypeCodeItemID" resultType="String">
+		Select
+		ItemTypeCode FROM XBOLTADM.TB_ITEM
+		WHERE ItemID = #{s_itemID}
+	</select>
+
+	<select id="getClassAttrLocateList_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY TATA.SortNum ASC) as RNUM
+			, 0 AS CHK
+			, TATA.SortNum
+			, TAT.AttrTypeCode
+			, TD.Name
+			, TD.Description
+			, ISNULL(TATA.Mandatory,'') AS Mandatory
+			, ISNULL(TATA.Invisible,'') AS Invisible	
+			, TATA.Link		
+			, ISNULL(TD2.Name, TM.DicCode) AS LinkName	
+			, ISNULL(TATA.AreaHeight,'') AS AreaHeight
+			, ISNULL(TATA.RowNum,'') AS RowNum
+			, ISNULL(TATA.ColumnNum,'') AS ColumnNum
+			, TATA.VarFilter
+			, TATA.AllocationType
+		FROM XBOLTADM.TB_ATTR_TYPE TAT
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TD on TAT.AttrTypeCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+		 Inner Join XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA on TAT.AttrTypeCode = TATA.AttrTypeCode AND TATA.ItemClassCode = #{ItemClassCode}
+		 Left Outer Join XBOLTADM.TB_MENU TM ON TM.MenuID = TATA.Link 
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TD2 on TM.DicCode = TD2.TypeCode AND TD2.LanguageID = #{languageID}
+		WHERE TD.Name IS NOT NULL
+	</select>
+
+	<select id="getClassReportLocateList_gridList" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY TB.ReportCode ASC) as RNUM
+		, 0 AS CHK
+		, TB.ReportCode
+		, TB.ReportType
+		, TB.OutputType
+		, TD.Name
+		, TD.Description
+		, TRA.VarFilter
+		, TRA.SortNum
+		FROM XBOLTADM.TB_REPORT TB
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD on TB.ReportCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+		Inner Join XBOLTADM.TB_REPORT_ALLOCATION TRA on TB.ReportCode = TRA.ReportCode
+		AND TRA.ClassCode = #{ClassCode}
+	</select>
+
+	<select id="languageList" resultType="java.util.HashMap">
+		SELECT
+		LanguageID AS CODE, LanguageCode, NAME, NameEN, IsDefault
+		FROM
+		XBOLTADM.TB_LANGUAGE
+		WHERE
+		Deactivated IS NULL
+	</select>
+
+	<select id="defaultLanguageID" resultType="String">
+		SELECT
+		LanguageID
+		FROM
+		XBOLTADM.TB_LANGUAGE
+		WHERE
+		IsDefault = '1'
+	</select>
+
+	<select id="getDefineArchitectureList_gridList" resultType="java.util.HashMap">
+		Select
+			Row_Number()OVER(ORDER BY TA.ArcCode ASC) as RNUM
+			,TA.ParentID 
+			,TA.ArcCode
+			,ISNULL( TDP.Name, TDA.Name) As ArcGroup
+			,Case When ISNULL(TA.ParentID,'') = '' Then ''
+				  Else TDA.Name  END As ArcName
+		    ,TA.Style
+		    ,TA.Icon
+		    ,TA.WID
+		    ,TA.Deactivated
+		    ,TA.LastUpdated
+		    ,TA.LastUser
+		    ,TM.URL
+		    ,Case ISNULL(TM.URL,'') When '' Then '' Else
+				ISNULL(TM.URL,'')+'.do'+ISNULL(TM.VarFilter,'') END AS MenuURL
+			,TA.Type    
+		 From XBOLTADM.TB_ARC  TA
+			Left Outer Join XBOLTADM.TB_DICTIONARY TDP ON TDP.TypeCode = TA.ParentID And TDP.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TDA ON TDA.TypeCode = TA.ArcCode And TDA.LanguageID = #{languageID} And TDA.Category = 'AR'
+			Left Outer Join XBOLTADM.TB_MENU TM ON TM.MenuID = TA.MenuID
+		Where 1=1
+			<if test="searchValue != null and searchValue != ''">
+				AND TDA.Name like N'%'+#{searchValue}+'%'
+			</if>
+			<if test="searchKey != null and searchKey != ''">
+				And TA.Type = #{searchKey}
+			</if>
+		
+		Order By TA.ArcCode, TA.ParentID 
+	</select>
+
+	<select id="getDefineArchitectureList" resultType="java.util.HashMap">
+		SELECT
+			TA.ArcCode
+			,TDA.Name AS ArchiName
+			,TA.ParentID
+			,TDP.Name AS ParentName
+			,TA.SortNum
+			,TA.ArcCode
+			,TDIT.Name AS ItemTypeName
+			,TA.DimTypeID
+			,TIAD.PlainText AS DimTypeName
+			,TA.DimTypeID
+			,TDVT.Name AS DefDimName
+			,TA.MenuID
+			,TDM.Name AS MenuName
+			,TA.Type
+		FROM XBOLTADM.TB_ARC TA
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TDA on TA.ArcCode = TDA.TypeCode AND TDA.LanguageID = #{languageID}
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TDP on TA.ParentID = TDP.TypeCode AND TDP.LanguageID = #{languageID}
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TDIT on TA.ArcCode = TDIT.TypeCode AND TDIT.LanguageID = #{languageID}
+		 Left Outer Join XBOLTADM.TB_ITEM_ATTR TIAD on TA.DimTypeID = TIAD.ItemID AND TIAD.AttrTypeCode = 'AT00001' AND TIAD.LanguageID = #{languageID}
+		 Left Outer Join XBOLTADM.TB_DIM_VALUE_TXT TDVT on TA.DimTypeID = TDVT.DimValueID
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TDM on TA.MenuID = TDM.TypeCode AND TDM.LanguageID = #{languageID}
+	</select>
+
+	<insert id="insertItemType" parameterType="java.util.HashMap">
+		INSERT INTO
+		XBOLTADM.TB_ITEM_TYPE(
+
+		ItemTypeCode
+		, Category
+		, FromItemTypeCode
+		, ToItemTypeCode
+		, FilePath
+		, DMS
+		, Deactivated
+		, CreationTime
+		, Creator
+		)VALUES (
+
+		#{ItemTypeCode}
+		, #{Category}
+		, #{FromItemTypeCode}
+		, #{ToItemTypeCode}
+		, #{FilePath}
+		, #{DMS}
+		, #{Active}
+		, GETDATE()
+		, #{Creator}
+
+		)
+	</insert>
+
+	<update id="updateItemType" parameterType="java.util.HashMap">
+		UPDATE
+		XBOLTADM.TB_ITEM_TYPE
+		SET
+		ItemTypeCode = #{ItemTypeCode}
+		, Category = #{Category}
+		, FromItemTypeCode = #{FromItemTypeCode}
+		, ToItemTypeCode = #{ToItemTypeCode}
+		, FilePath = #{FilePath}
+
+		, DMS = #{DMS}
+		, Deactivated = #{Active}
+		WHERE
+		ItemTypeCode = #{orgTypeCode}
+
+	</update>
+
+	<insert id="insertItemClass" parameterType="java.util.HashMap">
+		INSERT INTO
+		XBOLTADM.TB_ITEM_CLASS(
+		ItemClassCode
+		, ItemTypeCode
+		, Deactivated
+		, ClientID
+		, DefSymCode
+		)VALUES (
+
+		#{ItemClassCode}
+		, #{ItemTypeCode}
+		, #{Active}
+		, #{ClientID}
+		, #{DefSymCode}
+		)
+	</insert>
+
+	<update id="updateItemClass" parameterType="java.util.HashMap">
+		UPDATE
+
+		XBOLTADM.TB_ITEM_CLASS
+
+		SET
+		DefSymCode = #{DefSymCode}
+		, Deactivated = #{Active}
+		, ItemClassCode = #{ItemClassCode}
+		, Icon = #{Icon}
+		, FileOption = #{FileOption}
+		
+		WHERE
+		ItemClassCode = #{orgClassCode}
+		AND ItemTypeCode = #{ItemTypeCode}
+	</update>
+
+	<insert id="insertDictionary" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_DICTIONARY
+			( TypeCode, LanguageID, Name, Description, Category, ClientID
+			)VALUES ( #{TypeCode}, #{languageID}, #{Name}, #{Description}, #{Category}, #{ClientID} )
+	</insert>
+
+	<update id="updateDictionary" parameterType="java.util.HashMap">
+		UPDATE XBOLTADM.TB_DICTIONARY SET
+			Name = #{Name}
+			, Description = #{Description}
+			, TypeCode = #{TypeCode}
+		WHERE TypeCode = #{orgTypeCode}
+		AND LanguageID = #{languageID}
+	</update>
+
+	<delete id="clearAttrTypeAllocation">
+		DELETE
+		FROM
+		XBOLTADM.TB_ATTR_TYPE_ALLOCATION
+		WHERE
+		ItemClassCode = #{ItemClassCode}
+	</delete>
+
+
+	<delete id="clearReportAllocation">
+		DELETE
+		FROM
+		XBOLTADM.TB_REPORT_ALLOCATION
+		WHERE
+		ClassCode = #{ItemClassCode}
+	</delete>
+
+
+	<insert id="insertAttrTypeAllocation" parameterType="java.util.HashMap">
+		INSERT INTO
+		XBOLTADM.TB_ATTR_TYPE_ALLOCATION(
+
+		AttrTypeCode
+		, ItemClassCode
+		, Mandatory
+		, ClientID
+
+		)VALUES(
+
+		#{AttrTypeCode}
+		, #{ItemClassCode}
+		, #{Mandatory}
+		, #{Client}
+
+		)
+	</insert>
+
+	<insert id="insertReportAllocation" parameterType="java.util.HashMap">
+		INSERT INTO
+		XBOLTADM.TB_ATTR_TYPE_ALLOCATION(
+		ReportCode
+		, ClassCode
+
+		)VALUES(
+		#{ReportCode}
+		, #{ItemClassCode}
+
+		)
+	</insert>
+
+	<insert id="InsertItemClass" parameterType="java.util.HashMap">
+
+		INSERT INTO
+		XBOLTADM.TB_ITEM_CLASS(
+		ItemClassCode
+		, ItemTypeCode
+		, Creator
+		, CreationTime
+		, ClientID
+		)
+		VALUES(
+		#{ItemClassCode}
+		, #{ItemTypeCode}
+		, #{Creator}
+		, GETDATE()
+		, 1
+		)
+
+	</insert>
+
+	<insert id="InsertDictionaryClass" parameterType="java.util.HashMap">
+
+		INSERT INTO
+		XBOLTADM.TB_DICTIONARY(
+		TypeCode
+		,LanguageID
+		,Category
+		,Name
+		,Description
+		)
+		VALUES(
+		#{TypeCode}
+		,#{languageID}
+		,#{Category}
+		,#{Name}
+		,#{Description}
+		)
+
+	</insert>
+
+	<delete id="delClassType">
+		DELETE
+		XBOLTADM.TB_ITEM_CLASS
+		WHERE
+		ItemClassCode = #{ItemClassCode}
+
+	</delete>
+
+	<delete id="delDic">
+		DELETE
+		XBOLTADM.TB_DICTIONARY
+		WHERE
+		TypeCode = #{TypeCode}
+	</delete>
+
+	<select id="LeloadClass" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY TC.ItemClassCode ASC) as RNUM
+			, 0 AS CHK
+			, TC.ItemClassCode
+			, TC.ItemTypeCode
+			, TDO.Name
+			, TD.Name AS ClassName
+			, TD2.Name AS SymbolName
+			, TC.DefSymCode
+			, ISNULL(TC.Icon, 'btn_dim_del.png') AS Icon
+			, TC.ChangeMgt
+			, TC.HasCoP
+			, TC.HasDimension
+			, TC.HasFile
+			, TC.ExtFunc
+			, TC.AutoID
+			, TC.Prefix
+			, TC.Deactivated
+			, TD.Description
+			, TD.LanguageID
+			, TC.Creator
+			, TM.Name as CreatorName
+			, TC.LastUser
+			, TM2.Name AS LastUserName
+			, CONVERT(varchar(20),TC.CreationTime, 111) AS CreationTime
+			, CONVERT(varchar(20),TC.LastUpdated, 111) AS LastUpdated
+			, TC.FileOption
+			, TC.MenuID
+			, TC.Level
+			, TC.CheckInOption
+			, TC.DefWFID
+			, TD1.Name AS WorkFlow
+			, TC.SubscrOption
+			, TC.DefVersionIncr
+			, TC.Varfilter
+		FROM XBOLTADM.TB_ITEM_CLASS TC
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD on TC.ItemClassCode = TD.TypeCode	AND TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDO on TC.ItemTypeCode = TDO.TypeCode AND TDO.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_MEMBER TM on TC.Creator = TM.MemberID
+		Left Outer Join XBOLTADM.TB_MEMBER TM2 on TC.LastUser = TM2.MemberID
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 on TC.DefSymCode = TD2.TypeCode and TD2.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD1 on TC.DefWFID = TD1.TypeCode and  TD1.LanguageID = #{languageID}
+		WHERE ItemClassCode=#{ItemClassCode}
+	</select>
+
+	<select id="selectClassDictionary" resultType="String">
+
+		SELECT
+		TypeCode
+		FROM
+		XBOLTADM.TB_DICTIONARY
+		WHERE
+		1=1
+			<if test="Category != null and Category != ''">
+				And Category = #{Category}
+			</if>
+			<if test="TypeCode != null and TypeCode != ''">
+				And TypeCode = #{TypeCode}
+			</if>
+			<if test="languageID != null and languageID != ''">
+				And LanguageID = #{languageID}
+			</if>
+
+	</select>
+
+	<update id="UpdateClassDictionary">
+		UPDATE
+		XBOLTADM.TB_DICTIONARY
+		SET
+		Name = #{Name}
+		,Description = #{Description}
+		where
+		TypeCode = #{TypeCode}
+		and LanguageID = #{languageID}
+
+	</update>
+
+	<update id="UpdateItemClass">
+		UPDATE XBOLTADM.TB_ITEM_CLASS SET
+			ChangeMgt = #{ChangeMgt}
+			, HasDimension =	#{HasDimension}
+			, FileOption=#{FileOption}
+			<choose>
+				<when test="CheckInOption != null and CheckInOption != ''">
+					,CheckInOption = #{CheckInOption}
+				</when>
+				<when test="CheckInOption == null or CheckInOption == ''">
+					,CheckInOption = NULL
+				</when>
+			</choose>
+			, Level = #{Level}
+			, DefSymCode = #{DefSymCode}
+			, Icon = #{Icon}
+			, Deactivated = #{Deactivated}
+			, MenuID = #{MenuID}
+			, AutoID = #{AutoID}
+			, PreFix = #{PreFix}
+			, LastUpdated = GETDATE()
+			, LastUser = #{LastUser}
+			, DefWFID = #{DefWFID}
+			, SubscrOption = #{SubscrOption}
+			, DefVersionIncr = #{DefVersionIncr}
+			, Varfilter = #{Varfilter}
+		Where ItemClassCode = #{ItemClassCode}
+	</update>
+
+	<insert id="InsertDictionaryClassView" parameterType="java.util.HashMap">
+		INSERT INTO
+		XBOLTADM.TB_DICTIONARY(
+		LanguageID
+		,Name
+		,Description
+		,TypeCode
+		,Category
+		
+		)
+		VALUES(
+		#{languageID}
+		,#{Name}
+		,#{Description}
+		,#{TypeCode}
+		,#{Category}
+		)
+	</insert>
+
+	<select id="AddAttrReload" resultType="java.util.HashMap">
+		SELECT
+
+		TAT.AttrTypeCode
+		, TD.Name
+		, TD.Description
+		, TD.LanguageID
+
+		FROM
+		XBOLTADM.TB_ATTR_TYPE TAT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD
+		on TAT.AttrTypeCode = TD.TypeCode
+		AND TD.LanguageID = #{languageID}
+
+		where
+		1=1
+		and AttrTypeCode=#{AttrTypeCode}
+	</select>
+
+	<select id="YjAddAttr_gridList" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY TAT.AttrTypeCode ASC) as RNUM
+		, 0 AS CHK
+		, TAT.AttrTypeCode
+		, TD.Name
+		, TD.Description
+		FROM
+		XBOLTADM.TB_ATTR_TYPE TAT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD
+		on TAT.AttrTypeCode = TD.TypeCode
+		AND TD.LanguageID = #{languageID}
+		WHERE
+		TD.Name IS NOT NULL
+		and 1=1
+		and TAT.AttrTypeCode NOT IN(
+		SELECT
+		AT.AttrTypeCode
+
+		FROM
+		XBOLTADM.TB_ATTR_TYPE AS AT
+
+		Inner Join XBOLTADM.TB_ATTR_TYPE_ALLOCATION TATA
+		on AT.AttrTypeCode = TATA.AttrTypeCode
+		AND TATA.ItemClassCode = #{ItemClassCode}
+
+		)
+	</select>
+
+	<insert id="InsertAddAttributeType">
+		INSERT INTO
+		XBOLTADM.TB_ATTR_TYPE_ALLOCATION(
+
+		ItemClassCode
+		,AttrTypeCode
+		,ItemTypeCode
+		,SortNum
+
+		)
+		VALUES(
+		#{ItemClassCode}
+		,#{AttrTypeCode}
+		,#{ItemTypeCode}
+		,#{SortNum}
+		)
+	</insert>
+
+	<update id="UpdateAttrTypeGrid">
+		UPDATE XBOLTADM.TB_ATTR_TYPE_ALLOCATION SET
+			SortNum = #{SortNum}
+			,Mandatory = #{Mandatory}
+			,Invisible = #{Invisible}
+			,AreaHeight = #{AreaHeight}
+			,RowNum = #{rowNum}
+			,ColumnNum = #{columnNum}
+			<choose>
+				<when test="Link != null and Link != ''">
+					,Link = #{Link}
+				</when>
+				<when test="Link == null or Link == ''">
+					,Link = NULL
+				</when>
+			</choose>	
+			,VarFilter = #{varFilter}
+			<choose>
+				<when test="allocationType != null and allocationType != ''">
+					,AllocationType = #{allocationType}
+				</when>
+				<when test="allocationType == null or allocationType == ''">
+					,AllocationType = NULL
+				</when>
+			</choose>
+		WHERE ItemClassCode=#{ItemClassCode}	AND AttrTypeCode=#{AttrTypeCode}
+	</update>
+
+	<delete id="DeleteAttrTypeGrid">
+		DELETE
+		XBOLTADM.TB_ATTR_TYPE_ALLOCATION
+		WHERE
+		ItemClassCode=#{ItemClassCode}
+		AND AttrTypeCode=#{AttrTypeCode}
+
+	</delete>
+
+	<select id="addReportCodeAlloc_gridList" resultType="java.util.HashMap">
+		select
+		Row_Number()OVER(ORDER BY TR.ReportCode ASC) as RNUM
+		, 0 AS CHK
+		,TR.ReportCode
+		,TR.ReportType
+		,TR.OutputType
+		,TD.Name
+		,TD.Description
+		from
+		XBOLTADM.TB_REPORT TR
+
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD
+		on TR.ReportCode = TD.TypeCode
+		and LanguageID=#{languageID}
+
+		Left Outer Join XBOLTADM.TB_REPORT_ALLOCATION TRA
+		on TR.ReportCode = TRA.ReportCode
+		and TRA.ClassCode=#{ClassCode}
+		where
+		1=1
+		and TR.ReportCode NOT IN(
+		SELECT
+		TR.ReportCode
+		FROM
+		XBOLTADM.TB_REPORT TR
+		Inner Join XBOLTADM.TB_REPORT_ALLOCATION TRA
+		on TR.ReportCode = TRA.ReportCode
+		AND TRA.ClassCode = #{ClassCode}
+		)
+	</select>
+
+	<insert id="InsertAddClassType">
+		Insert
+		XBOLTADM.TB_REPORT_ALLOCATION(
+		ReportCode
+		,ClassCode
+		)
+		values(
+		#{ReportCode}
+		,#{ClassCode}
+		)
+	</insert>
+
+	<delete id="DeleteReportType">
+		delete
+		XBOLTADM.TB_REPORT_ALLOCATION
+		where
+		ClassCode=#{ClassCode}
+		and ReportCode=#{ReportCode}
+	</delete>
+
+	
+
+	<insert id="InsertFileType">
+		Insert into
+		XBOLTADM.TB_FLTP_ALLOC(
+		FltpCode
+		,ItemClassCode
+		)
+		values(
+		#{FltpCode}
+		,#{ItemClassCode}
+		)
+	</insert>
+
+	<delete id="DeleteFileType">
+		delete
+		XBOLTADM.TB_FLTP_ALLOC
+		where
+		FltpCode = #{FltpCode}
+		and ItemClassCode = #{ItemClassCode}
+
+	</delete>
+
+	<select id="getSelectArchitecure" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY TA.ArcCode ASC) as RNUM
+			, 0 AS CHK
+			, TA.ArcCode
+			, TDA.Name AS ArcName
+			, TA.ParentID
+			, TDP.Name AS ParentArcName
+			, TA.SortNum
+			, TDA.Description
+			, TA.ArcCode
+			<!-- , TDIT.Name AS ItemTypeName  -->
+			, TA.DimTypeID
+			, CONVERT(NVARCHAR(MAX), XBOLTADM.fn_GetMyAbsPathForList(TA.DimTypeID, #{languageID}) + '/' + CONVERT(NVARCHAR(MAX), TIA.PlainText)) AS Path
+			, TA.MstObjectID
+			, TIAD.PlainText AS DimTypeName
+			, TA.DimTypeID
+			, TDVT.Name AS DefDimName
+			, TA.MenuID
+			, TDM.Name AS MenuName
+			, TA.Type
+			, CASE WHEN TA.Type ='1' THEN N'일반' ELSE N'관리자' END AS TypeName
+			, TA.Style
+			, TA.Icon
+			, TA.WID
+			, ISNULL(TA.Deactivated,NULL) AS Deactivated
+			, TA.FilterType
+			, TA.Creator
+			, CONVERT(varchar(20),TA.CreationTime, 111) AS CreationTime
+			, TA.LastUser
+			, TM.Name AS LastUserName
+			, CONVERT(varchar(20),TA.LastUpdated, 111) AS LastUpdated
+			, TA.Level
+			, TA.VarFilter
+			, TA.UntitledOption
+			, TA.SortOption
+			, TA.IDFilter
+		FROM XBOLTADM.TB_ARC TA
+			Left Outer Join XBOLTADM.TB_DICTIONARY TDA On TA.ArcCode = TDA.TypeCode AND TDA.LanguageID = #{languageID} And TDA.Category = 'AR'
+			Left Outer Join XBOLTADM.TB_DICTIONARY TDP On TA.ParentID = TDP.TypeCode AND TDP.LanguageID = #{languageID}
+			<!-- Left Outer Join XBOLTADM.TB_DICTIONARY TDIT On TA.ArcCode = TDIT.TypeCode AND TDIT.LanguageID = #{languageID} -->
+			Left Outer Join XBOLTADM.TB_DIM_VALUE TDV On TDV.DimTypeID = TA.DimTypeID
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA On TA.DimTypeID = TIA.ItemID AND TIA.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIAD On TDV.DimValueID = TIAD.ItemID AND TIAD.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DIM_VALUE_TXT TDVT On TA.DimTypeID = TDVT.DimTypeID
+			Left Outer Join XBOLTADM.TB_DICTIONARY TDM On TDM.TypeCode = (select DicCode From XBOLTADM.TB_MENU Where MenuID = TA.MenuID)AND TDM.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM On TA.LastUser = TM.MemberID
+		WHERE ArcCode = #{ArcCode}
+		ORDER BY TA.ArcCode
+	</select>
+
+	<update id="updateArc" parameterType="java.util.HashMap">
+		Update XBOLTADM.TB_ARC SET
+			FilterType = #{FilterType}		
+			<choose>
+				<when test="ParentID != null and ParentID != ''">
+					, ParentID = #{ParentID}
+				</when>
+				<when test="ParentID == ''">
+				, ParentID = NULL 
+				</when>
+			</choose>	
+			, Deactivated = #{Deactivated}
+			, SortNum = #{SortNum}
+			, UntitledOption = #{UntitledOption}
+			, DimTypeID = #{DimTypeID}
+			, MstObjectID = #{MstObjectID}
+			, WID = #{WID}
+			<choose>
+				<when test="ParentID != null and ParentID != ''">
+					, Level = 2
+				</when>
+				<when test="ParentID == ''">
+					, Level = 1
+				</when>
+			</choose>
+			, LastUser = #{LastUser}
+			, LastUpdated = GETDATE()
+			, Icon = #{Icon}	
+			<choose>
+				<when test="Style != null and Style != ''">
+					, Style = #{Style}
+				</when>
+				<when test="Style == null">
+					, Style = NULL
+				</when>
+			</choose>	
+			<choose>
+				<when test="MenuID != null and MenuID != ''">
+					, MenuID = #{MenuID}
+				</when>
+				<when test="MenuID == null or MenuID == ''">
+					, MenuID = NULL
+				</when>
+			</choose>
+			, type = #{Type}		
+			, VarFilter = #{VarFilter}
+			, SortOption = #{SortOption}
+			<choose>
+				<when test="idFilter != null and idFilter != ''">
+					, IDFilter = #{idFilter}
+				</when>
+				<when test="idFilter == null or idFilter == ''">
+					, IDFilter = NULL
+				</when>
+			</choose>	
+		Where
+		ArcCode = #{ArcCode}
+	</update>
+
+	<update id="updateArcDictionary">
+		UPDATE XBOLTADM.TB_DICTIONARY SET
+			Name = #{ArcName}
+		Where TypeCode = #{ArcCode}
+		And LanguageID = #{languageID}
+	</update>
+
+	<select id="getDefineTemplateCode_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY TemplCode ASC ) as RNUM
+			, 0 AS CHK
+			,TL.TemplCode
+			, TD.Name AS TemplateName
+			, TL.Type
+			, TL.MenuID
+			, Case When TL.Style = 'slidemenu1' Then 'Blue'
+						When TL.Style = 'slidemenu2' Then 'Light Blue'
+						When TL.Style = 'slidemenu3' Then 'Green'
+						When TL.Style = 'slidemenu4' Then 'Red'
+				Else ''
+				End Style
+			, TL.Deactivated
+			, TL.Creator
+			, TL.CreationTime
+			, TL.LastUpdated
+			, TL.LastUser
+			, TL.ClientID
+			, TL.SortNum
+			, TD.Description
+			, TL.ProjectID
+			, TPT.Name As ProjectName
+			, TL.VarFilter
+		FROM XBOLTADM.TB_TEMPL AS TL
+		 LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD ON TL.TemplCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+		 Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT ON TPT.ProjectID = TL.ProjectID And TPT.LanguageID = #{languageID}
+		ORDER BY TL.TemplCode
+	</select>
+
+	<select id="getSelectTemplateCode" resultType="java.util.HashMap">
+		SELECT
+			TL.TemplCode
+			, TD.Name AS TemplateName
+			, TL.Type
+			, TL.MenuID
+			, TL.Style
+			, TL.Deactivated
+			, TL.Creator
+			, TL.CreationTime
+			, CONVERT(varchar(20),TL.LastUpdated, 111) AS LastUpdated
+			, TL.LastUser
+			, TL.ClientID
+			, TL.SortNum
+			, TD.Description
+			, TM.Name AS LastUserName
+			, TL.ProjectID
+			, TL.VarFilter
+			, TP.ProjectType
+			, TL.DefLanguageID
+		FROM XBOLTADM.TB_TEMPL AS TL
+		 LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD ON TL.TemplCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+		 LEFT OUTER JOIN XBOLTADM.TB_MEMBER AS TM ON TL.LastUser = TM.MemberID
+		 LEFT OUTER JOIN XBOLTADM.TB_PROJECT AS TP ON TL.ProjectID = TP.ProjectID
+		WHERE TL.TemplCode = #{templCode}
+	</select>
+
+	<update id="UpdateTempDictionary">
+		UPDATE XBOLTADM.TB_DICTIONARY
+		SET
+		Name = #{Name}
+		,Description = #{Description}
+		where
+		LanguageID = #{languageID}
+		and TypeCode = #{TemplCode}
+	</update>
+
+	<update id="updateTemplate">
+		UPDATE XBOLTADM.TB_TEMPL SET
+				Deactivated = #{Deactivated}
+				, Type = #{Type}
+				, MenuID = #{MenuID}
+				, Style = #{Style}
+				, ProjectID = #{projectID}
+				, LastUser = #{LastUser}
+				, LastUpdated = GETDATE()
+				, SortNum = #{SortNum}
+				, VarFilter = #{VarFilter}
+				, DefLanguageID = #{defLanguage}
+		Where TemplCode = #{TemplCode} 
+	</update>
+
+	<select id="TemplateArchitecure_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY TA.ArcCode ASC) as RNUM
+			, 0 AS CHK
+			, TA.ArcCode
+			, CASE WHEN TDP.Name IS NULL THEN '' ELSE TDA.Name END AS ArchiName
+			, ATM.TemplCode
+			, TA.ParentID
+			, ISNULL(TDP.Name, TDA.Name) AS Level1
+			, TA.SortNum
+			, TDA.Description
+			, TA.ArcCode
+			, TDIT.Name AS ItemTypeName
+			, TA.DimTypeID
+			, TIAD.PlainText AS DimTypeName
+			, TA.DimTypeID
+			, TDVT.Name AS DefDimName
+			, TA.MenuID
+			, TDM.Name AS MenuName
+			, TA.Type
+			, CASE WHEN TA.Type ='1' THEN N'일반' ELSE N'관리자' END AS TypeName
+			, TA.Style
+			, TA.Icon
+			, TA.WID
+			, TA.Deactivated
+			, TA.FilterType
+			, TA.Creator
+			, CONVERT(varchar(20),TA.CreationTime, 111) AS CreationTime
+			, TA.LastUser
+			, TM.Name AS LastUserName
+			, CONVERT(varchar(20),TA.LastUpdated, 111) AS LastUpdated
+		FROM
+		XBOLTADM.TB_ARC TA
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDA on TA.ArcCode = TDA.TypeCode AND TDA.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDP on TA.ParentID = TDP.TypeCode AND TDP.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDIT on TA.ArcCode = TDIT.TypeCode AND TDIT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DIM_VALUE TDV on TDV.DimTypeID = TA.DimTypeID
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIAD on TDV.DimValueID = TIAD.ItemID AND TIAD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DIM_VALUE_TXT TDVT on TA.DimTypeID = TDVT.DimTypeID
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDM on TA.MenuID = TDM.TypeCode AND TDM.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_MEMBER TM on TA.LastUser = TM.MemberID
+		LEFT OUTER JOIN XBOLTADM.TB_ARC_TEMPL ATM ON TA.ArcCode = ATM.ArcCode
+		WHERE ATM.TemplCode = #{TemplCode}
+		ORDER BY TA.ArcCode
+	</select>
+
+	<select id="selectTempDictionary" resultType="String">
+		SELECT TypeCode FROM XBOLTADM.TB_DICTIONARY
+		WHERE TypeCode = #{TypeCode}
+		And Category = #{Category}
+		And LanguageID = #{languageID}
+	</select>
+
+	<select id="workFlow_gridList" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY TW.WFID ASC) as RNUM
+		, 0 AS CHK
+		, TW.WFID
+		, TD.Name
+		, TD.Description
+		, TW.Deactivated
+		, TW.Category
+		, TW.Creator
+		, CONVERT(varchar(20),TW.CreationTime, 111) AS CreationTime
+		, TD.LanguageID
+		, (SELECT Count(WFID) FROM XBOLTADM.TB_WF_STEP_INST WHERE WFID =
+		TW.WFID) AS CNT
+		,TM3.Name AS mgtGRNM
+		From
+		XBOLTADM.TB_WF AS TW
+
+		Left Outer Join XBOLTADM.TB_DICTIONARY AS TD
+		ON TW.WFID = TD.TypeCode  	And TD.Category = 'WF' 	And TD.LanguageID = #{languageID}
+
+		Left Outer Join XBOLTADM.TB_MEMBER As TM
+		On TW.Creator = TM.MemberID
+
+		Left Outer Join XBOLTADM.TB_MEMBER As TM2
+		On TW.LastUser = TM2.MemberID
+		
+		Left Outer Join XBOLTADM.TB_MEMBER As TM3
+		On TW.MandatoryGRID = TM3.MemberID
+	</select>
+	
+	<select id="workFlowStep_gridList" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY TWS.WFStepID ASC) as RNUM
+		, 0 AS CHK
+		, TWS.WFStepID
+		, TD.Name
+		, TD.Description
+		, TWS.DocCategory
+		, TWS.TransferYN
+		, TWS.Deactivated
+		, TWS.Creator
+		, CONVERT(varchar(20),TWS.CreationTime, 111) AS CreationTime
+		, TD.LanguageID
+		From XBOLTADM.TB_WF_STEP AS TWS
+			Left Outer Join XBOLTADM.TB_DICTIONARY AS TD
+			ON TWS.WFStepID = TD.TypeCode
+			And TD.Category = 'WFSTEP'
+			And TD.LanguageID = #{languageID}
+	
+	</select>
+
+	<select id="getWorkFlowDetail" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY TW.WFID ASC) as RNUM
+		, 0 AS CHK
+		, TW.WFID
+		, TD.Name
+		, TD.Description
+		, TW.Deactivated
+		, TW.Category
+		, TW.MenuID
+		, TW.Creator
+		, CONVERT(varchar(20),TW.CreationTime, 111) AS CreationTime
+		, TD.LanguageID
+		, TW.LastUser
+		, TM2.Name AS LastUserName
+		, CONVERT(varchar(20),TW.LastUpdated, 111) AS LastUpdated
+		, TW.ServiceCode
+		, TW.MandatoryGRID
+		, TW.EndGRID
+		, TW.AgreementYN
+		, TW.PostProcessing
+		, TW.WFURL
+		From
+		XBOLTADM.TB_WF AS TW
+		Left Outer Join XBOLTADM.TB_DICTIONARY AS TD ON TW.WFID = TD.TypeCode And TD.Category = 'WF'  And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_MEMBER As TM On TW.Creator = TM.MemberID
+		Left Outer Join XBOLTADM.TB_MEMBER As TM2 On TW.LastUser = TM2.MemberID
+		where
+		  WFID = #{WFID}
+	</select>
+
+	<select id="selectWofkFlowDictionary" resultType="String">
+		SELECT
+		TypeCode
+		FROM
+		XBOLTADM.TB_DICTIONARY
+		WHERE
+			1=1
+			<if test="WFID != null and WFID != ''">
+				AND TypeCode = #{WFID}
+			</if>
+			<if test="Category != null and Category != ''">
+				AND Category = #{Category}
+			</if>
+			<if test="languageID != null and languageID != ''">
+				AND LanguageID = #{languageID}
+			</if>
+	</select>
+
+	<update id="updateWorkFlow"  parameterType="java.util.HashMap" >
+		UPDATE XBOLTADM.TB_WF SET
+			Deactivated = #{Deactivated}
+			<choose>
+				<when test="wfCategory != null and wfCategory != ''">, Category = #{wfCategory}</when>
+				<otherwise>,Category = NULL</otherwise>
+			</choose>
+			<choose>
+				<when test="menuID != null and menuID != ''">, MenuID = #{menuID}</when>
+				<otherwise>,MenuID = NULL</otherwise>
+			</choose>
+			<choose>
+				<when test="mandatoryGRID != null and mandatoryGRID != ''">, MandatoryGRID = #{mandatoryGRID}</when>
+				<otherwise>,MandatoryGRID = NULL</otherwise>
+			</choose>
+			<choose>
+				<when test="endGRID != null and endGRID != ''">, EndGRID = #{endGRID}</when>
+				<otherwise>,EndGRID = NULL</otherwise>
+			</choose>
+			<choose>
+				<when test="postProcessing != null and postProcessing != ''">, PostProcessing = #{postProcessing}</when>
+				<otherwise>,PostProcessing = NULL</otherwise>
+			</choose>
+			<choose>
+				<when test="agreementYN != null and agreementYN != ''">, AgreementYN = #{agreementYN}</when>
+				<otherwise>,AgreementYN = NULL</otherwise>
+			</choose>
+			<choose>
+				<when test="serviceCode != null and serviceCode != ''">, ServiceCode = #{serviceCode}</when>
+				<otherwise>,ServiceCode = NULL</otherwise>
+			</choose>
+			, LastUser = #{LastUser}
+			, LastUpdated = GETDATE()
+			<choose>
+				<when test="wfURL != null and wfURL != ''">, WFURL = #{wfURL}</when>
+				<otherwise>,WFURL = NULL</otherwise>
+			</choose>
+		Where
+			WFID = #{WFID}
+	</update>
+		
+	<select id="workFlowStepRelList_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY WSR.SortNum ASC) as RNUM
+			 ,0 AS CHK
+			, WS.WFStepID
+			, WSR.WFID
+			, TD.Name
+			, TD.Description
+			, WSR.PreStepID
+			, WSR.SortNum
+			, WS.Deactivated
+			, WS.Creator
+			, WS.CreationTime
+			, WS.Cateogory
+		FROM
+			XBOLTADM.TB_OLM_ROLE_TYPE AS ORTP
+			
+			LEFT OUTER JOIN XBOLTADM.TB_WF_STEP_REL AS WSR
+				ON ORTP.RoleTypeCode = WSR.WFStepID AND ORTP.AssignmentType = 'WFSTEP'
+				
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD
+				ON WS.WFStepID = TD.TypeCode
+				 and TD.Category = 'WFSTEP' and LanguageID = #{languageID}
+		where
+			WSR.WFID = #{WFID}
+			<if test="WFStepID != null and WFStepID != ''">
+				AND WSR.WFStepID = #{WFStepID}
+			</if>
+		ORDER BY WSR.SortNum
+
+	</select>
+
+	<select id="MaxSortNum" resultType="String">
+		SELECT 
+      		ISNULL(Max(SortNum), 0) + 1 As MaxSortNum
+  		FROM XBOLTADM.TB_WF_STEP_REL
+  		where WFID = #{WFID}
+	</select>
+	
+	<select id="getPreStepId" resultType="String">
+		SELECT 
+      		WFStepID
+  		FROM XBOLTADM.TB_WF_STEP_REL
+  		where WFID = #{WFID} AND SortNum = #{SortNum}
+	</select>
+	
+	<select id="getWfStepIdList" resultType="java.util.HashMap">
+		SELECT 
+      		WFStepID
+  		FROM XBOLTADM.TB_WF_STEP_REL
+  		where WFID = #{WFID}
+	</select>
+
+	<select id="MaxWFID" resultType="String">
+		select
+		MAX(TW.WFID) as MaxWFID
+		from
+		XBOLTADM.TB_WF AS TW
+	</select>
+
+	<insert id="insertWF">
+		INSERT
+		XBOLTADM.TB_WF(
+		WFID
+		,Category
+		,CreationTime
+		,Creator
+		,Deactivated
+		)
+		VALUES(
+		#{WFID}
+		,#{Category}
+		,GETDATE()
+		,#{Creator}
+		,#{Deactivated}
+		)
+
+	</insert>
+
+	<delete id="deleteWf">
+		DELETE
+		XBOLTADM.TB_WF
+		where
+		WFID = #{WFID}
+	</delete>
+
+	<delete id="deleteWfStepRel">
+		DELETE
+		XBOLTADM.TB_WF_STEP_REL
+		where
+		WFID = #{WFID}
+	</delete>
+
+	<select id="AddWorkFlowStep_gridList" resultType="java.util.HashMap">
+
+		SELECT
+		Row_Number()OVER(ORDER BY WSR.SortNum ASC) as RNUM
+		,0 AS CHK
+		, WS.WFStepID
+		, WSR.WFID
+		, TD.Name
+		, TD.Description
+		, WSR.PreStepID
+		, WSR.SortNum
+		, WS.Deactivated
+		, WS.Cateogory
+		FROM
+		XBOLTADM.TB_WF_STEP AS WS
+
+		LEFT OUTER JOIN XBOLTADM.TB_WF_STEP_REL AS WSR
+		ON WS.WFStepID = WSR.WFStepID
+		and WSR.WFID = #{WFID}
+
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD
+		ON WS.WFStepID = TD.TypeCode
+		and LanguageID = #{languageID}
+
+		where
+		1=1
+		and WS.WFStepID NOT IN(
+
+		SELECT
+		WS1.WFStepID
+		FROM
+		XBOLTADM.TB_WF_STEP AS WS1
+
+		Inner JOIN XBOLTADM.TB_WF_STEP_REL WSR1
+		ON WS1.WFStepID = WSR1.WFStepID
+		and WSR1.WFID = #{WFID}
+		)
+
+		Group by WS.WFStepID
+		, WSR.WFID
+		, TD.Name
+		, TD.Description
+		, WSR.PreStepID
+		, WSR.SortNum
+		, WS.Deactivated
+		, WS.Creator
+		, WS.CreationTime
+		, WS.Cateogory
+
+	</select>
+
+	<select id="getReportTypeCode_gridList" resultType="java.util.HashMap">
+
+		SELECT
+		Row_Number()OVER(ORDER BY TR.ReportCode ASC) as RNUM
+		, 0 AS CHK
+		,
+		TR.ReportCode
+		, TR.ReportType
+		, TR.OutputType
+		, TR.Icon
+		, TR.Authority
+		, TR.IsPublic
+		, TR.ReportURL
+		, TR.Deactivated
+		, TD.Name
+		, TD.Description
+		, MBR.Name AS Creator
+		, CONVERT(varchar(20),TR.CreationTime, 111) AS CreationTime
+		, (SELECT
+			Count(ReportCode) FROM XBOLTADM.TB_REPORT_ALLOCATION WHERE ReportCode
+			= TR.ReportCode) AS CNT
+		, TR.ActionType
+		, TR.MessageCode
+		, TR.PWidth
+		, TR.PHeight
+		, CONVERT(varchar(20),TR.LastUpdated, 111) AS LastUpdated
+		FROM
+		XBOLTADM.TB_REPORT AS TR
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD ON TR.ReportCode = TD.TypeCode AND LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER AS MBR ON MBR.MemberID = TR.Creator
+		WHERE
+			1=1
+			<if test="ReportCode != null and ReportCode != ''">
+				AND TR.ReportCode =	#{ReportCode}
+			</if>
+	</select>
+
+	<select id="ReloadWorkFlowStep" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY WSR.SortNum ASC) as RNUM
+		,0 AS CHK
+		, WS.WFStepID
+		, WSR.WFID
+		, TD.Name
+		, TD.Description
+		, WSR.PreStepID
+		, WSR.SortNum
+		, WS.Deactivated
+		, WS.Creator
+		, WS.CreationTime
+		, WS.Cateogory
+		, WS.LastUser
+		, TM2.Name AS LastUserName
+		, CONVERT(varchar(20),WS.LastUpdated, 111) AS LastUpdated
+		, TD.LanguageID
+		FROM
+		XBOLTADM.TB_WF_STEP AS WS
+
+		LEFT OUTER JOIN XBOLTADM.TB_WF_STEP_REL AS WSR
+		ON WS.WFStepID = WSR.WFStepID
+
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD
+		ON WS.WFStepID = TD.TypeCode
+		and LanguageID = #{languageID}
+
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER AS TM
+		ON WS.Creator = TM.MemberID
+
+		Left Outer Join XBOLTADM.TB_MEMBER AS TM2
+		ON WS.LastUser = TM2.MemberID
+
+		where
+		WSR.WFID = #{WFID}
+		and WSR.WFStepID = #{WFStepID}
+
+		Group by WS.WFStepID
+		, WSR.WFID
+		, TD.Name
+		, TD.Description
+		, WSR.PreStepID
+		, WSR.SortNum
+		, WS.Deactivated
+		, WS.Creator
+		, WS.CreationTime
+		, WS.Cateogory
+		, WS.LastUser
+		, TM2.Name
+		, WS.LastUpdated
+		, TD.LanguageID
+
+	</select>
+
+	<update id="UpdateWorkFlowStep">
+		UPDATE
+		XBOLTADM.TB_WF_STEP
+		SET
+		Deactivated = #{Deactivated}
+		,LastUser = #{LastUser}
+		,LastUpdated = GETDATE()
+		where
+		WFStepID = #{WFStepID}
+		and Cateogory = #{Cateogory}
+	</update>
+
+	<update id="UpdateWorkFlowStepRel">
+		UPDATE
+		XBOLTADM.TB_WF_STEP_REL
+		SET
+		Deactivated = #{Deactivated}
+		, SortNum = #{SortNum}
+
+		where
+		WFID = #{WFID}
+		and WFStepID = #{WFStepID}
+	</update>
+
+	<insert id="InsertWFStepRel">
+		INSERT INTO
+		XBOLTADM.TB_WF_STEP_REL(
+
+		WFID
+		,WFStepID
+		,PreStepID
+		,SortNum
+		,Creator
+		,CreationTime
+
+		)
+		VALUES(
+		#{WFID}
+		,#{WFStepID}
+		,#{PreStepID}
+		,#{SortNum}
+		,#{Creator}
+		,GETDATE()
+		)
+	</insert>
+
+	<select id="SelectModelType_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY MT.ModelTypeCode ASC) as RNUM
+			,0 AS CHK
+			,MT.ModelTypeCode
+			,MT.ItemTypeCode
+			,TD.Name
+			,TD.Description
+			,MT.ArisTypeNum
+			,MT.IsModel
+			,TD.Category
+			,MT.Creator
+			,TM.Name AS CreatorName
+			,MT.CreationTime
+			,MT.ZoomOption
+			,CASE MT.ZoomOption WHEN 'FTW' THEN 'Fit To Window'
+								WHEN 'FTP' THEN 'Fit To Page'
+								ELSE '-' END AS ZoomOptionName
+		FROM XBOLTADM.TB_MODEL_TYPE AS MT
+			Left Outer Join XBOLTADM.TB_DICTIONARY AS TD On MT.ModelTypeCode = TD.TypeCode And LanguageID = #{languageID} And TD.Category = 'MT'
+			Left Outer Join XBOLTADM.TB_MEMBER AS TM On MT.Creator = TM.MemberID
+	</select>
+
+	<select id="ReloadSelectModelType" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY MT.ModelTypeCode ASC) as RNUM
+		,0 AS CHK
+		,MT.ModelTypeCode
+		,MT.ItemTypeCode
+		,TD.Name
+		,TD.Description
+		,MT.ArisTypeNum
+		,MT.IsModel
+		,TD.Category
+		,TM.Name AS LastUserName
+		,CONVERT(varchar(20),MT.LastUpdated, 111) AS LastUpdated
+		,TD.LanguageID
+		,MT.ZoomOption
+		FROM
+		XBOLTADM.TB_MODEL_TYPE AS MT
+
+		Left Outer Join XBOLTADM.TB_DICTIONARY AS TD
+		On MT.ModelTypeCode = TD.TypeCode
+		and LanguageID = #{languageID}
+
+		Left Outer Join XBOLTADM.TB_MEMBER AS TM
+		On MT.LastUser = TM.MemberID
+
+		where
+		1=1
+		and MT.ModelTypeCode = #{ModelTypeCode}
+
+	</select>
+
+	<update id="UpdateModelType" parameterType="java.util.HashMap">
+		UPDATE	XBOLTADM.TB_MODEL_TYPE SET
+			ArisTypeNum = #{ArisTypeNum}
+			,IsModel = #{IsModel}
+			,LastUser = #{LastUser}
+			,LastUpdated = GETDATE()
+			,ItemTypeCode = #{ItemTypeCode}
+			<choose>
+				<when test="ZoomOption != null and ZoomOption != ''">
+					, ZoomOption = #{ZoomOption}
+				</when>
+				<when test="ZoomOption == null or ZoomOption = ''">
+					, ZoomOption = NULL
+				</when>
+			</choose>	
+			
+		Where 
+		ModelTypeCode = #{ModelTypeCode}
+	</update>
+
+	<update id="UpdateDictionary">
+		UPDATE XBOLTADM.TB_DICTIONARY SET
+			Name = #{Name}
+			,Description = #{Description}
+		Where TypeCode = #{TypeCode}
+		And LanguageID = #{languageID}
+		And Category = #{Category} 
+	</update>
+
+	<select id="MaxModelType" resultType="String">
+		SELECT
+		MAX(MT.ModelTypeCode) AS MaxModelTypeCode
+		FROM
+		XBOLTADM.TB_MODEL_TYPE AS MT
+	</select>
+
+	<insert id="SaveModelType">
+		INSERT Into
+		XBOLTADM.TB_MODEL_TYPE(
+		ModelTypeCode
+		,ItemTypeCode
+		,Creator
+		,CreationTime
+		,ArisTypeNum
+		<if test="ZoomOption != null and ZoomOption != ''">
+		,ZoomOption
+		</if>
+		)
+		VALUES(
+		#{ModelTypeCode}
+		,#{ItemTypeCode}
+		,#{Creator}
+		,GETDATE()
+		,#{ArisTypeNum}
+		<if test="ZoomOption != null and ZoomOption != ''">
+		,#{ZoomOption}
+		</if>
+		)
+	</insert>
+
+	<insert id="SaveModelTypeDic">
+		INSERT INTO
+		XBOLTADM.TB_DICTIONARY(
+		TypeCode
+		,LanguageID
+		,Category
+		,Name
+		,Description
+		)
+		VALUES(
+		#{TypeCode}
+		,#{languageID}
+		,#{Category}
+		,#{Name}
+		,#{Description}
+		)
+	</insert>
+
+	<delete id="DeleteModelTypeDic">
+		DELETE
+		XBOLTADM.TB_DICTIONARY
+
+		where
+		TypeCode = #{ModelTypeCode}
+		and LanguageID = #{languageID}
+	</delete>
+
+	<delete id="DeleteModelType">
+		DELETE
+		XBOLTADM.TB_MODEL_TYPE
+		where
+		ModelTypeCode = #{ModelTypeCode}
+
+	</delete>
+
+	<select id="SelectSimbolType_gridList" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY STA.SortNum, ST.SymTypeCode ASC) as RNUM
+		,0 AS CHK
+		, STA.ModelTypeCode
+		, ST.SymTypeCode
+		, ST.ItemTypeCode
+		, ST.ClassCode
+		, ST.ItemCategory
+		, TD.Name
+		, TD.Description
+		, ST.ArisTypeNum
+		, ST.FromSymType
+		, ST.ToSymType
+		, ST.ImagePath
+		, ST.Creator
+		, ST.CreationTime
+		, TD2.Name AS ItemTypeName
+		, TD3.Name AS Class
+		, ISNULL(STA.ItemCategoryCode,'-') AS Category
+		, 'ICON_'+ST.SymTypeCode+'.png' AS SymbolIcon
+		, STA.SortNum
+		FROM
+		XBOLTADM.TB_SYMBOL_TYPE AS ST
+
+		Left Outer Join XBOLTADM.TB_SYMTYPE_ALLOCATION AS STA
+		On ST.SymTypeCode = STA.SymTypeCode
+
+		Left Outer Join XBOLTADM.TB_DICTIONARY AS TD
+		On ST.SymTypeCode = TD.TypeCode
+		and TD.LanguageID = #{languageID}
+		
+		Left Outer Join XBOLTADM.TB_DICTIONARY AS TD2
+		On ST.ItemTypeCode = TD2.TypeCode
+		and TD2.LanguageID = #{languageID}
+		
+		Left Outer Join XBOLTADM.TB_DICTIONARY AS TD3
+		On ST.ClassCode = TD3.TypeCode
+		and TD3.LanguageID = #{languageID}
+		
+		where
+		STA.ModelTypeCode = #{ModelTypeCode}
+		<if test="symTypes != null and symTypes != ''" >
+			And STA.SymTypeCode IN (${symTypes})
+		</if>
+		Order by STA.SortNum, ST.SymTypeCode
+	</select>
+
+	<select id="SelectAddSimbolType_gridList" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY ST.SymTypeCode ASC) as RNUM
+		,0 AS CHK
+		, STA.ModelTypeCode
+		, ST.SymTypeCode
+		, ST.ItemTypeCode
+		, ST.ClassCode
+		, ST.ItemCategory
+		, TD.Name
+		, TD.Description
+		, ST.ArisTypeNum
+		, ST.FromSymType
+		, ST.ToSymType
+		, ST.ImagePath
+
+		FROM
+		XBOLTADM.TB_SYMBOL_TYPE AS ST
+		Left Outer Join XBOLTADM.TB_SYMTYPE_ALLOCATION AS STA
+		On ST.SymTypeCode = STA.SymTypeCode
+		and STA.ModelTypeCode = #{ModelTypeCode}
+		Left Outer Join XBOLTADM.TB_DICTIONARY AS TD
+		On ST.SymTypeCode = TD.TypeCode
+		and TD.LanguageID = #{languageID}
+		where
+		1=1
+		and ST.SymTypeCode NOT IN(
+		SELECT
+		ST1.SymTypeCode
+		FROM
+		XBOLTADM.TB_SYMBOL_TYPE AS ST1
+
+		Inner JOIN XBOLTADM.TB_SYMTYPE_ALLOCATION AS STA1
+		ON ST1.SymTypeCode = STA1.SymTypeCode
+		and STA1.ModelTypeCode = #{ModelTypeCode}
+		)
+
+	</select>
+
+	<insert id="InsertSymbolType">
+		INSERT INTO
+		XBOLTADM.TB_SYMTYPE_ALLOCATION (
+		ModelTypeCode
+		,SymTypeCode
+		,ItemCategoryCode
+		,ItemTypeCode
+		,ClassCode
+		)
+		VALUES(
+		#{ModelTypeCode}
+		,#{SymTypeCode}
+		,#{ItemCategory}
+		,#{ItemTypeCode}
+		,#{ClassCode}
+		)
+	</insert>
+
+	<delete id="DeleteSymbolType">
+		DELETE
+		XBOLTADM.TB_SYMTYPE_ALLOCATION
+		where
+		ModelTypeCode = #{ModelTypeCode}
+		and SymTypeCode = #{SymTypeCode}
+
+	</delete>
+	
+	<delete id="DeleteSymbolTypeList">
+		DELETE
+			XBOLTADM.TB_SYMBOL_TYPE
+		WHERE
+			SymTypeCode = #{SymTypeCode}
+	</delete>
+	
+	<delete id="DeleteSymbolTypeCode">
+		DELETE
+			XBOLTADM.TB_SYMTYPE_ALLOCATION
+		WHERE
+			SymTypeCode = #{SymTypeCode}
+	</delete>
+
+	<select id="selectModelTypeDic" resultType="String">
+
+		SELECT
+		TypeCode
+		FROM
+		XBOLTADM.TB_DICTIONARY
+		WHERE
+		1=1
+			<if test="TypeCode != null and TypeCode != ''">
+				AND TypeCode = #{ModelTypeCode}
+			</if>
+			<if test="Category != null and Category != ''">
+				AND Category = #{Category}
+			</if>
+			<if test="languageID != null and languageID != ''">
+				AND LanguageID = #{languageID}
+			</if>
+	</select>
+
+	<insert id="InsertModelTypeDic" parameterType="java.util.HashMap">
+		INSERT INTO
+		XBOLTADM.TB_DICTIONARY(TypeCode, LanguageID, Category, Name,
+		Description )
+		VALUES(#{ModelTypeCode}, #{languageID}, #{Category}, #{Name}, #{Description} )
+	</insert>
+
+	<select id="SelectObjectTypeView" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY IT.ItemTypeCode ASC) as RNUM
+		,0 AS CHK
+		, IT.ItemTypeCode
+		, TD.Name
+		, TD.Description
+		, IT.Category
+		, IT.Icon
+		, IT.FilePath
+		, IT.RootItemID
+		, IT.FromItemTypeCode
+		, IT.ToItemTypeCode
+		, IT.DefArc
+		, IT.Deactivated
+		, IT.Creator
+		, TM.Name AS CreateName
+		,CONVERT(varchar(20),IT.CreationTime, 111) AS CreationTime
+		FROM
+		XBOLTADM.TB_ITEM_TYPE AS IT
+
+		LEFT Outer Join XBOLTADM.TB_DICTIONARY AS TD
+		On IT.ItemTypeCode = TD.TypeCode
+		and LanguageID = #{languageID}
+
+		Left Outer Join XBOLTADM.TB_MEMBER AS TM
+		On IT.Creator = TM.MemberID
+		where
+		ItemTypeCode = #{ItemTypeCode}
+	</select>
+
+	<update id="UpdateObjectType">
+		UPDATE XBOLTADM.TB_ITEM_TYPE SET
+			Category = #{Category}
+			, DefArc = #{DefArc}
+			<choose>
+				<when test="RootItemId != null and RootItemId != ''">
+					, RootItemID = #{RootItemId}
+				</when>
+				<when test="RootItemId == null">
+					, RootItemID = NULL
+				</when>
+			</choose>	
+			<choose>
+				<when test="Icon != null and Icon != ''">
+					, Icon = #{Icon}
+				</when>
+				<when test="Icon == null">
+					, Icon = NULL
+				</when>
+			</choose>	
+			, Deactivated = #{Deactivated}
+			, FromItemTypeCode = #{FromItemTypeCode}
+			, ToItemTypeCode = #{ToItemTypeCode}
+		Where ItemTypeCode = #{ItemTypeCode}
+	</update>
+
+	<update id="UpdateObjDictionary">
+		UPDATE
+		XBOLTADM.TB_DICTIONARY
+		SET
+		Name = #{Name}
+		,Description = #{Description}
+		where
+		LanguageID = #{languageID}
+		and TypeCode = #{ItemTypeCode}
+	</update>
+
+	<select id="selectObjectTypeDic" resultType="String">
+		SELECT TypeCode	FROM
+		XBOLTADM.TB_DICTIONARY
+		WHERE 1=1
+			<if test="TypeCode != null and TypeCode != ''">
+				AND TypeCode = #{TypeCode}
+			</if>
+			<if test="Category != null and Category != ''">
+				AND Category = #{Category}
+			</if>
+			<if test="languageID != null and languageID != ''">
+				AND LanguageID = #{languageID}
+			</if>
+	</select>
+
+	<insert id="InsertObjDictionary">
+		INSERT INTO
+		XBOLTADM.TB_DICTIONARY(
+		TypeCode
+		,Name
+		,LanguageID
+		,Category
+		,Description
+		)
+		Values(
+
+		#{ItemTypeCode}
+		,#{Name}
+		,#{languageID}
+		,#{Category}
+		,#{Description}
+
+		)
+	</insert>
+
+	<select id="MaxObjTypeCode" resultType="String">
+		SELECT
+		MAX(ItemTypeCode) AS MaxObjTypeCode
+		FROM
+		XBOLTADM.TB_ITEM_TYPE
+
+		where
+		Category = #{Category}
+	</select>
+
+	<insert id="SaveObjectType">
+		INSERT INTO	XBOLTADM.TB_ITEM_TYPE(
+			ItemTypeCode
+			,Category
+			,RootItemID
+			,Creator
+			,CreationTime
+		)VALUES(
+			#{ItemTypeCode}
+			,#{Category}
+			,#{RootItemId}
+			,#{Creator}
+			,GETDATE()
+		)
+	</insert>
+
+	<insert id="SaveObjectTypeDic">
+		INSERT INTO	XBOLTADM.TB_DICTIONARY(
+			TypeCode
+			,Name
+			,Description
+			,Category
+			,LanguageID
+		)VALUES(
+			#{ItemTypeCode}
+			,#{Name}
+			,#{Description}
+			,#{Category}
+			,#{languageID}
+		)
+	</insert>
+
+	<delete id="deleteObjType">
+		DELETE
+		XBOLTADM.TB_ITEM_TYPE
+		where
+		ItemTypeCode = #{ItemTypeCode}
+	</delete>
+
+	<select id="FileType_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY FT.FltpCode ASC) as RNUM
+			,0 AS CHK
+			, FT.FltpCode
+			, FT.FilePath
+			, TD.Name
+			, TD.Description
+			, (SELECT Count(FltpCode) FROM XBOLTADM.TB_FLTP_ALLOC WHERE FltpCode = FT.FltpCode) AS CNT
+			, FT.IsPublic
+			, FT.DocCategory
+			, FT.RevisionYN
+		FROM XBOLTADM.TB_FLTP AS FT
+		 LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD ON FT.FltpCode = TD.TypeCode AND LanguageID = #{languageID} AND TD.Category = 'FLTP'
+		Where 1=1
+			<if test="FltpCode != null and FltpCode != ''">
+				AND FT.FltpCode = #{FltpCode}
+			</if>
+	</select>
+
+	<update id="UpdateReportType">
+		UPDATE XBOLTADM.TB_REPORT SET
+			<choose><when test="OutputType != null and OutputType != ''">OutputType = #{OutputType}</when><otherwise>OutputType = NULL</otherwise></choose>
+			, Authority = #{Authority}
+			, IsPublic = #{IsPublic}
+			, ReportURL = #{ReportURL}
+			, Deactivated = #{Deactivated}
+			, <choose><when test="ActionType != null and ActionType != ''">ActionType = #{ActionType}</when><otherwise>ActionType = NULL</otherwise></choose>
+			, <choose><when test="MessageCode != null and MessageCode != ''">MessageCode = #{MessageCode}</when><otherwise>MessageCode = NULL</otherwise></choose>
+			, <choose><when test="PWidth != null and PWidth != ''">PWidth = #{PWidth}</when><otherwise>PWidth = NULL</otherwise></choose>
+			, <choose><when test="PHeight != null and PHeight != ''">PHeight = #{PHeight}</when><otherwise>PHeight = NULL</otherwise></choose>
+			, LastUpdated = GETDATE()
+			, <choose><when test="reportType != null and reportType != ''">ReportType = #{reportType}</when><otherwise>ReportType = NULL</otherwise></choose>
+			, <choose><when test="icon != null and icon != ''">Icon = #{icon}</when><otherwise>Icon = NULL</otherwise></choose>
+		Where ReportCode = #{reportCode}
+	</update>
+	
+	<select id="reportTypeEqualCount" resultType="String">
+		SELECT 
+			COUNT(ReportCode) As CNT
+		FROM
+			XBOLTADM.TB_REPORT
+		WHERE
+			ReportCode = N''+#{ReportCode}
+	</select>
+	
+	<insert id="insertReportType" parameterType="java.util.HashMap">
+		INSERT INTO XBOLTADM.TB_REPORT(
+			ReportCode
+			, ReportType
+			, OutputType
+			, Authority
+			, ActionType
+			, MessageCode
+			, IsPublic
+			, ReportURL
+			, PWidth
+			, PHeight
+			, Deactivated
+			, Creator
+			, CreationTime
+			, LastUpdated
+		)VALUES (
+			#{ReportCode}
+			, <choose><when test="reportType != null and reportType != ''">#{reportType}</when><otherwise>NULL</otherwise></choose>
+			, <choose><when test="OutputType != null and OutputType != ''">#{OutputType}</when><otherwise>NULL</otherwise></choose>
+			, #{Authority}
+			, <choose><when test="ActionType != null and ActionType != ''">#{ActionType}</when><otherwise>NULL</otherwise></choose>
+			, <choose><when test="MessageCode != null and MessageCode != ''">#{MessageCode}</when><otherwise>NULL</otherwise></choose>
+			, #{IsPublic}
+			, #{ReportURL}
+			, <choose><when test="PWidth != null and PWidth != ''">#{PWidth}</when><otherwise>NULL</otherwise></choose>
+			, <choose><when test="PHeight != null and PHeight != ''">#{PHeight}</when><otherwise>NULL</otherwise></choose>
+			, #{Deactivated}
+			, #{Creator}
+			, GETDATE()
+			, GETDATE()
+			)
+	</insert>
+
+	<delete id="deleteRptType">
+		DELETE
+		XBOLTADM.TB_REPORT
+		where
+		ReportCode = #{ReportCode}
+	</delete>
+
+	<update id="updateFileType">
+		UPDATE XBOLTADM.TB_FLTP SET	
+			FilePath = #{FilePath}, 
+			IsPublic = #{isPublic},
+			DocCategory = #{docCategory},
+			RevisionYN = #{RevisionYN}
+		Where FltpCode = #{FltpCode}
+	</update>
+
+	<insert id="insertFileType" parameterType="java.util.HashMap">
+		INSERT INTO
+		XBOLTADM.TB_FLTP(
+		FltpCode
+		, FilePath
+		)VALUES (
+		#{FltpCode}
+		, #{FilePath}
+		)
+	</insert>
+
+	<delete id="deleteFileType">
+		DELETE
+		XBOLTADM.TB_FLTP
+		where
+		FltpCode = #{FltpCode}
+	</delete>
+		
+	<select id="fileTypeEqualCount" resultType="String">
+		SELECT 
+			COUNT(FltpCode) As CNT
+		FROM
+			XBOLTADM.TB_FLTP
+		WHERE
+			FltpCode = N''+#{FltpCode}
+	</select>
+
+	<select id="getConnectionTypeCnt" resultType="String">
+		SELECT
+		COUNT(ItemTypeCode) AS CNT
+		FROM
+		XBOLTADM.TB_ITEM_TYPE
+		WHERE ItemTypeCode = #{ItemTypeCode}
+	</select>
+
+	<select id="getSymbolList_gridList" resultType="java.util.HashMap">
+		Select
+			Row_Number()OVER(ORDER BY TS.SymTypeCode) as RNUM,
+			TS.SymTypeCode, TS.SymCategory, TS.ItemCategory, TS.ItemTypeCode, TS.ClassCode,
+			TS.ImagePath, TS.ArisTypeNum, TS.Deactivated,
+			TD.Name As SymbolName, TDI.Name As ItemTypeName, TDC.Name As ClassName,
+			CONVERT(varchar(20),TS.LastUpdated, 111) AS LastUpdated, TM.Name As LastUserName,
+			TS.DefWidth, TS.DefHeight, 
+			TS.DefColor, TS.DefStrokeColor, 
+			TS.DefGradientColor, TS.DefFillColor,
+			TS.DefFontColor, TS.SortNum,
+			TS.DefShadow, 'ICON_'+TS.SymTypeCode+'.png' AS SymbolIcon,
+			TS.DefLovCode,
+			TS.DefLabelBGColor, TS.DefSpacingTop, TS.Dashed
+		From XBOLTADM.TB_SYMBOL_TYPE TS
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TS.SymTypeCode And TD.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TDI On TDI.TypeCode = TS.ItemTypeCode And TDI.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DICTIONARY TDC On TDC.TypeCode = TS.Classcode And TDC.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_MEMBER TM ON TM.MemberID = TS.LastUser
+		Where
+		1=1
+			<if test="SymTypeCode != null and SymTypeCode != ''">
+				AND TS.SymTypeCode = #{SymTypeCode}
+			</if>
+	</select>
+
+	<update id="updateSymbolType" parameterType="java.util.HashMap">
+		Update	XBOLTADM.TB_SYMBOL_TYPE Set			
+			<choose><when test="ImagePath != null and ImagePath != ''">ImagePath = #{ImagePath},</when><when test="ImagePath == null or ImagePath == ''">ImagePath = NULL,</when></choose>		
+			<choose><when test="ArisTypeNum != null and ArisTypeNum != ''">ArisTypeNum = #{ArisTypeNum},</when><when test="ArisTypeNum == null or ArisTypeNum == ''">ArisTypeNum = NULL,</when></choose>
+			<choose><when test="Deactivated != null and Deactivated != ''">Deactivated = #{Deactivated},</when><when test="Deactivated == null Deactivated == ''">Deactivated = NULL,</when></choose>
+			<choose><when test="DefWidth != null and DefWidth != ''">DefWidth = #{DefWidth},</when><when test="DefWidth == null or DefWidth == ''">DefWidth = NULL,</when></choose>
+			<choose><when test="DefHeight != null and DefHeight != ''">DefHeight = #{DefHeight},</when><when test="DefHeight == null or DefHeight == ''">DefHeight = NULL,</when></choose>
+			<choose><when test="DefStrokeColor != null and DefStrokeColor != ''">DefStrokeColor = #{DefStrokeColor},</when><when test="DefStrokeColor == null or DefStrokeColor == ''">DefStrokeColor = NULL,</when></choose>
+			<choose><when test="DefGradientColor != null and DefGradientColor != ''">DefGradientColor = #{DefGradientColor},</when><when test="DefGradientColor == null or DefGradientColor == ''">DefGradientColor = NULL,</when></choose>
+			<choose><when test="DefShadow != null and DefShadow != ''">DefShadow = #{DefShadow},</when><when test="DefShadow == null or DefShadow == ''">DefShadow = NULL,</when></choose>
+			<choose><when test="ItemCategory != null and ItemCategory != ''">ItemCategory = #{ItemCategory},</when><when test="ItemCategory == null or ItemCategory == ''">ItemCategory = NULL,</when></choose>
+			<choose><when test="ItemTypeCode != null and ItemTypeCode != ''">ItemTypeCode = #{ItemTypeCode},</when><when test="ItemTypeCode == null or ItemTypeCode == ''">ItemTypeCode = NULL,</when></choose>
+			<choose><when test="ClassCode != null and ClassCode != ''">ClassCode = #{ClassCode},</when><when test="ClassCode == null or ClassCode == ''">ClassCode = NULL,</when></choose>	
+			<choose><when test="DefFillColor != null and DefFillColor != ''">DefFillColor = #{DefFillColor},</when><when test="DefFillColor == null or DefFillColor == ''">DefFillColor = NULL,</when></choose>
+			<choose><when test="DefFontColor != null and DefFontColor != ''">DefFontColor = #{DefFontColor},</when><when test="DefFontColor == null or DefFontColor == ''">DefFontColor = NULL,</when></choose>
+			<choose><when test="DefLabelBGColor != null and DefLabelBGColor != ''">DefLabelBGColor = #{DefLabelBGColor},</when><when test="DefLabelBGColor == null or DefLabelBGColor == ''">DefLabelBGColor = NULL,</when></choose>
+			<choose><when test="DefSpacingTop != null and DefSpacingTop != ''">DefSpacingTop = #{DefSpacingTop},</when><when test="DefSpacingTop == null or DefSpacingTop == ''">DefSpacingTop = NULL,</when></choose>
+			<choose><when test="Dashed != null and Dashed != ''">Dashed = #{Dashed},</when><when test="Dashed == null or Dashed == ''">Dashed = NULL,</when></choose>
+			<choose><when test="SortNum != null and SortNum != ''">SortNum = #{SortNum},</when><when test="SortNum == null or SortNum == ''">SortNum = NULL,</when></choose>
+			<choose><when test="DefLovCode != null and DefLovCode != ''">DefLovCode = #{DefLovCode},</when><when test="DefLovCode == null or DefLovCode == ''">DefLovCode = NULL,</when></choose>
+			LastUser = #{LastUser},
+			LastUpdated = GETDATE()			
+		Where SymTypeCode = #{SymTypeCode}
+	</update>
+
+	<update id="updateSymbolName" parameterType="java.util.HashMap">
+		Update
+		XBOLTADM.TB_DICTIONARY Set
+		Name=#{SymbolName}
+		Where typeCode=#{SymTypeCode} And LanguageID=#{languageID}
+	</update>
+
+	<select id="getArcFilterList_gridList" resultType="java.util.HashMap">
+		Select 
+			Row_Number()OVER(ORDER BY TAF.ArcCode) As RNUM,
+			TAF.ArcCode As ArcCode, 
+			TDA.Name As ArcName, 
+			TAF.ConTypeCode As ConTypeCode,
+			TDC.Name As ConTypeName, 
+			TAF.RootItemID As RootItemID,
+			TIA.PlainText As RootItemName,
+			TAF.ObjTypeCode, TDO.Name As ObjTypeName, TAF.ClientID 
+		From XBOLTADM.TB_ARC_FILTER TAF
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDA On TDA.TypeCode = TAF.ArcCode And TDA.LanguageID = #{languageID} And TDA.Category = 'AR'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDC On TDC.TypeCode = TAF.ConTypeCode And TDC.LanguageID = #{languageID} And TDC.Category = 'CN'
+		Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA On TIA.ItemID = TAF.RootItemID And TIA.LanguageID  = #{languageID} And TIA.AttrTypeCode = 'AT00001'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDO On TDO.TypeCode = TAF.ObjTypeCode And TDO.LanguageID = #{languageID} And TDO.Category In  ('OJ', 'VAR')
+		Where TAF.ArcCode = #{ArcCode}
+		Order By TAF.ConTypeCode
+
+	</select>
+
+	<select id="getArcFilterClsList_gridList" resultType="java.util.HashMap">
+		Select 
+			Row_Number()OVER(ORDER BY TAFC.ArcCode) As RNUM,
+			TAFC.ArcCode,
+			TAFC.ItemClassCode AS ItemClassCode,
+			TD.Name AS Class,
+			ISNULL(TAFC.Included,'-') AS Included,
+			ISNULL(TAFC.IsSecondary,'-') AS IsSecondary,
+			TC.ItemTypeCode
+		From XBOLTADM.TB_ARC_FILTER_CLS TAFC
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TAFC.ItemClassCode And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_ITEM_CLASS TC On TC.ItemClassCode = TAFC.ItemClassCode
+		Where TAFC.arcCode = #{arcCode}
+		Order By TAFC.ArcCode
+	</select>
+	
+	<select id="getAllocatedArchitectureList_gridList"  resultType="java.util.HashMap">
+		 Select
+		 	Row_Number()OVER(ORDER BY TA.ArcCode) As RNUM, 
+		 	TA.ArcCode, TD.Name As ArcName, TA.SortNum, TA.Type, TA.Style, TA.Icon, TA.ParentID
+		 From XBOLTADM.TB_ARC TA
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TA.ArcCode And TD.Category = 'AR' And TD.LanguageID = #{languageID}
+		 Where TA.ParentID = #{ArcCode}
+	</select>
+	
+	<select id="getArcTreeList_gridList"  resultType="java.util.HashMap">
+	  Select
+	 	Row_Number()OVER(ORDER BY TA.ArcCode) As RNUM, 
+	 	TA.ArcCode, TD.Name As ArcName, TA.SortNum, TA.Type, TA.Style, TA.Icon, TA.ParentID
+	  From XBOLTADM.TB_ARC TA
+	  Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TA.ArcCode And TD.Category = 'AR' And  TD.LanguageID = #{languageID}
+	  Where TA.Type In ('T','M')
+	  And ArcCode Not In(Select ArcCode From XBOLTADM.TB_ARC Where ParentID = #{arcCode})
+	</select>
+	
+	<select id="getArcListForAddTmpl_gridList"  resultType="java.util.HashMap">
+		 Select
+		 	Row_Number()OVER(ORDER BY TA.ArcCode) As RNUM
+		 	, TA.ArcCode
+		 	,ISNULL( TDP.Name, TD.Name) As Level1
+			,Case When ISNULL(TA.ParentID,'') = '' Then '' Else TD.Name  END As Level2
+			, TA.SortNum
+			, TA.Type
+			, TA.Style
+			, TA.Icon
+			, TA.ParentID
+		 From XBOLTADM.TB_ARC TA
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TA.ArcCode And TD.Category = 'AR'  And TD.LanguageID = #{languageID}
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TDP ON TDP.TypeCode = TA.ParentID And TDP.LanguageID = #{languageID}
+		 Where  TA.ArcCode Not In(Select ArcCode From XBOLTADM.TB_ARC_TEMPL Where TemplCode = #{templCode})
+		 And TA.Deactivated = '0'
+	</select>
+	
+	<update id="updateParentArcCode" parameterType="java.util.HashMap">
+		Update XBOLTADM.TB_ARC Set
+		 ParentID = #{ParentID}, 
+		 LastUpdated=GETDATE(),
+		 LastUser=#{LastUser} 
+		Where ArcCode = #{ArcCode}
+	</update>
+	
+	<update id="updateNullParentID" parameterType="java.util.HashMap">
+		Update XBOLTADM.TB_ARC Set
+		 ParentID = NULL, 
+		 LastUpdated=GETDATE(),
+		 LastUser=#{LastUser} 
+		Where ArcCode = #{ArcCode}
+	</update>
+	
+	<select id="getItemTypeList_gridList"  resultType="java.util.HashMap">
+		Select
+			Row_Number()OVER(ORDER BY TIT.ItemTypeCode) As RNUM,
+			TIT.ItemTypeCode,
+			TDI.Name As ItemTypeName,
+			TIT.Category, TIT.FromItemTypeCode, 
+			TIT.ToItemTypeCode, TIT.Icon
+		From XBOLTADM.TB_ITEM_TYPE TIT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDI On TDI.TypeCode = TIT.ItemTypeCode
+		 And TDI.LanguageID =  #{languageID}
+		 Where ItemTypeCode Not In(Select ConTypeCode From XBOLTADM.TB_ARC_FILTER Where ArcCode = #{ArcCode})
+		  And TIT.Category = 'CN'
+	</select>
+	
+	<insert id="insertArcFilter" parameterType="java.util.HashMap">
+		Insert Into XBOLTADM.TB_ARC_FILTER (ArcCode, ConTypeCode, RootItemID, ObjTypeCode, ClientID) 
+			values(#{arcCode}, #{conTypeCode}, #{rootItemId}, #{objTypeCode}, #{userId})
+	</insert>
+	
+	<delete id="deleteArcFilter" parameterType="java.util.HashMap">
+		Delete From XBOLTADM.TB_ARC_FILTER Where ArcCode = #{ArcCode} And ConTypeCode = #{ConTypeCode} And RootItemID = #{RootItemID}
+	</delete>
+	
+	<insert id="insertArcClass" parameterType="java.util.HashMap">
+		Insert Into XBOLTADM.TB_ARC_FILTER_CLS (ArcCode, ItemClassCode,Included,IsSecondary, ClientID)
+		Values(#{arcCode}, #{ClassCode}, #{IncludedCode}, #{IsSecondaryCode}, #{userId})
+	</insert>
+	
+	<update id="updateArcClass" parameterType="java.util.HashMap">
+		UPDATE
+			XBOLTADM.TB_ARC_FILTER_CLS
+		SET
+			ItemClassCode = #{ClassCode}
+      		, Included = #{IncludedCode}
+      		, IsSecondary = #{IsSecondaryCode}
+      		, ClientID = #{userId}
+		WHERE
+			ArcCode = #{arcCode} AND
+			ItemClassCode = #{ItemClassCode}
+	</update>
+	
+	<delete id="deleteArcClass" parameterType="java.util.HashMap">
+		Delete From XBOLTADM.TB_ARC_FILTER_CLS 
+		Where ArcCode = #{arcCode}
+			<if test="ClassCode != null and ClassCode != ''">
+				And ItemClassCode = #{ClassCode}
+			</if>
+	</delete>
+	
+	<select id="getArcFilterDimList_gridList"  resultType="java.util.HashMap">
+		Select
+			Row_Number()OVER(ORDER BY TAFD.ArcCode) As RNUM,
+			TAFD.ArcCode, TAFD.ObjTypeCode, TD.Name As ObjTypeName, 
+			TAFD.DimTypeID, TDVT.Name As DimValueName, TAFD.DefDimValueID,
+		    TAFD.ClientID, TIA.PlainText AS DimTypeName
+		From XBOLTADM.TB_ARC_FILTER_DIM TAFD
+			Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TAFD.ObjTypeCode And TD.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_DIM_VALUE_TXT TDVT 
+			On TDVT.DimValueID =  TAFD.DefDimValueID And TDVT.DimTypeID = TAFD.DimTypeID And TDVT.LanguageID = #{languageID}
+			Left Outer Join XBOLTADM.TB_ITEM_ATTR TIA On TIA.ItemID = TAFD.DimTypeID And TIA.AttrTypeCode = 'AT00001'And TIA.LanguageID = #{languageID}
+			Where TAFD.ArcCode  = #{arcCode}
+	</select>
+	
+	<insert id="insertArcDim" parameterType="java.util.HashMap">
+		Insert Into 
+		XBOLTADM.TB_ARC_FILTER_DIM (ArcCode, ObjTypeCode, DimTypeID, DefDimValueID, ClientID)
+		Values (#{arcCode}, #{objTypeCode}, #{dimTypeId}, #{defDimValueId}, #{userId})
+	</insert>
+	
+	<delete id="deleteArcDim" parameterType="java.util.HashMap">
+		Delete From 
+		XBOLTADM.TB_ARC_FILTER_DIM 
+		Where ArcCode = #{arcCode} And DimTypeID =  #{dimTypeId}
+	</delete>
+	
+	<update id="updateMenu">
+		UPDATE
+			XBOLTADM.TB_MENU
+		SET
+			MenuCat = #{MenuCat}
+      		<!-- , DicCode = #{DicCode} -->
+      		, URL = #{URL}
+      		<choose>
+				<when test="ItemID != null and ItemID != ''">
+					, ItemID = #{ItemID}
+				</when>
+				<when test="ItemID == ''">
+				, ItemID = NULL 
+				</when>
+			</choose>	
+      		, VarFilter = #{VarFilter}
+      		, Icon = #{Icon}
+      		, Deactivated = #{Deactivated}
+		WHERE
+			MenuID = #{MenuID}
+	</update>
+	
+	<delete id="deleteMenu" parameterType="java.util.HashMap">
+		Delete From XBOLTADM.TB_MENU 
+		Where MenuID = #{MenuID}
+	</delete>
+	
+	<insert id="insertMenu" parameterType="java.util.HashMap">
+		Insert Into 
+			XBOLTADM.TB_MENU(
+		MenuID
+		, MenuCat
+		, DicCode
+		, URL
+		, MNLVL
+		, VarFilter
+		, Icon
+		, Deactivated
+		) VALUES (
+		#{MenuID}
+		, #{MenuCat}
+		, #{DicCode}
+		, #{URL}
+		, #{MNLVL}
+		, #{VarFilter}
+		, #{Icon}
+		, #{Deactivated}
+		) 
+	</insert>
+	
+	<select id="getMaxMenuId"  resultType="String">
+		SELECT Max(MenuID) As Max
+     	FROM XBOLTADM.TB_MENU
+	</select>
+	
+	<select id="getArcMenuAlloc_gridList"   resultType="java.util.HashMap">
+		Select Row_Number()OVER(ORDER BY TMA.Seq) As RNUM
+			, TMA.ArcCode, TMA.ClassCode, TMA.MenuID
+			, TD.Name As MenuName ,TMA.Sort, TDC.Name As ClassName
+			, TIC.ItemTypeCode, TDI.Name As ItemTypeName
+			, TMA.VarFilter, TMA.MenuDicCode As DicCode, TMA.Seq , TMA.HideOption , TD2.Name As Alias  , TMA.ScrURL   
+		From XBOLTADM.TB_MENU_ALLOC TMA
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TMA.MenuID And TD.LanguageID = #{languageID} And TD.Category = 'MN'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 On TD2.TypeCode = TMA.MenuDicCode And TD2.LanguageID = #{languageID} And TD2.Category = 'LN'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDC On TDC.TypeCode = TMA.ClassCode  And TDC.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_ITEM_CLASS TIC ON TIC.ItemClassCode = TMA.ClassCode
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDI ON TDI.TypeCode = TIC.ItemTypeCode And TDI.LanguageID = #{languageID} 
+		Where TMA.ArcCode = #{arcCode}
+			<if test="itemTypeCode != null and itemTypeCode != ''">
+				And TIC.ItemTypeCode = #{itemTypeCode}
+			</if>
+			<if test="searchValue != null and searchValue != ''">
+				AND TMA.ClassCode = #{searchValue}
+			</if>
+	</select>
+	
+	<select id="getMenuList_gridList"   resultType="java.util.HashMap">
+		Select Row_Number()OVER(ORDER BY TM.MenuId) As RNUM
+			,TM.MenuID, ISNULL(TD.Name,TM.DicCode) As MenuName, TM.URL
+		From XBOLTADM.TB_MENU TM
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TM.MenuID And TD.LanguageID = #{languageID} And TD.Category = 'MN'
+		Where 
+			ISNULL(TM.Deactivated,'') != 1
+		<if test="menuCat != null and !menuCat.equals('') and menuCat != 'null'">
+			AND TM.MenuCat = #{menuCat}
+		</if>
+			
+	</select>
+	
+	<insert id="insertArcMenu" parameterType="java.util.HashMap">
+		Insert Into XBOLTADM.TB_MENU_ALLOC (
+			Seq,
+			ArcCode,
+			ClassCode, 
+			MenuID, 
+			Sort, 
+			MenuDicCode, 
+			<if test="scrURL != null and scrURL != ''">
+			ScrURL,
+			</if>
+			VarFilter, 
+			HideOption
+		)
+		Values(
+			#{seq}, 
+			#{arcCode}, 
+			#{classCode}, 
+			#{menuID}, 
+			#{sort}, 
+			#{menuDicCode}, 
+			<if test="scrURL != null and scrURL != ''">
+			#{scrURL}, 
+			</if>
+			#{varFilter}, 
+			#{hideOption}
+		)
+	</insert>
+	
+	<insert id="updateArcMenu" parameterType="java.util.HashMap">
+		Update XBOLTADM.TB_MENU_ALLOC Set
+			ClassCode = #{classCode},
+			MenuID = #{menuID},
+			<if test="sort != '' and sort != null">Sort = #{sort},</if>
+			MenuDicCode = #{menuDicCode},
+			VarFilter = #{varFilter},
+			<choose>
+				<when test="scrURL != null and scrURL != ''">
+				ScrURL = #{scrURL},
+				</when>
+				<otherwise>
+				ScrURL = null,
+				</otherwise>
+			</choose>
+			HideOption = #{hideOption}
+		Where Seq = #{seq}
+	</insert>
+	
+	<delete id="deleteArcMenu" parameterType="java.util.HashMap">
+		Delete From XBOLTADM.TB_MENU_ALLOC 
+		Where Seq = #{seq}
+	</delete>
+
+	
+	<update id="updateArcStNum" parameterType="java.util.HashMap">
+		Update XBOLTADM.TB_ARC Set SortNum = #{sortNum} Where ArcCode = #{arcCode}
+	</update>
+	
+	<select id="getItemFromToType"   resultType="java.util.HashMap">
+		Select fromItemTypeCode, toItemTypeCode From XBOLTADM.TB_ITEM_TYPE Where ItemTypeCode = #{conTypeCode}
+	</select>
+
+	
+	<select id="getAttrListWithTypeCode" resultType="java.util.HashMap">
+		SELECT Distinct 
+		      T1.AttrTypeCode
+		      , T2.Name
+		      , T1.ItemTypeCode
+		      , T1.GSortNum
+		FROM XBOLTADM.TB_ATTR_TYPE_ALLOCATION T1,
+		  	XBOLTADM.TB_DICTIONARY T2
+		WHERE T1.ItemTypeCode = #{ItemTypeCode}
+		AND T1.AttrTypeCode = T2.TypeCode AND T2.LanguageID = #{languageID}
+		ORDER BY T1.GSortNum
+	</select>
+	
+	<update id="updateAttrSortNum">
+		UPDATE
+			XBOLTADM.TB_ATTR_TYPE_ALLOCATION
+		SET
+			GSortNum = #{GSortNum}
+		WHERE
+			ItemTypeCode = #{ItemTypeCode}
+  			AND AttrTypeCode = #{AttrTypeCode}
+  			
+	</update>
+	
+	<select id="getBoardMgtAlloc_gridList"   resultType="java.util.HashMap">
+		Select Row_Number()OVER(ORDER BY TBMA.BoardMgtID) As RNUM,
+				TBMA.BoardMgtID,
+				TBMA.TemplCode,
+				TBM.DicTypeCode,
+				TD.Name As BoardMgtName,
+				TDT.Name As TemplName,
+				TBMA.SortNum
+		From XBOLTADM.TB_BOARD_MGT_ALLOC TBMA
+		Left Outer Join XBOLTADM.TB_BOARD_MGT TBM ON TBM.BoardMgtID = TBMA.BoardMgtID
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TBM.BoardMgtID And TD.LanguageID = #{languageID} And TD.Category = 'BRDNM'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TDT ON TDT.TypeCode = TBMA.TemplCode And TDT.LanguageID = #{languageID}
+		Where TBMA.TemplCode = #{templCode}
+	</select>
+	
+	<select id="getBoardMgtList_gridList"   resultType="java.util.HashMap">
+		Select Row_Number()OVER(ORDER BY TBM.BoardMgtID) As RNUM,
+			TBM.BoardMgtID,
+			TBM.ParentID,
+			TBM.DicTypeCode,
+			TD.Name As BoardMgtName 
+		From XBOLTADM.TB_BOARD_MGT TBM
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode  = TBM.BoardMgtID And TD.LanguageID = #{languageID} And TD.Category = 'BRDNM'
+		Where TBM.BoardMgtID NOT IN(Select BoardMgtID From XBOLTADM.TB_BOARD_MGT_ALLOC Where TemplCode = #{templCode})
+		And ISNULL(TBM.ParentID,'') = '0'
+	</select>
+	
+	<insert id="insertBoardMgtAlloc" parameterType="java.util.HashMap">
+		Insert Into XBOLTADM.TB_BOARD_MGT_ALLOC (BoardMgtID, TemplCode)
+		Values(#{boardMgtID}, #{templCode})
+	</insert>
+	
+	<delete  id="deleteBoardMgtAlloc" parameterType="java.util.HashMap">
+		DELETE FROM	XBOLTADM.TB_BOARD_MGT_ALLOC WHERE  TemplCode = #{templCode} And BoardMgtID = #{boardMgtID}
+	</delete>
+	
+	<!-- OLM_MGT 데이터 입력 처리 사용 SQL START	-->
+	
+	<select id="getItemsFileList" resultType="java.util.HashMap">
+		SELECT 
+      		FltpCode
+      		,T1.ItemID
+      		, T2.ItemTypeCode
+      		, FileRealName
+      	FROM XBOLTADM.TB_FILE T1
+  			Left Outer Join XBOLTADM.TB_ITEM T2 ON T1.DocumentID = T2.ItemID and T1.DocCategory = 'ITM'
+  		WHERE FltpCode in ('FLTP002','FLTP003','FLTP005','FLTP007')
+	</select>
+	
+	<!-- OLM_MGT 데이터 입력 처리 사용 SQL END	-->
+	
+	<delete id="deleteArchitecture">
+		Delete From XBOLTADM.TB_ACCESS_RIGHT Where ArcCode = #{arcCode}
+		Delete From XBOLTADM.TB_ARC_FILTER Where ArcCode = #{arcCode}
+		Delete From XBOLTADM.TB_ARC_FILTER_CLS Where ArcCode = #{arcCode}
+		Delete From XBOLTADM.TB_ARC_FILTER_DIM Where ArcCode = #{arcCode}
+		Delete From XBOLTADM.TB_ARC_TEMPL Where ArcCode = #{arcCode}
+		Delete From XBOLTADM.TB_MENU_ALLOC Where ArcCode = #{arcCode}
+		Delete From XBOLTADM.TB_DICTIONARY Where TypeCode = #{arcCode}
+		Delete From XBOLTADM.TB_ARC Where ArcCode = #{arcCode}
+	</delete>
+	
+	<select id="getMaxArcCode" resultType="String">
+		Select 'AR'+ Cast( subString( MAX(ArcCode), 3, 15)+1 AS CHAR(10)) AS ArcCode from XBOLTADM.TB_ARC
+	</select>
+	
+	<insert id="insertArchitecture" parameterType="java.util.HashMap">
+		Insert Into XBOLTADM.TB_ARC
+			(ArcCode,
+			<if test="ParentID != null and ParentID != ''">
+				ParentID, 
+			</if>
+			 Type, FilterType, DimTypeID, MstObjectID, MenuID, Style, Icon, WID, Deactivated, UntitledOption, VarFilter, Creator, CreationTime, LastUpdated, LastUser, SortOption, IDFilter )
+		Values(#{ArcCode}, 
+			<if test="ParentID != null and ParentID != ''">
+				#{ParentID}, 
+			</if>
+			 #{Type}, #{FilterType},#{DimTypeID}, #{MstObjectID}, #{MenuID}, #{Style}, #{Icon}, #{WID}, #{Deactivated}, #{UntitledOption}, #{VarFilter}, #{LastUser}, GETDATE(), GETDATE(), #{LastUser}, #{SortOption}, #{idFilter})
+	</insert>
+	
+	<select id="getArcTemplList_gridList"   resultType="java.util.HashMap">
+		Select Row_Number()OVER(ORDER BY TAT.TemplCode) As RNUM,
+		 	 TAT.TemplCode,
+			 TDT.Name As TemplName,
+			 TAT.ArcCode, 
+			 TDA.Name As ArcName, 
+			 TAT.SortNum, 
+			 TAT.ProjectID,
+			 TA.Type
+		 From XBOLTADM.TB_ARC_TEMPL TAT
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TDT On TDT.TypeCode=TAT.TemplCode And TDT.LanguageID = #{languageID}
+		 Left Outer Join XBOLTADM.TB_DICTIONARY TDA On TDA.TypeCode=TAT.ArcCode And  TDA.Category = 'AR' And TDA.LanguageID = #{languageID}
+		 Left Outer Join XBOLTADM.TB_ARC TA On TA.ArcCode = TAT.ArcCode
+		 Where TAT.TemplCode = #{templCode}
+		 Order By TAT.SortNum, TAT.TemplCode
+	</select>
+	
+	<delete id="deleteArcTempl">
+		Delete From XBOLTADM.TB_ARC_TEMPL Where ArcCode = #{arcCode} And TemplCode = #{templCode}
+	</delete>
+	
+	<update id="updateTemplArcSortNum" parameterType="java.util.HashMap">
+		Update XBOLTADM.TB_ARC_TEMPL Set SortNum = #{sortNum} Where TemplCode = #{templCode} And ArcCode = #{arcCode} 
+	</update>
+	
+	<select id="getMaxTemplCode" resultType="String">		
+		Select Case When Count(*) = 0 Then 'TMPL001'
+		Else Rtrim('TMPL00'+ Cast( subString ((select max(TemplCode) From XBOLTADM.TB_TEMPL where TemplCode like 'TMPL%'),5,7)+1 AS CHAR(10))) End  AS TemplCode 
+		From XBOLTADM.TB_TEMPL
+	</select>
+	
+	<insert id="insertTempl" parameterType="java.util.HashMap">
+		Insert Into XBOLTADM.TB_TEMPL 
+			( TemplCode, Type, MenuID, Style, ProjectID, Deactivated, Creator, CreationTime, LastUpdated, LastUser, SortNum, DefLanguageID)
+		Values(#{TemplCode}, #{Type}, #{MenuID}, #{Style}, #{projectID}, #{Deactivated}, #{LastUser}, GETDATE(), GETDATE(), #{LastUser}, (Select MAX(SortNum)+1 From XBOLTADM.TB_TEMPL), #{defLanguage})
+	</insert>
+	
+	<delete id="deleteTempl">
+		Delete From XBOLTADM.TB_ARC_TEMPL Where TemplCode = #{templCode}
+		Delete From XBOLTADM.TB_ACCESS_RIGHT Where TemplCode = #{templCode}
+		Delete From XBOLTADM.TB_BOARD_MGT_ALLOC Where TemplCode = #{templCode}
+		Delete From XBOLTADM.TB_TEMPL Where TemplCode = #{templCode}
+		Delete From XBOLTADM.TB_DICTIONARY Where TypeCode = #{templCode}
+	</delete>
+	
+	<insert id="insertArcTempl" parameterType="java.util.HashMap">
+		Insert Into XBOLTADM.TB_ARC_TEMPL
+			(TemplCode, ArcCode, SortNum, Creator, CreationTime, LastUpdated, LastUser )
+		Values(#{templCode}, #{arcCode}, ISNULL((Select MAX(SortNum)+1 From XBOLTADM.TB_ARC_TEMPL Where TemplCode=#{templCode}),''), #{lastUser}, GETDATE(), GETDATE(), #{lastUser})
+	</insert>
+	
+	<select id="getAllBoardMgtList_gridList" resultType="java.util.HashMap">
+		Select ROW_NUMBER()OVER(ORDER BY ISNULL(TBM.ParentID,TBM.BoardMgtID) ) AS RNUM,
+				TBM.BoardMgtID,
+				TD.Name As BoardMgtName,
+				Case ISNULL(TBM.ParentID,'') When '0' Then TBM.BoardMgtID Else TBM.ParentID End As Level1,
+				Case ISNULL(TBM.ParentID,'') When '0' Then '' Else TBM.BoardMgtID End As Level2,
+				Case ISNULL(TBM.ParentID,'') When '0' Then TD.Name Else TD2.Name End As Level1Name,
+				Case ISNULL(TBM.ParentID,'') When '0' Then '' Else TD.Name End As Level2Name,
+				ISNULL(TD3.Name,TBM.BoardTypeCD) As BoardTypeName,
+				TBM.BoardTypeCD AS BoardTypeCD,
+				TBM.CompanyID,
+				TTT.Name As CompanyName,
+				TBM.Deactivated,
+				TBM.BoardMgtDES,
+				TBM.ParentID,
+				CONVERT(varchar(20),TBM.RegDT, 111) AS RegDT,
+				CONVERT(varchar(20),TBM.ModDT, 111) AS ModDT,
+				TBM.ModUserID,
+				TM.Name As ModUserName,
+				(Select Count(*) From XBOLTADM.TB_BOARD_MGT Where ParentID = TBM.BoardMgtID) As BoardMgtCnt,
+				(Select Count(*) From XBOLTADM.TB_BOARD Where BoardMgtID = TBM.BoardMgtID) As BoardCnt,
+				TBM.CategoryYN,
+				TBM.LikeYN,
+				TBM.PointYN,
+				TBM.PostEmailYN,
+				TBM.MgtOnlyYN,
+				TBM.MgtGRID,
+				TBM.ReplyOption,
+				TBM.MgtUserID,
+				(SELECT TOP 1 Name FROM XBOLTADM.TB_MEMBER WHERE MemberID = TBM.MgtUserID) AS MgtUserIDTxt
+		From XBOLTADM.TB_BOARD_MGT TBM
+		Left Outer Join XBOLTADM.TB_TEAM_TXT TTT On TTT.TeamID = TBM.CompanyID And TTT.LanguageID  = #{languageID} 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TBM.BoardMgtID and TD.LanguageID = #{languageID} And TD.Category = 'BRDNM'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 On TD2.TypeCode = TBM.ParentID and TD2.LanguageID = #{languageID} And TD2.Category = 'BRDNM'
+		Left Outer Join XBOLTADM.TB_MEMBER TM On TM.MemberID = TBM.ModUserID 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD3 On TD3.TypeCode = TBM.BoardTypeCD and TD3.LanguageID = #{languageID} And TD3.Category = 'MN'
+		Where 1=1
+			<if test="BoardMgtID != null and BoardMgtID != ''">
+				 AND TBM.BoardMgtID = #{BoardMgtID}
+			</if>
+		Order by  Level1, Level2	
+	</select>
+	
+	<select id="getMaxBoardMgtID" resultType="String">
+		Select 'BRD'+Cast(subString(Max(BoardMgtID),4,7)+1 AS CHAR(10))
+		From XBOLTADM.TB_BOARD_MGT
+	</select>
+	
+	<insert id="insertBoardMgt" parameterType="java.util.HashMap">
+		Insert Into XBOLTADM.TB_BOARD_MGT
+		  ( BoardMgtID, 
+		    ParentID,
+			CompanyID, 
+			BoardMgtDES,
+			BoardTypeCD, 
+			RegDT, 
+			RegUserID, 
+			ModDT, 
+			ModUserID, 
+			Deactivated,
+			CategoryYN,
+			LikeYN,
+			PointYN,
+			PostEmailYN,
+			MgtGRID,
+			MgtUserID,
+			MgtOnlyYN,
+			ReplyOption
+		)Values(
+			#{boardMgtID},
+			#{parentID},
+			#{companyID},
+			#{description},			
+			#{boardTypeCD},
+			GETDATE(),
+			#{userID},
+			GETDATE(),
+			#{userID},
+			#{deactivated},
+			#{categoryYN},
+			#{likeYN},
+			#{pointYN},
+			#{postEmailYN},
+			#{mgtGRID},
+			#{mgtUserID},
+			#{mgtOnlyYN},
+			#{replyOption}
+		) 
+	</insert>
+	
+	<select id="getMaxDicCode" resultType="String">
+		Select ISNULL('BRD00'+ Cast( subString( MAX(TypeCode), 3, 10)+1 AS CHAR(10)), 'BRD'+'0001') AS TypeCode From XBOLTADM.TB_DICTIONARY Where Category = #{Category}
+	</select>
+	
+	<update id="updateBoardMgt" parameterType="java.util.HashMap">
+		Update XBOLTADM.TB_BOARD_MGT Set
+			    CompanyID = #{companyID},
+			    DicTypeCode = #{dicTypeCode},
+			    BoardTypeCD = #{boardTypeCD},
+			    BoardMgtDES = #{description},
+			    ModDT = GETDATE(),
+			    ModUserID = #{userID},
+			    Deactivated = #{deactivated},
+			    ParentID = #{parentID},
+			    CategoryYN = #{categoryYN},
+			    LikeYN = #{likeYN},
+				PointYN = #{pointYN},
+				PostEmailYN = #{postEmailYN},
+				MgtGRID = #{mgtGRID},
+				MgtUserID = #{mgtUserID},
+				MgtOnlyYN = #{mgtOnlyYN},
+				ReplyOption = #{replyOption} 
+		Where BoardMgtID = #{boardMgtID}
+	</update>
+	
+	<select id="getAlloctedBoardMgtList_gridList" resultType="java.util.HashMap">
+		Select ROW_NUMBER()OVER(ORDER BY TBMA.TemplCode) AS RNUM, 
+			TBMA.TemplCode, TD.Name AS TemplName, TBMA.SortNum
+		From XBOLTADM.TB_BOARD_MGT_ALLOC TBMA
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TBMA.TemplCode And TD.LanguageID = #{languageID}
+		Where TBMA.BoardMgtID = #{boardMgtID}			
+	</select>
+	
+	<select id="getTemplList_gridList" resultType="java.util.HashMap">
+		Select ROW_NUMBER()OVER(ORDER BY TT.TemplCode) AS RNUM,
+			 TT.TemplCode, 
+			 TD.Name As TemplName
+		From XBOLTADM.TB_TEMPL TT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TT.TemplCode And TD.LanguageID = #{languageID}
+		Where TT.TemplCode Not IN(Select TemplCode From XBOLTADM.TB_BOARD_MGT_ALLOC Where BoardMgtID = #{boardMgtID})	
+	</select>
+	
+	<insert id="insertBoardMgtTempl" parameterType="java.util.HashMap">		
+		Insert Into XBOLTADM.TB_BOARD_MGT_ALLOC 
+			(BoardMgtID, TemplCode, SortNum)
+			Values(#{boardMgtID},#{templCode},(Select MAX(SortNum)+1 From XBOLTADM.TB_BOARD_MGT_ALLOC Where BoardMgtID=#{boardMgtID}))
+	</insert>
+	
+	<update id="updateBoardMgtSortNum" parameterType="java.util.HashMap">		
+		Update  XBOLTADM.TB_BOARD_MGT_ALLOC Set SortNum=#{sortNum} Where BoardMgtID=#{boardMgtID} And TemplCode=#{templCode}
+	</update>
+	
+	<update id="deleteBoardMgtTemplAlloc" parameterType="java.util.HashMap">		
+		Delete From XBOLTADM.TB_BOARD_MGT_ALLOC Where BoardMgtID=#{boardMgtID} And TemplCode=#{templCode}
+	</update>
+	
+	<select id="getLanguageList_gridList" resultType="java.util.HashMap">
+		Select ROW_NUMBER()OVER(ORDER BY LanguageID) AS RNUM,
+			LanguageID, LanguageCode, Name, NameEN, IsDefault,
+			Deactivated, FontFamily, FontStyle, FontSize, FontColor
+		From XBOLTADM.TB_LANGUAGE
+	</select>
+	
+	<update id="updateLanguage" parameterType="java.util.HashMap">	
+		Update XBOLTADM.TB_LANGUAGE Set 
+				Name = #{name},
+				NameEN = #{nameEN},
+				Deactivated = #{deactivated},
+				FontFamily = #{fontFamily},
+				FontSize = #{fontSize},
+				FontColor = #{fontColor}
+		Where LanguageID = #{languageID} 		
+	</update>
+	
+	<select id="getMaxMenuAllocSeq" resultType="String">
+		Select Max(Seq)+1 As Seq From XBOLTADM.TB_MENU_ALLOC
+	</select>
+	
+	<select id="getReportAllocList_gridList" resultType="java.util.HashMap">
+		Select 
+			ROW_NUMBER()OVER(ORDER BY TRA.ReportCode) AS RNUM, 
+			TRA.ReportCode,
+			TD.Name As ReportName, 
+			TRA.ProjectID,
+			TPT.Name As ProjectName,
+			TRA.VarFilter,
+			TRA.SortNum,
+			TR.ReportURL
+		From XBOLTADM.TB_REPORT_ALLOCATION TRA
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TRA.ReportCode And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_PROJECT_TXT TPT ON TPT.ProjectID = TRA.ProjectID And TPT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_REPORT TR ON TR.ReportCode = TRA.ReportCode
+		Where TRA.TemplCode = #{templCode}		
+	</select>
+	
+	<select id="getReportMgtList_gridList" resultType="java.util.HashMap">
+		Select 
+			ROW_NUMBER()OVER(ORDER BY TR.ReportCode) AS RNUM, 
+			TR.ReportCode,
+			TD.Name ReportName,
+			TR.ReportType
+		From XBOLTADM.TB_REPORT TR
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TR.ReportCode And TD.LanguageID = #{languageID}
+		Where TR.Deactivated = 0
+		And TR.ReportCode Not In(Select ReportCode From XBOLTADM.TB_REPORT_ALLOCATION Where TemplCode = #{templCode}	)	
+	</select>
+	
+	<insert id="insertReportAlloc" parameterType="java.util.HashMap">		
+		Insert Into XBOLTADM.TB_REPORT_ALLOCATION
+				(ReportCode, TemplCode, ProjectID)
+				Values(#{reportCode}, #{templCode}, #{projectID})
+	</insert>
+	
+	<delete id="deleteReportAlloc" parameterType="java.util.HashMap">		
+		Delete From XBOLTADM.TB_REPORT_ALLOCATION Where TemplCode = #{templCode} And ReportCode = #{reportCode}
+	</delete>
+	
+	<select id="getTaskTypeMgtList_gridList" resultType="java.util.HashMap">
+		Select ROW_NUMBER()OVER(ORDER BY TSKT.TaskTypeCode) AS RNUM 
+			, TSKT.TaskTypeCode 
+			, TD.Name As TaskTypeName 
+			, TSKT.ItemClassCode 
+			, TD2.Name As ItemClassName 
+			, TSKT.FltpCode
+			, TD3.Name FltpName 
+			, TD.Description As Description
+			, TSKT.Deactivated As Deactivated
+		From XBOLTADM.TB_TASK_TYPE TSKT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TSKT.TaskTypeCode And TD.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = TSKT.ItemClassCode And TD2.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD3 ON TD3.TypeCode = TSKT.FltpCode And TD3.LanguageID = #{languageID}
+		<where>
+			<if test="taskTypeCode != null and taskTypeCode != ''">
+				taskTypeCode = #{taskTypeCode} 
+			</if>
+		</where>
+	</select>
+	
+	<select id="getMaxTaskTypeCode" resultType="String">
+		Select Case When Cast(subString(Max(TaskTypeCode),3,5)+1 AS CHAR(10)) > 9
+				 then 'TS0'+ Cast(subString( MAX(TaskTypeCode), 3, 5)+1 AS CHAR(10))
+				 Else ISNULL('TS00'+ Cast( subString( MAX(TaskTypeCode), 3, 5)+1 AS CHAR(10)), 'TS001') END AS TaskTypeCode
+		From XBOLTADM.TB_TASK_TYPE
+	</select>
+	
+	<insert id="insertTaskType" parameterType="java.util.HashMap">		
+		Insert Into XBOLTADM.TB_TASK_TYPE 
+			(TaskTypeCode, ItemClassCode, FltpCode, Deactivated, CreationTime, Creator)
+		Values (#{taskTypeCode}, #{itemClassCode}, #{fltpCode}, #{deactivated}, GETDATE(), #{userID})
+	</insert>
+	
+	<insert id="updateTaskType" parameterType="java.util.HashMap">		
+		Update XBOLTADM.TB_TASK_TYPE Set 
+			ItemClassCode = #{itemClassCode}
+			, FltpCode = #{fltpCode}
+			, Deactivated = #{deactivated}
+			, LastUpdated = GETDATE()
+			, LastUser = #{userID}
+		Where TaskTypeCode = #{taskTypeCode}
+	</insert>
+	
+	<delete id="deleteTaskTypeCode" parameterType="java.util.HashMap">		
+		Delete From XBOLTADM.TB_TASK_TYPE where TaskTypeCode = #{taskTypeCode}
+		Delete From XBOLTADM.TB_DICTIONARY Where TypeCode = #{taskTypeCode} And Category = 'TSKTP' And LanguageID = #{languageID}
+	</delete>
+	
+	<update id="updateReportAllocInfo" parameterType="java.util.HashMap">
+		Update XBOLTADM.TB_REPORT_ALLOCATION Set
+			VarFilter = #{varFilter}
+			<choose>
+				<when test="sortNum != null and sortNum != ''">, SortNum = #{sortNum}</when>
+				<otherwise>, SortNum = NULL</otherwise>
+			</choose>
+		Where ReportCode = #{reportCode}
+		<if test="templateCode != null and templateCode != ''">
+			And TemplCode = #{templateCode}
+		</if>
+		<if test="classCode != null and classCode != ''">
+			And ClassCode = #{classCode}
+		</if>
+	</update>
+	
+	<select id="getMaxSymTypeCode" resultType="String">
+		Select Case When Cast(subString(Max(SymTypeCode),4,7)+1 AS CHAR(10)) > 9
+		Then ISNULL('SB000'+ Cast( subString( MAX(SymTypeCode), 4, 7)+1 AS CHAR(10)), 'SB00001') 
+		Else ISNULL('SB0000'+ Cast( subString( MAX(SymTypeCode), 4, 7)+1 AS CHAR(10)), 'SB00001') 
+		End AS SymTypeCode 
+		From XBOLTADM.TB_SYMBOL_TYPE
+	</select>
+	
+	<insert id="insertSymType" parameterType="java.util.HashMap">
+		Insert Into 
+		XBOLTADM.TB_SYMBOL_TYPE(SymTypeCode, 
+								SymCategory, 
+								ItemCategory, 
+								ItemTypeCode,
+								ClassCode,
+								DefLovCode, 
+								ImagePath, 
+								Creator, 
+								CreationTime, 
+								ArisTypeNum, 
+								DefWidth, 
+								DefHeight, 
+								DefFillColor, 
+								DefStrokeColor, 
+								DefGradientColor, 
+								DefShadow,
+								DefFontColor,
+								DefLabelBGColor,
+								DefSpacingTop,
+								Dashed, 
+								Deactivated,
+								SortNum
+							)Values(
+								#{SymTypeCode},
+								#{SymCategory},
+								#{ItemCategory},
+								#{ItemTypeCode},
+								#{ClassCode},
+								#{DefLovCode},
+								#{ImagePath},
+								#{LastUser},
+								GETDATE(),
+								#{ArisTypeNum},
+								#{DefWidth},
+								#{DefHeight},
+								#{DefFillColor},
+								#{DefStrokeColor},
+								#{DefGradientColor},
+								#{DefShadow},
+								#{DefFontColor},
+								#{DefLabelBGColor},
+								#{DefSpacingTop},
+								#{Dashed},
+								#{Deactivated},
+								#{SortNum}
+							)
+	</insert>
+	
+	<select id="getDictionaryCode" resultType="String">
+		Select TypeCode 
+		From XBOLTADM.TB_DICTIONARY 
+		Where Category = #{Category}
+		 And LanguageID = #{languageID}
+		 And TypeCode = #{typeCode}	
+	</select>
+	
+	<delete  id="deleteBoardMgt" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_BOARD_MGT_CAT WHERE BoardMgtID = #{boardMgtID}
+		DELETE FROM	XBOLTADM.TB_BOARD_MGT WHERE BoardMgtID = #{boardMgtID}
+		DELETE FROM XBOLTADM.TB_DICTIONARY WHERE TypeCode = #{boardMgtID}
+	</delete>
+	
+	
+	<select id="getAllSRCatMgtList_gridList" resultType="java.util.HashMap">
+		Select ROW_NUMBER()OVER(ORDER BY ISNULL(TBM.ParentID,TBM.SRCatID) ) AS RNUM,
+				TBM.SRCatID,
+				TD.Name As SRCatName,
+				Case ISNULL(TBM.ParentID,'') When '0' Then TBM.SRCatID Else TBM.ParentID End As Level1,
+				Case ISNULL(TBM.ParentID,'') When '0' Then ''  Else TBM.SRCatID End As Level2,
+				Case ISNULL(TBM.ParentID,'') When '0' Then TD.Name Else TD2.Name End As Level1Name,
+				Case ISNULL(TBM.ParentID,'') When '0' Then '' Else TD.Name End As Level2Name,
+				TBM.SRType,
+				TBM.SRArea,
+				TBM.RoleType,TD4.Name AS RoleTypeTxt,
+				TD3.Name AS SRAreaName,
+				TBM.ClientID,
+				TBM.ParentID,
+				TBM.Level,
+				CONVERT(varchar(20),TBM.CreationTime, 111) AS RegDT,
+				CONVERT(varchar(20),TBM.LastUpdated, 111) AS ModDT,
+				TBM.LastUser As ModUserID,
+				TM.Name As ModUserName,
+				(Select Count(*) From XBOLTAPP.ESM_SR_CAT Where ParentID = TBM.SRCatID) As SRCatCnt,
+				(Select Count(*) From XBOLTAPP.ESM_SR_MST Where Category = TBM.SRCatID OR SubCategory = TBM.SRCatID) As SRMstCnt,
+				TBM.ProcessType,
+				TBM.ProcPathID,
+				TI.ItemID,
+				TMT.Name AS ProcModelName,
+				TBM.ItemTypeCode,
+				TD5.Name AS ItemTypeCodeNM
+		From XBOLTAPP.ESM_SR_CAT TBM
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = TBM.SRCatID and TD.LanguageID = #{languageID} And TD.Category = 'SRCAT'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 On TD2.TypeCode = TBM.ParentID and TD2.LanguageID = #{languageID} And TD2.Category = 'SRCAT'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD3 On TD3.TypeCode = TBM.SRArea and TD3.LanguageID = #{languageID} And TD3.Category = 'SRAREA'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD4 On TD4.TypeCode = TBM.RoleType and TD4.LanguageID = #{languageID} And TD4.Category = 'SRROLETP'
+		Left Outer Join XBOLTADM.TB_MEMBER TM On TM.MemberID = TBM.LastUser 
+		Left Outer Join XBOLTADM.TB_MODEL TM2 On TBM.ProcPathID = TM2.ModelID
+		Left Outer Join XBOLTADM.TB_ITEM TI on TM2.ItemID = TI.ItemID
+		Left Outer Join XBOLTADM.TB_MODEL_TXT TMT on TBM.ProcPathID = TMT.ModelID and TMT.LanguageID = #{languageID}
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD5 On TD5.TypeCode = TBM.ItemTypeCode and TD5.LanguageID = #{languageID} And TD5.Category = 'OJ'
+		<where>			
+			<if test="srCatID != null and srCatID != ''">
+				TBM.SRCatID = #{srCatID}
+			</if>
+			<if test="SRType != null and !SRType.equals('') and SRType != 'null'">
+				AND TBM.SRType = #{SRType}
+			</if>
+		</where>
+		Order by  Level1, Level2	
+	</select>
+	
+	<select id="getMaxSRCatID" resultType="String">
+		Select 'SR'+Cast(subString(Max(SRCatID),3,7)+1 AS CHAR(10))
+		From XBOLTAPP.ESM_SR_CAT
+	</select>	
+	
+	<insert id="insertSRCategory" parameterType="java.util.HashMap">
+		Insert Into XBOLTAPP.ESM_SR_CAT
+		  (	SRCatID 
+		  	,ParentID
+			,Level
+			,SRType
+			,ItemTypeCode
+			,SRArea
+			,RoleType
+			,ProcessType
+			<if test="procPathID != null and procPathID != ''">
+			,ProcPathID
+			</if>
+			,CreationTime
+			,Creator
+			,LastUpdated
+			,LastUser
+			,ClientID
+		)Values(
+			#{srCatID},
+			#{parentID},
+			#{level},
+			#{srType},			
+			#{itemTypeCode},
+			#{srArea},
+			#{roleType},
+			#{processType},
+			<if test="procPathID != null and procPathID != ''">
+			#{procPathID},
+			</if>
+			GETDATE(),
+			#{userID},
+			GETDATE(),
+			#{userID},
+			#{clientID}
+		) 
+	</insert>
+	
+	<update id="updateSRCategory" parameterType="java.util.HashMap">
+		Update XBOLTAPP.ESM_SR_CAT Set
+			    SRType = #{srType},
+			    ItemTypeCode = #{itemTypeCode},
+			    SRArea = #{srArea},
+			    ClientID = #{clientID},
+			    Level = #{level},
+			    ParentID = #{parentID},
+			    RoleType = #{roleType},
+			    ProcessType = #{processType},
+			    <if test="procPathID != null and procPathID != ''">
+			    ProcPathID = #{procPathID},
+			    </if>
+			    LastUpdated = GETDATE(),
+			    LastUser = #{userID}
+		Where SRCatID = #{srCatID}
+	</update>
+		
+	<delete  id="deleteSRCategory" parameterType="java.util.HashMap">
+		DELETE FROM	XBOLTAPP.ESM_SR_CAT Where SRCatID = #{srCatID}
+		DELETE FROM XBOLTADM.TB_DICTIONARY Where TypeCode = #{srCatID}
+	</delete>
+	
+	<select id="AllocateFileType_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY FT.FltpCode ASC) as RNUM
+			,0 AS CHK
+			, FT.FltpCode
+			, FT.FilePath
+			, TD.Name
+		FROM XBOLTADM.TB_FLTP AS FT
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD ON FT.FltpCode = TD.TypeCode AND LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_FLTP_ALLOC AS TFA ON FT.FltpCode = TFA.FltpCode AND TFA.ItemClassCode=#{ItemClassCode}
+		WHERE FT.FltpCode NOT IN(
+									Select TF.FltpCode From XBOLTADM.TB_FLTP TF
+									Inner Join XBOLTADM.TB_FLTP_ALLOC TFA ON TF.FltpCode = TFA.FltpCode
+									AND TFA.ItemClassCode=#{ItemClassCode}
+								)
+	</select>
+	
+	<select id="getBoardCatAllocList_gridList" resultType="java.util.HashMap">
+		Select
+			Row_Number()OVER(ORDER BY TBMC.SortNum ASC) as RNUM,
+			 TBMC.BoardMgtID, TD2.Name AS BoardMgtName,
+			 TBMC.CategoryCode, TD.Name AS CategoryName,
+			 TBMC.SortNum
+		From XBOLTADM.TB_BOARD_MGT_CAT TBMC
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TD.TypeCode = TBMC.CategoryCode And TD.LanguageID = #{languageID} And TD.Category = 'BRDCAT'
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD2 ON TD2.TypeCode = TBMC.BoardMgtID And TD2.LanguageID = #{languageID} And TD2.Category = 'BRDNM'
+		Where BoardMgtID = #{boardMgtID}		
+    </select>
+    
+    <select id="getBoardCatList_gridList" resultType="java.util.HashMap">
+		Select 
+				Row_Number()OVER(ORDER BY Name ASC) as RNUM,
+				TypeCode AS BoardCategoryCode,
+				Name As BoardCategoryName 
+		From XBOLTADM.TB_DICTIONARY 
+		Where Category='BRDCAT' And LanguageID = #{languageID}
+		And TypeCode Not In (Select CategoryCode From XBOLTADM.TB_BOARD_MGT_CAT Where BoardMgtID = #{boardMgtID})
+   </select>
+   
+   <select id="getMaxBoardCatSortNum" resultType="String" >
+   		SELECT 
+      		ISNULL(Max(SortNum), 0) + 1 As MaxSortNum
+  		FROM XBOLTADM.TB_BOARD_MGT_CAT
+  		Where BoardMgtID = #{boardMgtID}
+   </select>
+   
+	<insert id="insertBoardMgtCategory" parameterType="java.util.HashMap">
+		Insert Into XBOLTADM.TB_BOARD_MGT_CAT
+			(BoardMgtID, CategoryCode, SortNum)
+		Values(#{boardMgtID}, #{boardCategory}, #{sortNum})
+	</insert>
+	
+	<update id="updateBoardMgtCatSortNum" parameterType="java.util.HashMap">
+		Update XBOLTADM.TB_BOARD_MGT_CAT Set SortNum = #{sortNum} Where BoardMgtID = #{boardMgtID} And CategoryCode = #{categoryCode}
+	</update>
+
+	<delete id="deleteBoardMgtCategory" parameterType="java.util.HashMap">
+		Delete From XBOLTADM.TB_BOARD_MGT_CAT Where BoardMgtID = #{boardMgtID} And CategoryCode = #{categoryCode}
+	</delete>
+	
+	<update id="updateFltpAlloc" parameterType="java.util.HashMap" >
+		Update XBOLTADM.TB_FLTP_ALLOC SET LinkType = #{linkType} Where FltpCode = #{fltpCode} And ItemClassCode = #{itemClassCode}
+	</update>
+	
+	
+	<select id="pointType_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY PT.PointTypeID ASC) as RNUM
+			,0 AS CHK
+			, TD.TypeCode AS PointTypeID
+			, PT.FunctionNM
+			, TD.Name
+			, TD.Description
+			, PT.POINT
+		FROM XBOLTADM.TB_DICTIONARY AS TD 
+		LEFT OUTER JOIN XBOLTADM.TB_POINT_TYPE AS PT ON PT.PointTypeID = TD.TypeCode AND LanguageID = #{languageID}
+		Where TD.Category = 'PT'
+		<if test="PointTypeID != null and PointTypeID != ''">
+			AND PT.PointTypeID = #{pointType}
+		</if>
+	</select>
+	
+	
+   <select id="selectPointType" resultType="String" >
+   		SELECT 
+      		PointTypeID
+  		FROM XBOLTADM.TB_POINT_TYPE
+  		<where>
+			<if test="PointTypeID != null and PointTypeID != ''">
+				PointTypeID = #{PointTypeID}
+			</if>
+		</where>
+  	
+   </select>
+   
+	<insert id="insertPointType" parameterType="java.util.HashMap">
+		Insert Into XBOLTADM.TB_POINT_TYPE
+		  (	PointTypeID 
+		  	,FunctionNM
+			,Point
+			,CreationTime
+		)Values(
+			#{PointTypeID},
+			#{FunctionNM},
+			#{Point},
+			GETDATE()
+		) 
+	</insert>
+	
+	<update id="updatePointType" parameterType="java.util.HashMap">
+		Update XBOLTADM.TB_POINT_TYPE Set
+			    FunctionNM = #{FunctionNM},
+			    Point = #{Point}
+		Where PointTypeID = #{PointTypeID}
+	</update>
+	
+	
+	<insert id="insertMyPoint" parameterType="java.util.HashMap">
+		Insert Into XBOLTADM.TB_MY_POINT
+		  (	MemberID
+		  	,PointTypeID
+			,Point
+			,CreationTime
+		)Values(
+			#{MemberID},
+			#{PointTypeID},
+			#{point},
+			GETDATE()
+		) 
+	</insert>
+	
+	<insert id="updateMyPoint" parameterType="java.util.HashMap">
+		update XBOLTADM.TB_MY_POINT
+		set Point = Point + #{Point}, CreationTime = getDate()		
+  		Where PointTypeID = #{PointTypeID} 
+  		  and MemberID = #{MemberID}
+	</insert>
+   
+   
+   <select id="getMaxPointType" resultType="String" >
+   		SELECT isnull(max(Seq)+1,0) 
+   		  FROM XBOLTADM.TB_MY_POINT
+   </select>
+     
+   <select id="getPoint" resultType="String" >
+   		SELECT Point
+  		FROM XBOLTADM.TB_POINT_TYPE
+  		Where PointTypeID = #{PointTypeID}
+  		  and VarFileter = #{VarFilter}
+   </select>
+   
+   <select id="getMemberPoint" resultType="String" >
+   		SELECT Point
+  		FROM XBOLTADM.TB_POINT_TYPE
+  		Where PointTypeID = #{PointTypeID} and MemberID = #{MemberID}
+   </select>
+   
+   <select id="getAttrTypeDpList_gridList" resultType="java.util.HashMap">
+	   Select
+	   		Row_Number()OVER(ORDER BY AttrTypeCode ASC) as RNUM 
+	   		, TM.TypeCode, TM.Category, ISNULL(TD.Name,TM.AttrTypeCode) AS Name, TM.DisplayType, TM.X, TM.Y, TM.Width, TM.Height
+			, TM.FontSize, TM.FontColor, TM.FontStyle, TM.FontFamily, TM.AttrTypeCode, TM.ScrnMode
+			, TM.HTML, TM.FontStyle, TM.StrokeWidth, TM.StrokeColor, TM.FillColor, TM.LabelBackgroundColor, TM.MDPID
+		From XBOLTADM.TB_MODEL_DISPLAY TM
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TM.AttrTypeCode = TD.TypeCode		
+		Where 
+			TM.TypeCode = #{symTypeCode}
+			AND TM.Category = #{Category}
+			AND (TD.LanguageID = #{languageID} OR TD.LanguageID IS Null)
+	</select>
+	
+	<insert id="insertSymbolAttrDp" parameterType="java.util.HashMap">
+		Insert Into XBOLTADM.TB_MODEL_DISPLAY 
+			( TypeCode, Category, AttrTypeCode, DisplayType, HTML,
+				X, Y, Width, Height, FontSize, FontColor, FontStyle, FontFamily, StrokeWidth, StrokeColor, FillColor, LabelBackgroundColor, 
+				ScrnMode, Creator, LastUser, CreationTime, LastUpdated
+			) Values(
+				#{symTypeCode},#{Category}, #{attrTypeCode}, #{displayType}, #{html},
+				#{X}, #{Y}, #{width}, #{height}, #{fontSize}, #{fontColor}, #{fontStyle}, #{fontFamily}, #{strokeWidth}, #{strokeColor}, #{fillColor}, #{labelBackgroundColor}, 
+				#{scrnMode}, #{userID}, #{userID}, GetDate(), GetDate()
+			)
+	</insert>
+	
+	<update id="updateSymbolAttrDp" parameterType="java.util.HashMap">
+		Update XBOLTADM.TB_MODEL_DISPLAY Set
+			attrTypeCode = #{attrTypeCode},
+			DisplayType = #{displayType},
+			HTML = #{html},
+			X = #{X}, Y = #{Y}, 
+			Width = #{width}, Height = #{height},
+			FontSize = #{fontSize}, 
+			FontColor = #{fontColor}, 
+			FontStyle = #{fontStyle},
+			FontFamily = #{fontFamily},
+			StrokeWidth = #{strokeWidth},
+			StrokeColor = #{strokeColor},
+			FillColor = #{fillColor},
+			LabelBackgroundColor = #{labelBackgroundColor},
+			lastUser = #{userID}, 
+			LastUpdated = GetDate(),
+			ScrnMode = #{scrnMode}
+		Where MDPID = #{mdpID} 
+	</update>
+
+	<delete id="deleteAttrDp" parameterType="java.util.HashMap">
+		Delete From XBOLTADM.TB_MODEL_DISPLAY
+		Where MDPID = #{mdpID} 
+	</delete>
+	
+	<select id="getMenuIDCNT" resultType="String">
+		Select Count(*) AS menuCNT From XBOLTADM.TB_MENU Where MenuID = #{MenuID}
+	</select>
+	
+	<select id="getWorkFlowStepDetail" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY TWS.WFStepID ASC) as RNUM
+		, 0 AS CHK
+		, TWS.WFStepID
+		, TD.Name
+		, TD.Description
+		, TWS.DocCategory
+		, TWS.Deactivated
+		, TWS.TransferYN
+		, CONVERT(varchar(20),TWS.CreationTime, 111) AS CreationTime
+		, TWS.Creator
+		, TM.Name as CreatorName
+		, TD.LanguageID 
+		From
+		XBOLTADM.TB_WF_STEP AS TWS
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TWS.Creator = TM.MemberID
+		Left Outer Join XBOLTADM.TB_DICTIONARY AS TD 
+			ON TWS.WFStepID = TD.TypeCode
+			And TD.Category = 'WFSTEP'
+			And TD.LanguageID = #{languageID}
+		where
+		  WFStepID = #{WFStepID}
+	</select>
+	
+	<update id="updateWorkFlowStep"  parameterType="java.util.HashMap" >
+		UPDATE XBOLTADM.TB_WF_STEP SET
+			Deactivated = #{Deactivated}
+			, DocCategory = #{DocCategory}
+			, TransferYN = #{TransferYN}
+		Where
+			WFStepID = #{WFStepID}
+	</update>
+	
+	
+	<delete id="deleteWfStep">
+		DELETE
+		XBOLTADM.TB_WF_STEP
+		where
+		WFStepID = #{WFStepID}
+	</delete>
+
+	<insert id="InsertWFStep">
+		INSERT INTO
+		XBOLTADM.TB_WF_STEP(
+
+		 WFStepID
+        ,DocCategory
+        ,Deactivated
+        ,CreationTime
+        ,Creator
+        ,TransferYN
+		)
+		VALUES(
+		 #{WFStepID}
+		,#{DocCategory}
+		,#{Deactivated}
+		,GETDATE()
+		,#{Creator}
+		,#{TransferYN}
+		)
+	</insert>
+	
+	<select id="getArcSubMenuCode_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY  ALC.ClassCode ASC ) as RNUM
+		 	, 0 AS CHK
+		 	, ALC.ClassCode
+			, TD.Name
+		 	, TMU.MenuID
+		 	, TDA.Name AS MenuName
+		 	, TMU.URL
+		 	, ALC.Sort AS SortNum
+		FROM XBOLTADM.TB_MENU_ALLOC AS ALC
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD ON ALC.ClassCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_MENU AS TMU ON ALC.MenuID = TMU.MenuID
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TDA ON TMU.DicCode = TDA.TypeCode AND TDA.LanguageID = #{languageID}
+		WHERE ALC.ArcCode = #{ArcCode}
+	    Order By ALC.ClassCode,  ALC.Sort
+	</select>
+	
+	<select id="getSubListOfValueCode_gridList" resultType="java.util.HashMap">					  	
+		SELECT 
+			Row_Number()OVER(ORDER BY TDEF.LovCode ASC ) as RNUM
+			, TDEF.AttrTypeCode as AttrTypeCode
+			, TDEF.LovCode as LovCode 
+			, ISNULL(TLANG.Value, TDEF.Value) as NAME 
+			, TLANG.Value as Value 
+			, TDEF.Value as defLangValue
+			, CASE WHEN TLANG.Value IS NULL THEN TBS.LanguageCode ELSE TB.LanguageCode END LanguageCode
+			, CASE WHEN TLANG.Value IS NULL THEN TBS.LanguageID ELSE TB.LanguageID END LanguageID
+			, TDEF.RefLovCode 
+			, TATL.Value AS RevLovName
+			, TDEF.LinkFilter AS LinkFilter
+		FROM XBOLTADM.TB_ATTR_TYPE_LOV TDEF
+			Left Outer Join XBOLTADM.TB_ATTR_TYPE_LOV TLANG ON TDEF.AttrTypeCode = TLANG.AttrTypeCode AND TDEF.LovCode = TLANG.LovCode AND TLANG.LanguageID = #{LanguageID}
+			Left Outer Join XBOLTADM.TB_LANGUAGE TB ON TB.LanguageID = #{LanguageID}
+			Left Outer Join XBOLTADM.TB_LANGUAGE TBS ON TBS.LanguageID= (SELECT LanguageID FROM XBOLTADM.TB_LANGUAGE WHERE IsDefault = 1)	
+			Left Outer Join XBOLTADM.TB_ATTR_TYPE_LOV TATL ON TATL.LovCode = TDEF.RefLovCode AND TATL.LanguageID = #{LanguageID}		
+ 		WHERE TDEF.LanguageID = (SELECT LanguageID FROM XBOLTADM.TB_LANGUAGE WHERE IsDefault = 1)
+ 		and TDEF.AttrTypeCode = #{TypeCode}	
+		  		 
+	</select>
+	
+	<select id="getDefineMenutypeCode_gridList" resultType="java.util.HashMap">
+		SELECT 
+			Row_Number()OVER(ORDER BY TB.MenuID ASC ) as RNUM
+				, 0 AS CHK
+				, TB.MenuID
+				, ISNULL(RTRIM(TB.MenuCat), '') AS MenuCat
+				, ISNULL(TD2.Name, '') AS Category
+      			, ISNULL(TB.DicCode, '') AS DicCode
+				, ISNULL(TD.Name, TB.URL) AS MenuName
+				, ISNULL(TB.URL, '') AS URL
+				, ISNULL(TB.VarFilter, '') AS VarFilter
+				, ISNULL(RTRIM(TB.MNLVL), '') AS MNLVL
+				, ISNULL(TB.ItemID, '') AS ItemID
+				, Case When TB.Icon = '' Then 'btn_dim_del.png' 
+					   When TB.Icon is null Then 'btn_dim_del.png'
+				       Else TB.Icon End As Icon
+      			, ISNULL(TB.Deactivated, 0) AS Deactivated
+      			, TB.SortNum
+      			, (SELECT Count(MenuID) FROM XBOLTADM.TB_MENU_ALLOC WHERE MenuID = TB.MenuID) AS CNT
+      			, TD.Description
+			FROM
+				XBOLTADM.TB_MENU AS TB
+				LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD ON TB.MenuID = TD.TypeCode AND TD.Category = 'MN' AND TD.LanguageID = #{sessionCurrLangType} 
+				LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD2 ON TB.MenuCat = TD2.TypeCode AND TD2.Category = 'MENUCAT' AND TD2.LanguageID = #{sessionCurrLangType} 
+			WHERE 1=1
+			<if test="MenuID != null and MenuID != ''">
+				AND TB.MenuID = #{MenuID}
+			</if>
+			<if test="menuCat != null and !menuCat.equals('') and menuCat != 'null'">
+				AND TB.menuCat = #{menuCat}
+			</if>
+			<if test="searchValue != null and searchValue !='' and searchKey == 'Name'">
+				AND TD.Name like N'%'+#{searchValue}+'%'
+			</if>
+			<if test="searchValue != null and searchValue !='' and searchKey == 'URL'">
+				AND TB.URL like N'%'+#{searchValue}+'%'
+			</if>
+			 
+	</select>
+	
+	<select id="SubFileTab_gridList" resultType="java.util.HashMap">
+		SELECT 
+			Row_Number()OVER(ORDER BY FT.FltpCode ASC) as RNUM
+				,0 AS CHK
+				, FT.FltpCode
+				, TD.Name
+				, FT.FilePath
+				, FA.LinkType
+				, FA.ItemClassCode
+			FROM XBOLTADM.TB_FLTP_ALLOC AS FA		
+				LEFT OUTER JOIN XBOLTADM.TB_FLTP AS FT ON FT.FltpCode = FA.FltpCode		
+				LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD ON FT.FltpCode = TD.TypeCode AND LanguageID = #{languageID} 
+			Where FA.ItemClassCode=#{ItemClassCode}
+
+	</select>
+	
+	<select id="getRoleTypeList_gridList" resultType="java.util.HashMap">
+		SELECT
+		Row_Number()OVER(ORDER BY TD.Name ASC) as RNUM
+			, 0 AS CHK
+			, TD.Name AS RoleCategory
+			, ISNULL(TD2.Name,TD3.Name) As RoleType
+			, CASE WHEN TD2.Name IS NULL THEN TBS.LanguageCode ELSE TB.LanguageCode END LanguageCode
+			, CASE WHEN TD2.Name IS NULL THEN TBS.LanguageID ELSE TB.LanguageID END LanguageID
+			, ISNULL(TR.ProcessType, '') AS ProcessType
+			, ISNULL(TR.Deactivated, '') AS Deactivated
+			, ISNULL(CONVERT(varchar(20),TR.CreationTime, 111),'') AS CreationTime
+			, ISNULL(TR.Creator, '') AS Creator
+			, ISNULL(TM.Name, '') AS CreatorName
+			, ISNULL(CONVERT(varchar(20),TR.LastUpdated, 111),'') AS LastUpdated
+			, ISNULL(TR.LastUser, '') AS LastUser
+			, ISNULL(TM2.Name, '') AS LastUserName
+			, ISNULL(TR.ClientID, '') AS ClientID
+			, ISNULL(TR.AssignmentType, '') AS AssignmentType
+			, ISNULL(TR.RoleTypeCode, '') AS RoleTypeCode
+			, ISNULL(TR.ActorType, '') AS ActorType
+		FROM XBOLTADM.TB_OLM_ROLE_TYPE TR
+			LEFT OUTER JOIN XBOLTADM.TB_LANGUAGE TB ON TB.LanguageID = #{languageID}
+			LEFT OUTER JOIN XBOLTADM.TB_LANGUAGE TBS ON TBS.LanguageID = (SELECT LanguageID FROM XBOLTADM.TB_LANGUAGE WHERE IsDefault = 1)	
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TR.AssignmentType = TD.TypeCode AND TD.Category = 'ROLECAT' AND TD.LanguageID = (SELECT LanguageID FROM XBOLTADM.TB_LANGUAGE WHERE IsDefault = 1)
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD2 ON TR.RoleTypeCode = TD2.TypeCode AND TD2.LanguageID = #{languageID} AND TD2.Category = TR.AssignmentType
+			LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD3 ON TR.RoleTypeCode = TD3.TypeCode AND TD3.LanguageID = (SELECT LanguageID FROM XBOLTADM.TB_LANGUAGE WHERE IsDefault = 1) AND TD3.Category = TR.AssignmentType
+			LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM ON TR.Creator = TM.MemberID
+			LEFT OUTER JOIN XBOLTADM.TB_MEMBER TM2 ON TR.LastUser = TM2.MemberID
+		WHERE
+			TD3.LanguageID = (SELECT LanguageID FROM XBOLTADM.TB_LANGUAGE WHERE IsDefault = 1)
+			<if test="Category != null and Category != ''">
+				AND	TR.AssignmentType = #{Category}
+			</if>
+			<if test="ActorType != null and ActorType != ''">
+				AND	TR.ActorType = #{ActorType}
+			</if>
+	</select>
+	
+	<insert id="insertRoleType">
+		INSERT INTO	XBOLTADM.TB_OLM_ROLE_TYPE(
+			RoleTypeCode
+			,AssignmentType
+			,ProcessType
+			,ActorType
+			,Deactivated
+			,CreationTime
+			,Creator
+		)VALUES(
+			#{TypeCode}
+			,#{Category}
+			,#{processType}
+			,#{ActorType}
+			,#{deactivated}
+			,GETDATE()
+			,#{creator}
+		)
+	</insert>
+	
+	<update id="updateRoleType" parameterType="java.util.HashMap">
+		UPDATE
+			XBOLTADM.TB_OLM_ROLE_TYPE
+		SET
+			ActorType = #{ActorType},
+			ProcessType = #{processType},
+			Deactivated = #{deactivated},
+			LastUpdated = GETDATE(),
+			LastUser = #{lastUser}
+		WHERE RoleTypeCode = #{TypeCode} AND AssignmentType = #{Category}
+	</update>
+	
+	<select id="getMyItemCount" resultType="String">
+		SELECT
+			COUNT(RoleType)	
+		FROM
+			XBOLTADM.TB_MY_ITEM
+		<where>
+			<if test="categoryCode != null and categoryCode != ''">
+				AssignmentType = #{categoryCode}
+			</if>
+			<if test="typeCode != null and typeCode != ''">
+				AND RoleType = #{typeCode}
+			</if>
+		</where>
+	</select>
+	
+	<delete id="deleteRoleType" parameterType="java.util.HashMap">
+		DELETE
+			FROM XBOLTADM.TB_OLM_ROLE_TYPE 
+		WHERE 
+			RoleTypeCode = #{typeCode} AND
+			AssignmentType = #{categoryCode} AND
+			#{languageID} = (SELECT LanguageID FROM XBOLTADM.TB_LANGUAGE WHERE IsDefault = 1)
+	</delete>
+	
+	<select id="getAllSRAreaList_gridList" resultType="java.util.HashMap">
+		Select ROW_NUMBER() over(order by TSA.SRTypeCode,TSA.ItemClassCode,TSA.Level) AS RNUM,
+					TSA.SRTypeCode,
+					TD1.Name As SRTypeNM,
+					TST.ItemTypeCode,
+					TSA.ItemClassCode,
+					TD.Name AS ItemClassName,
+					TSA.Level,
+					ISNULL(CONVERT(varchar(20),TSA.LastUpdated, 111),'') AS LastUpdated,
+					ISNULL(TSA.LastUser, '') AS LastUser,
+					ISNULL(TM2.Name, '') AS LastUserName
+		From XBOLTAPP.ESM_SR_AREA TSA
+		LEFT OUTER JOIN XBOLTAPP.ESM_SR_TYPE TST ON TSA.SRTypeCode = TST.SRTypeCode
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD1 ON TD1.TypeCode = TST.SRTypeCode and TD1.Category = 'SRTP' and TD1.LanguageID =  #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_LANGUAGE TB ON TB.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_LANGUAGE TBS ON TBS.LanguageID = (SELECT LanguageID FROM XBOLTADM.TB_LANGUAGE WHERE IsDefault = 1)	
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY TD ON TSA.ItemClassCode = TD.TypeCode AND TD.Category = 'CLS' AND TD.LanguageID = (SELECT LanguageID FROM XBOLTADM.TB_LANGUAGE WHERE IsDefault = 1)
+		LEFT OUTER JOIN XBOLTADM.TB_MEMBER AS TM2 ON TSA.LastUser = TM2.MemberID
+		<where>
+			<if test="srTypeCode != null and !srTypeCode.equals('') and srTypeCode != 'null'">
+				And TSA.SRTypeCode = #{srTypeCode}
+			</if>
+			<if test="itemClassCode != null and !itemClassCode.equals('') and itemClassCode != 'null'">
+				And TSA.ItemClassCode = #{itemClassCode}
+			</if>
+			<if test="level != null and !level.equals('') and level != 'null'">
+				And TSA.Level = #{level}
+			</if>
+		</where>
+	</select>
+	
+	<delete  id="deleteSRAreaList" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTAPP.ESM_SR_AREA Where ItemClassCode = #{itemClassCode} And Level = #{level}
+	</delete>
+
+	<insert id="insertSRArea" >
+		INSERT INTO XBOLTAPP.ESM_SR_AREA(
+			SRTypeCode
+		    ,ItemClassCode
+		    ,Level
+		    ,CreationTime
+		    ,Creator
+		    ,ClientID
+		    ,LastUpdated
+		    ,LastUser
+		) VALUES (
+			#{srTypeCode}
+		    ,#{itemClassCode}
+		    ,#{level}
+		    ,GETDATE()
+		    ,#{lastUser}
+			,#{lastUser}
+			,GETDATE()
+			,#{lastUser}
+		)
+	</insert>
+	
+	<update  id="updateSRArea" parameterType="java.util.HashMap">
+		UPDATE
+			XBOLTAPP.ESM_SR_AREA
+		SET
+			ItemClassCode = #{itemClassCode},
+			Level = #{level},
+			LastUpdated = GETDATE(),
+			LastUser = #{lastUser}
+		WHERE SRTypeCode = #{srTypeCode}
+		AND ItemClassCode = #{itemClassCodeTd}
+		AND Level = #{levelTd}
+	</update>
+	
+	<select id="getAllSRTypeList_gridList" resultType="java.util.HashMap">
+		Select ROW_NUMBER() over(order by TS.SRTypeCode) AS RNUM,
+		TS.SRTypeCode,
+		TD.Name AS SRTypeNM,
+		TS.DocDomain,
+		TS.DocCategory As TS_DocCategory,
+		TD1.Name As DocCategory,
+		TS.ItemTypeCode,
+		TD2.Name AS ItemType,
+		TS.ProcModelID,
+		TMT.Name AS ProcModel,
+		TS.MenuID,
+		TS.VarFilter,
+		TS.Prefix,
+		TS.MaxSRAreaLvl,
+		TS.Deactivated,
+		CONVERT(varchar(20),TS.LastUpdated, 111) AS LastUpdated,
+		TS.DimTypeID,
+		TIA.PlainText AS Dimension,
+		(Select Count(*) From XBOLTAPP.ESM_SR_MST Where SRType = TS.SRTypeCode) As SRMstCnt,
+		(Select Count(*) From XBOLTAPP.ESM_SR_CAT Where SRType = TS.SRTypeCode) As SRCatCnt,
+		(Select Count(*) From XBOLTAPP.ESM_SR_AREA Where SRTypeCode = TS.SRTypeCode) As SRAreaCnt,
+		TM.ModelID,
+		TI.ItemID,
+		Case ISNULL(TS.ItemProposal,'') When 'Y' Then 'Y' Else 'N' END AS ItemProposal,
+		TS.EvalTypeCode,
+		TS.DefWFID,
+		TS.WFAprvURL,
+		TS.WFDocURL
+		FROM XBOLTAPP.ESM_SR_TYPE AS TS
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD ON TS.SRTypeCode = TD.TypeCode  AND TD.Category = 'SRTP' AND TD.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM_ATTR AS TIA ON TS.DimTypeID = TIA.ItemID And TIA.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD1 ON TS.DocCategory = TD1.TypeCode And TD1.Category = 'DOCCAT' And TD1.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_DICTIONARY AS TD2 ON TS.ItemTypeCode = TD2.TypeCode And TD2.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_MODEL_TXT AS TMT ON TS.ProcModelID = TMT.ModelID And TMT.LanguageID = #{languageID}
+		LEFT OUTER JOIN XBOLTADM.TB_MODEL TM ON TS.ProcModelID = TM.ModelID
+		LEFT OUTER JOIN XBOLTADM.TB_ITEM TI ON TM.ItemID = TI.ItemID
+		<where>
+			<if test="srTypeCode != null and !srTypeCode.equals('') and srTypeCode != 'null'">
+				TS.SRTypeCode = #{srTypeCode}
+			</if>
+		</where>
+	</select>
+	
+	<insert id="insertSRType">
+		INSERT INTO XBOLTAPP.ESM_SR_TYPE (
+	           SRTypeCode
+	           ,DocDomain
+	           ,DocCategory
+	           ,ItemTypeCode
+	           <if test="procModelID != null and procModelID != ''">
+	           ,ProcModelID
+	           </if>
+	           ,MenuID
+	           ,VarFilter
+	           ,Prefix
+	           ,MaxSRAreaLvl
+	           ,DimTypeID
+	           ,Deactivated
+	           ,ItemProposal
+	           ,EvalTypeCode
+	           ,DefWFID
+	           ,WFAprvURL
+	           ,WFDocURL
+	           ,CreationTime
+	           ,Creator
+	           ,LastUpdated
+	           ,LastUser
+	    ) VALUES (
+			#{srTypeCode}
+		    ,#{docDomain}
+		    ,#{docCategory}
+		    ,#{itemTypeCode}
+		     <if test="procModelID != null and procModelID != ''">
+		    ,#{procModelID}
+		    </if>
+		    ,#{menuID}
+			,#{varFilter}
+			,#{prefix}
+			,#{maxSRAreaLvl}
+			,#{dimTypeID}
+			,#{deactivated}
+			,#{itemProposal}
+			,#{evalType}
+			,#{wfID}
+			,#{wfAprvURL}
+			,#{wfDocURL}
+			,GETDATE()
+			,#{lastUser}
+			,GETDATE()
+			,#{lastUser}
+		)
+	</insert>
+	
+	<update id="updateSRType" parameterType="java.util.HashMap">
+		Update XBOLTAPP.ESM_SR_TYPE Set
+		    SRTypeCode = #{srTypeCode}
+		    ,DocDomain = #{docDomain}
+		    ,DocCategory = #{docCategory}
+		    ,ItemTypeCode = #{itemTypeCode}
+		    ,<choose><when test="procModelID != null and procModelID != ''">ProcModelID = #{procModelID}</when><otherwise>ProcModelID = NULL</otherwise></choose>
+			,<choose><when test="menuID != null and menuID != ''">MenuID = #{menuID}</when><otherwise>MenuID = NULL</otherwise></choose>
+			,<choose><when test="varFilter != null and varFilter != ''">VarFilter = #{varFilter}</when><otherwise>VarFilter = NULL</otherwise></choose>
+			,<choose><when test="prefix != null and prefix != ''">Prefix = #{prefix}</when><otherwise>Prefix = NULL</otherwise></choose>
+			,<choose><when test="maxSRAreaLvl != null and maxSRAreaLvl != ''">MaxSRAreaLvl = #{maxSRAreaLvl}</when><otherwise>MaxSRAreaLvl = NULL</otherwise></choose>
+			,<choose><when test="dimTypeID != null and dimTypeID != ''">DimTypeID = #{dimTypeID}</when><otherwise>dimTypeID = NULL</otherwise></choose>
+		    ,<choose><when test="deactivated != null and deactivated != ''">Deactivated = #{deactivated}</when><otherwise>Deactivated = NULL</otherwise></choose>
+		    ,<choose><when test="itemProposal != null and itemProposal != ''">ItemProposal = #{itemProposal}</when><otherwise>ItemProposal = NULL</otherwise></choose>
+		    ,<choose><when test="evalType != null and evalType != ''">EvalTypeCode = #{evalType}</when><otherwise>EvalTypeCode = NULL</otherwise></choose>
+		    ,<choose><when test="wfID != null and wfID != ''">DefWFID = #{wfID}</when><otherwise>DefWFID = NULL</otherwise></choose>
+		    ,<choose><when test="wfAprvURL != null and wfAprvURL != ''">WFAprvURL = #{wfAprvURL}</when><otherwise>WFAprvURL = NULL</otherwise></choose>
+		    ,<choose><when test="wfDocURL != null and wfDocURL != ''">WFDocURL = #{wfDocURL}</when><otherwise>WFDocURL = NULL</otherwise></choose>
+		    ,LastUpdated = GETDATE()
+		    ,LastUser = #{lastUser}
+		Where SRTypeCode = #{srTypeCode}
+	</update>
+	
+	<delete  id="deleteSRType" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTAPP.ESM_SR_TYPE Where SRTypeCode = #{srTypeCode}
+	</delete>
+	
+	<update id="updateConfiguration" parameterType="java.util.HashMap">		
+		Update XBOLTADM.TB_CONFIGURATION Set 			
+			OrderNum = #{orderNum}
+			, ParentID = #{parentID}
+			 <if test="level != null and level != ''"> , Level = #{level} </if>
+			 <if test="sortNum != null and sortNum != ''"> , SortNum = #{sortNum} </if>
+		Where ConfigurationCode = #{configurationCode}
+	</update>
+	
+	<select id="selectConfigurationTreeList"  resultType="java.util.HashMap">
+		SELECT ISNULL(TC.ConfigurationCode, '0') AS TREE_ID 
+			, ISNULL(TC.ParentID, '0') AS PRE_TREE_ID 
+			, TD.Name AS TREE_NM
+			, TC.Level
+			, TC.OrderNum
+			, (Select Count(*) From XBOLTADM.TB_CONFIGURATION WHERE ParentID = TC.ConfigurationCode) AS SUB_TREE_ID_CNT
+		FROM XBOLTADM.TB_CONFIGURATION TC 
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD ON TC.ConfigurationCode = TD.TypeCode AND TD.LanguageID = #{languageID} 
+		Order by TC.SortNum, TC.OrderNum, TC.ParentID ASC
+	</select>
+	
+	<select id="getConfigurationMaxLevel"  resultType="String">
+		Select max(Level) From XBOLTADM.TB_CONFIGURATION 
+	</select>
+	
+	<update id="updateSymAlloc" parameterType="java.util.HashMap">
+		Update 
+			XBOLTADM.TB_SYMTYPE_ALLOCATION
+		Set
+			SortNum = #{sortNum}
+		Where
+			ModelTypeCode = #{modelTypeCode}
+			And SymTypeCode = #{symTypeCode}
+	</update>
+	
+	<select id="getAllEmailFormList_gridList" resultType="java.util.HashMap">
+		Select ROW_NUMBER()OVER(ORDER BY ISNULL(TD.TypeCode,TD.Name) ) AS RNUM,
+			TD.TypeCode AS EmailCode,
+			TD.Name,
+			TEF.HTMLForm,
+			TD.Description
+		From XBOLTADM.TB_DICTIONARY TD
+		Left Outer Join XBOLTADM.TB_EMAIL_FORM TEF On TD.TypeCode = TEF.EmailCode 
+		Where TD.LanguageID = #{languageID} And TD.Category = #{Category}
+			<if test="emailCode != null and emailCode != ''">
+				and TD.TypeCode = #{emailCode}
+			</if>
+	</select>
+	
+	<insert id="insertEmailForm">
+		INSERT INTO XBOLTADM.TB_EMAIL_FORM (
+	         EmailCode,
+	         HTMLForm,
+	         LanguageID
+	    ) VALUES (
+			#{TypeCode},
+			#{htmlForm},
+			#{languageID}
+		)
+	</insert>
+	
+	<update id="updateEmailForm" parameterType="java.util.HashMap">
+		Update 
+			XBOLTADM.TB_EMAIL_FORM
+		Set
+			HTMLForm = #{htmlForm}
+		Where
+			EmailCode = #{TypeCode}
+			And LanguageID = #{languageID}
+	</update>
+	
+	<delete  id="delEmailForm" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTADM.TB_EMAIL_FORM Where EmailCode = #{emailCode}
+	</delete>
+	
+	<select id="getAllEvalTypeList_gridList" resultType="java.util.HashMap">
+		Select ROW_NUMBER()OVER(ORDER BY ISNULL(EET.EvalTypeCode,TD.Name) ) AS RNUM,
+			EET.EvalTypeCode,
+			TD.Name,
+			TD.Description
+		From XBOLTAPP.ESM_EVAL_TYPE EET
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD On TD.TypeCode = EET.EvalTypeCode and TD.LanguageID = #{languageID} And TD.Category = #{Category}
+		Where 1=1
+			<if test="evTypeCode != null and evTypeCode != ''">
+				and EET.EvalTypeCode = #{evTypeCode}
+			</if>
+	</select>
+	
+	<select id="getAllocAttrType_gridList" resultType="java.util.HashMap">
+		SELECT
+			Row_Number()OVER(ORDER BY TAT.AttrTypeCode ASC) as RNUM
+			, TAT.AttrTypeCode
+			, TD.Name
+			, TD.Description
+		FROM
+		XBOLTADM.TB_ATTR_TYPE TAT
+		Left Outer Join XBOLTADM.TB_DICTIONARY TD on TAT.AttrTypeCode = TD.TypeCode AND TD.LanguageID = #{languageID}
+		WHERE TD.Name IS NOT NULL
+		and TAT.Category = #{category}
+		and TAT.AttrTypeCode 
+		<choose>
+			<when test="viewType != null and viewType != ''">NOT IN</when><otherwise>IN</otherwise>
+		</choose>
+		(
+			SELECT AttrTypeCode	FROM XBOLTAPP.ESM_EVAL_ITEM	Where EvalTypeCode = #{evTypeCode}
+		)
+	</select>
+	
+	<insert id="insertEvalType">
+		INSERT INTO XBOLTAPP.ESM_EVAL_TYPE (
+	         EvalTypeCode,
+	         DocCategory,
+	         Creator,
+	         CreationTime
+	    ) VALUES (
+			#{evTypeCode},
+			#{docCategory},
+			#{Creator},
+			GETDATE()
+		)
+	</insert>
+	
+	<delete  id="delEvalType" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTAPP.ESM_EVAL_TYPE Where EvalTypeCode = #{evTypeCode}
+	</delete>
+	
+	<insert id="insertEvalAttrAlloc">
+		INSERT INTO XBOLTAPP.ESM_EVAL_ITEM (
+	        EvalItemID,
+	        EvalTypeCode,
+	        AttrTypeCode
+	    ) VALUES (
+			( Select ISNULL(Max(EvalItemID)+1,1) FROM XBOLTAPP.ESM_EVAL_ITEM ),
+			#{evTypeCode},
+			#{attrTypeCode}
+		)
+	</insert>
+	
+	<delete  id="delEvalAttrAlloc" parameterType="java.util.HashMap">
+		DELETE FROM XBOLTAPP.ESM_EVAL_ITEM Where EvalTypeCode = #{evTypeCode} 
+		<if test="attrTypeCode != null and attrTypeCode != ''">
+			AND AttrTypeCode = #{attrTypeCode}
+		</if>
+	</delete>
+</mapper>

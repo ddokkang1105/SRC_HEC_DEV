@@ -1,0 +1,307 @@
+<%@ page language="java" contentType="text/html; charset=utf-8" pageEncoding="utf-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jstl/fmt_rt" %>
+<c:url value="/" var="root"/>
+<link rel="stylesheet" type="text/css" href="<c:url value='/cmm/js/dhtmlxGrid/codebase/ext/dhtmlxgrid_pgn_bricks.css'/>">
+
+<script type="text/javascript">
+	var p_gridArea;
+	var screenType = "${screenType}";
+	var baseURL = "${baseUrl}";
+	
+	$(document).ready(function() {	
+		// 초기 표시 화면 크기 조정 
+		$("#grdGridArea02").attr("style","height:"+(setWindowHeight() - 290)+"px;");
+		// 화면 크기 조정
+		window.onresize = function() {
+			$("#grdGridArea02").attr("style","height:"+(setWindowHeight() - 290)+"px;");
+		};
+		
+		$("#makeNew").click(function(){
+			var url = "boardAddForumNew.do"; 
+			var data = "s_itemID="+$('#s_itemID').val()+"&noticType=${noticType}&BoardMgtID=${BoardMgtID}&isMyCop=${isMyCop}&screenType=${screenType}&listType=${listType}&srID=${srID}"; 
+			var target = "help_content";
+			ajaxPage(url, data, target);
+			return false;
+		});
+		$("input.datePicker").each(generateDatePicker);
+		$('#searchValue').keypress(function(onkey){
+			if(onkey.keyCode == 13){
+				doSearchListForum();
+				return false;
+			}
+		});	
+		setTimeout(function() {$('#searchValue').focus();}, 0);
+		
+		var category = "${category}";
+		if(category != "" ){
+			setTimeout(function() {gridInit();fnSearchCat("${categoryIndex}","${categoryCnt}","${category}");}, 100);		
+		}else{ setTimeout(function() {gridInit();doSearchListForum();}, 100);}
+		
+		fnSelect('itemTypeCode', 'languageID=${sessionScope.loginInfo.sessionCurrLangType}&editable=1&category=OJ&BoardMgtID=${BoardMgtID}', 'getCategory', '','Select','forum_SQL');
+		
+		var timer = setTimeout(function() {
+			$("#itemTypeCode").append("<option value='General'>General</option>");
+		}, 250); //1000 = 1초
+	});
+	
+	function setWindowHeight(){
+		var size = window.innerHeight;
+		var height = 0;
+		if( size == null || size == undefined){
+			height = document.body.clientHeight;
+		}else{
+			height=window.innerHeight;
+		}return height;
+	}
+	
+	function deleteforum(boardID){
+		var data = "boardID="+boardID;
+		var url = "boardForumDelete.do";// + data;
+		var target = "help_content";
+		ajaxPage(url, data, target);
+	}
+	
+	function InfoView(isNew, BoardMgtID, noticType, boardID, ItemID, s_itemID, userId) {
+		var data = "NEW="+isNew+"&BoardMgtID="+BoardMgtID+"&noticType="+101+"&boardID="+boardID+"&ItemID="+ItemID+"&s_itemID="+s_itemID+"&userId="+userId+"&srID=${srID}";
+		var url = "boardForumDetail.do";
+		
+		var target = "help_content";
+		ajaxPage(url, data, target);
+	}
+	
+	// BEGIN ::: GRID
+	function gridInit(){		
+		var d = setGridData();
+		p_gridArea = fnNewInitGrid("grdGridArea02", d);
+		p_gridArea.setImagePath("${root}${HTML_IMG_DIR}/");
+		p_gridArea.setIconPath("${root}${HTML_IMG_DIR}/");
+					
+		fnSetColType(p_gridArea, 1, "img");
+		fnSetColType(p_gridArea, 11, "img");
+		p_gridArea.setColumnHidden(12, true);
+		p_gridArea.setColumnHidden(13, true);
+		p_gridArea.setColumnHidden(14, true);
+		p_gridArea.setColumnHidden(15, true);
+		p_gridArea.setColumnHidden(16, true);
+
+		p_gridArea.attachEvent("onRowSelect", function(id,ind){gridOnRowSelect(id,ind);});
+		
+		p_gridArea.enablePaging(true,20,10,"pagingArea",true,"recInfoArea");
+		p_gridArea.setPagingSkin("bricks");
+		p_gridArea.attachEvent("onPageChanged", function(ind,fInd,lInd){$("#currPage").val(ind);});
+		
+	}
+	
+	function setGridData(){ 
+		var category = $("#categoryCode").val(); if(category=='undefined' || category==null){category = "";}
+		var result = new Object();
+		result.title = "${title}";
+		result.key = "forum_SQL.forumGridList";
+		result.header = "${menu.LN00024},,${menu.LN00021},${menu.LN00028},${menu.LN00002},${menu.LN00060},${menu.LN00070},${menu.LN00033},${menu.LN00004},Count,Reply,${menu.LN00068},boardID,ItemID,BoardMgtID,CategoryCode,ItemTypeCode"; //13
+		result.cols = "AttechImg|Category|itemName|Subject|WriteUserNM|ModDT|BrdCategory|ItemMgtUserID|ReadCNT|CommentCNT|IsNew|BoardID|ItemID|BoardMgtID|CategoryCode|ItemTypeCode"; //12
+		result.widths = "40,30,80,*,*,80,100,80,80,50,50,40,30,30,30,0,0"; //13
+		result.sorting = "int,str,str,str,str,str,str,str,str,str,str,str,str,str,str,str,str"; //13
+		result.aligns = "center,center,center,left,left,center,center,center,center,center,center,center,center,center,center,center,center";
+		result.data = "noticType="		+ $('#noticType').val()
+			        + "&searchType="    + $("#searchType").val()
+			        + "&searchValue="  	+ $("#searchValue").val()
+					+ "&pageNum="     	+ $("#currPage").val()
+					+ "&itemID=${itemID}"
+					+ "&myID=${myID}"
+					+ "&baseURL="		+ baseURL
+					/* + "&projectID=${projectID}" */
+					+ "&BoardMgtID=${BoardMgtID}"
+					+ "&srID=${srID}";
+					
+
+        if("${srID}" == null || "${srID}" == ''){
+        	result.data +=  "&scStartDt="     + $("#SC_STR_DT").val()  + "&scEndDt="+ $("#SC_END_DT").val();
+        }
+		if($("#itemTypeCode").val() != null){
+			result.data = result.data +"&itemTypeCode="+$("#itemTypeCode").val();			
+		}
+		if(category != ''){
+			result.data = result.data +"&category="+category;
+		}
+		return result; 
+	}
+	function gridOnRowSelect(id, ind){
+		var isNew = "N";
+		var BoardMgtID = p_gridArea.cells(id, 14).getValue();
+		var noticType= "${noticType}";
+		var boardID = p_gridArea.cells(id, 12).getValue();
+		var ItemID = p_gridArea.cells(id, 14).getValue();
+		var s_itemID = "${s_itemID}";
+		var pageNum= $("#currPage").val();
+		var category = p_gridArea.cells(id, 15).getValue();if(category=='undefined' || category==null){ category=""; }
+		var categoryIndex = $("#categoryIndex").val();if(categoryIndex=='undefined' || categoryIndex==null){ categoryIndex=""; }
+		var categoryCnt = $("#categoryCnt").val();if(categoryCnt=='undefined' || categoryCnt==null){ categoryCnt=""; }
+		var itemTypeCode = p_gridArea.cells(id, 16).getValue();
+		var data = "NEW="+isNew+"&BoardMgtID="+BoardMgtID+"&noticType="+noticType
+					+"&boardID="+boardID+"&ItemID="+ItemID+"&s_itemID="+s_itemID
+					+"&pageNum="+pageNum+"&isMyCop=${isMyCop}"
+			        + "&searchType="    + $("#searchType").val()
+			        + "&searchValue="  	+ $("#searchValue").val()
+			        + "&category="+category
+					+ "&categoryIndex="+categoryIndex
+					+ "&categoryCnt="+categoryCnt
+					+ "&itemTypeCode="+itemTypeCode
+					+ "&listType=${listType}"
+					+"&screenType="+screenType
+					+"&srID=${srID}";/* +"&projectID=${projectID}" */
+					  if("${srID}" == null || "${srID}" == ''){
+							data += "&scStartDt="     + $("#SC_STR_DT").val() + "&scEndDt="+ $("#SC_END_DT").val();
+					  }
+		var url = "boardForumDetail.do";
+		var target = "help_content";
+		ajaxPage(url, data, target);
+	}
+	// END ::: GRID	
+	//===============================================================================
+	function doSearchListForum(){ 
+		var d = setGridData();
+		fnLoadDhtmlxGridJson(p_gridArea, d.key, d.cols, d.data);
+	}
+	
+	function fnSearchCat(statusCount,cnt,categoryCode){
+		var menuName = "bcList";
+		$("#categoryCode").val(categoryCode);
+		$("#categoryIndex").val(statusCount);
+		$("#categoryCnt").val(cnt);
+		for(var i=0; i<=cnt; i++){
+			if(statusCount==i){
+				$("#"+menuName+i).css('color','#0000FF');
+				$("#"+menuName+i).css('font-weight','bold');				
+			}else{
+				$("#"+menuName+i).css('color','#000000');
+				$("#"+menuName+i).css('font-weight','');
+			}
+		}
+		doSearchListForum();
+	}
+	
+	function fnGetAll(cnt){ // 카테고리 ALL
+		var menuName = "bcList";
+		$("#categoryCode").val("");
+		$("#categoryIndex").val("");
+		for(var i=0; i<=cnt; i++){
+			if(i==0){
+				$("#"+menuName+i).css('color','#0000FF');
+				$("#"+menuName+i).css('font-weight','bold');				
+			}else{
+				$("#"+menuName+i).css('color','#000000');
+				$("#"+menuName+i).css('font-weight','');
+			}
+		}
+		doSearchListForum();
+	}
+	
+</script>
+<div id="help_content" class="mgL10 mgR10">
+<form name="boardForumList" id="boardForumList" action="" method="post" onsubmit="return false;">	
+<input type="hidden" id="s_itemID" name="s_itemID" value="${s_itemID}">
+<input type="hidden" id="BoardMgtID" name="BoardMgtID" value="${BoardMgtID}">
+<input type="hidden" id="BoardID" name="BoardID" value="">
+<input type="hidden" id="languageID" name="languageID" value="${sessionScope.loginInfo.sessionCurrLangType}">
+<input type="hidden" id="noticType" name="noticType" value="${noticType}">	
+<input type="hidden" id="currPage" name="currPage" value="${pageNum}">
+<input type="hidden" id="categoryCode" name="categoryCode" value="${category}">
+<input type="hidden" id="categoryIndex" name="categoryIndex" value="">
+<input type="hidden" id="categoryCnt" name="categoryCnt" value="">
+
+<div class="cop_hdtitle">
+	<h3 style="padding:6px 0;"><img src="${root}${HTML_IMG_DIR}/comment_user.png">&nbsp;${boardMgtName}&nbsp;</h3>
+</div>
+
+<c:if test="${empty(srID) }"><!-- icp 내 talk 탭에서 접근 시, 서치 옵션 비활성화 -->
+<table style="table-layout:fixed;" border="0" cellpadding="0" cellspacing="0" class="tbl_search mgT5"  id="search">
+	<colgroup>
+	    <col width="7%">
+	    <col width="20%">
+	    <col width="7%">
+	    <col width="20%">
+	    <col width="7%">
+	    <col width="20%">
+	    <col width="10%">
+	    <col width="9%">
+    </colgroup>
+    <tr>
+    	<th class="alignL">${menu.LN00021}</th>
+    	<td class="alignL">
+    		<select id="itemTypeCode" class="sel"></select>
+    	</td>
+    	<th class="alignL">${menu.LN00070}</th>
+    	<td class="alignL">
+    		<c:if test="${scStartDt != '' and scEndDt != ''}">
+				<fmt:parseDate value="${scStartDt}" pattern="yyyy-MM-dd" var="beforeYmd"/>
+				<fmt:parseDate value="${scEndDt}" pattern="yyyy-MM-dd" var="thisYmd"/>
+				<fmt:formatDate value="${beforeYmd}" pattern="yyyy-MM-dd" var="beforeYmd"/>
+				<fmt:formatDate value="${thisYmd}" pattern="yyyy-MM-dd" var="thisYmd"/>
+			</c:if>
+			<c:if test="${scStartDt == '' or scEndDt == ''}">
+				<fmt:formatDate value="<%=new java.util.Date()%>" pattern="yyyy-MM-dd" var="thisYmd"/>
+			</c:if> 
+			<font> <input type="text" id="SC_STR_DT" name="SC_STR_DT" value="${beforeYmd}"	class="text datePicker" size="8"
+					style="width: 39%;" onchange="this.value = makeDateType(this.value);"	maxlength="10">
+			</font>
+			~
+			<font> <input type="text" id=SC_END_DT	name="SC_END_DT" value="${thisYmd}"	class="text datePicker" size="8"
+					style="width: 39%;" onchange="this.value = makeDateType(this.value);"	maxlength="10">
+			</font>
+    	</td>
+    	<th class="alignL">
+    		<select name="searchType" id="searchType" class="sel">
+				<option value="001" <c:if test="${searchType == '001'}">selected</c:if>>
+				${menu.LN00002}+${menu.LN00003}
+				</option>
+				<option value="002" <c:if test="${searchType == '002'}">selected</c:if>>
+				${menu.LN00060}
+				</option>
+				<option value="003" <c:if test="${searchType == '003'}">selected</c:if>>
+				${menu.LN00004}
+				</option>
+			</select>
+    	</th>
+    	<td colspan=2 class="alignL"><input type="text" id="searchValue" value="${searchValue}" name="searchValue" class="stext"></td>
+    	<td class="alignR"><input type="image" OnClick="doSearchListForum()" src="${root}${HTML_IMG_DIR}/btn_icon_search.gif" value="검색" style="cursor:pointer;" /></td>
+    </tr>
+</table>
+</c:if>
+
+<c:if test="${CategoryYN == 'Y' && brdCatListCnt != '0'}">
+	<div class="child_search" style="border-top:0px;">
+		<li style="font-weight:bold;">${menu.LN00033}</li>	
+		<li>
+			<a style="cursor:pointer;" id="bcList0" OnClick="fnSearchCat('0','${brdCatListCnt}','')" class="mgR5">ALL</a>&nbsp;|&nbsp;
+			<c:forEach var="bcList" items="${brdCatList}" varStatus="status">				
+			<a style="cursor:pointer;" id="bcList${status.count}" onclick="fnSearchCat('${status.count}','${brdCatListCnt}','${bcList.CODE}');" class="mgR5">
+				${bcList.NAME} 				
+			</a><c:if test="${!status.last}" >&nbsp;|&nbsp;</c:if>
+			</c:forEach>
+		</li>
+		</div>
+</c:if>
+<!-- END :: SEARCH -->
+<div class="countList">
+    <li  class="count">Total  <span id="TOT_CNT"></span></li>
+	<li class="floatR pdR20">
+	<c:if test="${screenType=='srRqst' && sessionScope.loginInfo.sessionAuthLev < 3}" >
+  		<span class="btn_pack small icon"><span class="add"></span><input value="Write" type="submit" id='makeNew'></span>
+  	</c:if>
+  	<c:if test="${screenType !='srRqst'}" >
+  		<span class="btn_pack small icon"><span class="add"></span><input value="Write" type="submit" id='makeNew'></span>
+  	</c:if>
+  	</li>
+</div>
+<!-- BIGIN :: LIST_GRID -->
+<div id="gridDiv" class="mgB10 clear">
+	<div id="grdGridArea02" style="height:300px; width:100%"></div>
+</div>
+<!-- END :: LIST_GRID -->
+<!-- START :: PAGING -->
+<div style="width:100%;" class="paginate_regular"><div id="pagingArea" style="display:inline-block;"></div><div id="recinfoArea" class="floatL pdL10"></div></div>
+<!-- END :: PAGING -->	
+</form>	
+</div>
+<!-- comment 리스트 -->

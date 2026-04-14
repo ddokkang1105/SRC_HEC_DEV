@@ -1,0 +1,527 @@
+<%@ page contentType="text/html; charset=utf-8" pageEncoding="utf-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="tiles" uri="http://tiles.apache.org/tags-tiles" %>
+<%@ taglib uri="http://www.springframework.org/tags" prefix="spring" %>
+<c:url value="/" var="root"/>
+<!-- 1. Include JSP -->
+<%@ include file="/WEB-INF/jsp/template/tagInc.jsp"%>
+<%@ include file="/WEB-INF/jsp/template/loadingInc.jsp"%>
+
+<!-- 화면 표시 메세지 취득  -->
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00023" var="WM00023"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.CM00004" var="CM00004"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.CM00009" var="CM00009"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00040" var="WM00040"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00020" var="WM00020"/> 
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00106" var="WM00106"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00034" var="WM00034"   arguments="${menu.LN00028}"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00041" var="WM00041_1" arguments="${menu.LN00033}"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00041" var="WM00041_2" arguments="${menu.LN00032}"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00041" var="WM00041_3" arguments="referenceModel"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00112" var="WM00112"/> 
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00123" var="WM00123"/> 
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00120" var="WM00120"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00050" var="WM00050"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00148" var="WM00148" />
+
+<script>
+	var p_gridMLArea;				//그리드 전역변수
+	var itemAthId = "${selectedItemAuthorID}";
+	var blocked = "${selectedItemBlocked}";
+	var userId = "${sessionScope.loginInfo.sessionUserId}";
+	var selectedItemStatus = "${selectedItemStatus}";
+	
+	$(document).ready(function(){		
+		// 초기 표시 화면 크기 조정 
+		$("#grdGridMLArea").attr("style","height:"+(setWindowHeight() - 310)+"px;");
+		// 화면 크기 조정
+		window.onresize = function() {
+			$("#grdGridMLArea").attr("style","height:"+(setWindowHeight() - 310)+"px;");
+		};
+		
+		$("#excel").click(function(){p_gridMLArea.toExcel("${root}excelGenerate");});
+		$('#searchKey').change(function(){
+			//$('input:text[id^=search]').each(function(){$(this).hide();});
+			if($(this).val() != ''){$('#search' + $(this).val()).show();}
+		});
+		gridMLInit();		
+		doSearchMLList();
+		//alert("${url}");
+	});
+	
+	function setWindowHeight(){var size = window.innerHeight;var height = 0;if( size == null || size == undefined){height = document.body.clientHeight;}else{height=window.innerHeight;}return height;}
+	
+	//===============================================================================
+	// BEGIN ::: GRID
+	function doSearchMLList(){
+		var d = setGridMLData();
+		fnLoadDhtmlxGridJson(p_gridMLArea, d.key, d.cols, d.data);
+	}
+	function gridMLInit(){	
+		var d = setGridMLData();
+		p_gridMLArea = fnNewInitGrid("grdGridMLArea", d);
+		p_gridMLArea.setImagePath("${root}${HTML_IMG_DIR}/");//path to images required by grid
+		p_gridMLArea.setIconPath("${root}${HTML_IMG_DIR}/");
+		//p_gridMLArea.setColumnHidden(1, true);
+		p_gridMLArea.setColumnHidden(7,true);
+		p_gridMLArea.setColumnHidden(8,true);
+		p_gridMLArea.setColumnHidden(11, true);
+		p_gridMLArea.setColumnHidden(13, true);
+		p_gridMLArea.setColumnHidden(14, true);
+		p_gridMLArea.setColumnHidden(15, true);
+		p_gridMLArea.setColumnHidden(16, true);
+		p_gridMLArea.setColumnHidden(17, true);
+		
+		p_gridMLArea.setColumnHidden(18, true);
+		p_gridMLArea.setColumnHidden(19, true);
+		p_gridMLArea.setColumnHidden(20, true);
+		p_gridMLArea.setColumnHidden(21, true);
+		p_gridMLArea.setColumnHidden(22, true);
+		
+		fnSetColType(p_gridMLArea, 1, "ch");//ra : radio
+		
+		p_gridMLArea.attachEvent("onRowSelect", function(id,ind){gridMLOnRowSelect(id,ind);});
+		//p_gridMLArea.attachEvent("onRowDblClicked", gridMLOnRowDblClicked);
+		fnSetColType(p_gridMLArea, 12, "img");
+		fnSetColType(p_gridMLArea, 14, "img");
+	}
+	
+	
+	function setGridMLData(){
+		var myItem = "${myItem}";
+		var viewYN = "Y";
+		if(myItem == 'Y'){viewYN = "N";}
+		var result = new Object();
+		result.title = "${title}";
+		result.key =  "model_SQL.getModelList"; 
+		result.header = "${menu.LN00024},#master_checkbox,Model No.,${menu.LN00028},${menu.LN00032},${menu.LN00033},${menu.LN00027},${menu.LN00004},${menu.LN00013},${menu.LN00060},${menu.LN00070},ItemID,${menu.LN00125},Blocked,${menu.LN00031},${menu.LN00031},${menu.LN00027},IsPublic,ItemAuthorID,ItemBlocked,ItemStatus,URL,ChangeSetID";
+		result.cols = "CHK|ModelID|Name|ModelTypeName|MTCName|StatusName|Creator|CreationTime|UserName|LastUpdated|ItemID|BtnControl|Blocked|BtnControl|MTCategory|StatusCode|IsPublic|ItemAuthorID|ItemBlocked|ItemStatus|URL|ChangeSetID";
+		result.aligns = "center,center,center,left,center,center,center,center,center,center,center,center,center,center,center,center,center,center,center,center,center,center,center";
+		
+		result.widths = "30,30,80,*,150,120,100,80,100,100,80,70,70,70,70,70,70,70,70,70,70,70,70";
+		result.sorting = "int,int,str,str,str,str,str,str,int,str,str,str,str,str,str,str,str,str,str,str,str,str,str";
+		result.data = "s_itemID=${s_itemID}"
+					+ "&languageID=${sessionScope.loginInfo.sessionCurrLangType}"
+			        + "&searchKey="     + $("#searchKey").val()
+			        + "&searchValue="     	+ $("#searchValue").val()
+			        + "&viewYN="+viewYN;
+					
+		return result;
+	}
+	
+	function gridMLOnRowSelect(id, ind){
+		$("#newModel").attr('style', 'display: none');
+		$("#divTabModelAdd").attr('style', 'display: none');
+	
+		var modelBlocked = p_gridMLArea.cells(id,13).getValue();
+		var modelId = p_gridMLArea.cells(id, 2).getValue();
+		var itemId = p_gridMLArea.cells(id, 11).getValue();
+		var ItemTypeCode = $("#ItemTypeCode").val(); 
+		var MTCategory = p_gridMLArea.cells(id,15).getValue();
+		var ModelStatus= p_gridMLArea.cells(id,6).getValue();
+		var Creator	= p_gridMLArea.cells(id,7).getValue();
+		var CreationTime = p_gridMLArea.cells(id,8).getValue();
+		var UserName = p_gridMLArea.cells(id,9).getValue();
+		var LastUpdated = p_gridMLArea.cells(id,10).getValue();
+		var modelName = p_gridMLArea.cells(id,3).getValue();
+		var ModelStatusCode = p_gridMLArea.cells(id,16).getValue();
+		var ModelTypeName = p_gridMLArea.cells(id,4).getValue();
+		var ModelIsPublic = p_gridMLArea.cells(id,17).getValue(); 
+		var myItem = "${myItem}";
+		var menuUrl = p_gridMLArea.cells(id,21).getValue(); 
+		var changeSetID = p_gridMLArea.cells(id,22).getValue(); 
+		var scrnType = "";
+	
+		if(ind == 12){// Model PopUp		
+			if(MTCategory == "VER" || blocked != "0"){// 카테고리가 vsersion 이면 model viewr open		
+			   scrnType =  "view";
+			}else{	
+				if(ModelIsPublic == 1){
+					scrnType = "edit";					
+				} else{
+					if(modelBlocked == "0" && myItem == 'Y' ){
+						scrnType = "edit";	
+					} else{
+						scrnType = "view";
+					}
+				}
+				
+			}
+			var url = "popupMasterMdlEdt.do?"
+					+"languageID=${sessionScope.loginInfo.sessionCurrLangType}"
+					+"&s_itemID="+itemId
+					+"&modelID="+modelId
+					+"&scrnType="+scrnType
+					+"&MTCategory="+MTCategory
+					+"&modelName="+encodeURIComponent(modelName)
+				    +"&modelTypeName="+encodeURIComponent(ModelTypeName)
+					+"&menuUrl="+menuUrl
+					+"&changeSetID="+changeSetID
+					+"&selectedTreeID=${s_itemID}";
+			var w = 1200;
+			var h = 900;
+			window.open(url, "", "width="+w+", height="+h+", top=100,left=100,toolbar=no,status=no,resizable=yes");
+		}else{
+			
+				var url = "modelInfoMain.do?filter=${filter}"
+						+"&s_itemID="+itemId
+						+"&modelID="+modelId
+						+"&itemAthId="+itemAthId
+						+"&blocked="+blocked
+						+"&screenType=modelBasicInfoPop"
+						+"&ItemTypeCode="+ItemTypeCode;
+	
+				var w = 1200;
+				var h = 900;
+				window.open(url, "", "width="+w+", height="+h+", top=100,left=100,toolbar=no,status=no,resizable=yes");
+			
+		}
+	}
+	
+	// END ::: GRID	
+	//===============================================================================
+	var checkSelect = true;
+	function setSubFrame(avg){
+		var ItemTypeCode = $("#ItemTypeCode").val(); 
+		var data = "&ItemTypeCode="+ItemTypeCode;
+		if(blocked == "0"){
+			if(avg == 'newModel'){					
+				$("#divTabModelAdd").removeAttr('style', 'display: none');
+				$("#newModel").removeAttr('style', 'display: none');
+				$("#divSaveModel").removeAttr('style', 'display: none');
+				$("#modelInfo").attr('style', 'display: none');
+				$("#moveOrg").attr('style', 'display: none');		
+				$("#newIdentifier").focus();
+				
+				if(checkSelect){
+					fnSelect('ModelTypeCode', data, 'getMDLTypeCode', '', 'Select'); //아이템타입에따른  모델유형
+					fnSelect('MTCTypeCode', '', 'MTCTypeCode', '', 'Select');
+					checkSelect = false;
+				}
+			}else if(avg == 'modelInfo'){
+				$("#divTabModelAdd").attr('style', 'display: none');
+				$("#newModel").attr('style', 'display: none');
+				$("#divSaveModel").attr('style', 'display: none');					
+			
+			}else if(avg == 'copyModel'){
+				$("#divTabModelAdd").attr('style', 'display: none');
+				$("#newModel").attr('style', 'display: none');
+				$("#divSaveModel").attr('style', 'display: none');		
+				copyModel();
+				
+			}else if(avg == 'refModel'){
+				$("#divTabModelAdd").attr('style', 'display: none');
+				$("#newModel").attr('style', 'display: none');
+				$("#divSaveModel").attr('style', 'display: none');	
+				referenceModel();
+			}else if(avg == 'e2eModel'){
+				$("#divTabModelAdd").attr('style', 'display: none');
+				$("#newModel").attr('style', 'display: none');
+				$("#divSaveModel").attr('style', 'display: none');	
+				createE2eModel();
+			}
+		}else{
+			if(selectedItemStatus == "REL") {
+		         alert("${WM00120}"); // [변경 요청 안된 상태]
+		    } else {
+		         alert("${WM00050}"); // [승인요청중]
+		    }
+		}
+	}
+	function delModel(){
+		var modelBlocked;
+		var ModelIDS = new Array;
+		var j = 0;
+		if(p_gridMLArea.getCheckedRows(1).length == 0){				
+			alert("${WM00023}");
+			return;
+		}else{			
+			if(confirm("${CM00004}")){
+				var checkedRows = p_gridMLArea.getCheckedRows(1).split(",");	
+				
+				for(var i = 0 ; i < checkedRows.length; i++ ){
+					modelBlocked = p_gridMLArea.cells2(i,13).getValue();
+			
+					if(modelBlocked != "0"){ 
+						var modelNM = "'" + p_gridMLArea.cells(checkedRows[i], 3).getValue() + "'";	
+						alert("Model " + modelNM+"${WM00148}");
+		
+					}else{
+						ModelIDS[j] = p_gridMLArea.cells(checkedRows[i], 2).getValue();
+						j++;
+					}
+				}
+				if(ModelIDS.length==0){
+					alert("${WM00023}"); return;
+				}
+				var url = "deleteModel.do";
+				var target = "blankFrame";
+				$("#ModelIDS").val(ModelIDS);
+				ajaxSubmitNoAdd(document.mdListFrm, url, target);
+			}
+		}
+	}
+	
+	
+	function callbackDelete(){
+		reloadList();
+	}
+	
+	function newModelInsert(){	
+		if(blocked == "0"){
+			if(itemAthId == userId || '${loginInfo.sessionMlvl}' == "SYS" ){
+				//if(confirm("신규 정보를 생성 하시겠습니까?")){	
+				if(confirm("${CM00009}")){	
+					var url = "saveModel.do";
+					var data = "?s_itemID=${s_itemID}&loginID=${sessionScope.loginInfo.sessionUserId}"
+								+"&ModelTypeCode="+$("#ModelTypeCode").val()
+								+"&newIdentifier="+$("#newIdentifier").val()
+								+"&MTCTypeCode="+$("#MTCTypeCode").val()
+								+"&newModelName="+$("#newModelName").val();
+					var target = "blankFrame";		
+					ajaxSubmitNoAdd(document.mdListFrm, url, target);
+					//ajaxPage(url, data, target);
+				}
+			}else{
+				alert("${WM00040}");
+				return;
+			}
+		}else{
+			if(selectedItemStatus == "REL") {
+		         alert("${WM00120}"); // [변경 요청 안된 상태]
+		    } else {
+		         alert("${WM00050}"); // [승인요청중]
+		    }
+		}
+	}
+		
+	function copyModel(){ // 모델 카피 		
+	    
+		//var checkedRows = p_gridMLArea.getCheckedRows(1);
+		var checkedRows = p_gridMLArea.getCheckedRows(1).split(",");	
+		if(blocked == "0"){
+			if(checkedRows.length == 0){	
+				alert("${WM00020}");		
+				return;
+			}else if(checkedRows.length > 1){			
+				alert("${WM00106}");
+				return;
+			}
+						
+			var ModelID = p_gridMLArea.cells(checkedRows[0], 2).getValue();
+			var ModelName = p_gridMLArea.cells(checkedRows[0], 3).getValue();
+		
+			if(itemAthId == userId || '${loginInfo.sessionMlvl}' == "SYS" ){
+				
+				var url = "openCopyModelPop.do?ModelID="+ModelID+"&ModelName="+encodeURIComponent(ModelName);
+				var w = 500;
+				var h = 200;
+				itmInfoPopup(url,w,h);
+				
+			}else{
+				alert("${WM00040}");
+				return;
+			}
+		}else{
+			if(selectedItemStatus == "REL") {
+		         alert("${WM00120}"); // [변경 요청 안된 상태]
+		    } else {
+		         alert("${WM00050}"); // [승인요청중]
+		    }
+		}
+	}
+	
+	function callbackSave(modelID){ 
+		doSearchMLList();
+	
+		$("#ModelTypeCode").val("");
+		$("#newIdentifier").val("");
+		$("#MTCTypeCode").val("");
+		$("#newModelName").val("");
+		
+		$("#divTabModelAdd").attr('style', 'display: none');
+		$("#newModel").attr('style', 'display: none');
+		$("#divSaveModel").attr('style', 'display: none');
+		
+		$(".popup_div").hide();
+		$("#mask").hide();
+		
+		var itemId = "${s_itemID}";
+		
+		var url = "popupMasterMdlEdt.do?languageID=${sessionScope.loginInfo.sessionCurrLangType}&s_itemID="+itemId+"&modelID="+modelID+"&modelName=&scrnType=edit";
+		var w = 1200;
+		var h = 900;
+		//itmInfoPopup(url,w,h);
+		window.open(url, "", "width="+w+", height="+h+", top=100,left=100,toolbar=no,status=no,resizable=yes");
+		
+		parent.top.fnSearchTreeId('${s_itemID}', true);	
+	}
+		
+	function reloadList(){
+		doSearchMLList();
+		parent.top.fnSearchTreeId('${s_itemID}', true);
+	}
+	
+	function referenceModel(){		
+		var ItemTypeCode = $("#ItemTypeCode").val();
+		var ItemID =  $("#s_itemID").val();
+		if(blocked=="0"){	
+			if(itemAthId == userId  || '${sessionScope.loginInfo.sessionMlvl}' == "SYS"){			
+				var url = "openReferenceModelPop.do?ItemTypeCode="+ItemTypeCode+"&ItemID="+ItemID+"&blocked="+blocked+"&itemAuthId="+itemAthId;
+				var w = 500;
+				var h = 400;
+				itmInfoPopup(url,w,h);
+				
+			}else{
+				alert("${WM00040}");
+				return;
+			}
+		}else{
+			if(selectedItemStatus == "REL") {
+		         alert("${WM00120}"); // [변경 요청 안된 상태]
+		    } else {
+		         alert("${WM00050}"); // [승인요청중]
+		    }
+		}
+	}
+	
+	function createE2eModel(){
+		if(blocked == "0"){
+			var ItemTypeCode = $("#ItemTypeCode").val();
+			var ItemID =  $("#s_itemID").val();
+			if(blocked != "2" && itemAthId == userId || '${loginInfo.sessionMlvl}' == "SYS" ){
+				
+				var url = "createE2eModelPop.do?ItemTypeCode="+ItemTypeCode+"&ItemID="+ItemID+"&languageID=${sessionScope.loginInfo.sessionCurrLangType}";
+				var w = 500;
+				var h = 300;
+				itmInfoPopup(url,w,h);
+				
+			}else{
+				alert("${WM00040}");
+				return;
+			}
+		}else{
+			if(selectedItemStatus == "REL") {
+		         alert("${WM00120}"); // [변경 요청 안된 상태]
+		    } else {
+		         alert("${WM00050}"); // [승인요청중]
+		    }
+		}
+	}
+	
+	// e2E모델 생성할 트리 오픈
+	function openE2eTreeListPop(newModelName, MTCTypeCode, ModelTypeCode, ItemTypeCode, arcFilter){
+		var ItemID =  $("#s_itemID").val();
+		var url = "e2eTreeListPop.do";
+		var data = "newModelName="+encodeURIComponent(newModelName)+"&MTCTypeCode="+MTCTypeCode+"&ModelTypeCode="+ModelTypeCode+"&ItemID="+ItemID+"&ItemTypeCode="+ItemTypeCode+arcFilter;
+
+		fnOpenLayerPopup(url,data,"",617,436);
+	}
+		
+	function doTest(){
+		var url = "doTest.do";
+		var w = 400;
+		var h = 400;
+		itmInfoPopup(url,w,h);
+	}
+	
+	// [back] click
+	function goNewItemInfo() {
+		var url = "NewItemInfoMain.do";
+		var target = "actFrame";
+		var data = "s_itemID=${s_itemID}&languageID=${sessionScope.loginInfo.sessionCurrLangType}&userID=${sessionScope.loginInfo.sessionUserId}"; 
+	 	ajaxPage(url, data, target);
+	}	
+	
+	// 모델간 비교 
+	function fnCompareModel(){
+		url = "compareModel.do?itemID=${s_itemID}&languageID=${sessionScope.loginInfo.sessionCurrLangType}";
+		var w = 700;
+		var h = 300;
+		itmInfoPopup(url,w,h);
+	}
+	
+</script>
+<form name="mdListFrm" id="mdListFrm" action="#" method="post" onsubmit="return false;">
+	<div id="divMDList" class="hidden" style="width:100%;height:100%;">
+	<input type="hidden" id="itemID" name="itemID">
+	<input type="hidden" id="ItemID" name="ItemID">
+	<input type="hidden" id="checkIdentifierID" name="checkIdentifierID">
+	<input type="hidden" id="itemDelCheck" name="itemDelCheck" value="N">
+	<input type="hidden" id="option" name="option" value="${option}">
+	<input type="hidden" id="s_itemID" name="s_itemID" value="${s_itemID}">
+	<input type="hidden" id="level" name="level" value="${request.level}">
+	<input type="hidden" id="Auth" name="Auth" value="${sessionScope.loginInfo.sessionLogintype}">	
+	<input type="hidden" id="ownerTeamID" name="ownerTeamID" />	
+	<input type="hidden" id="fromItemID" name="fromItemID" >	
+	<input type="hidden" id="loginID" name="loginID" value="${sessionScope.loginInfo.sessionUserId}">
+	<input type="hidden" id="itemAuthID" name="itemAuthID" value="${itemAthId}">
+	<input type="hidden" id="ItemTypeCode" name="ItemTypeCode" value="${ItemTypeCode}" >
+	<input type="hidden" id="languageID" name="languageID" value="${sessionScope.loginInfo.sessionCurrLangType}" >
+	<input type="hidden" id="ModelIDS" name="ModelIDS" >
+	<input type="hidden" id="projectID" name="projectID" value="${itemInfo.ProjectID}" >
+	<input type="hidden" id="changeSetID" name="changeSetID" value="${itemInfo.CurChangeSet}" >
+	<div style="overflow:auto;overflow-x:hidden;">			
+		<div class="child_search">
+		 <li class="shortcut">
+		 	<img src="${root}${HTML_IMG_DIR}/img_folderClosed.png"></img>&nbsp;&nbsp;<b>${menu.LN00058}</b>&nbsp;&nbsp;&nbsp;
+	 	 	<select id="searchKey" name="searchKey">
+				<option value="Name">Name</option>
+				<option value="ID" <c:if test="${!empty searchID}"> selected="selected" </c:if> >ID</option>
+			</select>			
+			<input type="text" class="text"  id="searchValue" name="searchValue" value="${searchValue}" style="width:150px;">
+			<input type="image" class="image" src="${root}${HTML_IMG_DIR}/btn_icon_search.gif" onclick="doSearchMLList()" value="검색">
+	   	 </li>
+			<li class="floatR pdR20">
+			<c:if test="${myItem == 'Y' && itemBlocked == '0'}">
+				<span class="btn_pack small icon"><span class="add"></span><input value="Create" type="submit" onclick="setSubFrame('newModel')"></span>&nbsp;
+				<span class="btn_pack small icon"><span class="copy"></span><input value="Copy" type="submit" onclick="setSubFrame('copyModel')"></span>&nbsp;
+				<span class="btn_pack small icon"><span class="ref"></span><input value="Reference Copy" type="submit" onclick="setSubFrame('refModel')"></span>&nbsp;				
+				<span class="btn_pack small icon"><span class="del"></span><input value="Del" type="submit" onclick="delModel()"></span>&nbsp;
+			</c:if>
+				<span class="btn_pack small icon"><span class="model"></span><input value="Compare" type="submit" onclick="fnCompareModel();"></span>
+			</li>			
+
+		</div>
+		<div class="countList">
+              <li class="count">Total  <span id="TOT_CNT"></span></li>
+              <li class="floatR">&nbsp;</li>
+          </div>
+		<div id="gridMLDiv" class="mgB10 clear">
+			<div id="grdGridMLArea" style="width:100%"></div>
+		</div>
+	</div>
+
+		<div id="divTabModelAdd" class="ddoverlap" style="display: none;">
+			<ul>
+				<li class="selected" ><a><span>Create Model</span></a></li>
+			</ul>
+		</div>
+		<table id="newModel" class="tbl_blue01 mgT5" width="100%"  cellpadding="0" cellspacing="0" style="display: none;">
+			<tr>
+				<!-- <th>${menu.LN00008}${menu.LN00015}</th> -->
+				<th>${menu.LN00028}</th>
+				<th>${menu.LN00033}</th>
+				<th>${menu.LN00032}</th>
+			</tr>
+			<tr>
+				<!-- <td><input type="text" class="text" id="newIdentifier" name="newIdentifier"  value=""/></td> -->
+				<td><input type="text" class="text" id="newModelName" name="newModelName"  value=""/></td>
+				<td><select id="MTCTypeCode" name="MTCTypeCode" class="sel"></select></td>
+				<td><select id="ModelTypeCode" name="ModelTypeCode" class="sel"></select></td>
+			</tr>	
+		</table>
+
+		<div id="modelInfo"></div>
+		
+		<div  class="alignBTN" id="divSaveModel" style="display: none;">
+			<c:if test="${sessionScope.loginInfo.sessionLogintype == 'editor'}">
+				<span class="btn_pack medium icon"><span  class="save"></span><input value="Save" onclick="newModelInsert()"  type="submit"></span>
+			</c:if>		
+		</div>	
+	</div>
+	</form>
+	<div class="schContainer" id="schContainer">
+		<iframe name="blankFrame" id="blankFrame" src="about:blank" style="display:none" frameborder="0" scrolling='no'></iframe>
+	</div>	
+	<!-- <iframe width="100%" frameborder="0" style="display:none;border: 0;overflow:auto; padding:0 0 17px 0;" name="digramFrame" id="digramFrame"></iframe>	 -->

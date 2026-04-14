@@ -1,0 +1,496 @@
+<%@ page contentType="text/html; charset=utf-8" pageEncoding="utf-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="tiles" uri="http://tiles.apache.org/tags-tiles" %>
+<%@ taglib uri="http://www.springframework.org/tags" prefix="spring" %>
+<c:url value="/" var="root"/>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta http-equiv="Content-Type" content="text/html; charset=EUC-KR"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge; charset=utf-8" />
+<!-- 1. Include JSP -->
+<%@ include file="/WEB-INF/jsp/template/tagInc.jsp"%>
+<%@ include file="/WEB-INF/jsp/template/loadingInc.jsp"%>
+<%@ include file="/WEB-INF/jsp/template/uiInc.jsp"%>
+<!-- 화면 표시 메세지 취득  -->
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00045" var="WM00045"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.CM00001" var="CM00001"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00023" var="WM00023"/>
+<spring:message code="${sessionScope.loginInfo.sessionCurrLangCode}.WM00029" var="WM00029"/>
+
+
+<script type="text/javascript">
+	var returnFlag = "${returnFlag}";
+	var olm={};	olm.pages={};olm.url={};
+	var baseLayout;var cntnLayout;var menuTreeLayout;
+	var treeImgPath="${menuStyle}";var topMenuCnt={};var currItemId="";var mainLayout;var tmplCode="";var isTempLoad={};
+	var homeUrl;
+	var docCategory = "${docCategory}";
+	window.onload=setConfFrmInit;
+	jQuery(document).ready(function() {	
+		gridInit1();
+
+		gridInit2();
+		var unfold = "${unfold}";
+		getCategory("${arcCode}");
+		if(unfold != "false" || unfold == ''){	setTimeout(function() {fnSetUnfoldTree();}, 1000);}
+		
+		$('#schTreeText').keypress(function(onkey){
+			if(onkey.keyCode == 13){
+				searchTreeText("1");
+				return false;
+			}
+		});
+		$("#searchValue").val("");
+		
+		$('.cmm_member_btnList').height(setWindowHeight() - 49);
+	});
+	
+	function setWindowHeight(){var size = window.innerHeight;var height = 0;if( size == null || size == undefined){height = document.body.clientHeight;}else{height=window.innerHeight;}return height;}
+	function fnSetUnfoldTree(){if(olm.menuTree!=null){olm.menuTree.closeAllItems(0);var ch = olm.menuTree.hasChildren(0);for(var i=0; i<ch; i++){var lev1 = olm.menuTree.getChildItemIdByIndex(0,i);olm.menuTree.openItem(lev1);}}}
+	
+	function setConfFrmInit(){
+		//document.all.container.width = getWidth() + "px"; 
+		//document.all.container.height =  getHeight() + "px"; 
+		if(window.attachEvent){window.attachEvent("onresize",resizeLayout);}else{window.addEventListener("resize",resizeLayout, false);}
+		var t;function resizeLayout(){window.clearTimeout(t);t=window.setTimeout(function(){setScreenResize();},200);}
+	}	
+	function getHeight(){return (document.body.clientHeight);}
+	function getWidth(){return (document.body.clientWidth);}
+	function setScreenResize(){ 
+		//document.all.container.width = getWidth() + "px"; 
+		//document.all.container.height = getHeight() + "px"; 
+		if( baseLayout==null){
+			if(cntnLayout!=null && cntnLayout!=undefined){
+				cntnLayout.setSizes();
+			}
+		}else{
+			var minWidth=lMinWidth+rMinWidth;
+			var wWidth=document.body.clientWidth;
+			if(minWidth>wWidth){
+				baseLayout.items[0].setWidth(lMinWidth);			
+			} baseLayout.setSizes();}
+	}
+	function setInitMenu(isLeft, isMain){if(isMain){$("#menusection").attr("style","display:block;");}else{$("#menusection").attr("style","display:none;");}setScreenResize();}
+	function fnCallTreeInfo(){var treeInfo = new Object(); treeInfo.data=olm.menuTree.serializeTreeToJSON(); treeInfo.imgPath=treeImgPath; return treeInfo;}	
+	function setInitControl(isSchText, isSchURL, menuName, menuIcon){	
+		if(menuName == undefined){ menuName = "";}
+		if(menuIcon == undefined || menuIcon == ""){ menuIcon = "icon_home.png";}else{ menuIcon = "root_" +menuIcon;}
+		var fullText = "<img src='${root}${HTML_IMG_DIR}/"+menuIcon+"'>&nbsp;&nbsp;"+menuName;$("#menuFullTitle").val(fullText);
+		//$("#cntnTitle").html("<span style=color:#333;font-size:12px;font-weight:bold;>&nbsp;&nbsp;"+fullText+"</span>");
+		if(isSchText){if($('#schTreeText').length>0){$('#schTreeText').val('');}}		
+		if(isSchURL){olm.url={};}	
+	}
+	
+	function setInitTwoLayout(){	
+		//document.getElementById('container').style.height=getHeight()+'px';
+		var scrpt = fnSetScriptMasterDiv();
+		if($("#schTreeArea").length>0){$("#schTreeArea").remove();}		
+		baseLayout=new dhtmlXLayoutObject("container",layout_1C,dhx_skin_skyblue);
+		baseLayout.skinParams.dhx_skyblue.cpanel_height = 44;
+		//baseLayout.setAutoSize("b","a;b");
+		baseLayout.attachEvent("onPanelResizeFinish",function(){setLayoutResize();});
+		baseLayout.items[0].setWidth(250);
+		baseLayout.items[0].setText(scrpt.treeTop);
+		//baseLayout.items[1].hideHeader();	
+		olm.menuTree = baseLayout.items[0].attachTree(0);
+		olm.menuTree.setSkin(dhx_skin_skyblue);
+		olm.menuTree.setImagePath("${root}cmm/js/dhtmlx/dhtmlxTree/codebase/imgs/"+treeImgPath+"/");
+		olm.menuTree.attachEvent("onClick",function(id){olm.getMenuUrl(id); return true;});
+		olm.menuTree.enableDragAndDrop(false);olm.menuTree.enableSmartXMLParsing(true);	
+		cntnLayout = baseLayout.items[1];
+		mainLayout = baseLayout.items[1];
+	}
+	
+	function setLayoutResize(){	 
+		var minWidth=lMinWidth+rMinWidth;
+		var lWidth=baseLayout.items[0].getWidth(); 
+		var rWidth=baseLayout.items[1].getWidth();
+		var wWidth=document.body.clientWidth;
+		if(lWidth<lMinWidth){baseLayout.items[0].setWidth(lMinWidth);}
+		if(wWidth >= minWidth && rWidth < rMinWidth){baseLayout.items[1].setWidth(rMinWidth);}
+	}	
+		
+	olm.getMenuUrl=function(id){
+		var ids = id.split("_"); 
+		currItemId=ids[0];	
+		doSearchList1(currItemId);
+		//mainLayout.attachURL("managePjtMember.do?projectId=${projectID}&teamID="+currItemId+"&selectMemberID="+$("#selectMemberID").val());		
+		//var ifr = mainLayout.getFrame();
+		//ifr.scrolling="no";
+		//ifr.margin="5px";
+		
+	};
+	
+	function getCategory(avg){ 
+		setInitTwoLayout();
+		menuOption = avg;
+		olm.menuTree.getSelectedItemId();
+		olm.menuTree.deleteChildItems(0);
+		var data="";
+		var d=fnSetMenuTreeData(data);
+		fnLoadDhtmlxTreeJson(olm.menuTree, d.key, d.cols, d.data, avg); // 트리로드 
+
+	}
+	
+	function searchTreeText(type){var schText=$("#schTreeText").val();if(schText==""){alert("${WM00045}"); return false;}
+		if(type=="1"){olm.menuTree.findItem(schText,0,1);}else if(type=="2"){olm.menuTree.findItem(schText);}else if(type=="3"){olm.menuTree.findItem(schText,1);}
+	}
+	
+	function fnRefreshTree(itemId,isReload){
+		var d = fnSetMenuTreeData();var noMsg = "";if(isReload == null || isReload == 'undefined' || isReload == "null"){isReload=false;}if(itemId == null || itemId == 'undefined' || itemId == "null"){itemId = olm.menuTree.getSelectedItemId();}currItemId = itemId;olm.menuTree.deleteChildItems(0);fnLoadDhtmlxTreeJson(olm.menuTree, d.key, d.cols, d.data, menuOption,noMsg);
+		if(isReload){olm.menuTree.setOnLoadingEnd(setLoadingEndTree);}
+	}
+	
+	function setLoadingEndTree(prtItemId){
+		if(prtItemId == null || prtItemId == 'undefined'){ prtItemId = 1;}
+		olm.menuTree.openItem(prtItemId);if(currItemId == null || currItemId == 'undefined'){return false;}else{olm.menuTree.selectItem(currItemId,true,false);}
+	}	
+	
+
+	function gridInit1(){		
+		var d = setGridData1("");	
+		gridArea1 = fnNewInitGrid("gridArea1", d);
+		gridArea1.setImagePath("${root}${HTML_IMG_DIR}/");
+		//gridArea1.setIconPath("${root}${HTML_IMG_DIR_MEMBER}/");
+		gridArea1.setColumnHidden(0, true);	
+		//gridArea1.setColumnHidden(2, true);
+		gridArea1.setColumnHidden(3, true);	
+		gridArea1.setColumnHidden(4, true);	
+		gridArea1.setColumnHidden(5, true);	
+		gridArea1.setColumnHidden(6, true);		
+		fnSetColType(gridArea1, 1, "ch");
+		//fnSetColType(gridArea1, 2, "img");
+	}
+	function gridInit2(){		
+		var d = setGridData2();
+		gridArea2 = fnNewInitGrid("gridArea2", d);
+		gridArea2.setImagePath("${root}${HTML_IMG_DIR}/"); //path to images required by grid
+		gridArea2.setColumnHidden(0, true);
+		gridArea2.setColumnHidden(3, true);
+		gridArea2.setColumnHidden(4, true);
+		gridArea2.setColumnHidden(5, true);
+		gridArea2.setColumnHidden(6, true);
+		fnSetColType(gridArea2, 1, "ch");
+
+		
+		var s_memberIDs = "${s_memberIDs}"; 
+
+		if(s_memberIDs != ""){
+
+			fnLoadDhtmlxGridJson(gridArea2, d.key, d.cols, d.data);
+
+		}
+	
+	}
+	
+	function setGridData1(tid){// 선택할 멤버 
+		var selectMember = ($('#selectMember').val() == undefined ? "" : $('#selectMember').val());
+		var result = new Object();
+		result.title = "${title}";
+		result.key = "project_SQL.getMemberList";		
+		result.header = "${menu.LN00024},#master_checkbox,${menu.LN00037},MemberID,MemberName,Name,TeamName";
+		result.cols = "CHK|MemberInfo|MemberID|MemberName|Name|TeamName";
+		result.widths = "30,70,*,0,0,0,0";
+		result.sorting = "int,str,str,str,str,str,str";
+		result.aligns = "center,center,left,center,center,center,center";
+		result.data = "languageID=${sessionScope.loginInfo.sessionCurrLangType}&UserLevel=ALL"
+					+ "&teamID="+tid+"&projectID=${projectId}&docCategory=${docCategory}"
+					+ "&selectMember="+selectMember;
+					
+					if($("#searchValue").val() != '' && $("#searchValue").val() != null){
+						result.data = result.data +"&searchKey="+ $("#searchKey").val();
+						result.data = result.data +"&searchValue="+ $("#searchValue").val();
+					}
+		return result;
+	}
+	
+	
+	function setGridData2(){// 선택된 멤버
+		
+		var selectMember = ($('#selectMember').val() == undefined ? "" : $('#selectMember').val());
+		var result = new Object();
+		result.title = "${title}";
+		result.key = "user_SQL.userList"; 
+		result.header = "${menu.LN00024},#master_checkbox,${menu.LN00037},MemberID,UserName,TeamName,TeamName";
+		result.cols = "CHK|MemberInfo|MemberID|UserNAME|TeamID|TeamID";
+		result.widths = "30,30,*,1,1,1,1";
+		result.sorting = "int,int,str,str,str,str,str";
+		result.aligns = "center,center,left,center,center,center,center";
+		result.data = "languageID=${sessionScope.loginInfo.sessionCurrLangType}&s_memberIDs="+selectMember;
+		return result;
+	}
+
+	function doSearchList1(NT){
+		var d = setGridData1(NT);
+		fnLoadDhtmlxGridJson(gridArea1, d.key, d.cols, d.data);
+	}
+	function doSearchList2(){
+		var d = setGridData1();
+
+		var selectMember = ($('#selectMember').val() == undefined ? "" : $('#selectMember').val());
+
+		d.data = "languageID=${sessionScope.loginInfo.sessionCurrLangType}&UserLevel=ALL"
+			+ "&blankPhotoUrlPath=${root}${HTML_IMG_DIR}/blank_photo.jpg"
+			+ "&photoUrlPath=<%=GlobalVal.EMP_PHOTO_URL%>"
+			+ "&selectMember="+selectMember
+			+ "&assignmentYN=Y";
+		if($("#searchValue").val() != '' && $("#searchValue").val() != null){
+			d.data = d.data +"&searchKey="+ $("#searchKey").val();
+			d.data = d.data +"&searchValue="+ $("#searchValue").val();
+		}
+		
+		fnLoadDhtmlxGridJson(gridArea1, d.key, d.cols, d.data);
+	}
+	
+	function clearSearchCon() {
+		$("#searchKey").val("1").attr("selected", "selected");
+		$("#searchValue").val("");
+	}
+			
+	function doClickMove(toRight){ 
+		var sourceGrid, targetGrid;
+		if(toRight){
+			sourceGrid = gridArea1;
+			targetGrid = gridArea2;
+		}else{	
+			sourceGrid = gridArea2;
+			targetGrid = gridArea1; 
+		}		
+		var moveRowStr = sourceGrid.getCheckedRows(1);
+		if(moveRowStr == null || moveRowStr.length == 0){alert("${WM00029}");return;}
+		var moveRowArray = moveRowStr.split(',');
+		
+		if(toRight){
+			for(var i = 0 ; i < moveRowArray.length ; i++){			
+
+				if(checkSelectItem(gridArea1.cells(moveRowArray[i],3).getValue())) {
+					var temp = gridArea1.cells(moveRowArray[i],4).getValue();
+					var msg = "<spring:message code='${sessionScope.loginInfo.sessionCurrLangCode}.WM00162' var='WM00162' arguments='"+temp+"'/>";
+					alert("${WM00162}");
+					continue;
+				}
+				
+				var newId = (new Date()).valueOf();
+				targetGrid.addRow(newId, [newId
+				                          ,"0"
+				                          ,sourceGrid.cells(moveRowArray[i],2).getValue()
+				                          ,sourceGrid.cells(moveRowArray[i],3).getValue() 
+				                          ,sourceGrid.cells(moveRowArray[i],5).getValue()
+				                          ,sourceGrid.cells(moveRowArray[i],6).getValue()			                          
+				                          ]				
+										  , targetGrid.getRowsNum());
+				if ($('#selectMember').val() == "" || $('#selectMember').val() == undefined) {
+					$('#selectMember').val(sourceGrid.cells(moveRowArray[i],3).getValue());
+				} else {				
+					$('#selectMember').val($('#selectMember').val() + "," + sourceGrid.cells(moveRowArray[i],3).getValue());
+				}
+			}
+		}else{			
+			var tempVal = "";
+			for(var i = 0 ; i < moveRowArray.length ; i++){			
+				var newId = (new Date()).valueOf();
+
+				var beforeDelArray = $('#selectMember').val().split(',');
+				var delArray = sourceGrid.cells(moveRowArray[i],3).getValue();
+				for (var j in beforeDelArray) {
+					if (beforeDelArray[j] == delArray) {
+						beforeDelArray.splice(j,1);
+						break;
+					}
+				}				
+				$('#selectMember').val(beforeDelArray);
+
+				if(!checkDeleteItem(gridArea2.cells(moveRowArray[i],3).getValue())) {
+
+					targetGrid.addRow(newId, [newId
+											  ,"0"
+											  ,sourceGrid.cells(moveRowArray[i],2).getValue() 
+											  ,sourceGrid.cells(moveRowArray[i],3).getValue() 
+											  ,sourceGrid.cells(moveRowArray[i],4).getValue()	
+											  ,sourceGrid.cells(moveRowArray[i],4).getValue()		
+											  ,sourceGrid.cells(moveRowArray[i],5).getValue()	
+											  ], targetGrid.getRowsNum());
+					
+				}
+
+
+				sourceGrid.deleteRow(moveRowArray[i]);
+			}
+				
+		}
+		
+		gridArea1.uncheckAll();
+		gridArea2.uncheckAll();
+		
+	}	
+	
+	function fnAssignMember() {
+	
+		if(confirm("${CM00001}")){
+			var checkedRows = gridArea2.getAllRowIds().split(",");
+			var memberIds = "";
+			var memberNames ="";
+			
+			for(var i = 0 ; i < checkedRows.length; i++ ){
+				if (memberIds == "") {
+					memberIds = gridArea2.cells(checkedRows[i], 3).getValue();
+				} else {
+					memberIds = memberIds + "," + gridArea2.cells(checkedRows[i], 3).getValue();
+				}
+
+				if (memberNames == "") {
+					memberNames = gridArea2.cells(checkedRows[i], 4).getValue()+"("+gridArea2.cells(checkedRows[i], 5).getValue()+")";
+				} else {
+					memberNames += ", "+gridArea2.cells(checkedRows[i], 4).getValue()+"("+gridArea2.cells(checkedRows[i], 5).getValue()+")";
+				}
+
+			}
+
+			if(docCategory == "SCH" || docCategory == "SR"){
+				$("#sharers", parent.opener.document).val(memberIds);
+				$("#sharerNames", parent.opener.document).val(memberNames);
+				$("#sharerNamesText", parent.opener.document).text(memberNames);
+				self.close();
+			}else{
+				var url = "assignMembers.do";
+				var data = "projectID=${projectID}&teamID=${teamID}&memberIds="+memberIds; 
+				var target = "saveFrame";
+				ajaxPage(url, data, target);
+			}
+		}	
+				
+	}
+		
+	function fnCallBack(){
+		parent.opener.searchMember("selectPjtMember.do");
+		self.close();
+		
+	}
+
+	function checkSelectItem(id) {
+		
+		var gridIDs = gridArea2.getAllRowIds();
+
+		if(gridIDs != null && gridIDs != "") {
+			gridIDs = gridIDs.split(',');
+			
+			for(var i=0; i < gridIDs.length; i++) {
+				var check = gridArea2.cells(gridIDs[i],3).getValue();
+				if(check == id) {
+					return true;
+				}
+				
+			}
+		}
+	}
+
+	
+	function checkDeleteItem(id) {
+		
+		var gridIDs = gridArea1.getAllRowIds();
+
+		if(gridIDs != null && gridIDs != "") {
+			gridIDs = gridIDs.split(',');
+			
+			for(var i=0; i < gridIDs.length; i++) {
+				var check = gridArea1.cells(gridIDs[i],3).getValue();
+				if(check == id) {
+					return true;
+				}
+				
+			}
+		}
+	}
+
+</script>
+
+<style>
+	#container table.dhtmlxLayoutPolyContainer_dhx_skyblue td.dhtmlxLayoutSinglePoly div.dhxcont_global_content_area{
+		top:44px!important;
+	}	
+	table.dhtmlxLayoutPolyContainer_dhx_skyblue td.dhtmlxLayoutSinglePoly div.dhtmlxPolyInfoBar div.dhtmlxInfoBarLabel{
+		top:6px;
+		margin-left:10px;
+	}
+	div.gridbox_dhx_web{
+		margin-left:0px;
+	}
+	table.dhtmlxLayoutPolyContainer_dhx_skyblue td.dhtmlxLayoutSinglePoly div.dhtmlxPolyInfoBar{
+		border-left:0px solid #fff;
+		height:40px;
+	}
+	
+	table.dhtmlxLayoutPolyContainer_dhx_skyblue td.dhtmlxLayoutSinglePoly div.dhxcont_global_content_area{
+		top:33px!important;
+	}
+	#container{border-top:1px solid #ccc!important;}
+	.objbox{
+		overflow-x:hidden!important;
+		overflow-y:scroll;
+	}
+</style>
+</head>
+<body style="width:100%; height:100%; margin;auto;">
+<div id="selectDiv">
+<form name="cfgFrm" id="cfgFrm" action="#" method="post" onsubmit="return false;">
+<input type="hidden" id="selectMember" name="selectMember" value="${s_memberIDs}" />
+<div id="contentwrapper" style="position:absolute;">	
+	
+	<div class="cmm_member_bar">
+		<li class="floatL"><p>* Select members</p></li>
+	</div>
+	
+	<div class="cmm_member_listBox">
+		<div class="container" id="container" style="width:100%;float:left;height:320px;"></div>
+			<div class="child_search01 floatL" style="width:100%; margin-left:-2px;border-right:0px solid #dfdfdf;">
+				<li style="margin-left:10px;padding-left:0px;padding-right:0;">	
+					<select id="searchKey" name="searchKey" class="pdL5">
+						<option value="Name">Name</option>
+						<option value="ID">ID</option>
+					</select>
+					<input type="text" id="searchValue" name="searchValue" value="${searchValue}" class="stext" style="width:150px;ime-mode:active;">
+					<input type="image" class="image searchPList" src="${root}${HTML_IMG_DIR}/btn_icon_search.gif" value="검색" OnClick="doSearchList2();">&nbsp;
+					<input type="image" class="image" src="${root}${HTML_IMG_DIR}/btn_search_clean.png" value="Clear" style="display:inline-block;" onclick="clearSearchCon();">
+				</li>
+	    	</div>
+			<table class="floatL" width="100%" border="0"  cellpadding="0" cellspacing="0">
+				<tr>
+					<td width="100%" align="left" class="pdT5" >
+						<div id="gridArea1" style="height:240px!important;width:100%;overflow-x:hidden; border-bottom:0px solid #fff;"></div>
+					</td>				
+				</tr>
+			</table>
+	</div>
+	
+	<div class="cmm_member_btnList">
+		<ul>
+			<li class="cmm_member_btn">&nbsp;<img src="${root}cmm/common/images/icon_add.png" /><input value="Add" type="submit" onclick="doClickMove(true);"></li>
+			<li class="cmm_member_btn">&nbsp;<img src="${root}cmm/common/images/icon_del.png" /><input value="Del" type="submit" onclick="doClickMove(false);"></li>
+		</ul>
+	</div>
+	
+	<div class="cmm_member_selectBox">
+		<table class="floatL" width="100%">	
+			<tr>				
+				<td class="floatL pd0" width="100%" align="left">
+					<div id="gridArea2" style="height:500px; width:100%; overflow-x:hidden; border-top:1px solid #dfdfdf;"></div>
+				</td>
+				<td class="cmm_member_save">
+					<span id="save" class="btn_pack medium icon"><span class="save"></span>
+					<input value="Save" type="submit" onclick="fnAssignMember()">
+					</span>
+				</td>
+			</tr>
+		</table>
+	</div>
+	
+</div>	
+</form>
+
+<iframe id="saveFrame" name="saveFrame" style="width:0px;height:0px;" frameborder="0"></iframe>
+</div>
+</body>
+</html>
